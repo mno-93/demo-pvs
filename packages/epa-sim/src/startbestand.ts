@@ -303,6 +303,30 @@ function entlassbriefHoffmann(): Record<string, unknown> {
       subject: { reference: `Patient/${pid}` },
       performedDateTime: '2026-07-18',
     },
+    // Implantat aus der Anamnese: Zweikammer-Schrittmacher seit 2019, nach der Kardioversion
+    // kontrolliert. ⚠ SNOMED CT 14106009 nicht gegen einen Terminologieserver geprüft; das
+    // Beispiel ist erfunden und fachlich von der Medizin zu bestätigen.
+    {
+      resourceType: 'Device',
+      id: 'kh-device-1',
+      type: {
+        coding: [
+          { system: SCT, code: '14106009', display: 'Cardiac pacemaker, device (physical object)' },
+        ],
+        text: 'Herzschrittmacher (Zweikammer)',
+      },
+      patient: { reference: `Patient/${pid}` },
+    },
+    {
+      resourceType: 'DeviceUseStatement',
+      id: 'kh-device-use-1',
+      status: 'active',
+      subject: { reference: `Patient/${pid}` },
+      timingDateTime: '2019-04-02',
+      recordedOn: '2026-07-17',
+      device: { reference: 'Device/kh-device-1' },
+      note: [{ text: 'Kontrolle nach Kardioversion am 18.07.2026 unauffällig' }],
+    },
   ];
   return {
     resourceType: 'Bundle',
@@ -808,6 +832,12 @@ export function startbestandAufbauen(): void {
     'Allergien und Unverträglichkeiten',
     '   Penicillin: makulopapulöses Exanthem unter Ampicillin i. v. (14.07.2026)',
     '   Iodhaltiges Kontrastmittel: Übelkeit (Unverträglichkeit)',
+    '',
+    'Prozeduren',
+    '   18.07.2026 Elektrische Kardioversion (OPS 8-640)',
+    '',
+    'Implantate',
+    '   Herzschrittmacher (Zweikammer) seit 04/2019, Kontrolle nach Kardioversion unauffällig',
     '',
     'Entlassmedikation',
     '   Apixaban 5 mg 1-0-1, Metformin 1000 mg 1-0-1, Ramipril 5 mg 1-0-0,',

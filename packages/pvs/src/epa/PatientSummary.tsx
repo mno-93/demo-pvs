@@ -99,7 +99,13 @@ export function PatientSummaryAnsicht({
         key={s}
         abschnitt={a}
         sprung={SPRUNG[s] ? () => sprung(s) : undefined}
-        inDokumentenSuchen={a.quelle === 'none' ? inDokumentenSuchen : undefined}
+        // Was nur unstrukturiert in Dokumenten steht, erreicht die Patient Summary nicht — der
+        // Weg in die Dokumente bleibt deshalb auch neben automatisch übernommenen Einträgen.
+        inDokumentenSuchen={
+          a.quelle === 'none' || a.quelle === 'structured-documents'
+            ? inDokumentenSuchen
+            : undefined
+        }
       >
         <Eintraege
           abschnitt={a}
@@ -420,6 +426,57 @@ function Eintraege({
                 </td>
                 <td>{i.zielkrankheiten.map((k) => k.anzeige).join(', ')}</td>
                 <td>{deutschesDatum(i.datum)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    );
+  }
+
+  if (a.schluessel === 'prozeduren' || a.schluessel === 'implantate') {
+    const quelleVon = (r: Ressource) =>
+      (r.extension ?? []).find((e) => e.url.endsWith('source-document'))?.valueReference?.display ??
+      '';
+    const prozeduren = a.schluessel === 'prozeduren';
+    return (
+      <table className="liste ps-tabelle">
+        <thead>
+          <tr>
+            <th>{prozeduren ? 'Prozedur' : 'Implantat'}</th>
+            <th>{prozeduren ? 'Datum' : 'seit'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {a.eintraege.map((r) => {
+            const geraet = ressourcen.find(
+              (x) =>
+                x.resourceType === 'Device' &&
+                `Device/${String(x.id)}` ===
+                  (r['device'] as { reference?: string } | undefined)?.reference,
+            );
+            const konzept = (prozeduren ? r['code'] : geraet?.['type']) as
+              | { text?: string; coding?: { system?: string; code?: string; display?: string }[] }
+              | undefined;
+            const kodierung = konzept?.coding?.[0];
+            const datum = String(
+              (prozeduren ? r['performedDateTime'] : r['timingDateTime']) ?? '',
+            ).slice(0, 10);
+            const notiz = (r['note'] as { text?: string }[] | undefined)?.[0]?.text;
+            return (
+              <tr key={String(r.id)}>
+                <td>
+                  <b>{konzept?.text ?? kodierung?.display ?? '—'}</b>
+                  <NeuMarke seit={seit} ressource={r} />
+                  {kodierung?.code && (
+                    <span className="code" style={{ marginLeft: 6 }}>
+                      {kodierung.system?.includes('ops') ? 'OPS' : 'SCT'} {kodierung.code}
+                    </span>
+                  )}
+                  {notiz && <div className="leise-klein">{notiz}</div>}
+                  <div className="ps-herkunft">aus {quelleVon(r)}</div>
+                </td>
+                <td>{datum ? deutschesDatum(datum) : '—'}</td>
               </tr>
             );
           })}

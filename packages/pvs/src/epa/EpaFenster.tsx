@@ -1241,6 +1241,7 @@ function InhalteAusDokumenten({
       allergien: [] as Eintrag[],
       werte: [] as Eintrag[],
       prozeduren: [] as Eintrag[],
+      implantate: [] as Eintrag[],
     };
     for (const v of strukturiert) {
       const inhalt = inhalte[v.id]?.inhalt;
@@ -1253,6 +1254,20 @@ function InhalteAusDokumenten({
         ...s.beobachtungen.filter((r) => r['valueQuantity']).map((r) => ({ ressource: r, quelle })),
       );
       ergebnis.prozeduren.push(...s.prozeduren.map((r) => ({ ressource: r, quelle })));
+      // Ein Implantat steht als DeviceUseStatement; Bezeichnung und Code trägt das Device.
+      const alle = ((inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
+        (e) => e.resource,
+      );
+      ergebnis.implantate.push(
+        ...s.implantate.map((r) => {
+          const geraet = alle.find(
+            (x) =>
+              x.resourceType === 'Device' &&
+              `Device/${String(x.id)}` === (r['device'] as { reference?: string })?.reference,
+          );
+          return { ressource: { ...r, code: geraet?.['type'] }, quelle };
+        }),
+      );
     }
     return ergebnis;
   }, [inhalte, strukturiert]);
@@ -1281,6 +1296,7 @@ function InhalteAusDokumenten({
       />
       <Eintragsliste titel="Laborwerte" eintraege={daten.werte} />
       <Eintragsliste titel="Prozeduren" eintraege={daten.prozeduren} />
+      <Eintragsliste titel="Implantate" eintraege={daten.implantate} />
     </>
   );
 }

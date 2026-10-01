@@ -38,7 +38,42 @@ function öffne(pfad: string) {
 }
 
 /** Ein Patient-Summary-Bundle: eine Diagnose aus der Liste, „keine bekannten Allergien", Rest leer. */
-function summaryBundle(kvnr: string) {
+const QUELLDOKUMENT = {
+  url: 'https://example.org/demo-pvs/fhir/StructureDefinition/source-document',
+  valueReference: {
+    reference: 'DocumentReference/dok-1',
+    display: 'Entlassbrief stationäre Behandlung, Klinikum Sonnenschein',
+  },
+};
+const PROZEDUR: Ressource = {
+  resourceType: 'Procedure',
+  id: 'proc-1',
+  status: 'completed',
+  code: {
+    coding: [{ system: 'http://fhir.de/CodeSystem/bfarm/ops', code: '8-640' }],
+    text: 'Kardiale Defibrillation und Kardioversion',
+  },
+  performedDateTime: '2026-07-18',
+  extension: [QUELLDOKUMENT],
+};
+const GERAET: Ressource = {
+  resourceType: 'Device',
+  id: 'dev-1',
+  type: {
+    coding: [{ system: 'http://snomed.info/sct', code: '14106009' }],
+    text: 'Herzschrittmacher (Zweikammer)',
+  },
+};
+const IMPLANTAT: Ressource = {
+  resourceType: 'DeviceUseStatement',
+  id: 'dus-1',
+  status: 'active',
+  timingDateTime: '2019-04-02',
+  device: { reference: 'Device/dev-1' },
+  extension: [QUELLDOKUMENT],
+};
+
+function summaryBundle(kvnr: string, mitDokumenten = false) {
   const z = startzustand();
   const d = z.diagnosen.find((x) => x.patientId === 'p-krueger')!;
   const condition = { ...diagnoseNachFhir({ ...d, id: 'cond-1' }, kvnr), id: 'cond-1' };
@@ -63,10 +98,14 @@ function summaryBundle(kvnr: string) {
   const eintraege: Partial<Record<string, Ressource>> = {
     '11450-4': condition,
     '48765-2': keineBekannte,
+    ...(mitDokumenten ? { '47519-4': PROZEDUR, '46264-8': IMPLANTAT } : {}),
   };
   const quelle: Record<string, string> = {
     '11450-4': 'condition-list',
     '48765-2': 'allergy-list',
+    ...(mitDokumenten
+      ? { '47519-4': 'structured-documents', '46264-8': 'structured-documents' }
+      : {}),
   };
   return {
     resourceType: 'Bundle',
@@ -96,11 +135,12 @@ function summaryBundle(kvnr: string) {
       },
       { resource: condition },
       { resource: keineBekannte },
+      ...(mitDokumenten ? [PROZEDUR, IMPLANTAT, GERAET].map((resource) => ({ resource })) : []),
     ],
   };
 }
 
-function aktensystem(mitSummary: boolean) {
+function aktensystem(mitSummary: boolean, mitDokumenten = false) {
   const z = startzustand();
   const kvnr = z.patienten.find((p) => p.id === 'p-krueger')!.versicherung.kvnr;
   return epaAttrappe((a): Attrappenantwort | undefined => {
@@ -109,7 +149,8 @@ function aktensystem(mitSummary: boolean) {
         ? { status: 200, inhalt: { resourceType: 'CapabilityStatement', status: 'draft' } }
         : undefined;
     }
-    if (a.pfad === `${PS}/Patient/$summary`) return { status: 200, inhalt: summaryBundle(kvnr) };
+    if (a.pfad === `${PS}/Patient/$summary`)
+      return { status: 200, inhalt: summaryBundle(kvnr, mitDokumenten) };
     if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference')) {
       return { status: 200, inhalt: suchergebnis([]) };
     }
@@ -172,5 +213,27 @@ describe('Patient Summary', () => {
     öffne('/patient/p-krueger/karteikarte');
     await vi.waitFor(() => expect(aufrufe.some((a) => a.pfad === `${PS}/metadata`)).toBe(true));
     expect(screen.queryByRole('button', { name: 'Patient Summary' })).toBeNull();
+  });
+
+  it('übernimmt Prozeduren und Implantate automatisch aus strukturierten Dokumenten', async () => {
+    aktensystem(true, true);
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-krueger')] });
+    öffne('/patient/p-krueger/karteikarte');
+    fireEvent.click(await screen.findByRole('button', { name: 'Patient Summary' }));
+    const dialog = screen.getByRole('dialog', { name: 'Elektronische Patientenakte' });
+
+    const prozeduren = await within(dialog).findByRole('region', { name: 'Prozeduren' });
+    expect(within(prozeduren).getByText('Kardiale Defibrillation und Kardioversion')).toBeDefined();
+    expect(within(prozeduren).getByText(/strukturierte Dokumente · automatisch/)).toBeDefined();
+    expect(prozeduren.textContent).toContain('OPS 8-640');
+    expect(prozeduren.textContent).toContain('aus Entlassbrief stationäre Behandlung');
+    // Was nur unstrukturiert in Dokumenten steht, bleibt über die Suche erreichbar.
+    expect(within(prozeduren).getByRole('button', { name: 'In Dokumenten suchen' })).toBeDefined();
+
+    const implantate = within(dialog).getByRole('region', {
+      name: 'Implantate und Medizinprodukte',
+    });
+    expect(within(implantate).getByText('Herzschrittmacher (Zweikammer)')).toBeDefined();
+    expect(implantate.textContent).toContain('02.04.2019');
   });
 });

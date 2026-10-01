@@ -20,6 +20,8 @@ export interface Dokumentinhalt {
   diagnosen: Ressource[];
   allergien: Ressource[];
   prozeduren: Ressource[];
+  /** Implantate und Medizinprodukte (DeviceUseStatement). */
+  implantate: Ressource[];
   beobachtungen: Ressource[];
 }
 
@@ -44,6 +46,7 @@ export function dokumentinhaltLesen(bundle: unknown): Dokumentinhalt {
     diagnosen: r.filter((x) => x.resourceType === 'Condition'),
     allergien: r.filter((x) => x.resourceType === 'AllergyIntolerance'),
     prozeduren: r.filter((x) => x.resourceType === 'Procedure'),
+    implantate: r.filter((x) => x.resourceType === 'DeviceUseStatement'),
     beobachtungen: r.filter((x) => x.resourceType === 'Observation' && !!x['valueQuantity']),
   };
 }

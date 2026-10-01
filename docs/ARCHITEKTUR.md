@@ -111,7 +111,7 @@ Domänentypen zurück. Der Splitscreen liegt in `pvs/src/module/diagnosen/Splits
 
 `epa-sim/src/patient-summary.ts` bildet die Patient Summary bei jeder Abfrage
 (`Patient/$summary`) aus dem Diagnose-Service, dem Medication Service und den strukturierten
-Laborbefunden — [0021](entscheidungen/0021-patient-summary-als-sicht.md). Abschnitte und ihre
+Dokumenten — Laborwerte, Prozeduren und Implantate ([0031](entscheidungen/0031-prozeduren-und-implantate-aus-dokumenten.md)) — [0021](entscheidungen/0021-patient-summary-als-sicht.md). Abschnitte und ihre
 Codes legt `kern/fhir/patient-summary.ts` fest; dort liest das PVS das Bundle auch wieder. Die
 Ansicht liegt in `pvs/src/epa/PatientSummary.tsx`; sie hat keine Eingabe, sondern führt über die
 Quelle je Abschnitt in den pflegenden Bereich der Kartei.

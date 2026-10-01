@@ -216,6 +216,7 @@ export function datumVon(ressource: Ressource): string {
     (ressource['onsetDateTime'] as string) ??
     (ressource['effectiveDateTime'] as string) ??
     (ressource['performedDateTime'] as string) ??
+    (ressource['timingDateTime'] as string) ??
     (ressource['authoredOn'] as string) ??
     (ressource['whenHandedOver'] as string) ??
     (ressource['date'] as string) ??

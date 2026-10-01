@@ -207,6 +207,69 @@ function impfungen(kvnr: string, mitListen: boolean): Teil {
   return { quelle: 'immunization-list', eintraege, dazu: aenderungen(ablage, eintraege) };
 }
 
+/**
+ * Einträge eines Typs aus den sichtbaren strukturierten Dokumenten — automatisch, wie die
+ * Laborwerte. Jeder Eintrag trägt einen Verweis auf sein Quelldokument; derselbe Eintrag aus zwei
+ * Dokumenten (gleicher Code, gleiches Datum) erscheint einmal. Unstrukturierte Dokumente (PDF,
+ * eArztbrief ohne Einträge) tragen nichts bei.
+ */
+function ausDokumenten(
+  kvnr: string,
+  typ: 'Procedure' | 'DeviceUseStatement',
+  datum: (r: Ressource) => string,
+): Teil {
+  const gesehen = new Set<string>();
+  const eintraege: Ressource[] = [];
+  const dazu: Ressource[] = [];
+  const dokumente = bestandFuer(kvnr)
+    .dokumente.filter((x) => sichtbar(x) && x.inhalt)
+    .sort((a, b) => b.erstellt.localeCompare(a.erstellt));
+  for (const d of dokumente) {
+    const ressourcen = ((d.inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
+      (e) => e.resource,
+    );
+    for (const r of ressourcen.filter((x) => x.resourceType === typ)) {
+      const geraet =
+        typ === 'DeviceUseStatement'
+          ? ressourcen.find(
+              (x) =>
+                x.resourceType === 'Device' &&
+                `Device/${String(x.id)}` ===
+                  (r['device'] as { reference?: string } | undefined)?.reference,
+            )
+          : undefined;
+      const schluessel = `${JSON.stringify((geraet ?? r)['code'] ?? (geraet ?? r)['type'] ?? '')}|${datum(r)}`;
+      if (gesehen.has(schluessel)) continue;
+      gesehen.add(schluessel);
+      const id = `${String(r.id)}-${d.id}`;
+      const quelle = {
+        url: 'https://example.org/demo-pvs/fhir/StructureDefinition/source-document',
+        valueReference: {
+          reference: `DocumentReference/${eintragsUuid(d)}`,
+          display: `${d.titel}, ${d.einrichtung}`,
+        },
+      };
+      if (geraet) {
+        const geraetId = `${String(geraet.id)}-${d.id}`;
+        dazu.push({ ...geraet, id: geraetId });
+        eintraege.push({
+          ...r,
+          id,
+          device: { reference: `Device/${geraetId}` },
+          extension: [...(r.extension ?? []), quelle],
+        });
+      } else {
+        eintraege.push({ ...r, id, extension: [...(r.extension ?? []), quelle] });
+      }
+    }
+  }
+  return {
+    quelle: eintraege.length > 0 ? 'structured-documents' : 'none',
+    eintraege,
+    dazu,
+  };
+}
+
 function ohneQuelle(): Teil {
   return { quelle: 'none', eintraege: [], dazu: [] };
 }
@@ -240,8 +303,8 @@ export function patientSummaryBilden(kvnr: string): Ressource {
     medikation: medikation(kvnr, mitListen),
     laborwerte: laborwerte(kvnr),
     impfungen: impfungen(kvnr, mitListen),
-    prozeduren: ohneQuelle(),
-    implantate: ohneQuelle(),
+    prozeduren: ausDokumenten(kvnr, 'Procedure', (r) => String(r['performedDateTime'] ?? '')),
+    implantate: ausDokumenten(kvnr, 'DeviceUseStatement', (r) => String(r['timingDateTime'] ?? '')),
     erklaerungen: ohneQuelle(),
   };
   const patient = { ...patientFuer(kvnr), meta: { profile: [EPS.patient] } };

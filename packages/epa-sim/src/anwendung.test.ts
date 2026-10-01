@@ -382,10 +382,20 @@ describe('✦ Patient Summary', () => {
     expect(abschnitt('impfungen').quelle).toBe('immunization-list');
     expect(abschnitt('impfungen').eintraege).toHaveLength(5);
     expect(String(abschnitt('impfungen').eintraege[0]!['occurrenceDateTime'])).toBe('2025-10-21');
-    for (const s of ['prozeduren', 'implantate']) {
-      expect(abschnitt(s).leer).toBe('unavailable');
-      expect(abschnitt(s).quelle).toBe('none');
-    }
+    // Automatisch aus dem strukturierten Entlassbrief, mit Verweis auf das Quelldokument.
+    const prozedur = abschnitt('prozeduren');
+    expect(prozedur.quelle).toBe('structured-documents');
+    expect(JSON.stringify(prozedur.eintraege[0]!['code'])).toContain('8-640');
+    expect(JSON.stringify(prozedur.eintraege[0]!.extension)).toContain('Entlassbrief');
+    const implantat = abschnitt('implantate');
+    expect(implantat.quelle).toBe('structured-documents');
+    expect(implantat.eintraege[0]!.resourceType).toBe('DeviceUseStatement');
+    const geraet = ps.ressourcen.find(
+      (r) =>
+        `Device/${String(r.id)}` ===
+        (implantat.eintraege[0]!['device'] as { reference: string }).reference,
+    );
+    expect(JSON.stringify(geraet?.['type'])).toContain('14106009');
   });
 
   it('bietet die Impfliste erst in Stufe 2; Stufe 1 lässt den Abschnitt leer', async () => {
@@ -416,6 +426,9 @@ describe('✦ Patient Summary', () => {
     // Die Medikationsliste enthält auch Metformin, das nicht im Plan steht.
     expect(abschnitt('medikation').quelle).toBe('medication-list');
     expect(abschnitt('medikation').eintraege).toHaveLength(5);
+    // Prozeduren und Implantate entstehen ohnehin automatisch aus strukturierten Dokumenten.
+    expect(abschnitt('prozeduren').quelle).toBe('structured-documents');
+    expect(abschnitt('implantate').quelle).toBe('structured-documents');
   });
 
   it('zeigt eine neue Allergie erst, wenn sie markiert ist — sie folgt der Liste ohne eigenen Schreibweg', async () => {

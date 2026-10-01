@@ -57,6 +57,7 @@ export function psRelevanzSetzen(r: Ressource, wert: boolean): Ressource {
  * - `medication-plan`: eMP — ärztlich geführt
  * - `medication-list`: eML — automatisch aus Verordnung und Abgabe
  * - `lab-documents`: strukturierte Laborbefunde — automatisch aus Dokumenten
+ * - `structured-documents`: Einträge strukturierter Dokumente (Entlassbrief) — automatisch
  * - `none`: kein Dienst, aus dem der Abschnitt gebildet werden könnte
  */
 export type PsQuelle =
@@ -65,6 +66,7 @@ export type PsQuelle =
   | 'medication-plan'
   | 'medication-list'
   | 'lab-documents'
+  | 'structured-documents'
   | 'immunization-list'
   | 'none';
 
@@ -74,6 +76,7 @@ export const PS_QUELLE_BEZEICHNUNG: Record<PsQuelle, string> = {
   'medication-plan': 'Medikationsplan',
   'medication-list': 'Medikationsliste',
   'lab-documents': 'Laborbefunde',
+  'structured-documents': 'strukturierte Dokumente',
   'immunization-list': 'Impfliste',
   none: 'keine Quelle',
 };
