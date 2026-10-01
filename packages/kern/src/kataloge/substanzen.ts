@@ -1,0 +1,1664 @@
+// Erzeugt aus daten/kataloge/allergie-substanzen.json — nicht von Hand ändern.
+// Neu erzeugen mit: node werkzeuge/kataloge-erzeugen.mjs
+import type { SnomedWerteintrag, Katalogkopf } from './typen.js';
+
+export const substanzenKopf: Katalogkopf = {
+  "_katalog": "KBV_VS_AllergyIntolerance_Substance_SNOMED_CT",
+  "_art": "veröffentlichte Werteliste, Zentraler Terminologieserver (BfArM)",
+  "_hinweis": "Übernommen mit werkzeuge/wertelisten-vom-zts.mjs, nicht von Hand ändern. Bindung extensible: Codes außerhalb der Liste sind zulässig. Synonyme und englische Anzeige sind Ergänzungen der Demo für die Suche.",
+  "_stand": {
+    "titel": "Allergien Überempfindlichkeitsreaktionen Auslösende Substanz",
+    "quelle": "https://terminologien.bfarm.de/ValueSet-4fd7723b-601b-5717-ae79-e5d180367e16.html",
+    "kanonisch": "https://fhir.kbv.de/ValueSet/KBV_VS_AllergyIntolerance_Substance_SNOMED_CT",
+    "version": "1.0.0",
+    "stand": "2026-07-21",
+    "snomedVersion": "http://snomed.info/sct/11000274103/version/20260515"
+  }
+};
+
+export const substanzen: readonly SnomedWerteintrag[] = [
+  {
+    "snomed": "108476002",
+    "anzeigeEn": "Torsemide",
+    "bezeichnung": "Torasemid",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "111088007",
+    "anzeigeEn": "Latex",
+    "bezeichnung": "Latex",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "111095003",
+    "anzeigeEn": "Formaldehyde",
+    "bezeichnung": "Formaldehyd",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "11320009",
+    "anzeigeEn": "Sucrose",
+    "bezeichnung": "Saccharose",
+    "synonyme": [
+      "Sucrose"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "11526002",
+    "anzeigeEn": "Aspartame",
+    "bezeichnung": "Aspartam",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "116081000",
+    "anzeigeEn": "Celecoxib",
+    "bezeichnung": "Celecoxib",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "116601002",
+    "anzeigeEn": "Prednisolone",
+    "bezeichnung": "Prednisolon",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "121012000",
+    "anzeigeEn": "Aspergillus fumigatus antigen",
+    "bezeichnung": "Aspergillus-fumigatus-Antigen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "1348311005",
+    "anzeigeEn": "Gadolinium-based contrast media",
+    "bezeichnung": "Gadoliniumhaltiges Kontrastmittel",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "1354797006",
+    "anzeigeEn": "Fragrance mix I",
+    "bezeichnung": "Duftstoff-Mix I",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "1354798001",
+    "anzeigeEn": "Fragrance mix II",
+    "bezeichnung": "Duftstoff-Mix II",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "1354800008",
+    "anzeigeEn": "Compositae allergen patch test substance",
+    "bezeichnung": "Kompositen-Mix im Epikutantest",
+    "synonyme": [
+      "Kompositen-Mix"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "13577000",
+    "anzeigeEn": "Nut",
+    "bezeichnung": "Nuss",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "138761000146100",
+    "anzeigeEn": "Hydroxyisohexyl 3-cyclohexene carboxaldehyde",
+    "bezeichnung": "Lyral",
+    "synonyme": [
+      "HICC"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "143481000146109",
+    "anzeigeEn": "Domestic dog protein",
+    "bezeichnung": "Hundeprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "143491000146106",
+    "anzeigeEn": "Domestic cat protein",
+    "bezeichnung": "Katzenprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "143501000146101",
+    "anzeigeEn": "Domestic Guinea pig protein",
+    "bezeichnung": "Meerschweinchenprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "146651000146106",
+    "anzeigeEn": "Horse protein",
+    "bezeichnung": "Pferdeprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "146691000146104",
+    "anzeigeEn": "Bird protein",
+    "bezeichnung": "Vogelprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "19839007",
+    "anzeigeEn": "Sorbitol",
+    "bezeichnung": "Sorbitol",
+    "synonyme": [
+      "Sorbit"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "226723006",
+    "anzeigeEn": "Buckwheat - cereal",
+    "bezeichnung": "Buchweizen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "226915003",
+    "anzeigeEn": "Red meat",
+    "bezeichnung": "Rotes Fleisch",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227313005",
+    "anzeigeEn": "Pulse vegetable",
+    "bezeichnung": "Hülsenfrucht",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227388008",
+    "anzeigeEn": "Cinnamon",
+    "bezeichnung": "Zimt",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227493005",
+    "anzeigeEn": "Cashew nut",
+    "bezeichnung": "Cashewnuss",
+    "synonyme": [
+      "Cashew-Kern"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227511008",
+    "anzeigeEn": "Pine nut",
+    "bezeichnung": "Pinienkern",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227512001",
+    "anzeigeEn": "Pistachio nut",
+    "bezeichnung": "Pistazie",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "227598003",
+    "anzeigeEn": "Honey",
+    "bezeichnung": "Honig",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "228104004",
+    "anzeigeEn": "Butylated hydroxyanisole",
+    "bezeichnung": "Butylhydroxyanisol",
+    "synonyme": [
+      "E 320"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255667006",
+    "anzeigeEn": "Paraffin",
+    "bezeichnung": "Paraffin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255840003",
+    "anzeigeEn": "Colophony",
+    "bezeichnung": "Kolophonium",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255842006",
+    "anzeigeEn": "Balsam of Peru",
+    "bezeichnung": "Perubalsam",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255881006",
+    "anzeigeEn": "2-bromo-2-nitropropane-1,3-diol",
+    "bezeichnung": "2-Brom-2-Nitro-1,3-Propandiol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255884003",
+    "anzeigeEn": "Chlorocresol",
+    "bezeichnung": "Chlorkresol",
+    "synonyme": [
+      "Chlorocresol",
+      "4-Chlor-3-methylphenol"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255905003",
+    "anzeigeEn": "Sorbitan sesquioleate",
+    "bezeichnung": "Sorbitansesquioleat",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "255970007",
+    "anzeigeEn": "Propolis",
+    "bezeichnung": "Propolis",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256030008",
+    "anzeigeEn": "Jasmine synthetic",
+    "bezeichnung": "Synthetisches Jasminöl",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256037006",
+    "anzeigeEn": "Ylang-ylang oil",
+    "bezeichnung": "Ylang-Ylang-Öl",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256216009",
+    "anzeigeEn": "Methyldibromoglutaronitrile",
+    "bezeichnung": "Methyldibromoglutaronitril",
+    "synonyme": [
+      "Bromothalonil",
+      "2-Brom-2-(brommethyl)pentandinitril"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256225003",
+    "anzeigeEn": "N-isopropyl-N'-phenyl paraphenylenediamine",
+    "bezeichnung": "N-Isopropyl-N'-phenyl-p-phenylendiamin",
+    "synonyme": [
+      "IPPD",
+      "IPPD - N-Isopropyl-N'-phenyl-p-phenylendiamin"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256261008",
+    "anzeigeEn": "Alder pollen",
+    "bezeichnung": "Erlenpollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256262001",
+    "anzeigeEn": "European white birch pollen",
+    "bezeichnung": "Silberbirkenpollen",
+    "synonyme": [
+      "Betula-pendula-Pollen",
+      "Pollen der Europäischen Weißbirke"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256263006",
+    "anzeigeEn": "Hazel pollen",
+    "bezeichnung": "Haselpollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256266003",
+    "anzeigeEn": "Ash pollen",
+    "bezeichnung": "Eschenpollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256277009",
+    "anzeigeEn": "Grass pollen",
+    "bezeichnung": "Gräserpollen",
+    "synonyme": [
+      "Graspollen"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256293000",
+    "anzeigeEn": "Mugwort pollen",
+    "bezeichnung": "Beifußpollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256303006",
+    "anzeigeEn": "Ragweed pollen",
+    "bezeichnung": "Ambrosiapollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256307007",
+    "anzeigeEn": "Banana",
+    "bezeichnung": "Banane",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256319004",
+    "anzeigeEn": "Carrot",
+    "bezeichnung": "Karotte",
+    "synonyme": [
+      "Möhre"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256326004",
+    "anzeigeEn": "Celery",
+    "bezeichnung": "Sellerie",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256350002",
+    "anzeigeEn": "Almond",
+    "bezeichnung": "Mandel",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256351003",
+    "anzeigeEn": "Brazil nut",
+    "bezeichnung": "Paranuss",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256352005",
+    "anzeigeEn": "Walnut - nut",
+    "bezeichnung": "Walnuss - Nuss",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256353000",
+    "anzeigeEn": "Hazelnut",
+    "bezeichnung": "Haselnuss",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "256440004",
+    "anzeigeEn": "Wasp venom",
+    "bezeichnung": "Wespengift",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "259119007",
+    "anzeigeEn": "Cineole",
+    "bezeichnung": "Cineol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "260167008",
+    "anzeigeEn": "Sesame seed",
+    "bezeichnung": "Sesamsamen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "260176001",
+    "anzeigeEn": "Kiwi",
+    "bezeichnung": "Kiwi",
+    "synonyme": [
+      "Kiwifrucht"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "2649007",
+    "anzeigeEn": "Azo dye",
+    "bezeichnung": "Azofarbstoff",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "28230009",
+    "anzeigeEn": "Poultry",
+    "bezeichnung": "Geflügel",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "28421003",
+    "anzeigeEn": "Sorbic acid",
+    "bezeichnung": "Sorbinsäure",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "286550009",
+    "anzeigeEn": "Hen's egg",
+    "bezeichnung": "Hühnerei",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "288326000",
+    "anzeigeEn": "Hornet venom",
+    "bezeichnung": "Hornissengift",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "288328004",
+    "anzeigeEn": "Bee venom",
+    "bezeichnung": "Bienengift",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "288460008",
+    "anzeigeEn": "Bumble bee venom",
+    "bezeichnung": "Hummelgift",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "363528007",
+    "anzeigeEn": "Sulfamethoxazole",
+    "bezeichnung": "Sulfamethoxazol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "3718001",
+    "anzeigeEn": "Cow's milk",
+    "bezeichnung": "Kuhmilch",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372478003",
+    "anzeigeEn": "Doxycycline",
+    "bezeichnung": "Doxycyclin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372509005",
+    "anzeigeEn": "Tamsulosin",
+    "bezeichnung": "Tamsulosin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372512008",
+    "anzeigeEn": "Candesartan",
+    "bezeichnung": "Candesartan",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372567009",
+    "anzeigeEn": "Metformin",
+    "bezeichnung": "Metformin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372584003",
+    "anzeigeEn": "Dexamethasone",
+    "bezeichnung": "Dexamethason",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372588000",
+    "anzeigeEn": "Naproxen",
+    "bezeichnung": "Naproxen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372594008",
+    "anzeigeEn": "Sertraline",
+    "bezeichnung": "Sertralin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372651006",
+    "anzeigeEn": "Cefadroxil",
+    "bezeichnung": "Cefadroxil",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372658000",
+    "anzeigeEn": "Enalapril",
+    "bezeichnung": "Enalapril",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372670001",
+    "anzeigeEn": "Ceftriaxone",
+    "bezeichnung": "Ceftriaxon",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372682005",
+    "anzeigeEn": "Diphenhydramine",
+    "bezeichnung": "Diphenhydramin",
+    "synonyme": [
+      "DPH - Diphenhydramin",
+      "DHM - Diphenhydramin"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372687004",
+    "anzeigeEn": "Amoxicillin",
+    "bezeichnung": "Amoxicillin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372694001",
+    "anzeigeEn": "Erythromycin",
+    "bezeichnung": "Erythromycin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372725003",
+    "anzeigeEn": "Phenoxymethylpenicillin",
+    "bezeichnung": "Phenoxymethylpenicillin",
+    "synonyme": [
+      "Penicillin V"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372786004",
+    "anzeigeEn": "Clindamycin",
+    "bezeichnung": "Clindamycin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372821002",
+    "anzeigeEn": "Amiodarone",
+    "bezeichnung": "Amiodaron",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372826007",
+    "anzeigeEn": "Metoprolol",
+    "bezeichnung": "Metoprolol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372833007",
+    "anzeigeEn": "Cefuroxime",
+    "bezeichnung": "Cefuroxim",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372836004",
+    "anzeigeEn": "Piperacillin",
+    "bezeichnung": "Piperacillin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372840008",
+    "anzeigeEn": "Ciprofloxacin",
+    "bezeichnung": "Ciprofloxacin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "372877000",
+    "anzeigeEn": "Heparin",
+    "bezeichnung": "Heparin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373444002",
+    "anzeigeEn": "Atorvastatin",
+    "bezeichnung": "Atorvastatin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373464007",
+    "anzeigeEn": "Ketamine",
+    "bezeichnung": "Ketamin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373492002",
+    "anzeigeEn": "Fentanyl",
+    "bezeichnung": "Fentanyl",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373505007",
+    "anzeigeEn": "Phenobarbital",
+    "bezeichnung": "Phenobarbital",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373513008",
+    "anzeigeEn": "Indometacin",
+    "bezeichnung": "Indometacin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373529000",
+    "anzeigeEn": "Morphine",
+    "bezeichnung": "Morphin",
+    "synonyme": [
+      "Morphium"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373543005",
+    "anzeigeEn": "Nitrofurantoin",
+    "bezeichnung": "Nitrofurantoin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373562008",
+    "anzeigeEn": "Tilidine",
+    "bezeichnung": "Tilidin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "373567002",
+    "anzeigeEn": "Losartan",
+    "bezeichnung": "Losartan",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "38182007",
+    "anzeigeEn": "Galactose",
+    "bezeichnung": "Galactose",
+    "synonyme": [
+      "Galaktose"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386839004",
+    "anzeigeEn": "Remifentanil",
+    "bezeichnung": "Remifentanil",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386847004",
+    "anzeigeEn": "Mirtazapine",
+    "bezeichnung": "Mirtazapin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386858008",
+    "anzeigeEn": "Tramadol",
+    "bezeichnung": "Tramadol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386864001",
+    "anzeigeEn": "Amlodipine",
+    "bezeichnung": "Amlodipin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386868003",
+    "anzeigeEn": "Bisoprolol",
+    "bezeichnung": "Bisoprolol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386872004",
+    "anzeigeEn": "Ramipril",
+    "bezeichnung": "Ramipril",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386873009",
+    "anzeigeEn": "Lisinopril",
+    "bezeichnung": "Lisinopril",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386876001",
+    "anzeigeEn": "Valsartan",
+    "bezeichnung": "Valsartan",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386898005",
+    "anzeigeEn": "Nevirapine",
+    "bezeichnung": "Nevirapin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "386961008",
+    "anzeigeEn": "Aprotinin",
+    "bezeichnung": "Aprotinin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387025007",
+    "anzeigeEn": "Oxcarbazepin",
+    "bezeichnung": "Oxcarbazepin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387055000",
+    "anzeigeEn": "Meloxicam",
+    "bezeichnung": "Meloxicam",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387069000",
+    "anzeigeEn": "Telmisartan",
+    "bezeichnung": "Telmisartan",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387135004",
+    "anzeigeEn": "Allopurinol",
+    "bezeichnung": "Allopurinol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387137007",
+    "anzeigeEn": "Omeprazole",
+    "bezeichnung": "Omeprazol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387150008",
+    "anzeigeEn": "Bupivacaine",
+    "bezeichnung": "Bupivacain",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387153005",
+    "anzeigeEn": "Piroxicam",
+    "bezeichnung": "Piroxicam",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387159009",
+    "anzeigeEn": "Rifampin",
+    "bezeichnung": "Rifampicin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387170002",
+    "anzeigeEn": "Ampicillin",
+    "bezeichnung": "Ampicillin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387179001",
+    "anzeigeEn": "Trimethoprim",
+    "bezeichnung": "Trimethoprim",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387207008",
+    "anzeigeEn": "Ibuprofen",
+    "bezeichnung": "Ibuprofen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387220006",
+    "anzeigeEn": "Phenytoin",
+    "bezeichnung": "Phenytoin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387222003",
+    "anzeigeEn": "Carbamazepine",
+    "bezeichnung": "Carbamazepin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387248006",
+    "anzeigeEn": "Sulfasalazine",
+    "bezeichnung": "Sulfasalazin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387256009",
+    "anzeigeEn": "Primidone",
+    "bezeichnung": "Primidon",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387270009",
+    "anzeigeEn": "Cefaclor",
+    "bezeichnung": "Cefaclor",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387286002",
+    "anzeigeEn": "Methadone",
+    "bezeichnung": "Methadon",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387341002",
+    "anzeigeEn": "Heroin",
+    "bezeichnung": "Heroin",
+    "synonyme": [
+      "Diacetylmorphin",
+      "Diamorphin",
+      "DAM - Diacetylmorphin"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387350000",
+    "anzeigeEn": "Benzoic acid",
+    "bezeichnung": "Benzoesäure",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387414008",
+    "anzeigeEn": "Menthol",
+    "bezeichnung": "Menthol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387458008",
+    "anzeigeEn": "Aspirin",
+    "bezeichnung": "Acetylsalicylsäure",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387461009",
+    "anzeigeEn": "Digoxin",
+    "bezeichnung": "Digoxin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387475002",
+    "anzeigeEn": "Furosemide",
+    "bezeichnung": "Furosemid",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387480006",
+    "anzeigeEn": "Lidocaine",
+    "bezeichnung": "Lidocain",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387487009",
+    "anzeigeEn": "Clarithromycin",
+    "bezeichnung": "Clarithromycin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387517004",
+    "anzeigeEn": "Paracetamol",
+    "bezeichnung": "Paracetamol",
+    "synonyme": [
+      "Acetaminophen"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387525002",
+    "anzeigeEn": "Hydrochlorothiazide",
+    "bezeichnung": "Hydrochlorothiazid",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387531004",
+    "anzeigeEn": "Azithromycin",
+    "bezeichnung": "Azithromycin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387534007",
+    "anzeigeEn": "Cefpodoxime",
+    "bezeichnung": "Cefpodoxim",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387536009",
+    "anzeigeEn": "Cefixime",
+    "bezeichnung": "Cefixim",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387542008",
+    "anzeigeEn": "Amdinocillin pivoxil",
+    "bezeichnung": "Pivmecillinam",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387551000",
+    "anzeigeEn": "Ofloxacin",
+    "bezeichnung": "Ofloxacin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387552007",
+    "anzeigeEn": "Levofloxacin",
+    "bezeichnung": "Levofloxacin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387562000",
+    "anzeigeEn": "Lamotrigine",
+    "bezeichnung": "Lamotrigin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "387584000",
+    "anzeigeEn": "Simvastatin",
+    "bezeichnung": "Simvastatin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "395821003",
+    "anzeigeEn": "Pantoprazole",
+    "bezeichnung": "Pantoprazol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "395939008",
+    "anzeigeEn": "Clavulanic acid",
+    "bezeichnung": "Clavulansäure",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "395986007",
+    "anzeigeEn": "Lercanidipine",
+    "bezeichnung": "Lercanidipin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "409134009",
+    "anzeigeEn": "Etoricoxib",
+    "bezeichnung": "Etoricoxib",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "409149001",
+    "anzeigeEn": "Ezetimibe",
+    "bezeichnung": "Ezetimib",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "410457007",
+    "anzeigeEn": "Permethrin",
+    "bezeichnung": "Permethrin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "412046002",
+    "anzeigeEn": "Paraben and/or paraben derivative",
+    "bezeichnung": "Paraben und/oder Parabenderivat",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "412071004",
+    "anzeigeEn": "Wheat",
+    "bezeichnung": "Weizen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "412439003",
+    "anzeigeEn": "Moxifloxacin",
+    "bezeichnung": "Moxifloxacin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "419852003",
+    "anzeigeEn": "Thiuram derivative",
+    "bezeichnung": "Thiuramderivat",
+    "synonyme": [
+      "Thiuram"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "421208001",
+    "anzeigeEn": "Levomenthol",
+    "bezeichnung": "Levomenthol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "42416001",
+    "anzeigeEn": "Lanolin",
+    "bezeichnung": "Lanolin",
+    "synonyme": [
+      "Wollfett",
+      "Wollwachs"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "426722004",
+    "anzeigeEn": "Iodinated contrast media",
+    "bezeichnung": "Iodhaltiges Kontrastmittel",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "43921001",
+    "anzeigeEn": "Nickel compound",
+    "bezeichnung": "Nickelverbindung",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "47703008",
+    "anzeigeEn": "Lactose",
+    "bezeichnung": "Laktose",
+    "synonyme": [
+      "Milchzucker",
+      "Lactose"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "51905005",
+    "anzeigeEn": "Mustard",
+    "bezeichnung": "Senf",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "54107004",
+    "anzeigeEn": "Sandalwood oil",
+    "bezeichnung": "Sandelholzöl",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "54808007",
+    "anzeigeEn": "Cobalt",
+    "bezeichnung": "Kobalt",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "55902002",
+    "anzeigeEn": "Benzyl alcohol",
+    "bezeichnung": "Benzylalkohol",
+    "synonyme": [
+      "Phenylmethanol"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "58202007",
+    "anzeigeEn": "Fructose",
+    "bezeichnung": "Fruktose",
+    "synonyme": [
+      "Fructose"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "59560006",
+    "anzeigeEn": "Mepivacaine",
+    "bezeichnung": "Mepivacain",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "63004003",
+    "anzeigeEn": "Phenylalanine",
+    "bezeichnung": "Phenylalanin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "64686009",
+    "anzeigeEn": "Benzalkonium chloride",
+    "bezeichnung": "Benzalkoniumchlorid",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "65345002",
+    "anzeigeEn": "Epoxy resin",
+    "bezeichnung": "Epoxidharz",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "700067006",
+    "anzeigeEn": "Rosuvastatin",
+    "bezeichnung": "Rosuvastatin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "703107005",
+    "anzeigeEn": "Articain",
+    "bezeichnung": "Articain",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "7034005",
+    "anzeigeEn": "Diclofenac",
+    "bezeichnung": "Diclofenac",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "703894008",
+    "anzeigeEn": "Empagliflozin",
+    "bezeichnung": "Empagliflozin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "710179004",
+    "anzeigeEn": "Lupine seed",
+    "bezeichnung": "Lupinensamen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "711090003",
+    "anzeigeEn": "Acarus siro protein",
+    "bezeichnung": "Mehlmilbenprotein",
+    "synonyme": [
+      "Acarus-siro-Protein"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "711234000",
+    "anzeigeEn": "Alternaria alternata protein antigen",
+    "bezeichnung": "Antigen aus Alternaria-alternata-Protein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "711242004",
+    "anzeigeEn": "Cladosporium herbarum protein antigen",
+    "bezeichnung": "Antigen aus Cladosporium-herbarum-Protein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "720687003",
+    "anzeigeEn": "Dust mite protein",
+    "bezeichnung": "Hausstaubmilbenprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "735049002",
+    "anzeigeEn": "Peach",
+    "bezeichnung": "Pfirsich",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "735215001",
+    "anzeigeEn": "Apple",
+    "bezeichnung": "Apfel",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "735245003",
+    "anzeigeEn": "Cod",
+    "bezeichnung": "Kabeljau",
+    "synonyme": [
+      "Dorsch"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "735971005",
+    "anzeigeEn": "Fish",
+    "bezeichnung": "Fisch",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "735977009",
+    "anzeigeEn": "Marine crustacean",
+    "bezeichnung": "Krustentier",
+    "synonyme": [
+      "Krebstier",
+      "Meereskrebstier"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "74523009",
+    "anzeigeEn": "Sulfadiazine",
+    "bezeichnung": "Sulfadiazin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "762952008",
+    "anzeigeEn": "Peanut",
+    "bezeichnung": "Erdnuss",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "764146007",
+    "anzeigeEn": "Penicillin",
+    "bezeichnung": "Penicillin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "764147003",
+    "anzeigeEn": "Cephalosporin",
+    "bezeichnung": "Cephalosporin",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "764148008",
+    "anzeigeEn": "Quinolone",
+    "bezeichnung": "Chinolon",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "767206002",
+    "anzeigeEn": "Chromium and/or chromium compound",
+    "bezeichnung": "Chrom und/oder Chromverbindungen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "767273009",
+    "anzeigeEn": "Mercury and/or mercury compound",
+    "bezeichnung": "Quecksilber und/oder Quecksilberverbindung",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "767406000",
+    "anzeigeEn": "Sulfite and/or sulfite derivative",
+    "bezeichnung": "Sulfit und/oder Sulfitderivat",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "770326002",
+    "anzeigeEn": "Mollusk",
+    "bezeichnung": "Weichtier",
+    "synonyme": [
+      "Mollusk"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "7791007",
+    "anzeigeEn": "Soybean protein",
+    "bezeichnung": "Sojaprotein",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "780831000",
+    "anzeigeEn": "Metamizole",
+    "bezeichnung": "Metamizol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "782576004",
+    "anzeigeEn": "Tree pollen",
+    "bezeichnung": "Baumpollen",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "788297005",
+    "anzeigeEn": "2-methyl-4-isothiazolin-3-one",
+    "bezeichnung": "Methylisothiazolinon",
+    "synonyme": [
+      "2-Methyl-4-isothiazolin-3-on"
+    ],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "8030004",
+    "anzeigeEn": "Polyethylene glycol",
+    "bezeichnung": "Macrogol",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "83595008",
+    "anzeigeEn": "Goat's milk",
+    "bezeichnung": "Ziegenmilch",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  },
+  {
+    "snomed": "89811004",
+    "anzeigeEn": "Gluten",
+    "bezeichnung": "Gluten",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "extensible"
+  }
+];

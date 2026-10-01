@@ -1,0 +1,13 @@
+export * from './typen.js';
+export { icd10gm, icd10gmKopf } from './icd10gm.js';
+export { ebm, ebmKopf } from './ebm.js';
+export { arzneimittel, arzneimittelKopf } from './arzneimittel.js';
+export { loinc, loincKopf } from './loinc.js';
+export { substanzen, substanzenKopf } from './substanzen.js';
+export { manifestationen, manifestationenKopf } from './manifestationen.js';
+export { kodierservice, kodierserviceKopf } from './kodierservice.js';
+export { dokumenttypen, dokumenttypenKopf } from './dokumenttypen.js';
+export { expositionswege, expositionswegeKopf } from './expositionswege.js';
+export { amtsZuordnung, amtsZuordnungKopf } from './amtsZuordnung.js';
+export { schweregrade, schweregradeKopf } from './schweregrade.js';
+export { impfstoffe, impfstoffeKopf } from './impfstoffe.js';

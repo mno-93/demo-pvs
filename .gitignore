@@ -1,0 +1,42 @@
+# Abhängigkeiten und Build-Ergebnisse
+node_modules/
+dist/
+dist-types/
+build/
+coverage/
+*.tsbuildinfo
+.vite/
+test-results/
+playwright-report/
+*.tgz
+
+# Laufzeitdaten des Simulators
+daten/laufzeit/
+
+# Umgebung und Geheimnisse — nie committen
+.env
+.env.*
+!.env.beispiel
+*.pem
+*.key
+.vertraulich-muster
+
+# Persönliche Einstellungen von Claude Code (die geteilten liegen in .claude/settings.json)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Editoren und Betriebssysteme
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.log
+
+# Exporte aus Figma und Bildschirmaufnahmen gehören nicht ins Repository —
+# verlinken statt einchecken (docs/ZUSAMMENARBEIT.md)
+*.fig
+*.mov
+*.mp4
+design-export/

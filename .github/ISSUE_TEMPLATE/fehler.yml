@@ -1,0 +1,25 @@
+name: Fehler
+description: Etwas funktioniert nicht wie beschrieben
+labels: [fehler]
+body:
+  - type: textarea
+    id: schritte
+    attributes:
+      label: Schritte
+      placeholder: |
+        1. Frau Hoffmann öffnen
+        2. „eGK einlesen"
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: erwartet
+    attributes:
+      label: Erwartet und tatsächlich
+    validations:
+      required: true
+  - type: input
+    id: fassung
+    attributes:
+      label: Fassung
+      description: lokal (Commit) oder gehostete Seite; Ausbaustand

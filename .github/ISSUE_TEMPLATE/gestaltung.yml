@@ -1,0 +1,34 @@
+name: Gestaltung
+description: Ansicht, Ablauf oder Baustein verbessern (UX/UI)
+labels: [gestaltung]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Keine internen Hintergründe, Positionen oder Bildschirmfotos aus internen Figma-Dateien —
+        Issues sind Teil des Repositorys (docs/ZUSAMMENARBEIT.md, Abschnitt Vertraulichkeit).
+  - type: input
+    id: ansicht
+    attributes:
+      label: Ansicht
+      placeholder: z. B. Diagnosen und Allergien, Splitscreen
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Was stört oder fehlt
+      description: Aus Sicht der Nutzenden — wer, in welcher Situation, was soll leichter gehen?
+    validations:
+      required: true
+  - type: textarea
+    id: vorschlag
+    attributes:
+      label: Vorschlag
+      description: Beschreibung; Link auf den Figma-Frame, falls vorhanden.
+  - type: input
+    id: grundsatz
+    attributes:
+      label: Berührter UX-Grundsatz
+      description: Nummer aus docs/SPEZIFIKATION.md, Abschnitt 2.2, oder „neu"
+      placeholder: z. B. U29

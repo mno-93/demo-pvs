@@ -1,0 +1,520 @@
+// Erzeugt aus daten/kataloge/allergie-expositionswege.json — nicht von Hand ändern.
+// Neu erzeugen mit: node werkzeuge/kataloge-erzeugen.mjs
+import type { SnomedWerteintrag, Katalogkopf } from './typen.js';
+
+export const expositionswegeKopf: Katalogkopf = {
+  "_katalog": "KBV_VS_Base_Route_of_Administration_SNOMED_CT",
+  "_art": "veröffentlichte Werteliste, KBV-Basisprofile",
+  "_hinweis": "Von Hand gepflegt. Bindung example: Die Liste ist ein Beispiel, keine Vorgabe. ⚠ Inhalt nicht gegen das Paket abgeglichen.",
+  "_stand": {
+    "quelle": "FHIR-Paket kbv.basis 1.9.0",
+    "kanonisch": "https://fhir.kbv.de/ValueSet/KBV_VS_Base_Route_of_Administration_SNOMED_CT"
+  }
+};
+
+export const expositionswege: readonly SnomedWerteintrag[] = [
+  {
+    "snomed": "10547007",
+    "anzeigeEn": "Otic route",
+    "bezeichnung": "Aurikulärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "54471007",
+    "anzeigeEn": "Buccal route",
+    "bezeichnung": "Bukkaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372449004",
+    "anzeigeEn": "Dental route",
+    "bezeichnung": "Dentaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372451000",
+    "anzeigeEn": "Endosinusial route",
+    "bezeichnung": "Endosinusialer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372452007",
+    "anzeigeEn": "Endotracheopulmonary route",
+    "bezeichnung": "Endotracheopulmonaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372450004",
+    "anzeigeEn": "Endocervical route",
+    "bezeichnung": "Endozervikaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "404820008",
+    "anzeigeEn": "Epidural route",
+    "bezeichnung": "Epiduraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372453002",
+    "anzeigeEn": "Extra-amniotic route",
+    "bezeichnung": "Extraamniotischer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "714743009",
+    "anzeigeEn": "Extracorporeal route",
+    "bezeichnung": "Extrakorporaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372454008",
+    "anzeigeEn": "Gastroenteral route",
+    "bezeichnung": "Gastroenteraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372457001",
+    "anzeigeEn": "Gingival route",
+    "bezeichnung": "Gingivaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "718329006",
+    "anzeigeEn": "Infiltration route",
+    "bezeichnung": "Infiltrativer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "447694001",
+    "anzeigeEn": "Respiratory tract route",
+    "bezeichnung": "Respiratorischer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372458006",
+    "anzeigeEn": "Intraamniotic route",
+    "bezeichnung": "Intraamniotischer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "58100008",
+    "anzeigeEn": "Intra-arterial route",
+    "bezeichnung": "Intrarterieller Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "12130007",
+    "anzeigeEn": "Intra-articular route",
+    "bezeichnung": "Intraartikulärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372459003",
+    "anzeigeEn": "Intrabursal route",
+    "bezeichnung": "Intrabursaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372464004",
+    "anzeigeEn": "Intradermal route",
+    "bezeichnung": "Intradermaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372465003",
+    "anzeigeEn": "Intradiscal route",
+    "bezeichnung": "Intradiskaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "448077001",
+    "anzeigeEn": "Intraepidermal route",
+    "bezeichnung": "Intraepidermaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418821007",
+    "anzeigeEn": "Intracameral route",
+    "bezeichnung": "Intrakameraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372460008",
+    "anzeigeEn": "Intracardiac route",
+    "bezeichnung": "Intrakardialer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418331006",
+    "anzeigeEn": "Intracartilaginous route",
+    "bezeichnung": "Intrakartilaginärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372463005",
+    "anzeigeEn": "Intracoronary route",
+    "bezeichnung": "Intrakoronarer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372466002",
+    "anzeigeEn": "Intralesional route",
+    "bezeichnung": "Intraläsionaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372467006",
+    "anzeigeEn": "Intralymphatic route",
+    "bezeichnung": "Intralymphatischer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "78421000",
+    "anzeigeEn": "Intramuscular route",
+    "bezeichnung": "Intramuskulärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372468001",
+    "anzeigeEn": "Intraocular route",
+    "bezeichnung": "Intraokularer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "417255000",
+    "anzeigeEn": "Intraosseous route",
+    "bezeichnung": "Intraossärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "445771006",
+    "anzeigeEn": "Intrapericardial route",
+    "bezeichnung": "Intraperikardialer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "38239002",
+    "anzeigeEn": "Intraperitoneal route",
+    "bezeichnung": "Intraperitonealer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372469009",
+    "anzeigeEn": "Intrapleural route",
+    "bezeichnung": "Intrapleuraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372470005",
+    "anzeigeEn": "Intrasternal route",
+    "bezeichnung": "Intrasternaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "72607000",
+    "anzeigeEn": "Intrathecal route",
+    "bezeichnung": "Intrathekaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "447122006",
+    "anzeigeEn": "Intratumour route",
+    "bezeichnung": "Intratumoraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "62226000",
+    "anzeigeEn": "Intrauterine route",
+    "bezeichnung": "Intrauteriner Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "47625008",
+    "anzeigeEn": "Intravenous route",
+    "bezeichnung": "Intravenöser Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372471009",
+    "anzeigeEn": "Intravesical route",
+    "bezeichnung": "Intravesikaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418401004",
+    "anzeigeEn": "Intravitreal route",
+    "bezeichnung": "Intravitrealer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "446540005",
+    "anzeigeEn": "Intracerebral route",
+    "bezeichnung": "Intrazerebraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418892005",
+    "anzeigeEn": "Intracisternal route",
+    "bezeichnung": "Intrazisternaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "448598008",
+    "anzeigeEn": "Cutaneous route",
+    "bezeichnung": "Kutaner Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "420185003",
+    "anzeigeEn": "Laryngeal route",
+    "bezeichnung": "Laryngealer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "46713006",
+    "anzeigeEn": "Nasal route",
+    "bezeichnung": "Nasaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "54485002",
+    "anzeigeEn": "Ophthalmic route",
+    "bezeichnung": "Okulärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "26643006",
+    "anzeigeEn": "Oral route",
+    "bezeichnung": "Oraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372473007",
+    "anzeigeEn": "Oromucosal route",
+    "bezeichnung": "Verabreichungsweg über Mundhöhle",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418664002",
+    "anzeigeEn": "Oropharyngeal route",
+    "bezeichnung": "Oropharyngealer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "447052000",
+    "anzeigeEn": "Periodontal route",
+    "bezeichnung": "Parodontaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372474001",
+    "anzeigeEn": "Periarticular route",
+    "bezeichnung": "Periartikulärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "764723001",
+    "anzeigeEn": "Epilesional route",
+    "bezeichnung": "Periläsionaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372475000",
+    "anzeigeEn": "Perineural route",
+    "bezeichnung": "Perineuraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "420047004",
+    "anzeigeEn": "Periosteal route",
+    "bezeichnung": "Periossärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "37161004",
+    "anzeigeEn": "Rectal route",
+    "bezeichnung": "Rektaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "418321004",
+    "anzeigeEn": "Retrobulbar route",
+    "bezeichnung": "Retrobulbärer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "372476004",
+    "anzeigeEn": "Subconjunctival route",
+    "bezeichnung": "Subkonjunktivaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "34206005",
+    "anzeigeEn": "Subcutaneous route",
+    "bezeichnung": "Subkutaner Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "37839007",
+    "anzeigeEn": "Sublingual route",
+    "bezeichnung": "Sublingualer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "419874009",
+    "anzeigeEn": "Submucosal route",
+    "bezeichnung": "Submuköser Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "6064005",
+    "anzeigeEn": "Topical route",
+    "bezeichnung": "Topischer Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "45890007",
+    "anzeigeEn": "Transdermal route",
+    "bezeichnung": "Transdermaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "90028008",
+    "anzeigeEn": "Urethral route",
+    "bezeichnung": "Intraurethraler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  },
+  {
+    "snomed": "16857009",
+    "anzeigeEn": "Vaginal route",
+    "bezeichnung": "Vaginaler Verabreichungsweg",
+    "synonyme": [],
+    "system": "http://snomed.info/sct",
+    "bindung": "example"
+  }
+];

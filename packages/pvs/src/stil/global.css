@@ -1,0 +1,1939 @@
+/*
+  Gestaltung des Demo-PVS.
+
+  Grundsätze: ruhige, sachliche Anmutung wie in einem Praxissystem; kein Nachbau eines
+  Herstellerprodukts. Keine Aussage wird allein über Farbe transportiert — jede farbige
+  Kennzeichnung trägt zusätzlich Text. Schriften kommen aus dem System, es wird nichts
+  von fremden Servern geladen.
+*/
+
+:root {
+  --skala: 1;
+
+  --grund: #eef1f5;
+  --flaeche: #ffffff;
+  --flaeche2: #f7f9fb;
+  --linie: #d7dee7;
+  --linie-stark: #b7c2d0;
+
+  --text: #16212e;
+  --text-leise: #5b6b7e;
+  --text-sehr-leise: #8494a6;
+
+  --akzent: #1d4ed8;
+  --akzent-weich: #eaf0ff;
+  --lokal: #0f766e;
+  --lokal-weich: #e6f4f2;
+  --warn: #b45309;
+  --warn-weich: #fef3c7;
+  --fehler: #b91c1c;
+  --fehler-weich: #fee2e2;
+  --gut: #15803d;
+  --gut-weich: #dcfce7;
+  /* ✦ Patient Summary: eine Farbe für Markierung, Schalter und Übersicht. */
+  --ps: #6d28d9;
+  --ps-weich: #f3e8ff;
+  --ps-linie: #c4b5fd;
+
+  --radius: 8px;
+  --schrift:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#wurzel {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--schrift);
+  font-size: calc(15px * var(--skala));
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--grund);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+h1 {
+  font-size: 1.4em;
+}
+h2 {
+  font-size: 1.2em;
+}
+h3 {
+  font-size: 1.02em;
+}
+p {
+  margin: 0 0 8px;
+}
+a {
+  color: var(--akzent);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------- Rahmen ---------- */
+.kopf {
+  background: var(--flaeche);
+  border-bottom: 1px solid var(--linie);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+.kopf-oben {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 18px;
+  flex-wrap: wrap;
+}
+.marke {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.marke .punkt {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--akzent);
+}
+.fiktiv {
+  font-size: 0.7em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warn);
+  background: var(--warn-weich);
+  border: 1px solid #f0d9a0;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+.kopf-rechts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hauptnavi {
+  display: flex;
+  gap: 2px;
+  padding: 0 18px;
+  background: var(--flaeche2);
+  border-top: 1px solid var(--linie);
+}
+.hauptnavi a {
+  padding: 9px 14px;
+  text-decoration: none;
+  color: var(--text-leise);
+  font-weight: 600;
+  font-size: 0.92em;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.hauptnavi a:hover {
+  color: var(--text);
+}
+.hauptnavi a.aktiv {
+  color: var(--akzent);
+  border-bottom-color: var(--akzent);
+}
+
+.inhalt {
+  padding: 20px 22px 60px;
+  max-width: 1500px;
+}
+
+/* ---------- Bausteine ---------- */
+.karte {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.karte > h2,
+.karte > h3 {
+  margin-bottom: 10px;
+}
+
+.knopf {
+  border: 1px solid var(--linie-stark);
+  background: var(--flaeche);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.88em;
+  font-weight: 600;
+  color: var(--text-leise);
+}
+.knopf:hover:not(:disabled) {
+  background: var(--flaeche2);
+  color: var(--text);
+}
+.knopf:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.knopf.stark {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: #fff;
+}
+.knopf.stark:hover:not(:disabled) {
+  background: #1740b8;
+}
+.knopf[aria-pressed='true'] {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: #fff;
+}
+.knopf.klein {
+  padding: 3px 9px;
+  font-size: 0.8em;
+}
+
+.marker {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75em;
+  font-weight: 650;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.marker.neutral {
+  background: var(--flaeche2);
+  color: var(--text-leise);
+  border-color: var(--linie);
+}
+.marker.akzent {
+  background: var(--akzent-weich);
+  color: var(--akzent);
+  border-color: #c7d6fb;
+}
+.marker.lokal {
+  background: var(--lokal-weich);
+  color: var(--lokal);
+  border-color: #b9ded8;
+}
+.marker.warn {
+  background: var(--warn-weich);
+  color: var(--warn);
+  border-color: #f0d9a0;
+}
+.marker.gut {
+  background: var(--gut-weich);
+  color: var(--gut);
+  border-color: #b7e4c4;
+}
+.marker.fehler {
+  background: var(--fehler-weich);
+  color: var(--fehler);
+  border-color: #f5c2c2;
+}
+
+.hinweisbox {
+  background: var(--flaeche2);
+  border: 1px solid var(--linie);
+  border-left: 3px solid var(--linie-stark);
+  border-radius: 6px;
+  padding: 10px 13px;
+  font-size: 0.9em;
+  color: var(--text-leise);
+  margin: 10px 0;
+}
+.hinweisbox.warn {
+  background: var(--warn-weich);
+  border-color: #f0d9a0;
+  border-left-color: var(--warn);
+  color: #7a4a06;
+}
+.hinweisbox.fehler {
+  background: var(--fehler-weich);
+  border-color: #f5c2c2;
+  border-left-color: var(--fehler);
+  color: #7f1d1d;
+}
+.hinweisbox.gut {
+  background: var(--gut-weich);
+  border-color: #b7e4c4;
+  border-left-color: var(--gut);
+  color: #14532d;
+}
+
+.leer {
+  border: 1.5px dashed var(--linie-stark);
+  border-radius: 6px;
+  padding: 16px;
+  color: var(--text-sehr-leise);
+  font-size: 0.92em;
+  text-align: center;
+}
+
+.feldzeile {
+  margin-bottom: 12px;
+}
+.feldzeile label {
+  display: block;
+  font-size: 0.8em;
+  font-weight: 650;
+  color: var(--text-leise);
+  margin-bottom: 3px;
+}
+.feldzeile input,
+.feldzeile select,
+.feldzeile textarea {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--linie-stark);
+  border-radius: 6px;
+  background: var(--flaeche);
+}
+.feldzeile textarea {
+  resize: vertical;
+  min-height: 70px;
+}
+.feldreihe {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.feldreihe > .feldzeile {
+  flex: 1 1 160px;
+}
+
+table.liste {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92em;
+}
+table.liste th {
+  text-align: left;
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-sehr-leise);
+  font-weight: 600;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--linie);
+}
+table.liste td {
+  padding: 8px;
+  border-bottom: 1px solid var(--linie);
+  vertical-align: top;
+}
+table.liste tr:last-child td {
+  border-bottom: 0;
+}
+table.liste tr.anklickbar:hover td {
+  background: var(--flaeche2);
+  cursor: pointer;
+}
+.code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--flaeche2);
+  border: 1px solid var(--linie);
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+}
+
+/* ---------- Patientenkopf ---------- */
+.patientenkopf {
+  background: var(--flaeche);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+}
+.patientenkopf .zeile1 {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.patientenkopf .name {
+  font-size: 1.25em;
+  font-weight: 700;
+}
+.patientenkopf .zeile2 {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 0.88em;
+  color: var(--text-leise);
+}
+.patientenkopf .zeile2 b {
+  color: var(--text);
+  font-weight: 600;
+}
+.aktenreiter {
+  display: flex;
+  gap: 2px;
+  margin: 14px 0 0;
+  border-bottom: 1px solid var(--linie);
+}
+.aktenreiter a {
+  padding: 8px 13px;
+  text-decoration: none;
+  color: var(--text-leise);
+  font-weight: 600;
+  font-size: 0.9em;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+.aktenreiter a.aktiv {
+  color: var(--akzent);
+  border-bottom-color: var(--akzent);
+}
+
+/* ---------- Karteikarte ---------- */
+.kk-eintrag {
+  display: grid;
+  grid-template-columns: 88px 34px 1fr;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--linie);
+}
+.kk-eintrag:last-child {
+  border-bottom: 0;
+}
+.kk-zeit {
+  font-size: 0.82em;
+  color: var(--text-sehr-leise);
+}
+.kk-kuerzel {
+  width: 28px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  font-weight: 700;
+  font-size: 0.85em;
+  background: var(--flaeche2);
+  border: 1px solid var(--linie-stark);
+  color: var(--text-leise);
+}
+.kk-epa {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  margin-top: 3px;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.8em;
+  line-height: 1.4;
+  background: var(--akzent-weich);
+  color: var(--akzent);
+  border: 1px solid #c7d6fb;
+}
+.kk-text {
+  white-space: pre-wrap;
+}
+.kk-verfasser {
+  font-size: 0.8em;
+  color: var(--text-sehr-leise);
+  margin-top: 3px;
+}
+
+/* ---------- Suchvorschläge ---------- */
+.vorschlaege {
+  border: 1px solid var(--linie-stark);
+  border-radius: 6px;
+  max-height: 260px;
+  overflow: auto;
+  margin-top: 4px;
+  background: var(--flaeche);
+}
+.vorschlaege button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 7px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--linie);
+  font-size: 0.9em;
+}
+.vorschlaege button:last-child {
+  border-bottom: 0;
+}
+.vorschlaege button:hover,
+.vorschlaege button[aria-selected='true'] {
+  background: var(--akzent-weich);
+}
+
+/* ---------- Sonstiges ---------- */
+.reihe {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rechts {
+  margin-left: auto;
+}
+.spalten {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .spalten {
+    grid-template-columns: 1fr;
+  }
+}
+.nur-fuer-screenreader {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Aktenbestand (ePA) ---------- */
+.akten-eintrag {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--linie);
+}
+.akten-eintrag:last-child {
+  border-bottom: 0;
+}
+.herkunft {
+  font-size: 0.8em;
+  color: var(--text-sehr-leise);
+  margin-bottom: 4px;
+}
+.herkunft b {
+  color: var(--text-leise);
+  font-weight: 600;
+}
+
+pre.code-block {
+  background: #111a26;
+  color: #dbe6f2;
+  padding: 12px 14px;
+  border-radius: 6px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 0.78em;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-height: 340px;
+}
+
+/* ---------- Aufrufprotokoll ---------- */
+.protokoll {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(430px, 96vw);
+  /* Über dem ePA-Fenster, damit beide zugleich nutzbar sind. */
+  z-index: 70;
+  background: var(--flaeche);
+  border-left: 1px solid var(--linie);
+  box-shadow: -8px 0 24px rgba(16, 26, 40, 0.12);
+  display: flex;
+  flex-direction: column;
+}
+.protokoll-kopf {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--linie);
+  background: var(--flaeche2);
+}
+.protokoll-lage {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--linie);
+  background: var(--flaeche2);
+}
+.protokoll-lage-titel {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-sehr-leise);
+  font-weight: 650;
+  margin-bottom: 8px;
+}
+.protokoll-schalter {
+  display: block;
+  font-size: 0.85em;
+  margin-bottom: 9px;
+  cursor: pointer;
+}
+.protokoll-schalter input[type='checkbox'] {
+  margin-right: 7px;
+  accent-color: var(--akzent);
+}
+.protokoll-schalter small {
+  display: block;
+  color: var(--text-sehr-leise);
+  font-size: 0.88em;
+  margin-left: 23px;
+}
+.protokoll-schalter select {
+  margin-left: 8px;
+  padding: 3px 6px;
+  border: 1px solid var(--linie-stark);
+  border-radius: 5px;
+}
+
+.protokoll-liste {
+  flex: 1;
+  overflow: auto;
+  padding: 8px 14px 40px;
+}
+.protokoll-zeile {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--linie);
+  font-size: 0.8em;
+}
+.protokoll-zeile-knopf {
+  display: grid;
+  grid-template-columns: 34px 40px 1fr auto;
+  gap: 6px;
+  align-items: baseline;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.protokoll-zeile-knopf:hover .protokoll-pfad {
+  text-decoration: underline;
+}
+.protokoll-grundlage {
+  margin-left: 80px;
+  color: var(--akzent);
+  font-size: 0.92em;
+}
+.protokoll-details {
+  margin: 6px 0 0 80px;
+  display: grid;
+  gap: 6px;
+  color: var(--text-leise);
+}
+.protokoll-details code {
+  font-family: var(--mono);
+  font-size: 0.95em;
+  word-break: break-all;
+}
+.protokoll-zeile.fehlerhaft {
+  background: var(--fehler-weich);
+  margin: 0 -14px;
+  padding: 7px 14px;
+}
+.protokoll-status {
+  font-weight: 700;
+  font-family: var(--mono);
+}
+.protokoll-status.gut {
+  color: var(--gut);
+}
+.protokoll-status.fehler {
+  color: var(--fehler);
+}
+.protokoll-methode {
+  font-family: var(--mono);
+  color: var(--text-sehr-leise);
+}
+.protokoll-pfad {
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.protokoll-dauer {
+  color: var(--text-sehr-leise);
+  font-variant-numeric: tabular-nums;
+}
+.protokoll-ergebnis {
+  margin-left: 80px;
+  color: var(--text-leise);
+}
+
+/* ---------- Bestandsband ---------- */
+/*
+  Jeder Bereich sagt oben, in welchem Bestand gearbeitet wird. Die Farbe ist eine Zugabe;
+  die Aussage steht immer als Wort daneben, damit sie auch ohne Farbwahrnehmung ankommt.
+*/
+.bestandsband {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--linie);
+  border-left-width: 4px;
+  margin-bottom: 14px;
+  font-size: 0.9em;
+}
+.bestandsband-titel {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.bestandsband-text {
+  color: var(--text-leise);
+}
+.bestandsband.lokal {
+  background: var(--lokal-weich);
+  border-color: #b9ded8;
+  border-left-color: var(--lokal);
+}
+.bestandsband.lokal .bestandsband-titel {
+  color: var(--lokal);
+}
+.bestandsband.epa {
+  background: var(--akzent-weich);
+  border-color: #c7d6fb;
+  border-left-color: var(--akzent);
+}
+.bestandsband.epa .bestandsband-titel {
+  color: var(--akzent);
+}
+.bestandsband.beides {
+  background: linear-gradient(90deg, var(--lokal-weich), var(--akzent-weich));
+  border-color: var(--linie);
+  border-left-color: var(--akzent);
+}
+.bestandsband.beides .bestandsband-titel {
+  color: var(--text);
+}
+
+/* ---------- Verlauf mit abgeleiteten Einträgen ---------- */
+.kk-eintrag.abgeleitet {
+  background: linear-gradient(90deg, rgba(29, 78, 216, 0.045), transparent 60%);
+}
+.kk-herkunftszeile {
+  font-size: 0.78em;
+  color: var(--text-sehr-leise);
+  margin-top: 3px;
+}
+.kk-sprung {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--akzent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  font-size: 1em;
+}
+.kk-zusatz {
+  font-size: 0.85em;
+  color: var(--text-leise);
+  margin-top: 2px;
+}
+
+/* Auswahl im laufenden Vorgang: in der Liste der ePA führen (✦ Diagnose-Service, ADR 0018). */
+.relevanzwahl {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  padding: 9px 11px;
+  border: 1px solid var(--linie);
+  border-radius: 6px;
+  background: var(--flaeche2);
+  margin-bottom: 12px;
+  cursor: pointer;
+}
+.relevanzwahl:hover {
+  border-color: var(--akzent);
+}
+.relevanzwahl input {
+  margin-top: 3px;
+  accent-color: var(--akzent);
+}
+.relevanzwahl span {
+  font-size: 0.9em;
+}
+.relevanzwahl small {
+  display: block;
+  color: var(--text-sehr-leise);
+  margin-top: 2px;
+}
+table.liste tr.hervorgehoben td {
+  background: var(--akzent-weich);
+}
+
+/* ---------- Abgleichband der Medikation ---------- */
+.navi-zahl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 0.75em;
+  font-weight: 700;
+  background: var(--warn);
+  color: #fff;
+}
+
+.protokoll-akte,
+.protokoll-rezept {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 5px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--linie);
+  font-size: 0.85em;
+}
+.protokoll-akte > span {
+  flex: 1 1 100%;
+  font-weight: 600;
+}
+.protokoll-akte label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Verlauf je Besuch */
+.besuch {
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  background: var(--flaeche);
+}
+.besuch.eingang {
+  background: var(--flaeche2);
+}
+.besuch.heute {
+  border-color: var(--lokal);
+  box-shadow: 0 0 0 1px var(--lokal) inset;
+}
+.besuch-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--linie);
+}
+.besuch-epa {
+  margin-right: 8px;
+  font-weight: 700;
+  color: var(--akzent);
+}
+.besuch-leer {
+  padding: 10px 12px;
+  font-size: 0.85em;
+  color: var(--text-sehr-leise);
+}
+.besuch-gruppe {
+  padding: 6px 12px 8px;
+}
+.besuch-gruppe + .besuch-gruppe {
+  border-top: 1px dashed var(--linie);
+}
+.besuch-gruppe-titel {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-sehr-leise);
+  margin: 2px 0 4px;
+}
+.besuch-zeile {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 8px;
+  padding: 3px 0;
+}
+.besuch-inhalt {
+  min-width: 0;
+}
+.kk-epa.inline {
+  display: inline-grid;
+  width: 22px;
+  margin: 0 0 0 6px;
+  vertical-align: middle;
+}
+
+.impfung {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--linie);
+  display: grid;
+  gap: 4px;
+}
+.impfung:last-child {
+  border-bottom: 0;
+}
+
+.seit-band {
+  margin: 0 0 10px;
+  padding: 7px 12px;
+  border-radius: var(--radius);
+  background: var(--akzent-weich);
+  border: 1px solid #c7d6fb;
+  color: var(--text);
+  font-size: 0.9em;
+}
+.neu-marke {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 0.75em;
+  font-weight: 700;
+  line-height: 1.6;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--akzent);
+  color: #fff;
+  vertical-align: middle;
+}
+
+tr.gedaempft td {
+  opacity: 0.55;
+}
+
+.abrufstand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82em;
+  color: var(--text-leise);
+  font-variant-numeric: tabular-nums;
+}
+
+.abgleichband {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  padding: 8px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--linie);
+  margin-bottom: 14px;
+  font-size: 0.88em;
+}
+.abgleichband-punkt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+}
+.abgleichband.synchron {
+  background: var(--gut-weich);
+  border-color: #b7e4c4;
+  color: #14532d;
+}
+.abgleichband.synchron .abgleichband-punkt {
+  background: var(--gut);
+}
+.abgleichband.veraltet {
+  background: var(--warn-weich);
+  border-color: #f0d9a0;
+  color: #7a4a06;
+}
+.abgleichband.veraltet .abgleichband-punkt {
+  background: var(--warn);
+}
+
+/* ---------- Schließen ---------- */
+.schliessen {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 6px;
+  width: 30px;
+  height: 30px;
+  font-size: 1.3em;
+  line-height: 1;
+  color: var(--text-leise);
+  cursor: pointer;
+}
+.schliessen:hover {
+  background: var(--flaeche2);
+  border-color: var(--linie);
+  color: var(--text);
+}
+.schliessen.gross {
+  width: 36px;
+  height: 36px;
+  font-size: 1.6em;
+}
+
+/* ---------- ePA-Fenster ---------- */
+/*
+  Eine Ebene über der Kartei: eigener Hintergrund, eigener Kopf, eigenes Schließen. Die
+  ePA-Farbe rahmt das ganze Fenster, damit auch beim Scrollen klar bleibt, wo man ist.
+*/
+.epa-fenster-hintergrund {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(16, 26, 40, 0.42);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 3vh 2vw;
+}
+.epa-fenster {
+  width: min(1180px, 100%);
+  max-height: 94vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--flaeche);
+  border: 1px solid #c7d6fb;
+  border-top: 5px solid var(--akzent);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px rgba(16, 26, 40, 0.28);
+  outline: none;
+}
+.epa-fenster.mit-protokoll {
+  margin-right: min(430px, 40vw);
+}
+.epa-fenster-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 16px 8px;
+}
+.epa-fenster-titelblock {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.epa-fenster .code,
+.epa-fenster code {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.epa-fenster-kopf > .rechts {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.epa-fenster-titelblock h2 {
+  font-size: 1.15em;
+}
+.epa-siegel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--akzent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.epa-siegel.klein {
+  font-size: 0.72em;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.epa-fenster-band {
+  margin: 0 16px 8px;
+}
+.epa-fenster-reiter {
+  display: flex;
+  gap: 2px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--linie);
+  flex-wrap: wrap;
+}
+.epa-fenster-reiter button {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--text-leise);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+}
+.epa-fenster-reiter button.aktiv {
+  color: var(--akzent);
+  border-bottom-color: var(--akzent);
+}
+.epa-fenster-inhalt {
+  overflow: auto;
+  padding: 14px 16px;
+  flex: 1;
+}
+.epa-fenster-fuss {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 16px;
+  border-top: 1px solid var(--linie);
+  background: var(--flaeche2);
+  border-radius: 0 0 10px 10px;
+  font-size: 0.85em;
+}
+.epa-fuss-aufruf {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: var(--text-leise);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.epa-fuss-aufruf b {
+  color: var(--gut);
+}
+.epa-fuss-aufruf.fehler b {
+  color: var(--fehler);
+}
+.epa-abschnitt {
+  margin-bottom: 18px;
+}
+.epa-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.epa-kachel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid #c7d6fb;
+  background: var(--akzent-weich);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.epa-kachel:hover {
+  border-color: var(--akzent);
+}
+.epa-kachel-titel {
+  font-size: 0.8em;
+  font-weight: 650;
+  color: var(--akzent);
+}
+.epa-kachel-zahl {
+  font-size: 1.35em;
+  font-weight: 700;
+}
+.epa-betrachter {
+  border: 1px solid var(--linie);
+  border-left: 3px solid var(--akzent);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: var(--flaeche);
+}
+.modusschalter {
+  display: inline-flex;
+  border: 1px solid var(--linie-stark);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.modusschalter button {
+  border: 0;
+  background: var(--flaeche);
+  padding: 7px 12px;
+  font-weight: 600;
+  font-size: 0.85em;
+  color: var(--text-leise);
+  cursor: pointer;
+}
+.modusschalter button + button {
+  border-left: 1px solid var(--linie-stark);
+}
+.modusschalter button.aktiv {
+  background: var(--akzent);
+  color: #fff;
+}
+.modusschalter button.aktiv.entwurf {
+  background: var(--warn);
+}
+.knopf.epa-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border-color: var(--akzent);
+  color: var(--akzent);
+  background: var(--akzent-weich);
+}
+.knopf.epa-knopf:hover:not(:disabled) {
+  background: #dce6ff;
+  color: var(--akzent);
+}
+
+/* ---------- Tabellen und Kodierung ---------- */
+.tabelle-rahmen {
+  overflow-x: auto;
+}
+.leise-klein {
+  font-size: 0.8em;
+  color: var(--text-sehr-leise);
+}
+table.liste tr.vergangen td {
+  color: var(--text-sehr-leise);
+}
+table.liste td.zahl,
+table.liste th.zahl {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.codezeile {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+.code.snomed {
+  border-color: #c7d6fb;
+  background: var(--akzent-weich);
+  color: var(--akzent);
+}
+.kaestchen {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+.kodierblock {
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: var(--flaeche2);
+}
+.kodierblock-titel {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.kodierblock dl,
+.befund-kopf {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px 14px;
+  margin: 0;
+}
+.kodierblock dt,
+.befund-kopf dt {
+  font-size: 0.72em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-sehr-leise);
+  font-weight: 650;
+}
+.kodierblock dd,
+.befund-kopf dd {
+  margin: 0;
+  font-size: 0.9em;
+}
+.vorschlag {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.vorschlag-codes {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.freitextwahl {
+  margin-top: 6px;
+  font-size: 0.88em;
+}
+.feldgruppe {
+  border: 1px solid var(--linie);
+  border-radius: 8px;
+  padding: 8px 12px 12px;
+  margin: 0 0 12px;
+}
+.feldgruppe legend {
+  font-size: 0.8em;
+  font-weight: 650;
+  color: var(--text-leise);
+  padding: 0 4px;
+}
+.reaktion {
+  border-top: 1px dashed var(--linie-stark);
+  padding: 10px 0 2px;
+  margin-bottom: 8px;
+}
+.chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--akzent-weich);
+  border: 1px solid #c7d6fb;
+  border-radius: 99px;
+  padding: 2px 4px 2px 10px;
+  font-size: 0.85em;
+}
+.chip button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 1.1em;
+  line-height: 1;
+  color: var(--text-leise);
+}
+details.aufklapper {
+  margin: 8px 0;
+  font-size: 0.9em;
+}
+details.aufklapper > summary {
+  cursor: pointer;
+  color: var(--text-leise);
+  font-weight: 600;
+}
+table.modelltabelle {
+  margin-top: 8px;
+  font-size: 0.85em;
+}
+table.modelltabelle tr.nicht-erfasst td {
+  color: var(--text-sehr-leise);
+}
+.rueckfrage {
+  max-width: 280px;
+  font-size: 0.85em;
+  background: var(--warn-weich);
+  border: 1px solid #f0d9a0;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.rueckfrage p {
+  margin: 0 0 6px;
+}
+
+/* ---------- Laborbefund ---------- */
+.befund-gruppe {
+  margin-top: 12px;
+}
+.befund-gruppe-titel {
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--text-leise);
+  margin-bottom: 4px;
+}
+table.befund-tabelle tr.auffaellig td {
+  background: #fffbeb;
+}
+.brief-liste {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.92em;
+}
+.befundliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.befundliste button {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: 1px solid var(--linie);
+  background: var(--flaeche);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+.befundliste button.aktiv {
+  border-color: var(--lokal);
+  background: var(--lokal-weich);
+}
+.spalten.labor-spalten {
+  grid-template-columns: 1fr 2fr;
+}
+@media (max-width: 1000px) {
+  .spalten.labor-spalten {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Befugnis und eGK (ADR 0017) ---------- */
+.epa-zugang {
+  gap: 8px;
+  align-items: center;
+}
+.egk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.egk-meldung {
+  font-size: 0.8em;
+  color: var(--warn);
+  max-width: 340px;
+}
+
+/* ---------- Vorschläge (✦) ---------- */
+/* Alles, was nicht spezifiziert ist, trägt diese Marke — sichtbar, nicht nur im Quelltext. */
+.vorschlagsmarke {
+  display: inline-block;
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #6d28d9;
+  background: #f3e8ff;
+  border: 1px solid #ddd0fb;
+  border-radius: 99px;
+  padding: 0 7px;
+  white-space: nowrap;
+  vertical-align: middle;
+  text-transform: none;
+}
+.relevanzwahl.gesperrt {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+.relevanzwahl.gesperrt:hover {
+  border-color: var(--linie);
+}
+
+/* ---------- Splitscreen Praxis | Abgleich | ePA-Liste ---------- */
+.abgleichband:not(.synchron):not(.veraltet) {
+  background: var(--flaeche2);
+  color: var(--text-leise);
+}
+.abgleichband .abgleichband-punkt {
+  background: var(--linie-stark);
+}
+.abgleichband.synchron .abgleichband-punkt {
+  background: var(--gut);
+}
+.abgleichband.veraltet .abgleichband-punkt {
+  background: var(--warn);
+}
+table.split-tabelle {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  table-layout: fixed;
+  font-size: 0.92em;
+}
+.split-spalte-seite {
+  width: 40%;
+}
+.split-spalte-mitte {
+  width: 20%;
+}
+th.split-kopf {
+  text-align: left;
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 650;
+  color: var(--text-sehr-leise);
+  padding: 4px 8px;
+}
+th.split-kopf.lokal {
+  color: var(--lokal);
+  border-bottom: 2px solid var(--lokal);
+}
+th.split-kopf.epa {
+  color: var(--akzent);
+  border-bottom: 2px solid var(--akzent);
+}
+td.split-zelle {
+  vertical-align: top;
+  padding: 6px 9px;
+  border: 1px solid var(--linie);
+}
+td.split-zelle.lokal {
+  background: linear-gradient(90deg, var(--lokal-weich), var(--flaeche) 40%);
+  border-left: 3px solid var(--lokal);
+  border-radius: 6px 0 0 6px;
+}
+td.split-zelle.epa {
+  background: linear-gradient(270deg, var(--akzent-weich), var(--flaeche) 40%);
+  border-right: 3px solid var(--akzent);
+  border-radius: 0 6px 6px 0;
+}
+td.split-mitte {
+  vertical-align: top;
+  padding: 6px;
+  border-top: 1px solid var(--linie);
+  border-bottom: 1px solid var(--linie);
+  background: var(--flaeche2);
+  text-align: center;
+}
+.split-hinweis {
+  font-size: 0.78em;
+  color: var(--warn);
+  margin-top: 5px;
+  text-align: left;
+}
+.split-handlungen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  margin-top: 5px;
+}
+.split-handlungen:empty {
+  display: none;
+}
+.split-luecke {
+  display: block;
+  color: var(--text-sehr-leise);
+  font-size: 0.85em;
+  font-style: italic;
+  padding: 6px 0;
+}
+td.split-flaeche {
+  vertical-align: middle;
+}
+.split-grund {
+  font-size: 0.88em;
+  color: var(--text-leise);
+}
+.split-karte b {
+  font-weight: 650;
+}
+.split-karte.vergangen {
+  color: var(--text-sehr-leise);
+}
+.split-angaben {
+  font-size: 0.82em;
+  color: var(--text-leise);
+  margin-top: 4px;
+}
+.split-karte-fuss {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 7px;
+}
+.split-zeile.ungekoppelt td.split-mitte,
+.split-zeile.epa-berichtigt td.split-mitte {
+  background: var(--warn-weich);
+}
+.split-zeile.epa-geaendert td.split-mitte,
+.split-zeile.nur-epa td.split-mitte {
+  background: var(--akzent-weich);
+}
+.split-zeile.lokal-geaendert td.split-mitte {
+  background: var(--lokal-weich);
+}
+.berichtigt {
+  text-decoration: line-through;
+  text-decoration-color: var(--fehler);
+}
+.rueckfrage-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.8em;
+  background: var(--warn-weich);
+  border: 1px solid #f0d9a0;
+  border-radius: 6px;
+  padding: 5px 7px;
+}
+/* ---------- Kompakte Listenzeilen (ADR 0029) ---------- */
+.listenwerkzeug {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+  font-size: 0.85em;
+}
+.listenwerkzeug label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-leise);
+}
+.listenwerkzeug select {
+  font: inherit;
+  padding: 2px 6px;
+}
+.split-karte.kompakt {
+  min-width: 0;
+}
+.kompakt-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.kompakt-taste {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.kompakt-taste:focus-visible {
+  outline: 2px solid var(--akzent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.kompakt-pfeil {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin: 0 3px 2px 1px;
+  border-right: 2px solid var(--text-leise);
+  border-bottom: 2px solid var(--text-leise);
+  transform: rotate(-45deg);
+  transition: transform 0.12s;
+}
+.kompakt-taste[aria-expanded='true'] .kompakt-pfeil {
+  transform: rotate(45deg);
+}
+.kompakt-rechts {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex: 0 0 auto;
+}
+.kompakt-zeile {
+  font-size: 0.8em;
+  color: var(--text-leise);
+  margin: 2px 0 0 16px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.kompakt-details {
+  margin: 6px 0 0 16px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--linie);
+}
+.split-datum {
+  font-size: 0.75em;
+  color: var(--text-sehr-leise);
+  margin-top: 3px;
+}
+.split-verschieben {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  align-items: center;
+  margin-top: 6px;
+}
+.split-verschieben .griff {
+  color: var(--text-sehr-leise);
+  cursor: grab;
+  letter-spacing: -2px;
+}
+.split-zeile.verschiebbar {
+  cursor: grab;
+}
+.split-zeile.gezogen {
+  opacity: 0.45;
+}
+.ps-schalter.kompakt {
+  padding: 0 6px;
+  line-height: 1.4;
+}
+.unsichtbar {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 1000px) {
+  .split-spalte-mitte {
+    width: 26%;
+  }
+  .split-spalte-seite {
+    width: 37%;
+  }
+}
+
+/* ---------- PDF-Anzeige und Marker als Knopf ---------- */
+
+.pdf-ansicht {
+  width: 100%;
+  height: 600px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+}
+
+button.marker {
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.8em;
+}
+
+/* ---------- Patient Summary ---------- */
+
+.ps-knopf {
+  font-weight: 600;
+}
+
+.ps-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.ps-kopf h3 {
+  margin: 0;
+}
+
+.ps-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .ps-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.ps-spalte {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ps-block {
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+  padding: 10px 12px;
+}
+
+.ps-block:focus {
+  outline: 2px solid var(--akzent);
+}
+
+.ps-block-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.ps-block-kopf h4 {
+  margin: 0;
+  font-size: 1em;
+}
+
+.ps-eintrag {
+  padding: 6px 0;
+  border-top: 1px solid var(--linie);
+}
+
+.ps-eintrag:first-of-type {
+  border-top: none;
+}
+
+.ps-leer {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--flaeche2);
+  color: var(--text-leise);
+}
+
+.ps-bestaetigt {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--gut-weich);
+  color: var(--gut);
+  font-weight: 600;
+}
+
+.ps-tabelle td,
+.ps-tabelle th {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.ps-auffaellig {
+  color: var(--fehler);
+}
+
+.ps-herkunft {
+  margin-top: 2px;
+  font-size: 0.82em;
+  color: var(--text-sehr-leise);
+}
+
+.ps-tabelle .zahl {
+  white-space: nowrap;
+}
+
+.xml-ansicht p {
+  margin: 4px 0;
+}
+
+/* ---------- ✦ Relevanz für die Patient Summary ---------- */
+
+.ps-knopf {
+  color: var(--ps);
+  border-color: var(--ps-linie);
+}
+
+.ps-stern {
+  color: var(--ps);
+}
+
+.ps-schalter {
+  font: inherit;
+  font-size: 0.82em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--ps-linie);
+  background: var(--flaeche);
+  color: var(--ps);
+  cursor: pointer;
+}
+
+.ps-schalter.an {
+  background: var(--ps);
+  border-color: var(--ps);
+  color: #fff;
+}
+
+.ps-schalter:focus-visible {
+  outline: 2px solid var(--ps);
+  outline-offset: 2px;
+}
+
+.ps-schalter:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ps-marke {
+  display: inline-block;
+  font-size: 0.78em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ps-weich);
+  color: var(--ps);
+  font-weight: 600;
+}
+
+.split-karte.ps-markiert,
+.akten-eintrag.ps-markiert {
+  border-left: 4px solid var(--ps);
+  background: var(--ps-weich);
+}
+
+.ps-wahl {
+  margin-left: 26px;
+  border-left: 3px solid var(--ps-linie);
+}
+
+.ps-wahl b {
+  color: var(--ps);
+}
+
+.ps-weitere {
+  display: block;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.85em;
+  color: var(--ps);
+  cursor: pointer;
+  text-align: left;
+}
+
+.ps-weitere:hover {
+  text-decoration: underline;
+}
+
+td.split-mitte .marker {
+  white-space: normal;
+  max-width: 100%;
+}
+
+.akten-eintrag.kompakt-eintrag {
+  padding: 3px 0;
+  border-bottom: 0;
+}
+.akten-eintrag.kompakt-eintrag .split-karte {
+  padding: 5px 8px;
+  border-radius: 4px;
+}
+.akten-eintrag.kompakt-eintrag .split-karte:not(.ps-markiert) {
+  border-left: 4px solid var(--linie);
+}

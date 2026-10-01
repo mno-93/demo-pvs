@@ -1,0 +1,71 @@
+# Prüft jede Änderung und veröffentlicht die Demo auf GitHub Pages (ADR 0025).
+#
+# Veröffentlicht wird erst, wenn die Repository-Variable PAGES_FREIGEGEBEN den Wert „ja" hat —
+# die Seite ist dann öffentlich erreichbar, auch wenn das Repository privat ist. Bis dahin
+# prüft und baut der Workflow nur; das gebaute Paket liegt als Artefakt am Lauf.
+name: Prüfen und veröffentlichen
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pruefen:
+    name: Format, Lint, Typen, Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @demo-pvs/kern
+      - name: Format, Lint, Typen, Tests und Vertraulichkeit
+        env:
+          # Projektmuster liegen nicht im Repository, sondern in einer Repository-Variable.
+          VERTRAULICH_MUSTER: ${{ vars.VERTRAULICH_MUSTER }}
+        run: npm run pruefen
+
+  bauen:
+    name: Gehostete Fassung bauen
+    needs: pruefen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bauen mit Simulator im Browser
+        env:
+          BASIS: /${{ github.event.repository.name }}/
+        run: npm run build:gehostet
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/pvs/dist
+
+  veroeffentlichen:
+    name: Auf GitHub Pages veröffentlichen
+    needs: bauen
+    if: github.ref == 'refs/heads/main' && vars.PAGES_FREIGEGEBEN == 'ja'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.bereitstellung.outputs.page_url }}
+    steps:
+      - id: bereitstellung
+        uses: actions/deploy-pages@v4

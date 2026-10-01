@@ -1,0 +1,16 @@
+# Zuständigkeiten für Reviews (docs/ZUSAMMENARBEIT.md).
+# Die Projektleitung prüft alles. Weitere Personen nach Freischaltung im Repository eintragen:
+# GitHub-Namen in die auskommentierten Zeilen setzen und das # entfernen.
+
+*                                   @mno-93
+
+# Gestaltung (UX/UI)
+# /packages/pvs/src/stil/           @mno-93 @GESTALTUNG-1 @GESTALTUNG-2
+# /packages/pvs/src/bausteine/      @mno-93 @GESTALTUNG-1 @GESTALTUNG-2
+# /docs/GESTALTUNG.md               @mno-93 @GESTALTUNG-1 @GESTALTUNG-2
+
+# Medizin
+# /daten/kataloge/                  @mno-93 @MEDIZIN
+# /packages/pvs/src/daten/          @mno-93 @MEDIZIN
+# /packages/epa-sim/src/startbestand.ts @mno-93 @MEDIZIN
+# /packages/kern/src/fachlogik/     @mno-93 @MEDIZIN

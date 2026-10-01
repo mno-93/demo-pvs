@@ -1,0 +1,22 @@
+{
+  "name": "@demo-pvs/epa-sim",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-strip-types src/server.ts",
+    "start": "node --experimental-strip-types src/server.ts",
+    "build": "tsc --build"
+  },
+  "dependencies": {
+    "@demo-pvs/kern": "*",
+    "@fastify/cors": "^10.0.0",
+    "fastify": "^5.0.0"
+  },
+  "exports": {
+    "./browser": {
+      "types": "./browser.d.ts",
+      "default": "./src/browser.ts"
+    }
+  }
+}

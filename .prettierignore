@@ -1,0 +1,9 @@
+
+node_modules
+dist
+dist-types
+coverage
+daten/kataloge
+packages/kern/src/kataloge/*.ts
+!packages/kern/src/kataloge/index.ts
+!packages/kern/src/kataloge/typen.ts

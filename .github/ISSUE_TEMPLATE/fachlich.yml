@@ -1,0 +1,40 @@
+name: Fachlicher Beitrag
+description: Beispiel, Katalog, fachliche Regel oder Vorführablauf
+labels: [fachlich]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Nur erfundene Personen und Daten — keine echten Fälle, auch nicht anonymisiert.
+        Keine internen Hintergründe oder Positionen.
+  - type: dropdown
+    id: art
+    attributes:
+      label: Art
+      options:
+        - Neues Beispiel im Startbestand
+        - Katalog oder Werteliste
+        - Fachliche Regel (AMTS, Abrechnung, Abgleich …)
+        - Vorführablauf
+        - Sonstiges
+    validations:
+      required: true
+  - type: textarea
+    id: inhalt
+    attributes:
+      label: Inhalt
+      description: Was soll die Demo zeigen? Mit Codes, wenn bekannt.
+    validations:
+      required: true
+  - type: textarea
+    id: zweck
+    attributes:
+      label: Wozu
+      description: Was zeigt das, was die Demo bisher nicht zeigen kann? (Spezifikation 3.1)
+    validations:
+      required: true
+  - type: textarea
+    id: quelle
+    attributes:
+      label: Quelle
+      description: Öffentliche Quelle für Codes oder Regeln; sonst „ungeprüft".

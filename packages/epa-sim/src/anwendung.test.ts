@@ -1,0 +1,525 @@
+import type { FastifyInstance } from 'fastify';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { simulatorBauen } from './anwendung.ts';
+import { befugnisErteilen } from './befugnis.ts';
+import { patientSummaryLesen } from '@demo-pvs/kern';
+
+/**
+ * Der Simulator von außen, über `inject`: Kopfzeilen der generellen Prinzipien
+ * (`de.gematik.epa` 1.3.2), MHD 1.1.3, Medication Service 1.3.5 und ✦ Diagnose-Service.
+ */
+
+const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const HOFFMANN = 'A123456780';
+const MEDIKATION = '/epa/medication/api/v1/fhir';
+const MHD = '/epa/mhd/api/v1/fhir';
+const DIENST = '/epa/vorschlag/diagnosis/api/v1/fhir';
+
+const ORGANISATION = {
+  resourceType: 'Organization',
+  meta: { profile: ['https://gematik.de/fhir/ti/StructureDefinition/ti-organization'] },
+  identifier: [{ system: 'https://gematik.de/fhir/sid/telematik-id', value: PRAXIS }],
+  name: 'Hausarztpraxis am Stadtgarten',
+};
+
+const base64 = (x: unknown) => Buffer.from(JSON.stringify(x)).toString('base64');
+
+function kopf(zusatz: Record<string, string> = {}): Record<string, string> {
+  return {
+    'x-useragent': 'DEMOPVSFIKTIV0000001/0.4.0',
+    'x-demo-sitzung': PRAXIS,
+    'x-insurantid': HOFFMANN,
+    'X-Requesting-Organization': base64(ORGANISATION),
+    'content-type': 'application/fhir+json',
+    ...zusatz,
+  };
+}
+
+type Parameter = { name: string; resource?: { resourceType: string; id?: string } };
+
+function parameter(p: Parameter[], name: string) {
+  return p.find((x) => x.name === name)?.resource;
+}
+
+let app: FastifyInstance;
+
+beforeEach(async () => {
+  await app?.close();
+  app = await simulatorBauen();
+  befugnisErteilen(HOFFMANN, PRAXIS, new Date(), 'eGK');
+});
+
+afterAll(async () => {
+  await app?.close();
+});
+
+async function planLesen(): Promise<string> {
+  const plan = await app.inject({
+    method: 'GET',
+    url: `${MEDIKATION}/$medication-plan`,
+    headers: kopf(),
+  });
+  expect(plan.statusCode).toBe(200);
+  const chronologie = (
+    plan.json().entry as {
+      resource: { resourceType: string; id: string; extension?: { url: string }[] };
+    }[]
+  )
+    .map((e) => e.resource)
+    .find(
+      (r) =>
+        r.resourceType === 'Provenance' &&
+        r.extension?.some((x) => x.url.endsWith('is-emp-chronology-extension')),
+    );
+  expect(chronologie).toBeDefined();
+  return chronologie!.id;
+}
+
+function neuerEintrag(lesenachweis?: string) {
+  return {
+    resourceType: 'Parameters',
+    parameter: [
+      ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
+      {
+        name: 'empEntry',
+        resource: {
+          resourceType: 'MedicationRequest',
+          status: 'active',
+          intent: 'plan',
+          authoredOn: '2026-09-27',
+          dosageInstruction: [{ text: '1-0-0' }],
+        },
+      },
+      {
+        name: 'medication',
+        part: [
+          {
+            name: 'resource',
+            resource: {
+              resourceType: 'Medication',
+              code: {
+                coding: [
+                  {
+                    system: 'http://fhir.de/CodeSystem/bfarm/atc',
+                    version: '2026',
+                    code: 'C10AA05',
+                  },
+                ],
+                text: 'Atorvastatin 20 mg',
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+describe('Kopfzeilen', () => {
+  it('weist eine Anfrage ohne x-useragent ab', async () => {
+    const a = await app.inject({
+      method: 'GET',
+      url: `${MHD}/DocumentReference`,
+      headers: { ...kopf(), 'x-useragent': '' },
+    });
+    expect(a.statusCode).toBe(400);
+    expect(a.json().errorCode).toBe('malformedRequest');
+  });
+
+  it('verlangt X-Requesting-Organization beim Schreiben und prüft die Telematik-ID', async () => {
+    const stand = await planLesen();
+    const ohne = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: { ...kopf(), 'X-Requesting-Organization': '' },
+      payload: neuerEintrag(stand),
+    });
+    expect(ohne.statusCode).toBe(422);
+
+    const fremd = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf({
+        'X-Requesting-Organization': base64({
+          ...ORGANISATION,
+          identifier: [{ system: 'https://gematik.de/fhir/sid/telematik-id', value: 'ANDERE' }],
+        }),
+      }),
+      payload: neuerEintrag(stand),
+    });
+    expect(fremd.statusCode).toBe(403);
+    expect(JSON.stringify(fremd.json())).toContain('SVC_IDENTITY_MISMATCH');
+  });
+});
+
+describe('MHD', () => {
+  it('liefert im Release 3.1.3 den Laborbefund als PDF und ruft ihn unverändert ab', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'release-3.1.3' },
+    });
+    const suche = await app.inject({
+      method: 'GET',
+      url: `${MHD}/DocumentReference?status=current`,
+      headers: kopf(),
+    });
+    const verweise = (suche.json().entry as { resource: Record<string, unknown> }[]).map(
+      (e) => e.resource,
+    );
+    const befund = verweise.find((r) => r['description'] === 'Laborgesamtbefund') as {
+      content: { attachment: { contentType: string; url: string }; format: { code: string } }[];
+    };
+    expect(befund.content[0]!.attachment.contentType).toBe('application/pdf');
+    expect(befund.content[0]!.format.code).toBe('urn:ihe-d:spec:PDF_A1:2005');
+
+    const datei = await app.inject({
+      method: 'GET',
+      url: befund.content[0]!.attachment.url,
+      headers: kopf(),
+    });
+    expect(datei.statusCode).toBe(200);
+    expect(datei.headers['content-type']).toContain('application/pdf');
+    expect(datei.body.startsWith('%PDF')).toBe(true);
+  });
+
+  it('findet Dokumente über die Volltextsuche', async () => {
+    const a = await app.inject({
+      method: 'GET',
+      url: `${MHD}/DocumentReference?_content=Vorhofflimmern`,
+      headers: kopf(),
+    });
+    expect(a.json().total).toBeGreaterThan(0);
+    const b = await app.inject({
+      method: 'GET',
+      url: `${MHD}/DocumentReference?_content=Zzzyxx`,
+      headers: kopf(),
+    });
+    expect(b.json().total).toBe(0);
+  });
+});
+
+describe('Medication Service — Lesenachweis', () => {
+  it('schreibt nur mit dem aktuellen Chronologieeintrag und vergibt danach einen neuen', async () => {
+    const ohne = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf(),
+      payload: neuerEintrag(),
+    });
+    expect(ohne.statusCode).toBe(409);
+
+    const stand = await planLesen();
+    const mit = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf(),
+      payload: neuerEintrag(stand),
+    });
+    expect(mit.statusCode).toBe(200);
+    const neu = parameter(mit.json().parameter as Parameter[], 'relatedChronology');
+    expect(neu?.id).toBeDefined();
+    expect(neu?.id).not.toBe(stand);
+
+    // Der alte Lesenachweis ist jetzt veraltet.
+    const erneut = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf(),
+      payload: neuerEintrag(stand),
+    });
+    expect(erneut.statusCode).toBe(409);
+  });
+
+  it('meldet 409, wenn eine andere Einrichtung zwischendurch geändert hat', async () => {
+    const stand = await planLesen();
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { fremdeAenderungVorSchreibzugriff: true },
+    });
+    const a = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf(),
+      payload: neuerEintrag(stand),
+    });
+    expect(a.statusCode).toBe(409);
+    expect(JSON.stringify(a.json())).toContain('CHRONOLOGY_ID_MISMATCH');
+  });
+
+  it('bildet $emp-commit nur im Stapel ab', async () => {
+    const a = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$emp-commit`,
+      headers: kopf(),
+      payload: {},
+    });
+    expect(a.statusCode).toBe(405);
+  });
+});
+
+describe('✦ Diagnose-Service', () => {
+  it('gibt es im Release 3.1.3 nicht', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'release-3.1.3' },
+    });
+    const a = await app.inject({ method: 'GET', url: `${DIENST}/metadata` });
+    expect(a.statusCode).toBe(404);
+  });
+
+  it('liefert die Liste mit Chronologieeintrag und verlangt ihn beim Anlegen', async () => {
+    const liste = await app.inject({
+      method: 'GET',
+      url: `${DIENST}/$allergy-list`,
+      headers: kopf(),
+    });
+    expect(liste.statusCode).toBe(200);
+    const chronologie = (
+      liste.json().entry as {
+        resource: { resourceType: string; id: string; extension?: { url: string }[] };
+      }[]
+    )
+      .map((e) => e.resource)
+      .find((r) => r.extension?.some((x) => x.url.endsWith('is-allergy-list-chronology')));
+    expect(chronologie).toBeDefined();
+
+    const eintrag = {
+      resourceType: 'AllergyIntolerance',
+      clinicalStatus: {
+        coding: [
+          {
+            system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
+            code: 'active',
+          },
+        ],
+      },
+      code: {
+        coding: [
+          {
+            system: 'http://snomed.info/sct',
+            version: 'http://snomed.info/sct/11000274103/version/20260515',
+            code: '387207008',
+            display: 'Ibuprofen',
+          },
+        ],
+      },
+      recordedDate: '2026-09-27',
+    };
+    const ohne = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$add-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [{ name: 'allergyEntry', resource: eintrag }],
+      },
+    });
+    expect(ohne.statusCode).toBe(409);
+
+    const mit = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$add-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: chronologie!.id },
+          { name: 'allergyEntry', resource: eintrag },
+        ],
+      },
+    });
+    expect(mit.statusCode).toBe(200);
+    const p = mit.json().parameter as Parameter[];
+    expect(parameter(p, 'entry')?.resourceType).toBe('AllergyIntolerance');
+    expect(parameter(p, 'relatedActivity')?.resourceType).toBe('Provenance');
+    expect(parameter(p, 'relatedChronology')?.id).not.toBe(chronologie!.id);
+  });
+});
+
+describe('✦ Patient Summary', () => {
+  const PS = '/epa/vorschlag/patient-summary/api/v1/fhir';
+
+  async function summary() {
+    const a = await app.inject({ method: 'GET', url: `${PS}/Patient/$summary`, headers: kopf() });
+    expect(a.statusCode).toBe(200);
+    return patientSummaryLesen(a.json())!;
+  }
+
+  it('gibt es im Release 3.1.3 nicht', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'release-3.1.3' },
+    });
+    expect((await app.inject({ method: 'GET', url: `${PS}/metadata` })).statusCode).toBe(404);
+  });
+
+  it('bildet ein EPS-Dokument aus den Listen, dem Plan und den Laborbefunden', async () => {
+    const a = await app.inject({ method: 'GET', url: `${PS}/Patient/$summary`, headers: kopf() });
+    const b = a.json();
+    expect(b.type).toBe('document');
+    expect(b.entry[0].resource.resourceType).toBe('Composition');
+    const ps = patientSummaryLesen(b)!;
+    const abschnitt = (s: string) => ps.abschnitte.find((x) => x.schluessel === s)!;
+    expect(abschnitt('allergien').quelle).toBe('allergy-list');
+    expect(abschnitt('allergien').eintraege).toHaveLength(2);
+    // Nur markierte Diagnosen; Harnwegsinfektion und Obstipation bleiben in der Liste.
+    expect(abschnitt('diagnosen').eintraege).toHaveLength(2);
+    expect(abschnitt('diagnosen').weitere).toBe(2);
+    expect(abschnitt('allergien').weitere).toBe(0);
+    expect(abschnitt('erklaerungen').leer).toBe('unavailable');
+    expect(abschnitt('medikation').quelle).toBe('medication-plan');
+    expect(abschnitt('medikation').eintraege).toHaveLength(4);
+    // Je Untersuchung der jüngste Wert: eGFR 38 vom August, nicht 46 vom März.
+    const egfr = abschnitt('laborwerte').eintraege.find((o) =>
+      JSON.stringify(o['code']).includes('62238-1'),
+    )!;
+    expect((egfr['valueQuantity'] as { value: number }).value).toBe(38);
+    // ✦ Stufe 2: Impfungen aus der Impfliste, die jüngste zuerst.
+    expect(abschnitt('impfungen').quelle).toBe('immunization-list');
+    expect(abschnitt('impfungen').eintraege).toHaveLength(5);
+    expect(String(abschnitt('impfungen').eintraege[0]!['occurrenceDateTime'])).toBe('2025-10-21');
+    for (const s of ['prozeduren', 'implantate']) {
+      expect(abschnitt(s).leer).toBe('unavailable');
+      expect(abschnitt(s).quelle).toBe('none');
+    }
+  });
+
+  it('bietet die Impfliste erst in Stufe 2; Stufe 1 lässt den Abschnitt leer', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung' },
+    });
+    const liste = await app.inject({
+      method: 'GET',
+      url: '/epa/vorschlag/immunization/api/v1/fhir/metadata',
+    });
+    expect(liste.statusCode).toBe(404);
+    const ps = await summary();
+    expect(ps.abschnitte.find((x) => x.schluessel === 'impfungen')!.quelle).toBe('none');
+  });
+
+  it('zeigt ohne geführte Listen nur, was automatisch entsteht', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { patientSummaryQuellen: 'automatisch' },
+    });
+    const ps = await summary();
+    const abschnitt = (s: string) => ps.abschnitte.find((x) => x.schluessel === s)!;
+    expect(abschnitt('allergien').leer).toBe('unavailable');
+    expect(abschnitt('diagnosen').leer).toBe('unavailable');
+    // Die Medikationsliste enthält auch Metformin, das nicht im Plan steht.
+    expect(abschnitt('medikation').quelle).toBe('medication-list');
+    expect(abschnitt('medikation').eintraege).toHaveLength(5);
+  });
+
+  it('zeigt eine neue Allergie erst, wenn sie markiert ist — sie folgt der Liste ohne eigenen Schreibweg', async () => {
+    const liste = await app.inject({
+      method: 'GET',
+      url: `${DIENST}/$allergy-list`,
+      headers: kopf(),
+    });
+    const chronologie = (
+      liste.json().entry as { resource: { id: string; extension?: { url: string }[] } }[]
+    )
+      .map((e) => e.resource)
+      .find((r) => r.extension?.some((x) => x.url.endsWith('is-allergy-list-chronology')))!;
+    await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$add-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: chronologie.id },
+          {
+            name: 'allergyEntry',
+            resource: {
+              resourceType: 'AllergyIntolerance',
+              clinicalStatus: {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
+                    code: 'active',
+                  },
+                ],
+              },
+              code: {
+                coding: [
+                  {
+                    system: 'http://snomed.info/sct',
+                    version: 'http://snomed.info/sct/11000274103/version/20260515',
+                    code: '387207008',
+                  },
+                ],
+                text: 'Ibuprofen',
+              },
+            },
+          },
+        ],
+      },
+    });
+    const allergien = async () =>
+      (await summary()).abschnitte.find((x) => x.schluessel === 'allergien')!;
+    // Unmarkiert: in der Liste, nicht in der Patient Summary.
+    expect((await allergien()).eintraege).toHaveLength(2);
+    expect((await allergien()).weitere).toBe(1);
+
+    const nachher = await app.inject({
+      method: 'GET',
+      url: `${DIENST}/$allergy-list`,
+      headers: kopf(),
+    });
+    const eintraege = (
+      nachher.json().entry as {
+        resource: {
+          resourceType: string;
+          id: string;
+          code?: { text?: string };
+          extension?: { url: string }[];
+        };
+      }[]
+    ).map((e) => e.resource);
+    const ibuprofen = eintraege.find((r) => r.code?.text === 'Ibuprofen')!;
+    const stand = eintraege.find((r) =>
+      r.extension?.some((x) => x.url.endsWith('is-allergy-list-chronology')),
+    )!;
+    const markiert = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$flag-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: stand.id },
+          { name: 'entry', valueReference: { reference: `AllergyIntolerance/${ibuprofen.id}` } },
+          { name: 'psRelevant', valueBoolean: true },
+        ],
+      },
+    });
+    expect(markiert.statusCode).toBe(200);
+    expect((await allergien()).eintraege).toHaveLength(3);
+    expect((await allergien()).weitere).toBe(0);
+
+    // Wieder aufgehoben, mit veraltetem Lesenachweis: 409 — wie jede Schreibung.
+    const veraltet = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$flag-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: stand.id },
+          { name: 'entry', valueReference: { reference: `AllergyIntolerance/${ibuprofen.id}` } },
+          { name: 'psRelevant', valueBoolean: false },
+        ],
+      },
+    });
+    expect(veraltet.statusCode).toBe(409);
+  });
+});

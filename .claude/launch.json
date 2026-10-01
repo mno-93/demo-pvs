@@ -1,0 +1,28 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "demo-pvs",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "demo-pvs-gehostet",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "vorschau",
+        "--workspace",
+        "@demo-pvs/pvs",
+        "--",
+        "--port",
+        "4173",
+        "--strictPort",
+        "--base",
+        "/demo-pvs/"
+      ],
+      "port": 4173
+    }
+  ]
+}

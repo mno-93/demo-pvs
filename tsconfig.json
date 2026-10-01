@@ -1,0 +1,8 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/kern" },
+    { "path": "./packages/epa-sim" },
+    { "path": "./packages/pvs" }
+  ]
+}
