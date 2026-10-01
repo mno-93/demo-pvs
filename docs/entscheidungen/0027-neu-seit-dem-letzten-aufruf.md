@@ -43,6 +43,17 @@ der Spezifikation (Abschnitt 7.7): ein Parameter „seit" an den Listenoperation
 „Änderungen seit" auf Grundlage der Änderungseinträge oder eine Benachrichtigung für
 Leistungserbringer.
 
+## Nachtrag 01.10.2026
+
+Berichtigt: Für **Dokumente und Medikation** ist eine Abfrage „seit" bereits spezifiziert —
+`_lastUpdated` an der Dokumentsuche (MHD 1.1.3) und an allen Ressourcen des Medication Service,
+Chronologieeinträge des Medikationsplans nach `recorded` und `agent-identifier`, `$medication-list`
+mit `date` (Medication 1.3.5, jeweils SHALL). Ein Primärsystem kann dort die Änderungen gezielt
+abfragen, statt jede Sicht vollständig zu laden. Als Lesezeichen dient der Zeitpunkt des
+Aktensystems aus der letzten Antwort; damit entfällt der Einwand abweichender Uhren. Der ✦
+Vorschlag beschränkt sich auf die Listen und die Patient Summary: dieselbe Mechanik übernehmen.
+Die Demo bleibt beim Vergleich im Primärsystem, damit alle Sichten gleich funktionieren.
+
 ## Verworfen
 
 **Vergleich über den Zeitpunkt der letzten Änderung** — scheitert an abweichenden Uhren und
