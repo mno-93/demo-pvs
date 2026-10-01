@@ -11,8 +11,9 @@ Allergienliste und Diagnosenliste und ✦ die Patient Summary als Sicht auf dies
 „Weiterentwicklung 2" ergänzt ✦ eine Impfliste mit derselben Mechanik.
 
 Die Karteikarte zeigt den Verlauf je Besuch: Notizen, strukturierte Einträge und Dokumente eines
-Tages in einem Block. Patient Summary und Listen zeigen, was andere Einrichtungen seit dem letzten
-Aufruf eingetragen haben.
+Tages in einem Block. Medikation, Dokumente, Patient Summary und Listen zeigen, was andere
+Einrichtungen seit dem letzten Aufruf eingetragen haben — für Medikation und Dokumente über die
+Abfragen, die die Implementation Guides dafür vorsehen.
 
 Das PVS verordnet E-Rezepte über einen Demo-Ersatz des E-Rezept-Fachdienstes; aus dem Plan
 verordnet, verknüpfen sich Plan und Medikationsliste über den eMP-Identifier.
@@ -143,6 +144,7 @@ Mit ✦ gekennzeichnete Teile sind Vorschläge und nicht spezifiziert.
 | M4d     | Zustand der Akte (Information Service, Widerspruch), „Stand" an jeder ePA-Ansicht, Kennzeichen ↓/↑ in der Karteikarte; E-Rezept aus dem Plan mit Fachdienst-Ersatz, Abgabe, Stornierung, Hinweis bei Mehrfachabgabe, Signaturstapel | erledigt     |
 | M4f     | Verlauf je Besuch; ✦ Impfliste als Ausbaustand „Weiterentwicklung 2" mit Bereich Impfungen; „neu seit dem letzten Aufruf" für Patient Summary und Listen                                                                            | erledigt     |
 | M4g     | Diagnosen und Allergien kompakt und aufklappbar, Ordnung nach Einstelldatum oder eigene Reihenfolge                                                                                                                                 | erledigt     |
+| M4h     | „Neu seit dem letzten Aufruf" für Medikation und Dokumente über die spezifizierten Abfragen (`_lastUpdated`, Chronologie nach `recorded`, früherer Planstand, `$medication-list` mit `date`)                                        | erledigt     |
 | **M4c** | Patient Summary: Aufwandszähler, weitere Quellen (Prozeduren, Implantate), gespeicherte Fassung                                                                                                                                     | als Nächstes |
 | M4e     | Hochladen mit Metadaten, Widerspruch gegen einzelne Dokumente, Tagesübersicht „neu seit dem letzten Besuch" (Ausblick in SPEZIFIKATION 9.1)                                                                                         | geplant      |
 | M5      | Zulauf aus dem Entlassbrief, Notfallzugriff, EU-Abruf                                                                                                                                                                               | offen        |

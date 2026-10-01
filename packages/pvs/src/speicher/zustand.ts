@@ -71,6 +71,12 @@ export interface Zustand {
    * letzten Aufruf" (ADR 0027).
    */
   epaGesehen: readonly EpaGesehen[];
+  /**
+   * Lesezeichen für die spezifizierte Abfrage „seit" — je Person und Bestand der Zeitpunkt des
+   * Aktensystems beim letzten Aufruf, beim Medikationsplan dazu der Chronologieeintrag
+   * (ADR 0030).
+   */
+  epaLesezeichen: readonly EpaLesezeichen[];
   /** Wie die Praxis die Listen für Diagnosen und Allergien ordnet — je Person (ADR 0029). */
   listenordnung: readonly Listenordnung[];
 
@@ -83,6 +89,15 @@ export interface Zustand {
 }
 
 export type EpaSicht = 'summary' | 'Condition' | 'AllergyIntolerance' | 'Immunization';
+
+export interface EpaLesezeichen {
+  patientId: string;
+  bestand: 'dokumente' | 'medikation';
+  /** Zeitpunkt des Aktensystems aus der letzten Antwort. */
+  zeitpunkt: string;
+  /** Chronologieeintrag des Medikationsplans beim letzten Aufruf. */
+  chronologie: string | null;
+}
 
 export interface Listenordnung {
   patientId: string;

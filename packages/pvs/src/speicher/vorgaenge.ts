@@ -17,7 +17,7 @@ import {
   type Terminstatus,
 } from '@demo-pvs/kern';
 import type { Vorgang } from './speicher.js';
-import type { EpaGesehen, Listenordnung, Zustand } from './zustand.js';
+import type { EpaGesehen, EpaLesezeichen, Listenordnung, Zustand } from './zustand.js';
 
 /** Erzeugt eine im Ablauf eindeutige Kennung. Reicht für eine Demo ohne Nebenläufigkeit. */
 let zaehler = 0;
@@ -719,6 +719,23 @@ export const vorgaenge = {
             (o) => !(o.patientId === ordnung.patientId && o.liste === ordnung.liste),
           ),
           ordnung,
+        ],
+      }),
+    };
+  },
+
+  epaLesezeichenMerken(lesezeichen: EpaLesezeichen): Vorgang {
+    return {
+      name: 'epaLesezeichenMerken',
+      beschreibung: 'Lesezeichen der ePA-Abfrage gemerkt',
+      zaehltNicht: true,
+      anwenden: (z) => ({
+        ...z,
+        epaLesezeichen: [
+          ...z.epaLesezeichen.filter(
+            (l) => !(l.patientId === lesezeichen.patientId && l.bestand === lesezeichen.bestand),
+          ),
+          lesezeichen,
         ],
       }),
     };

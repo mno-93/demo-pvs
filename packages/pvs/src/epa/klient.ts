@@ -52,6 +52,10 @@ export const GRUNDLAGE = {
   eml: '$medication-list · IG epa-medication 1.3.5',
   emp: '$medication-plan · IG epa-medication 1.3.5',
   empLog: '$medication-plan-log · IG epa-medication 1.3.5',
+  iti67Seit: 'MHD ITI-67 mit _lastUpdated · IG epa-mhd 1.1.3',
+  empSeit: 'Provenance?is-emp-chronology&recorded · IG epa-medication 1.3.5',
+  empFrueher: '$medication-plan zu früherem Chronologieeintrag · IG epa-medication 1.3.5',
+  emlSeit: '$medication-list mit date · IG epa-medication 1.3.5',
   empNeu: '$add-emp-entry · IG epa-medication 1.3.5',
   empAendern: '$update-emp-entry · IG epa-medication 1.3.5',
   verknuepfen: '$link-emp · IG epa-medication 1.3.5',
@@ -264,6 +268,7 @@ async function senden<T>({
 
 interface Bundle {
   resourceType: 'Bundle';
+  meta?: { lastUpdated?: string };
   type?: string;
   total?: number;
   timestamp?: string;
@@ -294,6 +299,36 @@ export async function dokumenteSuchen(kvnr: string, volltext?: string): Promise<
     pfad: `${MHD}/DocumentReference?${suche.toString()}`,
     kvnr,
     grundlage: GRUNDLAGE.iti67,
+  });
+  return treffer(inhalt);
+}
+
+/**
+ * Zeitpunkt des Aktensystems aus einer Antwort — das Lesezeichen für eine spätere Abfrage
+ * „seit" (ADR 0030). Nie die Uhr der Praxis: Sie kann abweichen.
+ */
+function serverzeit(b: Bundle): string {
+  return b.meta?.lastUpdated ?? b.timestamp ?? '';
+}
+
+/** Dokumentliste mit dem Zeitpunkt des Aktensystems. */
+export async function dokumenteMitStand(
+  kvnr: string,
+): Promise<{ verweise: Ressource[]; stand: string }> {
+  const { inhalt } = await anfragen<Bundle>({
+    pfad: `${MHD}/DocumentReference?status=current`,
+    kvnr,
+    grundlage: GRUNDLAGE.iti67,
+  });
+  return { verweise: treffer(inhalt), stand: serverzeit(inhalt) };
+}
+
+/** Dokumente, die seit dem Lesezeichen eingestellt oder geändert wurden (`_lastUpdated`). */
+export async function dokumenteSeit(kvnr: string, seit: string): Promise<Ressource[]> {
+  const { inhalt } = await anfragen<Bundle>({
+    pfad: `${MHD}/DocumentReference?status=current&_lastUpdated=gt${encodeURIComponent(seit)}`,
+    kvnr,
+    grundlage: GRUNDLAGE.iti67Seit,
   });
   return treffer(inhalt);
 }
@@ -344,15 +379,23 @@ export interface Medikationsplan {
   /** Kennung des Chronologieeintrags — der Lesenachweis für jede Änderung. */
   lesenachweis: string | null;
   stand: string;
+  /** Zeitpunkt des Aktensystems beim Abruf — Lesezeichen für die Abfrage „seit". */
+  abgerufen: string;
   eintraege: Ressource[];
   ressourcen: Ressource[];
 }
 
-export async function medikationsplanLesen(kvnr: string): Promise<Medikationsplan> {
+/** Der Medikationsplan — aktuell oder, mit `chronologie`, der Stand zu diesem Eintrag. */
+export async function medikationsplanLesen(
+  kvnr: string,
+  frueherenStand?: string,
+): Promise<Medikationsplan> {
   const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MEDIKATION}/$medication-plan`,
+    pfad: frueherenStand
+      ? `${MEDIKATION}/$medication-plan?provenance=${encodeURIComponent(frueherenStand)}`
+      : `${MEDIKATION}/$medication-plan`,
     kvnr,
-    grundlage: GRUNDLAGE.emp,
+    grundlage: frueherenStand ? GRUNDLAGE.empFrueher : GRUNDLAGE.emp,
   });
   const alle = (inhalt.entry ?? []).map((e) => e.resource);
   const chronologie = alle.find(
@@ -363,9 +406,45 @@ export async function medikationsplanLesen(kvnr: string): Promise<Medikationspla
   return {
     lesenachweis: chronologie ? String(chronologie.id) : null,
     stand: String(chronologie?.['recorded'] ?? ''),
+    abgerufen: serverzeit(inhalt),
     eintraege: alle.filter((r) => r.resourceType === 'MedicationRequest' && r['intent'] === 'plan'),
     ressourcen: alle,
   };
+}
+
+/**
+ * Chronologieeinträge des Medikationsplans seit dem Lesezeichen, je mit der Einrichtung, die
+ * geändert hat (`agent.who.identifier`).
+ */
+export async function planaenderungenSeit(
+  kvnr: string,
+  seit: string,
+): Promise<{ id: string; telematikId: string | null; einrichtung: string }[]> {
+  const { inhalt } = await anfragen<Bundle>({
+    pfad: `${MEDIKATION}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(seit)}`,
+    kvnr,
+    grundlage: GRUNDLAGE.empSeit,
+  });
+  return treffer(inhalt).map((p) => {
+    const wer = (
+      p['agent'] as { who?: { identifier?: { value?: string }; display?: string } }[] | undefined
+    )?.[0]?.who;
+    return {
+      id: String(p.id),
+      telematikId: wer?.identifier?.value ?? null,
+      einrichtung: wer?.display ?? '—',
+    };
+  });
+}
+
+/** Einträge der Medikationsliste seit dem Lesezeichen (`date`). */
+export async function medikationslisteSeit(kvnr: string, seit: string): Promise<string[]> {
+  const { inhalt } = await anfragen<Bundle>({
+    pfad: `${MEDIKATION}/$medication-list?date=gt${encodeURIComponent(seit)}`,
+    kvnr,
+    grundlage: GRUNDLAGE.emlSeit,
+  });
+  return treffer(inhalt).map((r) => String(r.id));
 }
 
 /** Nur der neueste Chronologieeintrag — für die Frage „hat sich etwas geändert?". */

@@ -15,7 +15,15 @@ import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import { usePatientId } from './Patientenkartei.js';
-import { EpaFehler, dokumentAbrufen, dokumenteSuchen } from '../epa/klient.js';
+import {
+  EINRICHTUNG,
+  EpaFehler,
+  dokumentAbrufen,
+  dokumenteMitStand,
+  dokumenteSeit,
+} from '../epa/klient.js';
+import { useLesezeichen } from '../epa/lesezeichen.js';
+import { Aenderungsband } from '../epa/gesehen.js';
 import {
   alsEpaDokument,
   dokumentverweisLesen,
@@ -36,6 +44,9 @@ import { protokollUmschalten } from '../epa/protokoll.js';
  *
  * Die ePA wird über den MHD Service gelesen: ITI-67 für die Liste, ITI-68 für den Inhalt.
  * Einstellen ginge nur über XDS ITI-41 (SOAP) und ist nicht nachgebildet.
+ *
+ * Was seit dem letzten Aufruf eingestellt wurde, fragt die Ansicht mit `_lastUpdated` ab — dem
+ * Suchparameter, den der IG verbindlich vorsieht (ADR 0030).
  */
 
 const STATUS_TON = {
@@ -64,11 +75,30 @@ export function Dokumente() {
   );
   const kvnr = patient?.versicherung.kvnr ?? '';
 
-  const abfrage = useEpaAbfrage(
-    () => dokumenteSuchen(kvnr).then((r) => r.map(dokumentverweisLesen)),
-    [kvnr],
-  );
-  const verweise = useMemo(() => abfrage.daten ?? [], [abfrage.daten]);
+  const lesezeichen = useLesezeichen(patientId, 'dokumente');
+  const abfrage = useEpaAbfrage(async () => {
+    const { verweise, stand } = await dokumenteMitStand(kvnr);
+    const vorher = lesezeichen.vorher;
+    // Neu seit dem letzten Aufruf: nur, was andere Einrichtungen eingestellt haben.
+    const neu = vorher
+      ? (await dokumenteSeit(kvnr, vorher.zeitpunkt))
+          .map(dokumentverweisLesen)
+          .filter((d) => !d.autor.includes(EINRICHTUNG.anzeige))
+      : [];
+    lesezeichen.merken(stand);
+    return {
+      verweise: verweise.map(dokumentverweisLesen),
+      seit: vorher
+        ? {
+            am: vorher.zeitpunkt,
+            neu: new Set(neu.map((d) => d.id)),
+            von: [...new Set(neu.map((d) => d.autor.split(', ').pop() ?? ''))],
+          }
+        : null,
+    };
+  }, [kvnr]);
+  const verweise = useMemo(() => abfrage.daten?.verweise ?? [], [abfrage.daten]);
+  const seit = abfrage.daten?.seit ?? null;
   const laedt = abfrage.laedt;
   const fehler = abfrage.fehler?.text ?? null;
   const [ansicht, setzeAnsicht] = useState<{
@@ -173,6 +203,13 @@ export function Dokumente() {
           )}
         </div>
 
+        {seit && seit.neu.size > 0 && (
+          <Aenderungsband
+            am={seit.am}
+            teile={[`${seit.neu.size} ${seit.neu.size === 1 ? 'Dokument' : 'Dokumente'} neu`]}
+            von={seit.von}
+          />
+        )}
         {meldung && <div className="hinweisbox fehler">{meldung}</div>}
         {fehler && (
           <div className="hinweisbox fehler">
@@ -206,6 +243,9 @@ export function Dokumente() {
                   <td>{deutschesDatum(zeile.datum)}</td>
                   <td>
                     <b>{zeile.titel}</b>
+                    {zeile.epaDokument && seit?.neu.has(zeile.epaDokument.id) && (
+                      <span className="neu-marke">neu</span>
+                    )}
                     <div style={{ fontSize: '0.82em', color: 'var(--text-sehr-leise)' }}>
                       {zeile.art}
                       {zeile.lokal

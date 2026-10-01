@@ -257,15 +257,14 @@ export function wegeEinhaengen(app: FastifyInstance): void {
 
   app.get('/verwaltung/befugnisse', async () => alleBefugnisse());
 
-  /** Eine andere Einrichtung trägt jetzt in die Listen ein — für „neu seit dem letzten Aufruf". */
+  /** Eine andere Einrichtung trägt jetzt ein — Dokument, Medikationsplan, Listen — für „neu seit dem letzten Aufruf". */
   app.post('/verwaltung/fremde-eintraege', async (anfrage, antwort) => {
     const kvnr = String((anfrage.body as { kvnr?: string } | undefined)?.kvnr ?? '');
-    if (!bestandVorhanden(kvnr) || !abStufe(1)) {
-      return antwort
-        .code(409)
-        .send(fehler('conflict', 'Keine Akte oder keine Listen in diesem Ausbaustand.'));
+    if (!bestandVorhanden(kvnr)) {
+      return antwort.code(409).send(fehler('conflict', 'Keine Akte.'));
     }
-    return { angelegt: fremdeEintraegeAnlegen(kvnr, abStufe(2)) };
+    const stufe = abStufe(2) ? 2 : abStufe(1) ? 1 : 0;
+    return { angelegt: fremdeEintraegeAnlegen(kvnr, stufe) };
   });
 
   /** Wie nach Ablauf der 90 Tage: Die Einrichtung verliert ihre Befugnisse in allen Akten. */

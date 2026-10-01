@@ -25,7 +25,7 @@ import { chronologieAnlegen } from './chronologie.ts';
 import { eintragAnlegen, listeFortschreiben } from './diagnosedienst.ts';
 import { EMP, EMP_IDENTIFIER, EXT, PROFIL } from './medikation.ts';
 import { eintragsUuid } from './mhd.ts';
-import { jetzt } from './fhir-hilfen.ts';
+import { jetzt, neueId } from './fhir-hilfen.ts';
 import {
   aktivitaetAnlegen,
   subjektFuer,
@@ -327,8 +327,9 @@ function verordnetUndAbgegeben(
   datum: string,
   von: string,
   wer: Handelnde,
+  zeitpunkt?: string,
 ): Ressource {
-  const zeit = `${datum}T16:00:00`;
+  const zeit = zeitpunkt ?? `${datum}T16:00:00`;
   const ablage = bestandFuer(kvnr).medikation;
   const medication: Ressource = {
     resourceType: 'Medication',
@@ -406,8 +407,9 @@ function planeintrag(
   grund: string,
   wer: Handelnde,
   datum: string,
+  zeitpunkt?: string,
 ): void {
-  const zeit = `${datum}T16:00:00`;
+  const zeit = zeitpunkt ?? `${datum}T16:00:00`;
   const ablage = bestandFuer(kvnr).medikation;
   const id = `emp-${String(aussage.id).replace(/^eml-/, '')}`;
   const mittel: Ressource = {
@@ -591,55 +593,155 @@ function impfEintrag(
   return r;
 }
 
+const KARDIOLOGIE: Handelnde = {
+  telematikId: 'DEMO-KARDIOLOGIE-AM-WALL',
+  anzeige: 'Kardiologische Praxis am Wall',
+};
+
 /**
- * Demo-Steuerung: Eine andere Einrichtung trägt jetzt in die Listen ein — damit „neu seit dem
- * letzten Aufruf" vorführbar ist. Die Kardiologie stellt eine Diagnose ein und markiert sie; ab
- * Stufe 2 impft die Apotheke gegen Grippe.
+ * Demo-Steuerung: Eine andere Einrichtung trägt jetzt ein — damit „neu seit dem letzten Aufruf"
+ * vorführbar ist. Die Kardiologie stellt einen Kontrollbefund ein und ändert den
+ * Medikationsplan (Torasemid neu, Dosis eines bestehenden Eintrags geändert); ab Stufe 1 trägt
+ * sie eine Diagnose ein und markiert sie, ab Stufe 2 impft die Apotheke gegen Grippe.
  */
-export function fremdeEintraegeAnlegen(kvnr: string, mitImpfliste: boolean): string[] {
-  const kardiologie: Handelnde = {
-    telematikId: 'DEMO-KARDIOLOGIE-AM-WALL',
-    anzeige: 'Kardiologische Praxis am Wall',
-  };
+export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
   const apotheke: Handelnde = {
     telematikId: 'DEMO-APOTHEKE-STADTGARTEN',
     anzeige: 'Stadtgarten-Apotheke',
   };
   const heute = jetzt();
+  const datum = heute.slice(0, 10);
   const behrens = 'Dr. med. Jonas Behrens';
-  const { eintrag } = eintragAnlegen(
+  const bestand = bestandFuer(kvnr);
+  const angelegt: string[] = [];
+
+  // Kontrollbefund als eArztbrief, eingestellt jetzt.
+  const text = [
+    'Kardiologische Praxis am Wall — Dr. med. Jonas Behrens',
+    `Befundbericht Kontrolle vom ${datum.split('-').reverse().join('.')}`,
+    'Anlass: Zunahme der Belastungsdyspnoe, Unterschenkelödeme',
+    'Echokardiographie: LVEF 40 %',
+    'Empfehlung: Torasemid 10 mg morgens, Bisoprolol auf 5 mg steigern',
+  ];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ClinicalDocument xmlns="urn:hl7-org:v3"><title>Befundbericht Kardiologie, Kontrolle</title><component><structuredBody><component><section><text>${text
+    .map((z) => `<paragraph>${z}</paragraph>`)
+    .join('')}</text></section></component></structuredBody></component></ClinicalDocument>`;
+  const bytes = utf8AlsBytezeichen(xml);
+  const dokId = neueId('eab');
+  bestand.dokumente.push({
+    id: dokId,
+    uniqueId: abgeleiteteUniqueId(dokId),
+    titel: 'Befundbericht Kardiologie, Kontrolle',
+    classCode: kode('BRI', OID_KLASSE, 'Brief'),
+    typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
+    formatCode: registriert('urn:gematik:ig:Arztbrief:r3.1'),
+    mimeType: 'application/xml',
+    ordner: null,
+    erstellt: heute,
+    eingestellt: heute,
+    autor: behrens,
+    einrichtung: KARDIOLOGIE.anzeige,
+    groesseBytes: bytes.length,
+    inhalt: null,
+    datei: bytes,
+    text: text.join(' '),
+  });
+  angelegt.push(`DocumentReference/${eintragsUuid(bestand.dokumente.at(-1)!)}`);
+
+  // Medikationsplan: neues Mittel aus Verordnung, Dosis eines bestehenden Eintrags geändert.
+  const aussage = verordnetUndAbgegeben(
     kvnr,
-    psRelevanzSetzen(
-      diagnoseEintrag(
-        kvnr,
-        {
-          code: 'I50.12',
-          bezeichnung: 'Linksherzinsuffizienz: Mit Beschwerden bei stärkerer Belastung',
-          snomed: sct('84114007', 'Herzinsuffizienz'),
-          beginn: heute.slice(0, 10),
-        },
-        behrens,
-      ),
-      true,
-    ),
-    kardiologie,
+    neueId('k'),
+    'C03CA04',
+    'Torasemid 10 mg Tabletten',
+    '1-0-0-0',
+    datum,
+    `${behrens}, ${KARDIOLOGIE.anzeige}`,
+    KARDIOLOGIE,
     heute,
   );
-  listeFortschreiben(kvnr, 'Condition', kardiologie, heute);
-  const angelegt = [`Condition/${String(eintrag.id)}`];
-  if (mitImpfliste) {
+  planeintrag(
+    kvnr,
+    aussage,
+    'Torasemid 10 mg Tabletten',
+    'C03CA04',
+    '1-0-0-0',
+    'Herzinsuffizienz',
+    KARDIOLOGIE,
+    datum,
+    heute,
+  );
+  angelegt.push(
+    `MedicationRequest/${String((aussage['basedOn'] as { reference: string }[])[0]?.reference.split('/')[1])}`,
+  );
+  // Bevorzugt Bisoprolol — wie im Befund empfohlen; sonst ein Eintrag mit anderer Dosierung.
+  const atcVon = (r: Ressource) => {
+    const id = String((r['medicationReference'] as { reference?: string })?.reference ?? '').split(
+      '/',
+    )[1];
+    const m = bestand.medikation.find((x) => x.resourceType === 'Medication' && x.id === id);
+    return (m?.['code'] as { coding?: { code?: string }[] } | undefined)?.coding?.[0]?.code;
+  };
+  const kandidaten = bestand.medikation.filter(
+    (r) =>
+      r.resourceType === 'MedicationRequest' &&
+      r['intent'] === 'plan' &&
+      r['status'] === 'active' &&
+      !String(r.id).includes(String(aussage.id).replace(/^eml-/, '')),
+  );
+  const dosis = (r: Ressource) =>
+    (r['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text;
+  const geaendert =
+    kandidaten.find((r) => atcVon(r) === 'C07AB07') ??
+    kandidaten.find((r) => dosis(r) !== '1-0-1-0') ??
+    kandidaten[0];
+  if (geaendert) {
+    geaendert.meta = {
+      ...geaendert.meta,
+      versionId: String(Number(geaendert.meta?.versionId ?? '1') + 1),
+      lastUpdated: heute,
+    };
+    geaendert['dosageInstruction'] = [{ text: '1-0-1-0' }];
+    aktivitaetAnlegen(
+      bestand.medikation,
+      [versionierterVerweis(geaendert)],
+      KARDIOLOGIE,
+      'UPDATE',
+      heute,
+    );
+    angelegt.push(`MedicationRequest/${String(geaendert.id)}`);
+  }
+  chronologieAnlegen(bestand.medikation, EMP, KARDIOLOGIE, heute);
+
+  if (stufe >= 1) {
+    const { eintrag } = eintragAnlegen(
+      kvnr,
+      psRelevanzSetzen(
+        diagnoseEintrag(
+          kvnr,
+          {
+            code: 'I50.12',
+            bezeichnung: 'Linksherzinsuffizienz: Mit Beschwerden bei stärkerer Belastung',
+            snomed: sct('84114007', 'Herzinsuffizienz'),
+            beginn: datum,
+          },
+          behrens,
+        ),
+        true,
+      ),
+      KARDIOLOGIE,
+      heute,
+    );
+    listeFortschreiben(kvnr, 'Condition', KARDIOLOGIE, heute);
+    angelegt.push(`Condition/${String(eintrag.id)}`);
+  }
+  if (stufe >= 2) {
     const impfung = eintragAnlegen(
       kvnr,
-      impfEintrag(
-        kvnr,
-        'J07BB02',
-        heute.slice(0, 10),
-        'Apothekerin Lisa Kaya, Stadtgarten-Apotheke',
-        {
-          charge: 'FLU-26-0815',
-          dosis: 1,
-        },
-      ),
+      impfEintrag(kvnr, 'J07BB02', datum, 'Apothekerin Lisa Kaya, Stadtgarten-Apotheke', {
+        charge: 'FLU-26-0815',
+        dosis: 1,
+      }),
       apotheke,
       heute,
     );

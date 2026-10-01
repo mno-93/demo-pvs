@@ -15,7 +15,9 @@ import {
   jetztAlsIsoOrtszeit,
   laborwerteAusDokumenten,
   schwersterBefund,
+  staendeVergleichen,
   type Rezept,
+  type Standaenderungen,
   type AmtsUmgebung,
   type ArzneimittelEintrag,
   type DokumentierteAllergie,
@@ -30,13 +32,16 @@ import { Katalogsuche } from '../bausteine/Katalogsuche.js';
 import { Befundliste } from '../bausteine/Befundliste.js';
 import { usePatientId } from './Patientenkartei.js';
 import {
+  EINRICHTUNG,
   EpaFehler,
   empEintragAendern,
   empEintragAnlegen,
   empVerknuepfen,
   medikationslisteLesen,
+  medikationslisteSeit,
   medikationsplanLesen,
   medikationsplanStand,
+  planaenderungenSeit,
   type Medikationsliste,
   type Medikationsplan,
 } from '../epa/klient.js';
@@ -53,6 +58,8 @@ import { rezeptInEpa, rezeptLoeschen, rezeptSenden } from './medikation/rezepte.
 import { epaFensterOeffnen } from '../epa/fenster.js';
 import { BefugnisHinweis, istGueltig, useBefugnis, useEinlesungen } from '../epa/befugnis.js';
 import { useEpaListen } from '../epa/listen.js';
+import { useLesezeichen } from '../epa/lesezeichen.js';
+import { Aenderungsband } from '../epa/gesehen.js';
 
 /**
  * Medikationsmodul nach dem digital gestützten Medikationsprozess — gegen den Medication
@@ -88,6 +95,58 @@ interface Planzeile extends SpiegelEintrag {
   eintrag: Ressource;
   angelegtVon: string;
   zuletztVon: string;
+  zuletztVonTelematikId: string | null;
+}
+
+/** Was die spezifizierte Abfrage „seit dem letzten Aufruf" ergeben hat (ADR 0030). */
+interface SeitAbfrage {
+  am: string;
+  plan: Standaenderungen | null;
+  /** Einrichtungen, die den Plan seitdem geändert haben. */
+  planVon: string[];
+  /** Neue Einträge der Medikationsliste von anderen Einrichtungen. */
+  liste: ReadonlySet<string>;
+  listeVon: string[];
+}
+
+function alsStand(z: Planzeile) {
+  return {
+    id: z.id,
+    fassung: z.fassung,
+    bezeichnung: z.bezeichnung,
+    vonAnderen: z.zuletztVonTelematikId !== EINRICHTUNG.telematikId,
+  };
+}
+
+/**
+ * Fragt ab, was sich seit dem Lesezeichen geändert hat — mit den Mitteln des Medication
+ * Service: Chronologieeinträge nach `recorded`, der Plan zum früheren Chronologieeintrag,
+ * `$medication-list` mit `date`. Gemeldet wird nur, was andere Einrichtungen geändert haben.
+ */
+async function seitAbfragen(
+  kvnr: string,
+  vorher: { zeitpunkt: string; chronologie: string | null },
+  zeilen: Planzeile[],
+  liste: Listenzeile[],
+): Promise<SeitAbfrage> {
+  const chronologie = await planaenderungenSeit(kvnr, vorher.zeitpunkt);
+  const fremd = chronologie.filter((c) => c.telematikId !== EINRICHTUNG.telematikId);
+  let plan: Standaenderungen | null = null;
+  if (fremd.length > 0 && vorher.chronologie) {
+    const frueher = await medikationsplanLesen(kvnr, vorher.chronologie);
+    plan = staendeVergleichen(planzeilen(frueher).map(alsStand), zeilen.map(alsStand));
+  }
+  const neueAussagen = new Set(await medikationslisteSeit(kvnr, vorher.zeitpunkt));
+  const fremdeZeilen = liste.filter(
+    (z) => neueAussagen.has(String(z.aussage.id)) && !z.einrichtung.includes(EINRICHTUNG.anzeige),
+  );
+  return {
+    am: vorher.zeitpunkt,
+    plan,
+    planVon: [...new Set(fremd.map((c) => c.einrichtung))],
+    liste: new Set(fremdeZeilen.map((z) => String(z.aussage.id))),
+    listeVon: [...new Set(fremdeZeilen.map((z) => z.einrichtung.split(', ').pop() ?? ''))],
+  };
 }
 
 /** Ein Eintrag der Liste: Medikationsinformation mit Arzneimittel und Herkunft. */
@@ -182,6 +241,7 @@ function planzeilen(plan: Medikationsplan): Planzeile[] {
       fassung: e.meta?.versionId ?? '1',
       angelegtVon: chronik.angelegtVon,
       zuletztVon: chronik.zuletztVon,
+      zuletztVonTelematikId: chronik.zuletztVonTelematikId,
       geaendertAm: chronik.zuletztAm,
     };
   });
@@ -292,6 +352,8 @@ export function Medikation() {
   const aktenstatus = useAktenstatus(patient);
   const [vorlage, setzeVorlage] = useState<Rezeptvorlage | null>(null);
   const [neuesRezept, setzeNeuesRezept] = useState(false);
+  const lesezeichen = useLesezeichen(patientId, 'medikation');
+  const [seit, setzeSeit] = useState<SeitAbfrage | null>(null);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -337,8 +399,19 @@ export function Medikation() {
             ),
           }),
         );
-        setzeStand({ plan, zeilen, liste: listenzeilen(liste, zeilen), roh: liste });
+        const listenZeilen = listenzeilen(liste, zeilen);
+        setzeStand({ plan, zeilen, liste: listenZeilen, roh: liste });
         setzeLaedt(false);
+        // Abfrage „seit" gegen das Lesezeichen vom Öffnen der Ansicht; danach das neue merken.
+        const vorher = lesezeichen.vorher;
+        if (vorher) {
+          seitAbfragen(kvnr, vorher, zeilen, listenZeilen)
+            .then((s) => {
+              if (!abgebrochen) setzeSeit(s);
+            })
+            .catch(() => undefined);
+        }
+        lesezeichen.merken(plan.abgerufen, plan.lesenachweis);
       })
       .catch((f: unknown) => {
         if (abgebrochen) return;
@@ -663,6 +736,19 @@ export function Medikation() {
       )}
 
       <Karte titel="Medikationsplan">
+        {seit?.plan && !ausSpiegel && (
+          <Aenderungsband
+            am={seit.am}
+            teile={[
+              seit.plan.neu.size > 0 ? `${seit.plan.neu.size} neu` : null,
+              seit.plan.geaendert.size > 0 ? `${seit.plan.geaendert.size} geändert` : null,
+              seit.plan.entfallen.length > 0
+                ? `entfallen: ${seit.plan.entfallen.join(', ')}`
+                : null,
+            ]}
+            von={seit.planVon}
+          />
+        )}
         {laedt && !stand ? (
           <Leer>Wird abgefragt …</Leer>
         ) : angezeigt.length === 0 ? (
@@ -687,6 +773,10 @@ export function Medikation() {
                   <tr key={e.id}>
                     <td>
                       <b>{e.bezeichnung}</b>
+                      {seit?.plan?.neu.has(e.id) && <span className="neu-marke">neu</span>}
+                      {seit?.plan?.geaendert.has(e.id) && (
+                        <span className="neu-marke">geändert</span>
+                      )}
                       <div className="leise-klein">
                         ATC {e.atc} · Fassung {e.fassung}
                       </div>
@@ -735,6 +825,9 @@ export function Medikation() {
       </Karte>
 
       <Karte titel="Medikationsliste">
+        {seit && seit.liste.size > 0 && (
+          <Aenderungsband am={seit.am} teile={[`${seit.liste.size} neu`]} von={seit.listeVon} />
+        )}
         {!stand || stand.liste.length === 0 ? (
           <Leer>
             {gesperrt
@@ -744,6 +837,7 @@ export function Medikation() {
         ) : (
           <EmlTabelle
             zeilen={stand.liste}
+            neu={seit?.liste ?? new Set()}
             darfVerordnen={darfVerordnen && !ausSpiegel}
             rezept={vorlageAusListe}
             umgebung={umgebung}
@@ -1003,12 +1097,15 @@ function Planhandlungen({
 
 function EmlTabelle({
   zeilen,
+  neu,
   darfVerordnen,
   rezept,
   umgebung,
   uebernehmen,
 }: {
   zeilen: Listenzeile[];
+  /** Seit dem letzten Aufruf neu, von anderen Einrichtungen. */
+  neu: ReadonlySet<string>;
   darfVerordnen: boolean;
   rezept: (z: Listenzeile) => void;
   umgebung: AmtsUmgebung;
@@ -1040,6 +1137,7 @@ function EmlTabelle({
                 </td>
                 <td>
                   {z.medikament ? textVon(z.medikament) : '—'}
+                  {neu.has(String(z.aussage.id)) && <span className="neu-marke">neu</span>}
                   <div className="leise-klein">ATC {z.atc || '—'}</div>
                 </td>
                 <td className="leise-klein">{z.einrichtung}</td>

@@ -622,6 +622,7 @@ export function startzustand(): Zustand {
     impfungen,
     epaGesehen: [],
     listenordnung: [],
+    epaLesezeichen: [],
     handlungen: 0,
     protokoll: [],
     vorfuehrmodus: false,

@@ -136,7 +136,8 @@ describe('✦ Impfliste', () => {
       url: '/verwaltung/fremde-eintraege',
       payload: { kvnr: HOFFMANN },
     });
-    expect(a.json().angelegt).toHaveLength(2);
+    const angelegt = a.json().angelegt as string[];
+    expect(angelegt.filter((x) => /^(Condition|Immunization)\//.test(x))).toHaveLength(2);
     expect((await liste()).impfungen).toHaveLength(6);
   });
 });

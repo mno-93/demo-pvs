@@ -133,6 +133,13 @@ Person und Sicht im Zustand (`epaGesehen`) und zeichnet Band und Marke —
 `kern/fachlogik/verlauf.ts` (`besucheBilden`) —
 [0028](entscheidungen/0028-verlauf-nach-besuchen.md).
 
+**Abfrage „seit".** Medikation und Dokumente fragen Änderungen mit den spezifizierten Parametern
+ab (`epa/klient.ts`: `planaenderungenSeit`, `medikationslisteSeit`, `dokumenteSeit`); das
+Lesezeichen merkt `epa/lesezeichen.ts` je Person und Bestand, den Vergleich zweier Planstände
+`kern/fachlogik/aenderungen.ts` (`staendeVergleichen`). Im Simulator stehen die Parameter in
+`medikation.ts` und `mhd.ts`, der Datumsvergleich in `fhir-hilfen.ts` (`imZeitraum`) —
+[0030](entscheidungen/0030-abfrage-seit-nach-spezifikation.md).
+
 **Ordnung der Listen.** `kern/fachlogik/listenordnung.ts` ordnet Einträge nach Einstellung,
 Beginn, Bezeichnung oder eigener Reihenfolge; `pvs/src/module/diagnosen/ordnung.ts` merkt sie je
 Person und Liste im Zustand (`listenordnung`), `Splitscreen.tsx` stellt kompakte, aufklappbare

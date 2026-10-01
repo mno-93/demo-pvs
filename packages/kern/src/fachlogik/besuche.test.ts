@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Termin } from '../typen/termin.js';
 import { besucheBilden, type Verlaufseintrag } from './verlauf.js';
-import { aenderungenSeit, fassungsstandBilden } from './aenderungen.js';
+import { aenderungenSeit, fassungsstandBilden, staendeVergleichen } from './aenderungen.js';
 
 function eintrag(
   teil: Partial<Verlaufseintrag> & Pick<Verlaufseintrag, 'id' | 'zeitpunkt' | 'kuerzel'>,
@@ -99,5 +99,23 @@ describe('Neu seit dem letzten Aufruf', () => {
   it('meldet beim ersten Aufruf nichts', () => {
     const a = aenderungenSeit(null, [{ schluessel: 'X/1', fassung: '1', vonAnderen: true }]);
     expect(a.neu.size + a.geaendert.size).toBe(0);
+  });
+});
+
+describe('Vergleich zweier Stände aus dem Aktensystem', () => {
+  it('meldet neue und geänderte Einträge anderer Einrichtungen und entfallene mit Namen', () => {
+    const e = (id: string, fassung: string, vonAnderen = true) => ({
+      id,
+      fassung,
+      bezeichnung: `Mittel ${id}`,
+      vonAnderen,
+    });
+    const a = staendeVergleichen(
+      [e('a', '1'), e('b', '1'), e('c', '1')],
+      [e('a', '1'), e('b', '2'), e('d', '1'), e('x', '1', false)],
+    );
+    expect([...a.neu]).toEqual(['d']);
+    expect([...a.geaendert]).toEqual(['b']);
+    expect(a.entfallen).toEqual(['Mittel c']);
   });
 });

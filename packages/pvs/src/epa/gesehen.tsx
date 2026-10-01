@@ -105,17 +105,43 @@ export function SeitLetztemAufrufBand({
 }) {
   const { vorher, aenderungen: a } = seit;
   if (!vorher || anzahlAenderungen(a) === 0) return null;
-  const teile = [
-    a.neu.size > 0 ? `${a.neu.size} neu` : null,
-    a.geaendert.size > 0 ? `${a.geaendert.size} geändert` : null,
-    a.entfallen > 0 ? `${a.entfallen} entfallen` : null,
-  ].filter(Boolean);
+  return (
+    <Aenderungsband
+      liste={liste}
+      am={vorher.am}
+      teile={[
+        a.neu.size > 0 ? `${a.neu.size} neu` : null,
+        a.geaendert.size > 0 ? `${a.geaendert.size} geändert` : null,
+        a.entfallen > 0 ? `${a.entfallen} entfallen` : null,
+      ]}
+      von={['andere Einrichtungen']}
+    />
+  );
+}
+
+/**
+ * Gemeinsame Darstellung — für den Vergleich im Primärsystem (ADR 0027) wie für die
+ * spezifizierte Abfrage „seit" (ADR 0030).
+ */
+export function Aenderungsband({
+  liste,
+  am,
+  teile,
+  von,
+}: {
+  liste?: string;
+  am: string;
+  teile: (string | null)[];
+  von: string[];
+}) {
+  const sichtbar = teile.filter(Boolean);
+  if (sichtbar.length === 0) return null;
   return (
     <div className="seit-band" role="status">
       <b>
-        {liste ? `${liste} — seit` : 'Seit'} dem letzten Aufruf am {deutscherZeitpunkt(vorher.am)}:
+        {liste ? `${liste} — seit` : 'Seit'} dem letzten Aufruf am {deutscherZeitpunkt(am)}:
       </b>{' '}
-      {teile.join(' · ')} <span className="leise-klein">(andere Einrichtungen)</span>
+      {sichtbar.join(' · ')} <span className="leise-klein">({von.join(', ')})</span>
     </div>
   );
 }

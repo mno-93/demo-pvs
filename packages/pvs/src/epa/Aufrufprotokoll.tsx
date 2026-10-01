@@ -247,7 +247,6 @@ export function Aufrufprotokoll() {
                   <button
                     type="button"
                     className="knopf klein"
-                    disabled={lage.ausbaustand === 'release-3.1.3'}
                     onClick={() => fremdeEintraegeAnlegen(a.kvnr).then(stand, stand)}
                   >
                     andere Einrichtung trägt ein

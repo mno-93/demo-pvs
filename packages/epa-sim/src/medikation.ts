@@ -11,7 +11,9 @@ import {
 import {
   MS_DETAILS,
   ausgabe,
+  imZeitraum,
   jetzt,
+  kennungPasst,
   neueId,
   operationOutcome,
   parameterLesen,
@@ -233,26 +235,15 @@ export function medikationEinhaengen(
   app.get(`${b}/$medication-list`, async (anfrage) => {
     const kvnr = kvnrAus(anfrage);
     const q = anfrage.query as Record<string, string | string[] | undefined>;
-    const daten = ([] as string[]).concat(q['date'] ?? []);
-    const imZeitraum = (r: Ressource) => {
-      const t = String(
-        r['dateAsserted'] ?? (r['effectivePeriod'] as { start?: string })?.start ?? '',
-      );
-      return daten.every((d) => {
-        const vergleich = d.slice(0, 2);
-        const wert = /^(ge|le|gt|lt|eq)/.test(d) ? d.slice(2) : d;
-        if (vergleich === 'ge') return t >= wert;
-        if (vergleich === 'gt') return t > wert;
-        if (vergleich === 'le') return t.slice(0, wert.length) <= wert;
-        if (vergleich === 'lt') return t < wert;
-        return t.startsWith(wert);
-      });
-    };
+    // `date` (0..2, Ober- und Untergrenze) — auch für „neu seit dem letzten Aufruf".
     const aussagen = ablage(kvnr).filter(
       (r) =>
         r.resourceType === 'MedicationStatement' &&
         r['status'] !== 'entered-in-error' &&
-        imZeitraum(r),
+        imZeitraum(
+          String(r['dateAsserted'] ?? (r['effectivePeriod'] as { start?: string })?.start ?? ''),
+          q['date'],
+        ),
     );
     return suchergebnis(aussagen, [patientFuer(kvnr), ...einschluesse(kvnr, aussagen)]);
   });
@@ -323,6 +314,7 @@ export function medikationEinhaengen(
     }
     return {
       resourceType: 'Bundle',
+      meta: { lastUpdated: jetzt() },
       type: 'collection',
       timestamp: jetzt(),
       entry: [patientFuer(kvnr), ...(chronologie ? [chronologie] : []), ...eintraege, ...dazu].map(
@@ -348,7 +340,12 @@ export function medikationEinhaengen(
     return { ...suchergebnis(treffer), total: sortiert.length };
   });
 
-  /** Query API: Suche und Lesen je Ressourcentyp. */
+  /**
+   * Query API: Suche und Lesen je Ressourcentyp. Neben `_id` und `status` die Parameter, mit
+   * denen ein Primärsystem Änderungen seit einem Zeitpunkt abfragt (alle SHALL im
+   * CapabilityStatement 1.3.5): `_lastUpdated`, an Provenance `recorded`, `when`,
+   * `agent-identifier`, `target`, `is-emp-chronology`.
+   */
   for (const typ of [
     'Medication',
     'MedicationRequest',
@@ -359,15 +356,30 @@ export function medikationEinhaengen(
   ]) {
     app.get(`${b}/${typ}`, async (anfrage) => {
       const kvnr = kvnrAus(anfrage);
-      const q = anfrage.query as Record<string, string | undefined>;
+      const q = anfrage.query as Record<string, string | string[] | undefined>;
+      const eins = (n: string) => ([] as string[]).concat(q[n] ?? [])[0];
+      const agenten = (r: Ressource) =>
+        ((r['agent'] as { who?: { identifier?: { system?: string; value?: string } } }[]) ?? [])
+          .map((a) => a.who?.identifier)
+          .filter(Boolean);
       return suchergebnis(
         ablage(kvnr).filter(
           (r) =>
             r.resourceType === typ &&
-            (!q['_id'] || r.id === q['_id']) &&
-            (!q['status'] || r['status'] === q['status']) &&
-            (q['is-emp-chronology'] === undefined ||
-              istChronologie(r, EMP) === (q['is-emp-chronology'] === 'true')),
+            (!eins('_id') || r.id === eins('_id')) &&
+            (!eins('status') || r['status'] === eins('status')) &&
+            imZeitraum(r.meta?.lastUpdated, q['_lastUpdated']) &&
+            (eins('is-emp-chronology') === undefined ||
+              istChronologie(r, EMP) === (eins('is-emp-chronology') === 'true')) &&
+            (typ !== 'Provenance' ||
+              (imZeitraum(String(r['recorded'] ?? ''), q['recorded']) &&
+                imZeitraum(String(r['occurredDateTime'] ?? ''), q['when']) &&
+                (!eins('agent-identifier') ||
+                  agenten(r).some((k) => kennungPasst(k, eins('agent-identifier')!))) &&
+                (!eins('target') ||
+                  ((r['target'] as { reference: string }[]) ?? []).some((t) =>
+                    t.reference.startsWith(eins('target')!),
+                  )))),
         ),
       );
     });

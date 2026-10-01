@@ -35,6 +35,11 @@ export interface Dokument {
   ordner: string | null;
   /** ISO-Zeitpunkt der Erstellung. */
   erstellt: string;
+  /**
+   * ISO-Zeitpunkt der Einstellung in die Akte (XDS submissionTime, MHD `DocumentReference.date`).
+   * Fehlt er, gilt die Erstellung.
+   */
+  eingestellt?: string;
   autor: string;
   einrichtung: string;
   groesseBytes: number;

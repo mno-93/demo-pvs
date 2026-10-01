@@ -69,3 +69,42 @@ export function aenderungenSeit(
 export function anzahlAenderungen(a: Aenderungen): number {
   return a.neu.size + a.geaendert.size + a.entfallen;
 }
+
+/** Ein Eintrag eines Stands, etwa ein Planeintrag des Medikationsplans. */
+export interface Standeintrag {
+  id: string;
+  fassung: string;
+  bezeichnung: string;
+  /** Zuletzt von einer anderen Einrichtung geändert. */
+  vonAnderen: boolean;
+}
+
+export interface Standaenderungen {
+  neu: ReadonlySet<string>;
+  geaendert: ReadonlySet<string>;
+  /** Bezeichnungen der Einträge, die im früheren Stand standen und jetzt fehlen. */
+  entfallen: string[];
+}
+
+/**
+ * Vergleicht zwei Stände, die das Aktensystem selbst liefert — für den Medikationsplan den Stand
+ * zum Chronologieeintrag des letzten Aufrufs und den aktuellen (ADR 0030). Anders als beim
+ * gemerkten Fassungsstand (`aenderungenSeit`) sind entfallene Einträge hier mit Namen bekannt.
+ * Neu und geändert zählen nur, wenn eine andere Einrichtung zuletzt geändert hat.
+ */
+export function staendeVergleichen(
+  vorher: readonly Standeintrag[],
+  jetzt: readonly Standeintrag[],
+): Standaenderungen {
+  const alt = new Map(vorher.map((e) => [e.id, e]));
+  const da = new Set(jetzt.map((e) => e.id));
+  return {
+    neu: new Set(jetzt.filter((e) => e.vonAnderen && !alt.has(e.id)).map((e) => e.id)),
+    geaendert: new Set(
+      jetzt
+        .filter((e) => e.vonAnderen && alt.has(e.id) && alt.get(e.id)!.fassung !== e.fassung)
+        .map((e) => e.id),
+    ),
+    entfallen: vorher.filter((e) => !da.has(e.id)).map((e) => e.bezeichnung),
+  };
+}

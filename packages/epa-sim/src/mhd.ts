@@ -3,7 +3,7 @@ import { bytesAus, sha256Hex } from './plattform.ts';
 import type { Ressource } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { abStufe, STUFE } from './betrieb.ts';
-import { operationOutcome } from './fhir-hilfen.ts';
+import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen.ts';
 
 /**
  * MHD Service nach dem Implementation Guide `de.gematik.epa.mhd` 1.1.3 (Release ePA 3.1.3).
@@ -51,6 +51,7 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
     resourceType: 'DocumentReference',
     id: uuid,
     meta: {
+      lastUpdated: d.eingestellt ?? d.erstellt,
       profile: ['https://gematik.de/fhir/epa-mhd/StructureDefinition/epa-mhd-document-reference'],
     },
     masterIdentifier: { use: 'usual', system: 'urn:ietf:rfc:3986', value: d.uniqueId },
@@ -65,7 +66,7 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
       type: 'Patient',
       identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: kvnr },
     },
-    date: d.erstellt,
+    date: d.eingestellt ?? d.erstellt,
     author: [
       { type: 'Practitioner', display: d.autor },
       { type: 'Organization', display: d.einrichtung },
@@ -120,24 +121,36 @@ export function mhdEinhaengen(
   }) => {
     const kvnr = kvnrAus(anfrage);
     const q = {
-      ...(anfrage.query as Record<string, string | undefined>),
+      ...(anfrage.query as Record<string, string | string[] | undefined>),
       ...((typeof anfrage.body === 'object' && anfrage.body) || {}),
-    } as Record<string, string | undefined>;
-    const status = q['status'] ?? 'current';
-    const typ = codeAus(q['type']);
-    const klasse = codeAus(q['category']);
-    const begriff = q['_content']?.toLowerCase().trim();
+    } as Record<string, string | string[] | undefined>;
+    const eins = (n: string) => ([] as string[]).concat(q[n] ?? [])[0];
+    const status = eins('status') ?? 'current';
+    const typ = codeAus(eins('type'));
+    const klasse = codeAus(eins('category'));
+    const begriff = eins('_content')?.toLowerCase().trim();
+    const kennung = eins('identifier');
     const treffer = bestandFuer(kvnr).dokumente.filter(
       (d) =>
         sichtbar(d) &&
         status.split(',').includes('current') &&
         (!typ || d.typeCode.code === typ) &&
         (!klasse || d.classCode.code === klasse) &&
-        (!begriff || begriff.split(/\s+/).every((w) => volltext(d).includes(w))),
+        (!begriff || begriff.split(/\s+/).every((w) => volltext(d).includes(w))) &&
+        // Abfrage „seit": `_lastUpdated` und `date` (SHALL in IG 1.1.3) — beide auf der Einstellung.
+        imZeitraum(d.eingestellt ?? d.erstellt, q['_lastUpdated']) &&
+        imZeitraum(d.eingestellt ?? d.erstellt, q['date']) &&
+        (!kennung ||
+          kennungPasst({ system: 'urn:ietf:rfc:3986', value: d.uniqueId }, kennung) ||
+          kennungPasst(
+            { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${eintragsUuid(d)}` },
+            kennung,
+          )),
     );
     return {
       resourceType: 'Bundle',
       meta: {
+        lastUpdated: jetzt(),
         profile: [
           'https://gematik.de/fhir/epa-mhd/StructureDefinition/epa-document-search-result-bundle',
         ],
