@@ -421,8 +421,21 @@ describe('✦ Patient Summary', () => {
     });
     const ps = await summary();
     const abschnitt = (s: string) => ps.abschnitte.find((x) => x.schluessel === s)!;
-    expect(abschnitt('allergien').leer).toBe('unavailable');
-    expect(abschnitt('diagnosen').leer).toBe('unavailable');
+    // Allergien und Diagnosen aus dem strukturierten Entlassbrief — ungeprüft und ohne Auswahl:
+    // die längst behobene Harnwegsinfektion steht dort als aktiv und kommt mit.
+    expect(abschnitt('allergien').quelle).toBe('structured-documents');
+    expect(abschnitt('allergien').eintraege).toHaveLength(2);
+    expect(abschnitt('diagnosen').quelle).toBe('structured-documents');
+    const codes = abschnitt('diagnosen').eintraege.map((r) => JSON.stringify(r['code']));
+    expect(codes).toHaveLength(3);
+    expect(codes.some((c) => c.includes('N39.0'))).toBe(true);
+    expect(JSON.stringify(abschnitt('diagnosen').eintraege[0]!.extension)).toContain(
+      'Entlassbrief',
+    );
+    expect(abschnitt('diagnosen').weitere).toBe(0);
+    // Keine Impfung in einem strukturierten Dokument: der Abschnitt bleibt leer.
+    expect(abschnitt('impfungen').leer).toBe('unavailable');
+    expect(abschnitt('erklaerungen').leer).toBe('unavailable');
     // Die Medikationsliste enthält auch Metformin, das nicht im Plan steht.
     expect(abschnitt('medikation').quelle).toBe('medication-list');
     expect(abschnitt('medikation').eintraege).toHaveLength(5);

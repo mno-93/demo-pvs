@@ -43,6 +43,21 @@ Befunde (eArztbrief) bleiben ohne Beitrag — die Echokardiographie steht nur im
 ⚠ Die übernommenen Ressourcen tragen ihre ursprünglichen Profile, nicht die der EPS; nicht gegen
 die EPS validiert. ⚠ SNOMED CT 14106009 im Beispiel nicht gegen einen Terminologieserver geprüft.
 
+## Nachtrag 01.10.2026 — automatische Patient Summary konsequent
+
+Ohne geführte Listen („nur aus automatischen Daten") übernimmt der Dienst jetzt auch **Allergien,
+Diagnosen und Impfungen** aus strukturierten Dokumenten — mit demselben Verweis auf das
+Quelldokument. Widerlegte, irrtümliche, behobene und inaktive Einträge fallen weg; im Übrigen gilt
+der Stand des Dokuments, ohne Relevanzauswahl. Mit Listen bleibt es bei den Listen.
+
+▸ Erst so bildet die Demo eine automatisch zusammengestellte Patient Summary ehrlich ab: Sie ist
+nicht leer, sondern ungeprüft. Für Frau Hoffmann zeigt sie sechs von acht Abschnitten — und die im
+Juli behobene Harnwegsinfektion als aktive Diagnose, weil der Entlassbrief sie so führt.
+
+**Verworfen:** Diagnosen und Allergien im automatischen Modus weiter leer lassen — unterschätzt,
+was eine automatische Zusammenstellung leistet, und verlagert das Argument von der Güte auf die
+Menge.
+
 ## Verworfen
 
 **Weiter „keine Quelle"** — unterschlägt, was strukturiert vorliegt, und verfälscht den Vergleich

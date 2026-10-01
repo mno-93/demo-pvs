@@ -95,8 +95,17 @@ interface Teil {
   zurueckgehalten?: boolean;
 }
 
+/*
+ * Ohne geführte Listen („nur automatische Daten") entsteht jeder Abschnitt aus dem, was in der
+ * Akte strukturiert vorliegt — wie eine on-the-fly gebildete Patient Summary. Allergien,
+ * Diagnosen und Impfungen kommen dann aus strukturierten Dokumenten: ungeprüft, ohne
+ * Relevanzauswahl, mit dem Stand des Dokuments (ADR 0031).
+ */
+
 function allergien(kvnr: string, mitListen: boolean): Teil {
-  if (!mitListen) return { quelle: 'none', eintraege: [], dazu: [] };
+  if (!mitListen) {
+    return ausDokumenten(kvnr, 'AllergyIntolerance', (r) => String(r['onsetDateTime'] ?? ''));
+  }
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const alle = ablage.filter((r) => r.resourceType === 'AllergyIntolerance' && gueltig(r));
   const echte = alle.filter((r) => !istKeineBekannte(r));
@@ -113,7 +122,11 @@ function allergien(kvnr: string, mitListen: boolean): Teil {
 }
 
 function diagnosen(kvnr: string, mitListen: boolean): Teil {
-  if (!mitListen) return { quelle: 'none', eintraege: [], dazu: [] };
+  if (!mitListen) {
+    return ausDokumenten(kvnr, 'Condition', (r) =>
+      String(r['onsetDateTime'] ?? r['recordedDate'] ?? ''),
+    );
+  }
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const alle = ablage.filter((r) => r.resourceType === 'Condition' && gueltig(r));
   const eintraege = alle.filter(istPsRelevant);
@@ -197,7 +210,10 @@ function laborwerte(kvnr: string): Teil {
 
 /** ✦ Impfungen aus der Impfliste — jede erfolgte Impfung, die jüngste zuerst (ab Stufe 2). */
 function impfungen(kvnr: string, mitListen: boolean): Teil {
-  if (!mitListen || !abStufe(2)) return { quelle: 'none', eintraege: [], dazu: [] };
+  if (!mitListen) {
+    return ausDokumenten(kvnr, 'Immunization', (r) => String(r['occurrenceDateTime'] ?? ''));
+  }
+  if (!abStufe(2)) return { quelle: 'none', eintraege: [], dazu: [] };
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const eintraege = ablage
     .filter((r) => r.resourceType === 'Immunization' && r['status'] === 'completed')
@@ -209,13 +225,14 @@ function impfungen(kvnr: string, mitListen: boolean): Teil {
 
 /**
  * Einträge eines Typs aus den sichtbaren strukturierten Dokumenten — automatisch, wie die
- * Laborwerte. Jeder Eintrag trägt einen Verweis auf sein Quelldokument; derselbe Eintrag aus zwei
+ * Laborwerte. Für Prozeduren und Implantate immer, für Allergien, Diagnosen und Impfungen nur
+ * ohne geführte Listen. Jeder Eintrag trägt einen Verweis auf sein Quelldokument; derselbe Eintrag aus zwei
  * Dokumenten (gleicher Code, gleiches Datum) erscheint einmal. Unstrukturierte Dokumente (PDF,
  * eArztbrief ohne Einträge) tragen nichts bei.
  */
 function ausDokumenten(
   kvnr: string,
-  typ: 'Procedure' | 'DeviceUseStatement',
+  typ: 'Procedure' | 'DeviceUseStatement' | 'Condition' | 'AllergyIntolerance' | 'Immunization',
   datum: (r: Ressource) => string,
 ): Teil {
   const gesehen = new Set<string>();
@@ -228,7 +245,14 @@ function ausDokumenten(
     const ressourcen = ((d.inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
       (e) => e.resource,
     );
-    for (const r of ressourcen.filter((x) => x.resourceType === typ)) {
+    // Widerlegte und irrtümliche Einträge fallen weg, behobene Diagnosen und inaktive Allergien
+    // ebenso — alles Weitere übernimmt der Dienst so, wie das Dokument es angibt.
+    const aktuell = (x: Ressource) =>
+      gueltig(x) &&
+      !['resolved', 'inactive', 'remission'].includes(code(x, 'clinicalStatus')) &&
+      x['status'] !== 'entered-in-error' &&
+      x['status'] !== 'not-done';
+    for (const r of ressourcen.filter((x) => x.resourceType === typ && aktuell(x))) {
       const geraet =
         typ === 'DeviceUseStatement'
           ? ressourcen.find(
