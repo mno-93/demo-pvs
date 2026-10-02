@@ -84,7 +84,7 @@ describe('Impfungen', () => {
     const aufrufe = impflisteAttrappe([]);
     speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-yildiz')] });
     öffne('/patient/p-yildiz/impfungen');
-    fireEvent.click(await screen.findByRole('button', { name: 'in die ePA ➜' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'in die ePA →' }));
     await screen.findByText('In die Impfliste der ePA gestellt.');
     const anlage = aufrufe.find((a) => a.pfad.endsWith('$add-immunization-entry'))!;
     const parameter = (
@@ -136,7 +136,7 @@ describe('Impfungen', () => {
     impflisteAttrappe([{ ...aus, meta: { versionId: '1' } }]);
     speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-yildiz')] });
     öffne('/patient/p-yildiz/impfungen');
-    fireEvent.click(await screen.findByRole('button', { name: '⬅ in die Praxis' }));
+    fireEvent.click(await screen.findByRole('button', { name: '← in die Praxis' }));
     expect(lesen().impfungen.some((i) => i.epaId === 'imm-1')).toBe(true);
   });
 });

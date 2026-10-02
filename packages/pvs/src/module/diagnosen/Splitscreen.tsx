@@ -136,11 +136,11 @@ export function SplitBlock<T>({
     <section className="karte split" aria-label={titel} id={anker} tabIndex={-1}>
       <div className="reihe" style={{ marginBottom: 8 }}>
         <h3>{titel}</h3>
-        <Marker ton="lokal">{lokal.length} in der Praxis</Marker>
+        <Marker ton="neutral">{lokal.length} in der Praxis</Marker>
         {bereit && (
           <>
-            <Marker ton="akzent">{zeilen.filter((z) => z.epa).length} in der ePA</Marker>
-            <Marker ton="gut">{zahl(['abgeglichen'])} abgeglichen</Marker>
+            <Marker ton="neutral">{zeilen.filter((z) => z.epa).length} in der ePA</Marker>
+            <Marker ton="neutral">{zahl(['abgeglichen'])} abgeglichen</Marker>
             {offen > 0 && <Marker ton="warn">{offen} zu klären</Marker>}
             {psAnzahl !== undefined && (
               <span className="ps-marke">

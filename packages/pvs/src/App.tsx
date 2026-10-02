@@ -81,13 +81,13 @@ function Kopf() {
           Demo-PVS
           <span className="fiktiv">fiktives System</span>
         </div>
-        <span style={{ color: 'var(--text-leise)', fontSize: '0.9em' }}>
+        <span className="kopf-praxis">
           Hausarztpraxis am Stadtgarten · {heute.slice(8, 10)}.{heute.slice(5, 7)}.
           {heute.slice(0, 4)}
         </span>
 
         <div className="kopf-rechts">
-          <span style={{ fontSize: '0.85em', color: 'var(--text-sehr-leise)' }}>
+          <span className="kopf-zaehler">
             {handlungen} {handlungen === 1 ? 'Handlung' : 'Handlungen'}
           </span>
           <label className="nur-fuer-screenreader" htmlFor="rollenwahl">

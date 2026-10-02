@@ -87,7 +87,7 @@ npm run vorschau:gehostet
 
 1. **Renate Hoffmann** öffnen → „ePA öffnen": Die ePA verweigert den Zugriff. „eGK einlesen".
 2. **Diagnosen und Allergien**: links die Praxis, rechts die Listen der ePA (✦). Vorhofflimmern
-   „⬅ in die Praxis", Diabetes „verknüpfen".
+   „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
 4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
    wo er gepflegt wird. Welche Einträge der Listen sie zeigt, bestimmt die Markierung ★ im

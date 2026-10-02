@@ -29,7 +29,7 @@ import { Herkunftszeile } from './diagnosen/Splitscreen.js';
  * Impfungen — Praxis und ✦ Impfliste der ePA nebeneinander (ADR 0026).
  *
  * Links, was die Praxis dokumentiert hat; rechts die Impfliste der ePA mit Herkunft. Eine
- * Impfung der Praxis geht mit „in die ePA ➜" in die Liste, eine der Liste mit „⬅ in die Praxis"
+ * Impfung der Praxis geht mit „in die ePA →" in die Liste, eine der Liste mit „← in die Praxis"
  * in die Praxis — danach sind beide verknüpft. Neue Impfungen werden in der Erfassung
  * vorbelegt in die Impfliste gestellt: kein zweiter Dokumentationsschritt.
  */
@@ -183,7 +183,7 @@ export function Impfungen() {
                         disabled={laeuft}
                         onClick={() => inDieEpa(i)}
                       >
-                        in die ePA ➜
+                        in die ePA →
                       </button>
                     )}
                   </div>
@@ -219,7 +219,7 @@ export function Impfungen() {
                       <Marker ton="gut">in der Praxis</Marker>
                     ) : (
                       <button type="button" className="knopf klein" onClick={() => inDiePraxis(e)}>
-                        ⬅ in die Praxis
+                        ← in die Praxis
                       </button>
                     )}
                   </div>

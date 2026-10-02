@@ -440,26 +440,26 @@ export function Diagnosen() {
       switch (z.status) {
         case 'nur-lokal':
           return knopf(
-            'in die ePA ➜',
+            'in die ePA →',
             () => void inDieEpa(art, lokal!),
             `$add-${operation}-entry`,
             naheliegend(lokal!),
           );
         case 'nur-epa':
-          return knopf('⬅ in die Praxis', () => inDiePraxis(art, epa!), undefined);
+          return knopf('← in die Praxis', () => inDiePraxis(art, epa!), undefined);
         case 'ungekoppelt':
           return knopf('verknüpfen', () => verknuepfen(art, lokal!, epa!), undefined);
         case 'epa-geaendert':
           return (
             <>
               {knopf(
-                '⬅ ePA-Stand übernehmen',
+                '← ePA-Stand übernehmen',
                 () => epaStandUebernehmen(art, lokal!, epa!),
                 undefined,
                 true,
               )}
               {knopf(
-                'Praxisstand ➜',
+                'Praxisstand →',
                 () => void inDieEpa(art, lokal!),
                 `$update-${operation}-entry`,
               )}
@@ -469,12 +469,12 @@ export function Diagnosen() {
           return (
             <>
               {knopf(
-                'Änderung ➜ ePA',
+                'Änderung → ePA',
                 () => void inDieEpa(art, lokal!),
                 `$update-${operation}-entry`,
                 true,
               )}
-              {knopf('⬅ ePA-Stand', () => epaStandUebernehmen(art, lokal!, epa!))}
+              {knopf('← ePA-Stand', () => epaStandUebernehmen(art, lokal!, epa!))}
             </>
           );
         case 'epa-berichtigt':

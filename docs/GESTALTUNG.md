@@ -6,7 +6,10 @@ UX-Grundsätze in deren Abschnitt 2.2. Diese Datei sagt, **womit** gestaltet wir
 
 ## Grundhaltung
 
-- Ruhig und sachlich wie ein Praxissystem; kein Nachbau eines realen Produkts.
+- Ruhig und sachlich wie ein Praxissystem; kein Nachbau eines realen Produkts. Neutrale Grautöne,
+  gedämpfte Zustandsfarben, kleine Rundungen, keine Farbverläufe und keine Zierzeichen.
+- **Farbe nur, wo gehandelt werden muss.** Zähler und Mengenangaben bleiben neutral; farbig wird,
+  was eine Entscheidung verlangt („zu klären", „Befugnis fehlt") oder einen Bestand bezeichnet.
 - **Die Oberfläche erklärt sich durch Benutzung** (ADR 0020): Beschriftungen, Zustände, Marker. Keine
   Hinweisboxen mit Erklärtexten — was erklärt werden muss, steht in der Spezifikation.
 - **Keine Aussage allein über Farbe.** Jede farbige Kennzeichnung trägt ein Wort oder Zeichen.
@@ -20,21 +23,22 @@ Alle Farben, Radien und Schriften stehen als CSS-Variablen in
 [`packages/pvs/src/stil/global.css`](../packages/pvs/src/stil/global.css) (`:root`). ▸ In Figma
 sollten die Variablen **gleich heißen** — dann lässt sich jede Änderung eins zu eins übertragen.
 
-| Variable                                        | Wert                              | Bedeutung                                            |
-| ----------------------------------------------- | --------------------------------- | ---------------------------------------------------- |
-| `--grund`                                       | `#eef1f5`                         | Seitenhintergrund                                    |
-| `--flaeche` / `--flaeche2`                      | `#ffffff` / `#f7f9fb`             | Karten / abgesetzte Flächen (Mitte des Splitscreens) |
-| `--linie` / `--linie-stark`                     | `#d7dee7` / `#b7c2d0`             | Trennlinien, Rahmen                                  |
-| `--text` / `--text-leise` / `--text-sehr-leise` | `#16212e` / `#5b6b7e` / `#8494a6` | Fließtext / Nebenangaben / Vergangenes, Platzhalter  |
-| `--akzent` / `--akzent-weich`                   | `#1d4ed8` / `#eaf0ff`             | **ePA** und Haupthandlungen                          |
-| `--lokal` / `--lokal-weich`                     | `#0f766e` / `#e6f4f2`             | **Praxissystem** (lokaler Bestand)                   |
-| `--warn` / `--warn-weich`                       | `#b45309` / `#fef3c7`             | zu klären, Befugnis fehlt, Hinweis mit Pflicht       |
-| `--fehler` / `--fehler-weich`                   | `#b91c1c` / `#fee2e2`             | Fehler, berichtigt, gesperrt                         |
-| `--gut` / `--gut-weich`                         | `#15803d` / `#dcfce7`             | abgeglichen, bestätigt, verfügbar                    |
-| `--ps` / `--ps-weich` / `--ps-linie`            | `#6d28d9` / `#f3e8ff` / `#c4b5fd` | ✦ **nur Patient Summary**: ★, Markierung, Zähler     |
-| `--radius`                                      | `8px`                             | Ecken von Karten                                     |
-| `--schrift` / `--mono`                          | Systemschrift / Monospace         | Text / Codes (ICD-10-GM, SNOMED CT, Pfade)           |
-| `--skala`                                       | `1` (Vorführmodus `1.15`)         | vergrößert alles für Beamer und Termine              |
+| Variable                                        | Wert                                          | Bedeutung                                            |
+| ----------------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
+| `--grund`                                       | `#f2f3f5`                                     | Seitenhintergrund                                    |
+| `--flaeche` / `--flaeche2`                      | `#ffffff` / `#f7f8fa`                         | Karten / abgesetzte Flächen (Mitte des Splitscreens) |
+| `--linie` / `--linie-stark`                     | `#dfe3e8` / `#c3c9d1`                         | Trennlinien, Rahmen                                  |
+| `--text` / `--text-leise` / `--text-sehr-leise` | `#1b2430` / `#4a5563` / `#6b7480`             | Fließtext / Nebenangaben / Vergangenes, Platzhalter  |
+| `--akzent` / `-dunkel` / `-weich` / `-linie`    | `#1d4a8a` / `#163a6c` / `#f0f4fa` / `#c9d6ea` | **ePA** und Haupthandlungen                          |
+| `--lokal` / `-weich` / `-linie`                 | `#2c6b5c` / `#f0f6f4` / `#c5ddd6`             | **Praxissystem** (lokaler Bestand)                   |
+| `--warn` / `-weich` / `-linie`                  | `#8f5300` / `#fdf6ea` / `#ead3a6`             | zu klären, Befugnis fehlt, Hinweis mit Pflicht       |
+| `--fehler` / `-weich` / `-linie`                | `#a1261f` / `#fbf1f0` / `#ebc5c1`             | Fehler, berichtigt, gesperrt                         |
+| `--gut` / `-weich` / `-linie`                   | `#2d6a3e` / `#f0f6f1` / `#c3dcc9`             | abgeglichen, bestätigt, verfügbar                    |
+| `--ps` / `-weich` / `-linie`                    | `#5a4589` / `#f5f3f9` / `#d3cbe4`             | ✦ **nur Patient Summary**: ★, Markierung, Zähler     |
+| `--kopf-grund` / `-text` / `-leise` / `-linie`  | `#1f2b3a` / `#e8ecf1` / `#a3aebb` / `#3a4859` | dunkle Kopfleiste des Systems                        |
+| `--radius` / `--radius-klein`                   | `4px` / `3px`                                 | Karten, Knöpfe, Felder / Marker                      |
+| `--schrift` / `--mono`                          | Systemschrift / Monospace                     | Text / Codes (ICD-10-GM, SNOMED CT, Pfade)           |
+| `--skala`                                       | `1` (Vorführmodus `1.15`)                     | vergrößert alles für Beamer und Termine              |
 
 **Zwei Bestände, zwei Farben.** Grün-Türkis (`--lokal`) ist immer das Praxissystem, Blau
 (`--akzent`) immer die ePA — in Bändern, Spaltenköpfen und Rändern des Splitscreens. Neue Ansichten
@@ -57,8 +61,8 @@ sollten die Variablen **gleich heißen** — dann lässt sich jede Änderung ein
 | `Befundansicht`, `Befundliste`, `DokumentBetrachter` | `bausteine/`                       | Laborbefunde und Dokumente                                                    |
 
 Knöpfe: Klasse `knopf`, Varianten `stark` (Haupthandlung), `klein`; Umschalter mit
-`aria-pressed`. Handlungen, die in die ePA schreiben, tragen einen Pfeil: „in die ePA ➜",
-„⬅ in die Praxis".
+`aria-pressed`. Handlungen, die in die ePA schreiben, tragen einen Pfeil: „in die ePA →",
+„← in die Praxis".
 
 ## Muster
 

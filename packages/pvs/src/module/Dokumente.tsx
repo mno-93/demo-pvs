@@ -193,9 +193,9 @@ export function Dokumente() {
       >
         <div className="reihe" style={{ marginBottom: 8 }}>
           <Marker ton="neutral">{zahlen.gesamt} Dokumente insgesamt</Marker>
-          <Marker ton="gut">{zahlen.lokalVorhanden} lokal vorhanden</Marker>
-          <Marker ton="warn">{zahlen.nurInEpa} noch nicht lokal</Marker>
-          <Marker ton="lokal">{zahlen.nurLokal} nur lokal</Marker>
+          <Marker ton="neutral">{zahlen.lokalVorhanden} lokal vorhanden</Marker>
+          <Marker ton="neutral">{zahlen.nurInEpa} noch nicht lokal</Marker>
+          <Marker ton="neutral">{zahlen.nurLokal} nur lokal</Marker>
           {laedt && (
             <span style={{ fontSize: '0.85em', color: 'var(--text-sehr-leise)' }}>
               Akte wird abgefragt …

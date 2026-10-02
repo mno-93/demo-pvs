@@ -172,7 +172,7 @@ describe('Splitscreen Diagnosen und Allergien', () => {
     expect(herkunft.some((t) => t.includes('Klinikum Sonnenschein'))).toBe(true);
     expect(herkunft.some((t) => t.includes('Hausarztpraxis am Stadtgarten'))).toBe(true);
 
-    fireEvent.click(within(block).getByRole('button', { name: '⬅ in die Praxis' }));
+    fireEvent.click(within(block).getByRole('button', { name: '← in die Praxis' }));
     const neu = lesen().diagnosen.find((d) => d.patientId === 'p-yildiz' && d.epaId === 'cond-k-1');
     expect(neu?.code).toBe('J45.9');
     expect(neu?.herkunft.quelle).toContain('Klinikum Sonnenschein');
@@ -192,7 +192,7 @@ describe('Splitscreen Diagnosen und Allergien', () => {
     öffne('/patient/p-krueger/diagnosen');
 
     const block = await screen.findByRole('region', { name: 'Diagnosen' });
-    const knoepfe = await within(block).findAllByRole('button', { name: 'in die ePA ➜' });
+    const knoepfe = await within(block).findAllByRole('button', { name: 'in die ePA →' });
     fireEvent.click(knoepfe[0]!);
 
     expect(await screen.findByText(/in die Diagnosenliste der ePA aufgenommen/)).toBeDefined();

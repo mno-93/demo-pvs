@@ -695,7 +695,7 @@ export function Medikation() {
       )}
 
       <div className="reihe" style={{ marginBottom: 10 }}>
-        <Marker ton="gut">{aktivePlanCodes.length} aktiv im Plan</Marker>
+        <Marker ton="neutral">{aktivePlanCodes.length} aktiv im Plan</Marker>
         <Marker ton="neutral">{stand?.liste.length ?? 0} in der Liste</Marker>
         {umgebung.egfr !== null ? (
           <Marker ton={umgebung.egfr < 45 ? 'warn' : 'neutral'}>
