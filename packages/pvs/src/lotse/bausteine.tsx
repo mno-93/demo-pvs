@@ -21,13 +21,17 @@ export function tag(iso: string): string {
 export function Quellenverweis({
   quellen,
   oeffnen,
+  vorsatz,
 }: {
   quellen: Quellenangabe[];
   oeffnen?: (q: Quellenangabe) => void;
+  /** Steht vor den Unterlagen, etwa „Im Dokument nachlesen:". */
+  vorsatz?: string;
 }) {
   if (quellen.length === 0) return null;
   return (
     <p className="lotse-quellen">
+      {vorsatz && <span className="lotse-quellen-vorsatz">{vorsatz} </span>}
       {quellen.map((q, i) => (
         <span key={q.quelleId}>
           {i > 0 && ' · '}
@@ -60,9 +64,11 @@ function gleicheQuellen(a: Quellenangabe[], b: Quellenangabe[]): boolean {
 export function Absaetze({
   absaetze,
   oeffnen,
+  vorsatz,
 }: {
   absaetze: Lotsenabsatz[];
   oeffnen?: (q: Quellenangabe) => void;
+  vorsatz?: string;
 }) {
   return (
     <>
@@ -72,12 +78,28 @@ export function Absaetze({
         return (
           <div key={i} className="lotse-absatz">
             <p className="lotse-zeile">{a.text}</p>
-            {letzterDieserQuelle && <Quellenverweis quellen={a.quellen} oeffnen={oeffnen} />}
+            {letzterDieserQuelle && (
+              <Quellenverweis quellen={a.quellen} oeffnen={oeffnen} vorsatz={vorsatz} />
+            )}
           </div>
         );
       })}
     </>
   );
+}
+
+/**
+ * Die Zeilen einer Unterlage, auf denen Absätze beruhen — zum Markieren im Dokument. Gesammelt
+ * über alle Absätze, die sich auf die Unterlage stützen.
+ */
+export function belegzeilen(absaetze: Lotsenabsatz[], quelleId: string): string[] {
+  return [
+    ...new Set(
+      absaetze.flatMap((a) =>
+        (a.belege ?? []).filter((b) => b.quelleId === quelleId).flatMap((b) => b.zeilen),
+      ),
+    ),
+  ];
 }
 
 /**

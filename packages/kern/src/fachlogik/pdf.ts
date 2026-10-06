@@ -241,3 +241,165 @@ export function base64AusBytes(text: string): string {
   }
   return aus;
 }
+
+/* ---------- Seiten lesen ---------- */
+
+/** Ein Element einer gelesenen PDF-Seite, in PDF-Koordinaten (Ursprung unten links). */
+export type Seitenelement =
+  | {
+      art: 'text';
+      x: number;
+      y: number;
+      text: string;
+      groesse: number;
+      fett: boolean;
+      grau: number;
+    }
+  | { art: 'linie'; x1: number; y1: number; x2: number; y2: number; grau: number };
+
+export interface Seite {
+  breite: number;
+  hoehe: number;
+  elemente: Seitenelement[];
+}
+
+/** WinAnsi-Byte → Zeichen; über 0x9F gilt Latin-1. */
+const WINANSI_ZURUECK: Record<number, string> = Object.fromEntries(
+  Object.entries(WINANSI).map(([zeichen, code]) => [code, zeichen]),
+);
+
+function pdfZeichenkette(roh: string): string {
+  let aus = '';
+  for (let i = 0; i < roh.length; i++) {
+    const c = roh[i]!;
+    if (c !== '\\') {
+      const code = c.charCodeAt(0);
+      aus += WINANSI_ZURUECK[code] ?? c;
+      continue;
+    }
+    const n = roh[i + 1] ?? '';
+    if (/[0-7]/.test(n)) {
+      const oktal = /^[0-7]{1,3}/.exec(roh.slice(i + 1))![0];
+      const code = parseInt(oktal, 8);
+      aus += WINANSI_ZURUECK[code] ?? String.fromCharCode(code);
+      i += oktal.length;
+    } else {
+      aus += n === 'n' ? '\n' : n === 'r' ? '\r' : n === 't' ? '\t' : n;
+      i += 1;
+    }
+  }
+  return aus;
+}
+
+/**
+ * Liest die Seiten eines einfachen PDFs — so, wie es diese Demo erzeugt: unkomprimierte
+ * Inhaltsströme mit Text (`BT … Tf … Td (…) Tj ET`), Grauwerten und Linien. Damit lässt sich
+ * ein Brief seitengetreu darstellen und eine Stelle darin markieren, ohne eine PDF-Bibliothek.
+ *
+ * Gibt `null` zurück, wenn die Datei anders aufgebaut ist (etwa komprimiert oder ein Scan).
+ */
+export function pdfSeitenLesen(pdf: string): Seite[] | null {
+  if (!pdf.startsWith('%PDF')) return null;
+  const objekte = new Map<number, string>();
+  for (const m of pdf.matchAll(/(\d+) 0 obj\n([\s\S]*?)\nendobj/g)) {
+    objekte.set(Number(m[1]), m[2]!);
+  }
+  const katalog = [...objekte.values()].find((o) => o.includes('/Type /Catalog'));
+  const baumNr = Number(/\/Pages (\d+) 0 R/.exec(katalog ?? '')?.[1]);
+  const baum = objekte.get(baumNr);
+  const kinder = /\/Kids \[([^\]]*)\]/.exec(baum ?? '')?.[1];
+  if (!kinder) return null;
+  const seitenNr = [...kinder.matchAll(/(\d+) 0 R/g)].map((m) => Number(m[1]));
+  const seiten: Seite[] = [];
+  for (const nr of seitenNr) {
+    const seite = objekte.get(nr) ?? '';
+    if (/\/Filter/.test(seite)) return null;
+    const box = /\/MediaBox \[([\d.\s-]+)\]/.exec(seite)?.[1]?.trim().split(/\s+/).map(Number);
+    const schriften = new Map<string, boolean>();
+    for (const m of seite.matchAll(/\/(F\d+) (\d+) 0 R/g)) {
+      schriften.set(m[1]!, /Bold/.test(objekte.get(Number(m[2])) ?? ''));
+    }
+    const inhaltNr = Number(/\/Contents (\d+) 0 R/.exec(seite)?.[1]);
+    const inhalt = objekte.get(inhaltNr) ?? '';
+    if (/\/Filter/.test(inhalt)) return null;
+    const strom = /stream\n([\s\S]*?)\nendstream/.exec(inhalt)?.[1] ?? '';
+    seiten.push({
+      breite: box?.[2] ?? 595,
+      hoehe: box?.[3] ?? 842,
+      elemente: inhaltLesen(strom, schriften),
+    });
+  }
+  return seiten;
+}
+
+function inhaltLesen(strom: string, schriften: Map<string, boolean>): Seitenelement[] {
+  const elemente: Seitenelement[] = [];
+  const stapel: string[] = [];
+  let grau = 0;
+  let strichgrau = 0;
+  let schrift = 'F1';
+  let groesse = 10;
+  let zeileX = 0;
+  let zeileY = 0;
+  let pfad: [number, number] | null = null;
+  const linien: [number, number, number, number][] = [];
+  const re = /\((?:\\.|[^\\)])*\)|\/[A-Za-z0-9]+|-?\d+(?:\.\d+)?|[A-Za-z*'"]+/g;
+  for (const m of strom.matchAll(re)) {
+    const t = m[0];
+    if (t.startsWith('(') || t.startsWith('/') || /^-?\d/.test(t)) {
+      stapel.push(t);
+      continue;
+    }
+    const zahl = (i: number) => Number(stapel[stapel.length - i]);
+    switch (t) {
+      case 'g':
+        grau = zahl(1);
+        break;
+      case 'G':
+        strichgrau = zahl(1);
+        break;
+      case 'BT':
+        zeileX = 0;
+        zeileY = 0;
+        break;
+      case 'Tf':
+        schrift = (stapel[stapel.length - 2] ?? '/F1').slice(1);
+        groesse = zahl(1);
+        break;
+      case 'Td':
+        zeileX += zahl(2);
+        zeileY += zahl(1);
+        break;
+      case 'Tj': {
+        const roh = stapel[stapel.length - 1] ?? '()';
+        const text = pdfZeichenkette(roh.slice(1, -1));
+        if (text.trim()) {
+          elemente.push({
+            art: 'text',
+            x: zeileX,
+            y: zeileY,
+            text,
+            groesse,
+            fett: schriften.get(schrift) ?? false,
+            grau,
+          });
+        }
+        break;
+      }
+      case 'm':
+        pfad = [zahl(2), zahl(1)];
+        break;
+      case 'l':
+        if (pfad) linien.push([pfad[0], pfad[1], zahl(2), zahl(1)]);
+        pfad = [zahl(2), zahl(1)];
+        break;
+      case 'S':
+        for (const [x1, y1, x2, y2] of linien.splice(0)) {
+          elemente.push({ art: 'linie', x1, y1, x2, y2, grau: strichgrau });
+        }
+        break;
+    }
+    stapel.length = 0;
+  }
+  return elemente;
+}

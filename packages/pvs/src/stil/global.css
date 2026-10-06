@@ -46,6 +46,8 @@
 
   /* ✦ Aktenlotse. Eigene Farbe, weil Violett und ★ der Patient Summary vorbehalten sind. */
   --lotse: #1a6068;
+  /* Markierte Stelle in einem Dokument (Textmarker) */
+  --markierung: #fde68a;
   --lotse-weich: #eef6f7;
   --lotse-linie: #bcd7da;
 
@@ -2034,7 +2036,7 @@ td.split-mitte .marker {
 
 .lotse-praxis {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .lotse-fragefeld {
@@ -2543,4 +2545,161 @@ td.split-mitte .marker {
 
 .telefon-inhalt {
   overflow-x: hidden;
+}
+
+/* ---------- ✦ Aktenlotse in der Praxis: Überblick und Nachlesen ---------- */
+
+.lotse-kopf {
+  justify-content: flex-start;
+}
+.lotse-umfang-kurz {
+  margin-left: auto;
+  font-size: 0.85em;
+  color: var(--text-leise);
+}
+.lotse-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1100px) {
+  .lotse-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lotse-spalte {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.lotse-block {
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  background: var(--flaeche);
+}
+.lotse-block h3 {
+  margin: 0 0 8px;
+  font-size: 0.95em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lotse-block-warn {
+  border-left: 3px solid var(--warn);
+  background: var(--warn-weich);
+}
+.lotse-faktenliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.lotse-faktenliste li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-top: 1px solid var(--linie);
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+.lotse-faktenliste li:first-child {
+  border-top: 0;
+}
+.lotse-faktenliste li.bestaetigt {
+  opacity: 0.6;
+}
+.lotse-zeilenwerkzeuge {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex: none;
+}
+.lotse-quelle-chip {
+  flex: none;
+  border: 1px solid var(--linie-stark);
+  border-radius: var(--radius-klein);
+  background: var(--flaeche);
+  padding: 1px 7px;
+  font: inherit;
+  font-size: 0.78em;
+  color: var(--akzent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lotse-quelle-chip:hover {
+  background: var(--akzent-weich);
+}
+.lotse-gruppe {
+  border-top: 1px solid var(--linie);
+  padding: 6px 0;
+}
+.lotse-gruppe summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9em;
+}
+.lotse-gruppe[open] summary {
+  margin-bottom: 4px;
+}
+.lotse-dokument-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.lotse-dokument-kopf h3 {
+  margin: 0;
+}
+.lotse-textquelle {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
+.lotse-textquelle li.markiert {
+  background: var(--warn-weich);
+  box-shadow: inset 3px 0 0 var(--warn);
+  padding-left: 6px;
+}
+.lotse-quellen-vorsatz {
+  color: var(--text-leise);
+}
+
+/* ---------- Seitenansicht mit Markierung ---------- */
+
+.seitenansicht {
+  display: grid;
+  gap: 12px;
+  max-height: 720px;
+  overflow: auto;
+  padding: 12px;
+  background: var(--grund);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+}
+.seitenansicht .seite {
+  width: 100%;
+  height: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+.seiten-markierung {
+  fill: var(--markierung);
+}
+.dokument-ansicht-wahl {
+  margin-bottom: 10px;
+}
+.dokument-markierung-kopf {
+  margin-bottom: 8px;
+}
+
+/* Auf dem Telefon bleibt die Seite lesbar breit; die Ansicht scrollt seitlich. */
+.telefon .seitenansicht .seite {
+  width: 560px;
+  max-width: none;
 }

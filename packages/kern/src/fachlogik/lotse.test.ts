@@ -278,3 +278,55 @@ describe('Vorschläge aus unstrukturiertem Text', () => {
     }
   });
 });
+
+describe('Ansprache und Belege', () => {
+  it('spricht in der Praxis über die Person, nicht zu ihr', () => {
+    const antwort = lotseAntworten('Was stand im Entlassbrief?', ALLE, 'fach', {
+      art: 'praxis',
+      name: 'Renate Hoffmann',
+    });
+    expect(antwort.absaetze[0]?.text).toBe(
+      'Renate Hoffmann war vom 12.07.2026 bis zum 18.07.2026 stationär im Klinikum Sonnenschein.',
+    );
+    expect(antwort.absaetze.map((a) => a.text).join(' ')).not.toMatch(/\bSie\b/);
+    expect(antwort.absaetze.at(-1)?.text).toMatch(/^Als Entlassmedikation sind/);
+  });
+
+  it('nennt zu jedem Absatz die Zeilen, auf denen er beruht — zum Markieren im Dokument', () => {
+    const antwort = lotseAntworten('Was stand im Entlassbrief?', ALLE);
+    const diagnosen = antwort.absaetze.find((a) => a.text.startsWith('Festgehalten'))!;
+    expect(diagnosen.belege).toEqual([
+      {
+        quelleId: 'kh-e',
+        zeilen: [
+          'I48.1 Vorhofflimmern, persistierend (Erstdiagnose)',
+          'E11.74 Diabetes mellitus Typ 2 mit multiplen Komplikationen',
+        ],
+      },
+    ]);
+    const nieren = lotseAntworten('Wie haben sich die Nierenwerte entwickelt?', ALLE);
+    expect(nieren.absaetze[0]?.belege.flatMap((b) => b.zeilen)).toContain(
+      'eGFR nach CKD-EPI: 46 ml/min/1,73 m²',
+    );
+  });
+
+  it('gibt eine Allergieangabe im Fließtext als datierten Satz wieder, nicht den ganzen Absatz', () => {
+    const alt: Lotsenquelle = {
+      id: 'kh-alt',
+      titel: 'Entlassbrief stationäre Behandlung',
+      datum: '2019-04-05',
+      einrichtung: 'Kreisklinikum Weserbogen',
+      zeilen: [
+        'Anamnese',
+        'Zuweisung wegen Schwindel. Keine Thoraxschmerzen. Allergien sind nicht bekannt.',
+      ],
+    };
+    const antwort = lotseAntworten('Was vertrage ich nicht?', [alt, ENTLASSBRIEF]);
+    const satz = antwort.absaetze.find((a) => a.quellen[0]?.quelleId === 'kh-alt')!;
+    expect(satz.text).toBe(
+      'Im Entlassbrief stationäre Behandlung vom 05.04.2019 steht: Allergien sind nicht bekannt.',
+    );
+    expect(satz.belege[0]?.zeilen).toEqual(['Allergien sind nicht bekannt.']);
+    expect(antwort.absaetze[0]?.text).toMatch(/^In den Unterlagen ist eine Unverträglichkeit/);
+  });
+});

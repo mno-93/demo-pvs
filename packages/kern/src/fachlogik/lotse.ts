@@ -59,6 +59,29 @@ export interface Lotsenabsatz {
   text: string;
   /** Unterlagen, auf denen der Absatz beruht — zum Öffnen und Nachlesen. */
   quellen: Quellenangabe[];
+  /**
+   * Die Zeilen, auf denen der Absatz beruht, je Unterlage. Nicht für die Anzeige unter dem Satz,
+   * sondern zum Markieren, wenn jemand die Unterlage öffnet.
+   */
+  belege: Beleg[];
+}
+
+/** Zeilen einer Unterlage, die eine Aussage tragen. */
+export interface Beleg {
+  quelleId: string;
+  zeilen: string[];
+}
+
+/**
+ * Wer fragt — und damit, wie über die Person gesprochen wird. Versicherte werden angesprochen
+ * („Sie waren …"), in der Praxis steht der Name („Renate Hoffmann war …").
+ */
+export type Ansprache = { art: 'versicherte' } | { art: 'praxis'; name: string };
+
+const VERSICHERTE: Ansprache = { art: 'versicherte' };
+
+function beleg(quelle: { id: string }, zeilen: string[]): Beleg {
+  return { quelleId: quelle.id, zeilen: zeilen.map((z) => z.trim()).filter(Boolean) };
 }
 
 export interface Umfang {
@@ -287,7 +310,7 @@ function laborverlauf(frage: string, quellen: Lotsenquelle[], lesart: Lesart): L
     (w) => gesucht.includes(normalisiere(w)),
   );
 
-  const treffer: { quelle: Lotsenquelle; bezeichnung: string; wert: string }[] = [];
+  const treffer: { quelle: Lotsenquelle; bezeichnung: string; wert: string; zeile: string }[] = [];
   for (const quelle of quellen) {
     for (const zeile of quelle.zeilen) {
       const m = MESSWERT.exec(zeile.trim());
@@ -304,6 +327,7 @@ function laborverlauf(frage: string, quellen: Lotsenquelle[], lesart: Lesart): L
         quelle,
         bezeichnung,
         wert: `${m[2]}${m[3]?.trim() ? ' ' + m[3].trim() : ''}`,
+        zeile,
       });
     }
   }
@@ -346,10 +370,25 @@ function laborverlauf(frage: string, quellen: Lotsenquelle[], lesart: Lesart): L
     );
   }
 
-  return [{ text: saetze.join(' '), quellen: befunde.map(alsQuelle) }];
+  return [
+    {
+      text: saetze.join(' '),
+      quellen: befunde.map(alsQuelle),
+      belege: befunde.map((b) =>
+        beleg(
+          b,
+          treffer.filter((t) => t.quelle.id === b.id).map((t) => t.zeile),
+        ),
+      ),
+    },
+  ];
 }
 
-function krankenhaus(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
+function krankenhaus(
+  quellen: Lotsenquelle[],
+  lesart: Lesart,
+  ansprache: Ansprache = VERSICHERTE,
+): Lotsenabsatz[] {
   const brief = quellen
     .filter((q) => /entlassbrief/i.test(q.titel) && q.zeilen.length > 0)
     .sort((a, b) => nachDatum(b, a))[0];
@@ -357,17 +396,22 @@ function krankenhaus(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
 
   const quelle = [alsQuelle(brief)];
   const absaetze: Lotsenabsatz[] = [];
-  const satz = (text: string) => absaetze.push({ text, quellen: quelle });
+  const satz = (text: string, zeilen: string[] = []) =>
+    absaetze.push({ text, quellen: quelle, belege: [beleg(brief, zeilen)] });
 
   const kopf = brief.zeilen.find((z) => /aufenthalt/i.test(z));
   const zeitraum = kopf?.match(/([0-9.]{8,10})\s*bis\s*([0-9.]{8,10})/);
   satz(
     zeitraum
-      ? `Sie waren vom ${zeitraum[1]} bis zum ${zeitraum[2]} im ${brief.einrichtung}.`
+      ? ansprache.art === 'praxis'
+        ? `${ansprache.name} war vom ${zeitraum[1]} bis zum ${zeitraum[2]} stationär im ${brief.einrichtung}.`
+        : `Sie waren vom ${zeitraum[1]} bis zum ${zeitraum[2]} im ${brief.einrichtung}.`
       : `Es liegt ein Entlassbrief des ${brief.einrichtung} vom ${alsTag(brief.datum)} vor.`,
+    kopf ? [kopf] : [],
   );
 
-  const diagnosen = abschnitt(brief.zeilen, 'Diagnosen').map((z) => fassung(ohneKode(z), lesart));
+  const diagnosezeilen = abschnitt(brief.zeilen, 'Diagnosen');
+  const diagnosen = diagnosezeilen.map((z) => fassung(ohneKode(z), lesart));
   if (diagnosen.length > 0) {
     satz(
       `Festgehalten ${
@@ -375,6 +419,7 @@ function krankenhaus(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
           ? 'ist eine Diagnose'
           : `sind ${zahlwort(diagnosen.length)} Diagnosen`
       }: ${aufzaehlen(diagnosen)}.`,
+      diagnosezeilen,
     );
   }
 
@@ -387,6 +432,7 @@ function krankenhaus(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
             lesart,
           )} durchgeführt.`
         : `Durchgeführt wurde ${fassung(p, lesart)}.`,
+      [p],
     );
   }
 
@@ -396,26 +442,31 @@ function krankenhaus(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
       `Zu eingesetzten Geräten steht dort: ${aufzaehlen(
         implantate.map((i) => fassung(i, lesart)),
       )}.`,
+      implantate,
     );
   }
 
-  const allergien = abschnitt(brief.zeilen, 'Allergien und Unverträglichkeiten').map((z) =>
-    (z.split(':')[0] ?? z).trim(),
-  );
+  const allergiezeilen = abschnitt(brief.zeilen, 'Allergien und Unverträglichkeiten');
+  const allergien = allergiezeilen.map((z) => (z.split(':')[0] ?? z).trim());
   if (allergien.length > 0) {
     satz(
       `Als Unverträglichkeit${allergien.length === 1 ? '' : 'en'} ${
         allergien.length === 1 ? 'ist' : 'sind'
       } ${aufzaehlen(allergien.map((a) => fassung(a, lesart)))} vermerkt.`,
+      allergiezeilen,
     );
   }
 
-  const mittel = medikationszeilenZerlegen(abschnitt(brief.zeilen, 'Entlassmedikation'));
+  const mittelzeilen = abschnitt(brief.zeilen, 'Entlassmedikation');
+  const mittel = medikationszeilenZerlegen(mittelzeilen);
   if (mittel.length > 0) {
+    const anzahl =
+      mittel.length === 1 ? 'ist ein Medikament' : `sind ${zahlwort(mittel.length)} Medikamente`;
     satz(
-      `Für zu Hause ${
-        mittel.length === 1 ? 'ist ein Medikament' : `sind ${zahlwort(mittel.length)} Medikamente`
-      } aufgeführt: ${aufzaehlen(mittel)}.`,
+      ansprache.art === 'praxis'
+        ? `Als Entlassmedikation ${anzahl} aufgeführt: ${aufzaehlen(mittel)}.`
+        : `Für zu Hause ${anzahl} aufgeführt: ${aufzaehlen(mittel)}.`,
+      mittelzeilen,
     );
   }
 
@@ -439,30 +490,59 @@ function allergiesatz(zeile: string, lesart: Lesart): string {
   return `Auf ${substanz} ist ${reaktion} vermerkt.`;
 }
 
+/** Die Sätze einer Zeile, in denen ein Wort zu Allergien vorkommt. */
+function allergiesaetze(zeile: string): string[] {
+  return zeile
+    .split(/(?<=[a-zäöüß)]\.)\s+(?=[A-ZÄÖÜ])/)
+    .map((t) => t.trim())
+    .filter((t) => /allergie|unverträglich|exanthem/i.test(t));
+}
+
+/**
+ * Unverträglichkeiten aus den Unterlagen. Was in einem Abschnitt „Allergien und
+ * Unverträglichkeiten" steht, wird gezählt und wiedergegeben. Steht es nur im Fließtext — etwa
+ * „Allergien sind nicht bekannt" in einem älteren Brief —, gibt der Lotse den einen Satz mit
+ * Unterlage und Datum wieder: Es ist der Stand dieses Dokuments, nicht der heutige.
+ */
 function allergien(quellen: Lotsenquelle[], lesart: Lesart): Lotsenabsatz[] {
-  const gefunden: { quelle: Lotsenquelle; zeilen: string[] }[] = [];
+  const abschnitte: { quelle: Lotsenquelle; zeilen: string[] }[] = [];
+  const fliesstext: { quelle: Lotsenquelle; zeile: string; saetze: string[] }[] = [];
   for (const quelle of [...quellen].sort(nachDatum)) {
     const ausAbschnitt = abschnitt(quelle.zeilen, 'Allergien und Unverträglichkeiten');
-    const zeilen =
-      ausAbschnitt.length > 0
-        ? ausAbschnitt
-        : quelle.zeilen.filter((z) => /allergie|unverträglich|exanthem/i.test(z));
-    if (zeilen.length > 0) gefunden.push({ quelle, zeilen });
+    if (ausAbschnitt.length > 0) {
+      abschnitte.push({ quelle, zeilen: ausAbschnitt });
+      continue;
+    }
+    for (const zeile of quelle.zeilen) {
+      const saetze = allergiesaetze(zeile);
+      if (saetze.length > 0) fliesstext.push({ quelle, zeile, saetze });
+    }
   }
-  if (gefunden.length === 0) return [];
+  if (abschnitte.length === 0 && fliesstext.length === 0) return [];
 
-  const alle = gefunden.flatMap((g) => g.zeilen);
-  const einleitung =
-    alle.length === 1
-      ? 'In den Unterlagen ist eine Unverträglichkeit festgehalten.'
-      : `In den Unterlagen sind ${zahlwort(alle.length)} Unverträglichkeiten festgehalten.`;
-
-  return [
-    {
+  const absaetze: Lotsenabsatz[] = [];
+  const alle = abschnitte.flatMap((g) => g.zeilen);
+  if (alle.length > 0) {
+    const einleitung =
+      alle.length === 1
+        ? 'In den Unterlagen ist eine Unverträglichkeit festgehalten.'
+        : `In den Unterlagen sind ${zahlwort(alle.length)} Unverträglichkeiten festgehalten.`;
+    absaetze.push({
       text: [einleitung, ...alle.map((z) => allergiesatz(z, lesart))].join(' '),
-      quellen: gefunden.map((g) => alsQuelle(g.quelle)),
-    },
-  ];
+      quellen: abschnitte.map((g) => alsQuelle(g.quelle)),
+      belege: abschnitte.map((g) => beleg(g.quelle, g.zeilen)),
+    });
+  }
+  for (const f of fliesstext) {
+    absaetze.push({
+      text: `Im ${f.quelle.titel} vom ${alsTag(f.quelle.datum)} steht: ${f.saetze
+        .map((t) => `${ohneSatzpunkt(fassung(t, lesart))}.`)
+        .join(' ')}`,
+      quellen: [alsQuelle(f.quelle)],
+      belege: [beleg(f.quelle, f.saetze)],
+    });
+  }
+  return absaetze;
 }
 
 /** „Apixaban 5 mg Filmtabletten — 1-0-1-0 — wegen Vorhofflimmern" → ein Satzteil. */
@@ -504,10 +584,16 @@ function medikation(frage: string, quellen: Lotsenquelle[], lesart: Lesart): Lot
       ? 'Im Entlassbrief ist ein Medikament aufgeführt.'
       : `Im Entlassbrief sind ${zahlwort(genommen.length)} Medikamente aufgeführt.`;
 
+  const belegzeilen = plan
+    ? genommen
+    : abschnitt(quelle.zeilen, 'Entlassmedikation').filter((z) =>
+        genommen.some((g) => z.includes(g)),
+      );
   return [
     {
       text: `${einleitung} ${aufzaehlen(genommen.map((z) => medikamentensatz(z, lesart)))}.`,
       quellen: [alsQuelle(quelle)],
+      belege: [beleg(quelle, belegzeilen)],
     },
   ];
 }
@@ -524,6 +610,7 @@ function stellensuche(frage: string, quellen: Lotsenquelle[], lesart: Lesart): L
     absaetze.push({
       text: zeilen.map((z) => fassung(z.trim(), lesart)).join(' '),
       quellen: [alsQuelle(quelle)],
+      belege: [beleg(quelle, zeilen)],
     });
   }
   return absaetze;
@@ -535,6 +622,7 @@ export function lotseAntworten(
   frage: string,
   quellen: Lotsenquelle[],
   lesart: Lesart = 'fach',
+  ansprache: Ansprache = VERSICHERTE,
 ): Lotsenantwort {
   const umfang = umfangBilden(quellen);
   const lesbare = quellen.filter((q) => q.zeilen.length > 0);
@@ -544,7 +632,7 @@ export function lotseAntworten(
     absicht === 'laborverlauf'
       ? laborverlauf(frage, lesbare, lesart)
       : absicht === 'krankenhaus'
-        ? krankenhaus(lesbare, lesart)
+        ? krankenhaus(lesbare, lesart, ansprache)
         : absicht === 'allergien'
           ? allergien(lesbare, lesart)
           : absicht === 'medikation'

@@ -7,6 +7,7 @@ import {
   medikationAbgleichen,
   medikationszeilenZerlegen,
   vorschlaegeAusText,
+  type Ansprache,
   type Lesart,
   type Lotsenkontext,
   type Lotsenquelle,
@@ -173,9 +174,18 @@ function abschnittZeilen(quelle: Lotsenquelle, ueberschrift: string): string[] {
   return gesammelt;
 }
 
-export function kontextBilden(kvnr: string, anlass: string): Lotsenkontext {
+export function kontextBilden(
+  kvnr: string,
+  anlass: string,
+  ansprache: Ansprache = anspracheFuer(kvnr, false),
+): Lotsenkontext {
   const quellen = quellenFuer(kvnr);
-  const antwort = lotseAntworten(anlass || 'Was stand im Entlassbrief?', quellen);
+  const antwort = lotseAntworten(
+    anlass || 'Was stand im Entlassbrief?',
+    quellen,
+    'fach',
+    ansprache,
+  );
 
   const brief = quellen
     .filter((q) => /entlassbrief/i.test(q.titel) && q.zeilen.length > 0)
@@ -239,6 +249,21 @@ function kvnrAus(anfrage: FastifyRequest): string {
   return String(anfrage.headers['x-insurantid'] ?? '');
 }
 
+/**
+ * Wie der Lotse über die Person spricht, folgt aus dem Zugang: Wer als versicherte Person
+ * fragt, wird angesprochen; fragt eine Einrichtung, steht der Name der versicherten Person.
+ */
+export function anspracheFuer(kvnr: string, alsVersicherte: boolean): Ansprache {
+  if (alsVersicherte) return { art: 'versicherte' };
+  const d = bestandFuer(kvnr).demographie;
+  const name = d ? `${d.vorname} ${d.nachname}`.trim() : '';
+  return { art: 'praxis', name: name || 'Die versicherte Person' };
+}
+
+function ansprache(anfrage: FastifyRequest): Ansprache {
+  return anspracheFuer(kvnrAus(anfrage), Boolean(anfrage.headers['x-demo-versicherte']));
+}
+
 export function aktenlotseEinhaengen(app: FastifyInstance): void {
   app.get(`${AKTENLOTSE_BASIS}/metadata`, async () => ({
     dienst: 'Aktenlotse (Vorschlag)',
@@ -258,12 +283,17 @@ export function aktenlotseEinhaengen(app: FastifyInstance): void {
   app.post(`${AKTENLOTSE_BASIS}/frage`, async (anfrage) => {
     const koerper = (anfrage.body ?? {}) as { frage?: string; lesart?: Lesart };
     const lesart: Lesart = koerper.lesart === 'alltag' ? 'alltag' : 'fach';
-    return lotseAntworten(String(koerper.frage ?? ''), quellenFuer(kvnrAus(anfrage)), lesart);
+    return lotseAntworten(
+      String(koerper.frage ?? ''),
+      quellenFuer(kvnrAus(anfrage)),
+      lesart,
+      ansprache(anfrage),
+    );
   });
 
   app.get(`${AKTENLOTSE_BASIS}/kontext`, async (anfrage) => {
     const { anlass } = anfrage.query as { anlass?: string };
-    return kontextBilden(kvnrAus(anfrage), String(anlass ?? ''));
+    return kontextBilden(kvnrAus(anfrage), String(anlass ?? ''), ansprache(anfrage));
   });
 
   app.get(`${AKTENLOTSE_BASIS}/vorschlaege`, async (anfrage) =>

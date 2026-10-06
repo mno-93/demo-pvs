@@ -18,18 +18,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   VORSCHLAGSFRAGEN,
-  type Lesart,
   type Lotsenantwort,
   type Quellenangabe,
   type Ressource,
 } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
 import { dokumentAbrufen, dokumenteSuchen, lotseFragen } from '../epa/klient.js';
-import { dokumentverweisLesen, type Dokumentverweis } from '../epa/epa-bestand.js';
+import {
+  dokumentverweisLesen,
+  useBetriebsstand,
+  type Dokumentverweis,
+} from '../epa/epa-bestand.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
   Absaetze,
   Begriffe,
+  belegzeilen,
   Fragefeld,
   Umfangsangabe,
   Vorlesen,
@@ -65,9 +69,13 @@ export function Versichertensicht() {
   const [verweise, setzeVerweise] = useState<Dokumentverweis[] | null>(null);
   const [offenesDokument, setzeOffenesDokument] = useState<Dokumentverweis | null>(null);
   const [inhalt, setzeInhalt] = useState<unknown>(null);
+  /** Stellen, die im geöffneten Dokument markiert sind — aus der Antwort des Lotsen. */
+  const [markieren, setzeMarkieren] = useState<string[]>([]);
 
   const lotseDa = useLotseVorhanden() === true;
   const befugt = ROLLEN.find((r) => r.id === rolle)?.befugt ?? false;
+  // Stellt die Demo-Steuerung den Ausbaustand um, ändert sich der Bestand der Akte.
+  const betriebsstand = useBetriebsstand();
 
   /* ---------- Dokumente ---------- */
 
@@ -87,10 +95,11 @@ export function Versichertensicht() {
     return () => {
       abgebrochen = true;
     };
-  }, [kvnr, befugt]);
+  }, [kvnr, befugt, betriebsstand]);
 
   const dokumentOeffnen = useCallback(
-    async (verweis: Dokumentverweis) => {
+    async (verweis: Dokumentverweis, stellen: string[] = []) => {
+      setzeMarkieren(stellen);
       setzeOffenesDokument(verweis);
       setzeInhalt(null);
       setzeBereich('dokumente');
@@ -103,12 +112,20 @@ export function Versichertensicht() {
     [kvnr],
   );
 
-  /** Die Quellenangabe einer Antwort führt in die Dokumentenliste — nicht in ein eigenes Fenster. */
+  /**
+   * Die Quellenangabe einer Antwort führt ins Dokument — im Bereich „Dokumente", nicht in ein
+   * eigenes Fenster — und markiert dort die Stellen, auf denen die Antwort beruht.
+   */
   const zurQuelle = useCallback(
-    (q: Quellenangabe) => {
+    (q: Quellenangabe, stellen: string[]) => {
       const verweis = verweise?.find((v) => v.id === q.quelleId);
-      if (verweis) void dokumentOeffnen(verweis);
-      else setzeFehler('Diese Quelle ist kein Dokument der Akte.');
+      if (verweis) void dokumentOeffnen(verweis, stellen);
+      else
+        setzeFehler(
+          q.quelleId === 'medikationsplan'
+            ? 'Diese Angabe stammt aus dem Medikationsplan, nicht aus einem Dokument.'
+            : 'Dieses Dokument ist nicht mehr in der Akte.',
+        );
     },
     [verweise, dokumentOeffnen],
   );
@@ -189,11 +206,13 @@ export function Versichertensicht() {
               verweise={verweise}
               offenes={offenesDokument}
               inhalt={inhalt}
+              markieren={markieren}
               patientId={person.id}
               oeffnen={(v) => void dokumentOeffnen(v)}
               schliessen={() => {
                 setzeOffenesDokument(null);
                 setzeInhalt(null);
+                setzeMarkieren([]);
               }}
             />
           ) : (
@@ -212,6 +231,7 @@ function Dokumentenbereich({
   verweise,
   offenes,
   inhalt,
+  markieren,
   patientId,
   oeffnen,
   schliessen,
@@ -219,6 +239,7 @@ function Dokumentenbereich({
   verweise: Dokumentverweis[] | null;
   offenes: Dokumentverweis | null;
   inhalt: unknown;
+  markieren: string[];
   patientId: string;
   oeffnen: (v: Dokumentverweis) => void;
   schliessen: () => void;
@@ -247,6 +268,8 @@ function Dokumentenbereich({
             patientId={patientId}
             dokumentId={offenes.id}
             bestand="epa"
+            markieren={markieren}
+            anfang="pdf"
           />
         )}
       </div>
@@ -278,20 +301,20 @@ function Lotsenbereich({
   zurQuelle,
 }: {
   kvnr: string;
-  zurQuelle: (q: Quellenangabe) => void;
+  zurQuelle: (q: Quellenangabe, stellen: string[]) => void;
 }) {
-  const [lesart, setzeLesart] = useState<Lesart>('alltag');
   const [antwort, setzeAntwort] = useState<Lotsenantwort | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
   const [fehler, setzeFehler] = useState<string | null>(null);
 
-  async function fragen(frage: string, mitLesart: Lesart = lesart) {
+  async function fragen(frage: string) {
     if (!kvnr) return;
     setzeLaeuft(true);
     setzeFehler(null);
     try {
-      // Der Zugang ist der der versicherten Person, nicht der der Praxis.
-      setzeAntwort(await lotseFragen(kvnr, frage, mitLesart, kvnr));
+      // Der Zugang ist der der versicherten Person, nicht der der Praxis. Die Antwort steht in
+      // Alltagssprache; wer es genau wissen will, springt ins Dokument.
+      setzeAntwort(await lotseFragen(kvnr, frage, 'alltag', kvnr));
     } catch (f) {
       setzeFehler(f instanceof Error ? f.message : 'Der Lotse hat nicht geantwortet.');
       setzeAntwort(null);
@@ -302,34 +325,6 @@ function Lotsenbereich({
 
   return (
     <>
-      <div className="lotse-lesart">
-        <span className="lotse-lesart-titel">Sprache</span>
-        <div className="modusschalter">
-          <button
-            type="button"
-            className={lesart === 'alltag' ? 'aktiv' : ''}
-            aria-pressed={lesart === 'alltag'}
-            onClick={() => {
-              setzeLesart('alltag');
-              if (antwort) void fragen(antwort.frage, 'alltag');
-            }}
-          >
-            Einfach
-          </button>
-          <button
-            type="button"
-            className={lesart === 'fach' ? 'aktiv' : ''}
-            aria-pressed={lesart === 'fach'}
-            onClick={() => {
-              setzeLesart('fach');
-              if (antwort) void fragen(antwort.frage, 'fach');
-            }}
-          >
-            Wie im Dokument
-          </button>
-        </div>
-      </div>
-
       <Fragefeld
         kennung="lotse-frage-versicherte"
         vorschlaege={VORSCHLAGSFRAGEN.versicherte}
@@ -348,7 +343,11 @@ function Lotsenbereich({
             <Vorlesen text={antwortAlsText(antwort)} />
           </div>
           {antwort.hinweis && <p className="lotse-hinweis">{antwort.hinweis}</p>}
-          <Absaetze absaetze={antwort.absaetze} oeffnen={zurQuelle} />
+          <Absaetze
+            absaetze={antwort.absaetze}
+            vorsatz="Im Dokument nachlesen:"
+            oeffnen={(q) => zurQuelle(q, belegzeilen(antwort.absaetze, q.quelleId))}
+          />
           <Begriffe antwort={antwort} />
           <Umfangsangabe umfang={antwort.umfang} />
         </section>

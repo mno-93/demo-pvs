@@ -180,6 +180,16 @@ const KH_ENTLASSMEDIKATION: Briefmittel[] = [
   { atc: 'C10AA05', text: 'Atorvastatin 40 mg Filmtabletten', dosierung: '0-0-1-0' },
 ];
 
+/** Allergien, wie sie im Brief stehen — in PDF und FHIR-Erzähltext wortgleich. */
+const KH_ALLERGIEZEILEN = [
+  'Penicillin: makulopapulöses Exanthem unter Ampicillin/Sulbactam i. v. (14.07.2026)',
+  'Iodhaltiges Kontrastmittel: Übelkeit nach CT-Angiographie (13.07.2026), Unverträglichkeit',
+];
+
+/** Implantat, wie es im Brief steht. */
+const KH_IMPLANTATZEILE =
+  'Zweikammer-Herzschrittmacher (DDD) seit 04/2019 bei AV-Block II. Grades, Kontrolle nach Kardioversion unauffällig';
+
 const deutsch = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.');
 
 const KH_TEXT = {
@@ -238,10 +248,7 @@ export function entlassbriefHoffmannBrief(): Briefvorlage {
       ...KH_DIAGNOSEN.map((d) => z(diagnosezeile(d))),
       leer,
       u('Allergien und Unverträglichkeiten'),
-      z('Penicillin: makulopapulöses Exanthem unter Ampicillin/Sulbactam i. v. (14.07.2026)'),
-      z(
-        'Iodhaltiges Kontrastmittel: Übelkeit nach CT-Angiographie (13.07.2026), Unverträglichkeit',
-      ),
+      ...KH_ALLERGIEZEILEN.map(z),
       leer,
       u('Anamnese'),
       a(KH_TEXT.anamnese),
@@ -258,9 +265,7 @@ export function entlassbriefHoffmannBrief(): Briefvorlage {
         .map((p) => z(`${deutsch(p.zeitpunkt)} ${p.text} (OPS ${p.ops})`)),
       leer,
       u('Implantate'),
-      z(
-        'Zweikammer-Herzschrittmacher (DDD) seit 04/2019 bei AV-Block II. Grades, Kontrolle nach Kardioversion unauffällig',
-      ),
+      z(KH_IMPLANTATZEILE),
       leer,
       u('Therapie und Verlauf'),
       ...KH_TEXT.verlauf.map(a),
@@ -504,10 +509,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
         'Allergien und Unverträglichkeiten',
         '48765-2',
         'Allergies and adverse reactions Document',
-        [
-          'Penicillin: makulopapulöses Exanthem (14.07.2026)',
-          'Iodhaltiges Kontrastmittel: Übelkeit (13.07.2026)',
-        ],
+        KH_ALLERGIEZEILEN,
         allergien.map(ref),
       ),
       abschnitt(
@@ -521,7 +523,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
         'Implantate',
         '46264-8',
         'History of medical device use',
-        ['Zweikammer-Herzschrittmacher (DDD) seit 04/2019 bei AV-Block II. Grades'],
+        [KH_IMPLANTATZEILE],
         [ref(nutzung)],
       ),
       abschnitt(
