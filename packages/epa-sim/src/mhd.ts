@@ -101,9 +101,24 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
 
 /** Text eines Dokuments für die Volltextsuche — Titel, Autor, Einrichtung und Inhalt. */
 function volltext(d: Dokument): string {
-  return [d.titel, d.autor, d.einrichtung, d.text ?? '', d.inhalt ? JSON.stringify(d.inhalt) : '']
-    .join(' ')
-    .toLowerCase();
+  return (
+    [d.titel, d.autor, d.einrichtung, d.text ?? '', d.inhalt ? JSON.stringify(d.inhalt) : '']
+      .join(' ')
+      // Zeilenumbrüche im JSON stehen als „\n" da — sonst klebte das nächste Wort an einem „n".
+      .replace(/\\[nrt]/g, ' ')
+      .toLowerCase()
+  );
+}
+
+/**
+ * Ein Suchwort trifft am **Wortanfang**: „niere" findet „Niereninsuffizienz", „ASS" aber nicht
+ * „Entlassbrief". ⚠ Wie die Volltextsuche des Aktensystems Wörter zerlegt, legt die
+ * Spezifikation nicht fest; ein Teilwort-Treffer mitten im Wort wäre für Nutzende nicht
+ * nachvollziehbar.
+ */
+function trifftWortanfang(text: string, wort: string): boolean {
+  const maskiert = wort.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${maskiert}`, 'u').test(text);
 }
 
 function codeAus(wert: string | undefined): string | undefined {
@@ -153,7 +168,7 @@ export function mhdEinhaengen(
         status.split(',').includes('current') &&
         (!typ || d.typeCode.code === typ) &&
         (!klasse || d.classCode.code === klasse) &&
-        (!begriff || begriff.split(/\s+/).every((w) => volltext(d).includes(w))) &&
+        (!begriff || begriff.split(/\s+/).every((w) => trifftWortanfang(volltext(d), w))) &&
         // Abfrage „seit": `_lastUpdated` und `date` (SHALL in IG 1.1.3) — beide auf der Einstellung.
         imZeitraum(d.eingestellt ?? d.erstellt, q['_lastUpdated']) &&
         imZeitraum(d.eingestellt ?? d.erstellt, q['date']) &&

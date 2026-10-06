@@ -4,6 +4,7 @@ import {
   briefTextzeilen,
   pdfErzeugen,
   pdfSeitenLesen,
+  scanPdfErzeugen,
   type Briefvorlage,
 } from './pdf.js';
 
@@ -76,5 +77,36 @@ describe('PDF-Seiten lesen', () => {
 
   it('lehnt Dateien ab, die es nicht lesen kann', () => {
     expect(pdfSeitenLesen('kein PDF')).toBeNull();
+  });
+});
+
+describe('Eingescannte Seite', () => {
+  // Kleinstes Graustufen-JPEG-Gerüst genügt: Geprüft wird der Aufbau, nicht das Bild.
+  const jpeg = '\xff\xd8\xff\xdb' + 'x'.repeat(40) + '\xff\xd9';
+  const pdf = scanPdfErzeugen(jpeg, 850, 1201);
+
+  it('trägt das Bild und keine Textebene', () => {
+    expect(pdf).toContain('/Subtype /Image /Width 850 /Height 1201');
+    expect(pdf).toContain('/Filter /DCTDecode');
+    expect(pdf).not.toMatch(/\bBT\b|Tj/);
+    expect(pdf).not.toContain('/Font');
+  });
+
+  it('liest sich als Seite ohne Textelemente', () => {
+    const seiten = pdfSeitenLesen(pdf);
+    expect(seiten).toHaveLength(1);
+    expect(seiten?.[0]?.elemente.filter((e) => e.art === 'text')).toEqual([]);
+  });
+
+  it('legt ein Querformat-Bild auf eine Querseite', () => {
+    expect(scanPdfErzeugen(jpeg, 1000, 707)).toContain('/MediaBox [0 0 842 595]');
+    expect(pdf).toContain('/MediaBox [0 0 595 842]');
+  });
+
+  it('führt ein Verzeichnis mit stimmenden Lagen', () => {
+    const start = Number(/startxref\n(\d+)/.exec(pdf)?.[1]);
+    expect(pdf.slice(start, start + 4)).toBe('xref');
+    const lagen = [...pdf.slice(start).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    lagen.forEach((l, i) => expect(pdf.slice(l).startsWith(`${i + 1} 0 obj\n`)).toBe(true));
   });
 });

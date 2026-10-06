@@ -2,6 +2,7 @@ import {
   BEFUND_YILDIZ,
   CODESYSTEM,
   laborbefundBauen,
+  scanPdfErzeugen,
   type Allergie,
   type Behandlungsfall,
   type Diagnose,
@@ -17,6 +18,7 @@ import {
   DEMO_HEUTE,
 } from '@demo-pvs/kern';
 import type { EpaBefugnis, Zustand } from '../speicher/zustand.js';
+import { SCAN_MEDIKATIONSUEBERSICHT } from './scanbild.js';
 
 /**
  * Startdaten der Demo-Praxis. Alle Personen, Einrichtungen und Befunde sind erfunden.
@@ -465,6 +467,13 @@ export const karteikarte: Karteikarteneintrag[] = [
  * Laborwerte gibt es nur in solchen Befunden. Ein Feld, sie von Hand zu erfassen, gibt es
  * nicht (Festlegung vom 10.09.2026).
  */
+/** Die mitgebrachte Medikationsübersicht als Scan: ein PDF, das nur das Bild der Seite trägt. */
+const MEDIKATIONSUEBERSICHT_PDF = scanPdfErzeugen(
+  atob(SCAN_MEDIKATIONSUEBERSICHT.jpegBase64),
+  SCAN_MEDIKATIONSUEBERSICHT.breite,
+  SCAN_MEDIKATIONSUEBERSICHT.hoehe,
+);
+
 export const dokumente: LokalesDokument[] = [
   {
     id: 'dok-h-1',
@@ -478,10 +487,15 @@ export const dokumente: LokalesDokument[] = [
     autor: 'Sabine Rothe',
     dateiname: 'medikationsuebersicht_2026-08-30.pdf',
     inhaltstyp: 'application/pdf',
-    groesseBytes: 184320,
+    groesseBytes: MEDIKATIONSUEBERSICHT_PDF.length,
     gespeichertAm: '2026-08-30T08:35:00',
     gespeichertVon: 'Sabine Rothe',
-    inhalt: null,
+    inhalt: {
+      datei: new Blob([Uint8Array.from(MEDIKATIONSUEBERSICHT_PDF, (z) => z.charCodeAt(0))], {
+        type: 'application/pdf',
+      }),
+      mimeType: 'application/pdf',
+    },
     notiz: 'Von der Patientin mitgebracht, bei der Erstvorstellung eingescannt.',
   },
   {

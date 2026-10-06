@@ -298,6 +298,23 @@ describe('MHD', () => {
     });
     expect(b.json().total).toBe(0);
   });
+
+  it('trifft am Wortanfang, nicht mitten im Wort — und liest keinen Scan', async () => {
+    const titel = async (begriff: string): Promise<string[]> => {
+      const antwort = await app.inject({
+        method: 'GET',
+        url: `${MHD}/DocumentReference?_content=${encodeURIComponent(begriff)}`,
+        headers: kopf(),
+      });
+      const eintraege = (antwort.json() as { entry?: { resource: unknown }[] }).entry ?? [];
+      return eintraege.map((e) => JSON.stringify(e.resource));
+    };
+    // „niere" findet „Niereninsuffizienz"; „lass" nicht „Entlassbrief".
+    expect((await titel('niere')).length).toBeGreaterThan(0);
+    expect(await titel('lass')).toEqual([]);
+    // Die handschriftliche Notiz auf dem Scan ist kein Text: „vertragen" findet ihn nicht.
+    expect((await titel('vertragen')).some((r) => r.includes('eingescannt'))).toBe(false);
+  });
 });
 
 describe('Medication Service — Lesenachweis', () => {

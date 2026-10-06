@@ -11,6 +11,7 @@ import {
   impfungNachFhir,
   laborbefundBauen,
   pdfErzeugen,
+  scanPdfErzeugen,
   psRelevanzSetzen,
   uuidAlsOid,
   type Befundangabe,
@@ -20,6 +21,7 @@ import {
   type Ressource,
 } from '@demo-pvs/kern';
 import { sha256Hex } from './plattform.ts';
+import { SCAN_KARDIOLOGIE_2019 } from './scanbild.ts';
 import {
   entlassbriefHoffmannBrief,
   entlassbriefHoffmannFhir,
@@ -712,10 +714,14 @@ export function startbestandAufbauen(): void {
   );
 
   /*
-   * Eingescannter Altbefund ohne Textebene. Er trägt keinen Inhalt, den ein Dienst lesen
-   * könnte — weder die Volltextsuche noch der ✦ Aktenlotse. Genau dafür ist er da: Er macht
-   * sichtbar, dass eine Antwort nie den ganzen Bestand abdeckt, und erscheint in der
-   * Umfangsangabe des Lotsen als übergangene Quelle.
+   * Eingescannter Altbefund ohne Textebene: ein PDF, das nur das Bild der Seite trägt. Ein Mensch
+   * liest ihn, ein Dienst nicht — weder die Volltextsuche noch der ✦ Aktenlotse. Genau dafür ist
+   * er da: Er macht sichtbar, dass eine Antwort nie den ganzen Bestand abdeckt, und erscheint in
+   * der Umfangsangabe des Lotsen als übergangene Quelle. Die handschriftliche Notiz zu ASS steht
+   * nur hier (`scanbild.ts`).
+   *
+   * Hochgeladen hat ihn die frühere Hausarztpraxis; Verfasserin ist die Kardiologin. Der
+   * Eingangsstempel der Hausarztpraxis steht auf dem Scan.
    */
   hoffmann.dokumente.push(
     pdfDokument({
@@ -724,11 +730,15 @@ export function startbestandAufbauen(): void {
       typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
       ordner: null,
       erstellt: '2019-04-11T09:00:00',
-      autor: 'unbekannt',
-      einrichtung: 'Praxis Dr. Kolbe, Oldenburg (Vorbehandlung)',
+      autor: 'Dr. med. U. Brinkmann',
+      einrichtung: 'Kardiologische Praxis Dr. Brinkmann, Oldenburg',
       id: 'scan-2019-04-11',
       uniqueId: abgeleiteteUniqueId('scan-2019-04-11'),
-      datei: pdfErzeugen('Vorbefund Kardiologie', ['[Seite eingescannt, keine Textebene]']),
+      datei: scanPdfErzeugen(
+        atob(SCAN_KARDIOLOGIE_2019.jpegBase64),
+        SCAN_KARDIOLOGIE_2019.breite,
+        SCAN_KARDIOLOGIE_2019.hoehe,
+      ),
     }),
   );
 

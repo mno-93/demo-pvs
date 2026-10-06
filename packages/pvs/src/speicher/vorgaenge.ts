@@ -510,8 +510,8 @@ export const vorgaenge = {
           autor: z.nutzer.name,
           dateiname: `${angabe.titel.toLowerCase().replace(/\W+/g, '-')}.pdf`,
           inhaltstyp: 'application/pdf',
-          // Die Demo bildet keine Bilddaten ab; die Größe ist eine plausible Annahme.
-          groesseBytes: 120000 + Math.round(Math.random() * 400000),
+          // Die Demo legt beim Einscannen keine Bilddaten an — also auch keine erfundene Größe.
+          groesseBytes: 0,
           gespeichertAm: jetzt(z),
           gespeichertVon: z.nutzer.name,
           inhalt: null,

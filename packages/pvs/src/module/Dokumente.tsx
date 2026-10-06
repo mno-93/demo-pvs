@@ -273,7 +273,11 @@ export function Dokumente() {
                       <>
                         {deutscherZeitpunkt(zeile.lokal.gespeichertAm)}
                         <div>{zeile.lokal.gespeichertVon}</div>
-                        <div>{(zeile.lokal.groesseBytes / 1024).toFixed(0)} KB</div>
+                        <div>
+                          {zeile.lokal.inhalt
+                            ? `${(zeile.lokal.groesseBytes / 1024).toFixed(0)} KB`
+                            : 'ohne Datei'}
+                        </div>
                       </>
                     ) : (
                       '—'

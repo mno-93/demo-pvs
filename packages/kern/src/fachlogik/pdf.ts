@@ -64,6 +64,38 @@ export function pdfErzeugen(titel: string, zeilen: readonly string[]): string {
   return datei;
 }
 
+/**
+ * Eine eingescannte Seite: ein PDF, das nur ein Bild trägt und **keine Textebene** — so, wie
+ * ein Scanner ohne Texterkennung es ablegt. Weder Volltextsuche noch ✦ Aktenlotse finden darin
+ * etwas; ein Mensch liest es trotzdem.
+ *
+ * A4, hoch oder quer — je nachdem, wie das Bild liegt.
+ *
+ * @param jpeg Graustufen-JPEG als Bytezeichen (ein Zeichen je Byte)
+ */
+export function scanPdfErzeugen(jpeg: string, breite: number, hoehe: number): string {
+  const [b, h] = breite > hoehe ? [842, 595] : [595, 842];
+  const inhalt = `q\n${b} 0 0 ${h} 0 0 cm\n/Scan Do\nQ`;
+  const objekte = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${b} ${h}] /Resources << /XObject << /Scan 5 0 R >> >> /Contents 4 0 R >>`,
+    `<< /Length ${inhalt.length} >>\nstream\n${inhalt}\nendstream`,
+    `<< /Type /XObject /Subtype /Image /Width ${breite} /Height ${hoehe} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n${jpeg}\nendstream`,
+  ];
+  let datei = '%PDF-1.4\n';
+  const lagen: number[] = [];
+  objekte.forEach((o, i) => {
+    lagen.push(datei.length);
+    datei += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const verzeichnis = datei.length;
+  datei += `xref\n0 ${objekte.length + 1}\n0000000000 65535 f \n`;
+  datei += lagen.map((l) => `${String(l).padStart(10, '0')} 00000 n \n`).join('');
+  datei += `trailer\n<< /Size ${objekte.length + 1} /Root 1 0 R >>\nstartxref\n${verzeichnis}\n%%EOF\n`;
+  return datei;
+}
+
 /* ---------- Briefe ---------- */
 
 /**

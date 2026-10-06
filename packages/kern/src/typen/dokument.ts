@@ -50,8 +50,8 @@ export interface LokalesDokument {
   gespeichertAm: string;
   gespeichertVon: string;
   /**
-   * Inhalt des Dokuments. Bei aus der Akte übernommenen Dokumenten das FHIR-Bundle,
-   * bei eingescannten Unterlagen ein Platzhalter — die Demo bildet keine Bilddaten ab.
+   * Inhalt des Dokuments. Bei aus der Akte übernommenen Dokumenten das FHIR-Bundle oder die
+   * Datei, bei eingescannten Unterlagen ein PDF, das nur das Bild der Seite trägt.
    */
   inhalt: unknown;
   notiz: string | null;
