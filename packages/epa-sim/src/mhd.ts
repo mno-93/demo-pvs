@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { bytesAus, sha256Hex } from './plattform.ts';
 import type { Ressource } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
-import { abStufe, STUFE } from './betrieb.ts';
+import { AB_STUFE, abStufe, STUFE } from './betrieb.ts';
 import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen.ts';
 
 /**
@@ -37,7 +37,8 @@ export function eintragsUuid(d: Dokument): string {
 }
 
 export function sichtbar(d: Dokument): boolean {
-  // Ein Dokument „nur im Release" gibt es ab Stufe 1 in strukturierter Fassung, und umgekehrt.
+  // Eine Fassung, die ab einer Stufe strukturiert vorliegt, verschwindet dort als PDF.
+  if (d.ersetztAb && abStufe(STUFE[d.ersetztAb])) return false;
   if (!d.nurIn) return true;
   return d.nurIn === 'release-3.1.3' ? !abStufe(1) : abStufe(STUFE[d.nurIn]);
 }
@@ -114,11 +115,14 @@ export function mhdEinhaengen(
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   /** ITI-67 Find Document References — GET mit Suchparametern oder POST als Formular. */
-  const suchen = async (anfrage: {
-    headers: Record<string, unknown>;
-    query: unknown;
-    body?: unknown;
-  }) => {
+  const suchen = async (
+    anfrage: {
+      headers: Record<string, unknown>;
+      query: unknown;
+      body?: unknown;
+    },
+    antwort: { code: (c: number) => { send: (x: unknown) => unknown } },
+  ) => {
     const kvnr = kvnrAus(anfrage);
     const q = {
       ...(anfrage.query as Record<string, string | string[] | undefined>),
@@ -129,6 +133,19 @@ export function mhdEinhaengen(
     const typ = codeAus(eins('type'));
     const klasse = codeAus(eins('category'));
     const begriff = eins('_content')?.toLowerCase().trim();
+    // Volltextsuche erst ab Weiterentwicklung 1 (ADR 0034). Ein nicht unterstützter
+    // Suchparameter wird abgelehnt, nicht stillschweigend übergangen.
+    if (begriff !== undefined && !abStufe(AB_STUFE.volltextsuche)) {
+      return antwort
+        .code(400)
+        .send(
+          operationOutcome(
+            'error',
+            'not-supported',
+            'Suchparameter _content wird in diesem Ausbaustand nicht unterstützt.',
+          ),
+        );
+    }
     const kennung = eins('identifier');
     const treffer = bestandFuer(kvnr).dokumente.filter(
       (d) =>
@@ -167,6 +184,37 @@ export function mhdEinhaengen(
       }),
     };
   };
+  /**
+   * CapabilityStatement des Dokumentendienstes: welche Suchparameter er kennt. Das
+   * Primärsystem bietet die Volltextsuche nur an, wenn `_content` darin steht.
+   */
+  app.get(`${MHD_BASIS}/metadata`, async () => ({
+    resourceType: 'CapabilityStatement',
+    status: 'active',
+    kind: 'instance',
+    fhirVersion: '4.0.1',
+    format: ['application/fhir+json'],
+    rest: [
+      {
+        mode: 'server',
+        resource: [
+          {
+            type: 'DocumentReference',
+            interaction: [{ code: 'read' }, { code: 'search-type' }],
+            searchParam: [
+              { name: 'status', type: 'token' },
+              { name: 'type', type: 'token' },
+              { name: 'category', type: 'token' },
+              { name: 'identifier', type: 'token' },
+              { name: 'date', type: 'date' },
+              { name: '_lastUpdated', type: 'date' },
+              ...(abStufe(AB_STUFE.volltextsuche) ? [{ name: '_content', type: 'string' }] : []),
+            ],
+          },
+        ],
+      },
+    ],
+  }));
   app.get(`${MHD_BASIS}/DocumentReference`, suchen);
   app.post(`${MHD_BASIS}/DocumentReference/_search`, suchen);
 

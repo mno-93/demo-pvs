@@ -144,8 +144,14 @@ export function Aufrufprotokoll() {
                 value={lage.ausbaustand}
                 onChange={(e) => aendern({ ausbaustand: e.target.value as Ausbaustand })}
               >
-                <option value="weiterentwicklung-2">Weiterentwicklung 2 ✦ mit Impfliste</option>
-                <option value="weiterentwicklung">Weiterentwicklung 1 ✦</option>
+                <option value="weiterentwicklung-4">Weiterentwicklung 4 ✦ Aktenlotse</option>
+                <option value="weiterentwicklung-3">
+                  Weiterentwicklung 3 ✦ Listen und Patient Summary
+                </option>
+                <option value="weiterentwicklung-2">
+                  Weiterentwicklung 2 ✦ strukturierte Briefe
+                </option>
+                <option value="weiterentwicklung">Weiterentwicklung 1 · Labor und Volltext</option>
                 <option value="release-3.1.3">Release 3.1.3</option>
               </select>
             </div>
@@ -181,7 +187,9 @@ export function Aufrufprotokoll() {
               <select
                 id="ps-quellen"
                 value={lage.patientSummaryQuellen}
-                disabled={lage.ausbaustand === 'release-3.1.3'}
+                disabled={
+                  !['weiterentwicklung-3', 'weiterentwicklung-4'].includes(lage.ausbaustand)
+                }
                 onChange={(e) =>
                   aendern({ patientSummaryQuellen: e.target.value as 'listen' | 'automatisch' })
                 }

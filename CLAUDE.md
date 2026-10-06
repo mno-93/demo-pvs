@@ -65,8 +65,8 @@ Meldet die Prüfung einen Fund: Stelle umformulieren, nicht das Muster abschwäc
 
 ## Bei jeder Änderung
 
-1. `docs/SPEZIFIKATION.md` fortschreiben, einschließlich **Änderungsverlauf** (Abschnitt 11). Neue
-   Beispiele mit ihrem Zweck in Abschnitt 3.1. Neue Abläufe in Abschnitt 10.
+1. `docs/SPEZIFIKATION.md` fortschreiben, einschließlich **Änderungsverlauf** (Abschnitt 12). Neue
+   Beispiele mit ihrem Zweck in Abschnitt 3.1. Neue Abläufe in Abschnitt 11.
 2. `README.md` nachziehen, wenn sich Umfang oder Einstieg ändern.
 3. Architekturentscheidung? Neue ADR in `docs/entscheidungen/` mit verworfener Alternative.
 4. `npm run pruefen` und, wenn Simulator oder Build berührt sind,

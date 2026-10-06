@@ -11,3 +11,4 @@ export { expositionswege, expositionswegeKopf } from './expositionswege.js';
 export { amtsZuordnung, amtsZuordnungKopf } from './amtsZuordnung.js';
 export { schweregrade, schweregradeKopf } from './schweregrade.js';
 export { impfstoffe, impfstoffeKopf } from './impfstoffe.js';
+export * from './alltagssprache.js';

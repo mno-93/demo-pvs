@@ -25,7 +25,7 @@ beforeEach(async () => {
   await app.inject({
     method: 'POST',
     url: '/verwaltung/betriebslage',
-    payload: { erezeptVerzoegerungMs: 0 },
+    payload: { erezeptVerzoegerungMs: 0, ausbaustand: 'weiterentwicklung-3' },
   });
 });
 

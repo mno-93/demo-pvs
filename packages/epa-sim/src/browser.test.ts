@@ -76,19 +76,24 @@ describe('Simulator im Browser', () => {
       }),
     );
     const treffer = (await suche.json()) as {
-      entry: { resource: { content: { attachment: { url: string; contentType: string } }[] } }[];
+      entry: {
+        resource: {
+          description: string;
+          content: { attachment: { url: string; contentType: string } }[];
+        };
+      }[];
     };
-    const pdf = treffer.entry
-      .map((e) => e.resource.content[0]!.attachment)
-      .find((a) => a.contentType === 'application/xml')!;
+    const pdf = treffer.entry.find((e) => e.resource.description === 'Befundbericht Kardiologie')!
+      .resource.content[0]!.attachment;
+    expect(pdf.contentType).toBe('application/pdf');
     const datei = await sim.abrufen(
       new Request(`http://x${pdf.url}`, { headers: { ...KOPF, accept: '*/*' } }),
     );
     expect(datei.status).toBe(200);
     const bytes = new Uint8Array(await datei.arrayBuffer());
-    // Der Brief kommt byteweise unverändert, UTF-8 bleibt UTF-8.
-    const text = new TextDecoder().decode(bytes);
-    expect(text.startsWith('<')).toBe(true);
+    // Der Arztbrief kommt byteweise unverändert als PDF mit Textebene.
+    const text = new TextDecoder('latin1').decode(bytes);
+    expect(text.startsWith('%PDF')).toBe(true);
     expect(text).toContain('Echokardiographie');
   });
 });

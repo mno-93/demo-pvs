@@ -38,6 +38,7 @@ import {
   medikationsplanLesen,
   patientSummaryAbrufen,
   patientSummaryVerfuegbar,
+  volltextsucheVerfuegbar,
   type Medikationsliste,
   type Medikationsplan,
 } from './klient.js';
@@ -625,7 +626,26 @@ function DokumenteInEpa({
   const [ansicht, setzeAnsicht] = useState<string | null>(null);
   const [begriff, setzeBegriff] = useState('');
   const [treffer, setzeTreffer] = useState<Dokumentverweis[] | null>(null);
+  const [volltext, setzeVolltext] = useState(false);
+  const betriebsstand = useBetriebsstand();
   const liste = treffer ?? verweise;
+
+  // Die Volltextsuche gibt es erst ab Weiterentwicklung 1 — das Feld erscheint nur, wenn der
+  // Dokumentendienst `_content` in seinem CapabilityStatement führt.
+  useEffect(() => {
+    let abgebrochen = false;
+    setzeTreffer(null);
+    void volltextsucheVerfuegbar()
+      .then((v) => {
+        if (!abgebrochen) setzeVolltext(v);
+      })
+      .catch(() => {
+        if (!abgebrochen) setzeVolltext(false);
+      });
+    return () => {
+      abgebrochen = true;
+    };
+  }, [betriebsstand]);
   const gezeigt = liste.find((v) => v.id === ansicht) ?? null;
 
   async function suchen() {
@@ -646,29 +666,31 @@ function DokumenteInEpa({
           : `Dokumente (${verweise.length})`
       }
       werkzeuge={
-        <form
-          className="reihe"
-          role="search"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void suchen();
-          }}
-        >
-          <input
-            type="search"
-            className="suchfeld"
-            aria-label="Volltextsuche in der ePA"
-            placeholder="Volltext"
-            value={begriff}
-            onChange={(e) => {
-              setzeBegriff(e.target.value);
-              if (!e.target.value) setzeTreffer(null);
+        volltext && (
+          <form
+            className="reihe"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void suchen();
             }}
-          />
-          <button type="submit" className="knopf klein">
-            Suchen
-          </button>
-        </form>
+          >
+            <input
+              type="search"
+              className="suchfeld"
+              aria-label="Volltextsuche in der ePA"
+              placeholder="Volltext"
+              value={begriff}
+              onChange={(e) => {
+                setzeBegriff(e.target.value);
+                if (!e.target.value) setzeTreffer(null);
+              }}
+            />
+            <button type="submit" className="knopf klein">
+              Suchen
+            </button>
+          </form>
+        )
       }
     >
       {laedt ? (

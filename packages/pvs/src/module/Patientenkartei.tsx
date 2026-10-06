@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { NavLink, Navigate, Outlet, useParams } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useParams } from 'react-router-dom';
 import {
   alterInJahren,
   deutschesDatum,
@@ -8,6 +8,7 @@ import {
   quartalVon,
 } from '@demo-pvs/kern';
 import { useAuswahl, useZustand } from '../speicher/speicher.js';
+import { useLotseVorhanden } from '../lotse/vorhanden.js';
 import { Marker } from '../bausteine/Bausteine.js';
 import { epaFensterOeffnen, useEpaFenster } from '../epa/fenster.js';
 import { EgkKnopf } from '../epa/befugnis.js';
@@ -59,6 +60,7 @@ export function Patientenkartei() {
   const diagnosen = useZustand((z) => z.diagnosen);
   const allergien = useZustand((z) => z.allergien);
   const aktenstatus = useAktenstatus(patient);
+  const lotseDa = useLotseVorhanden() === true;
   const ohneAkte = aktenstatus.daten?.akte === 'keine';
   const nutzbar = aktenstatus.daten?.akte === 'aktiv';
 
@@ -73,6 +75,8 @@ export function Patientenkartei() {
     (a) => a.patientId === patient.id && a.klinischerStatus === 'aktiv',
   );
   const quartal = quartalsBezeichnung(quartalVon(heute));
+  // ✦ Der Aktenlotse ist ein Vorschlag und erscheint erst im Ausbaustand, der ihn anbietet.
+  const reiter = lotseDa ? [...REITER, { pfad: 'lotse', beschriftung: 'Aktenlotse ✦' }] : REITER;
 
   return (
     <>
@@ -95,6 +99,11 @@ export function Patientenkartei() {
             <EpaZugang patient={patient} status={aktenstatus} />
             <EgkKnopf patientId={patient.id} />
             {nutzbar && <SummaryKnopf patientId={patient.id} />}
+            {nutzbar && lotseDa && (
+              <Link className="knopf lotse-knopf" to={`/patient/${patient.id}/lotse`}>
+                Aktenlotse ✦
+              </Link>
+            )}
             <EpaKnopf patientId={patient.id} ohneAkte={ohneAkte} />
           </span>
         </div>
@@ -114,7 +123,7 @@ export function Patientenkartei() {
           {patient.hinweis && <span style={{ color: 'var(--warn)' }}>{patient.hinweis}</span>}
         </div>
         <nav className="aktenreiter" aria-label="Bereiche der Patientenkartei">
-          {REITER.map((r) => (
+          {reiter.map((r) => (
             <NavLink
               key={r.pfad}
               to={r.pfad}

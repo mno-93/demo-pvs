@@ -38,7 +38,7 @@ export function dokumentinhaltLesen(bundle: unknown): Dokumentinhalt {
     ? 'unstrukturiert'
     : istLaborbefund(bundle)
       ? 'Laborbefund'
-      : typ.includes('18842-5')
+      : typ.includes('34105-7') || typ.includes('18842-5')
         ? 'Entlassbrief'
         : 'strukturiert';
   return {

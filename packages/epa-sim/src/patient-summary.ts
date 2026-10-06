@@ -213,7 +213,7 @@ function impfungen(kvnr: string, mitListen: boolean): Teil {
   if (!mitListen) {
     return ausDokumenten(kvnr, 'Immunization', (r) => String(r['occurrenceDateTime'] ?? ''));
   }
-  if (!abStufe(2)) return { quelle: 'none', eintraege: [], dazu: [] };
+  if (!abStufe(3)) return { quelle: 'none', eintraege: [], dazu: [] };
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const eintraege = ablage
     .filter((r) => r.resourceType === 'Immunization' && r['status'] === 'completed')

@@ -10,10 +10,10 @@
  * HTTP-Schnittstelle (ADR 0025).
  *
  * Maßstab ist das Release ePA 3.1.3 mit seinen Implementation Guides (ADR 0013). Jeder Weg
- * trägt seine Grundlage; was nicht belegt ist, gibt es nicht. Der Ausbaustand
- * „Weiterentwicklung" schaltet zusätzlich die Vorschau auf strukturierte Laborbefunde
- * (ePA 3.2) und den vorgeschlagenen Diagnose-Service frei (ADR 0018). Fachliche Wege
- * antworten nur mit gültiger Befugnis (ADR 0017).
+ * trägt seine Grundlage; was nicht belegt ist, gibt es nicht. Die Ausbaustände der
+ * Weiterentwicklung schalten Schritt für Schritt Vorschau und Vorschläge frei (ADR 0034):
+ * Laborbefunde und Volltextsuche, strukturierte Briefe, Listen mit Patient Summary,
+ * Aktenlotse. Fachliche Wege antworten nur mit gültiger Befugnis (ADR 0017).
  */
 import type { FastifyInstance } from 'fastify';
 import { alleBestaende, bestandFuer, bestandVorhanden } from './bestand.ts';
@@ -24,13 +24,14 @@ import {
   befugnisseEntziehen,
   gueltigeBefugnis,
 } from './befugnis.ts';
-import { STANDARD_BETRIEBSLAGE, STUFE, abStufe, betriebslage } from './betrieb.ts';
+import { AB_STUFE, STANDARD_BETRIEBSLAGE, STUFE, abStufe, betriebslage } from './betrieb.ts';
 import {
   DIAGNOSEDIENST_BASIS,
   IMPFLISTE_BASIS,
   diagnosedienstEinhaengen,
   impflisteEinhaengen,
 } from './diagnosedienst.ts';
+import { AKTENLOTSE_BASIS, aktenlotseEinhaengen } from './aktenlotse.ts';
 import { ERP_BASIS, erezeptEinhaengen, erezepteLeeren } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
@@ -60,6 +61,23 @@ function sitzungAus(anfrage: { headers: Record<string, unknown> }): string {
 }
 
 /**
+ * ✦ Demo-Ersatz für den **zweiten Zugangsweg** zur Akte: die versicherte Person selbst oder
+ * eine Person mit Vertretung, in ihrer eigenen Anwendung.
+ *
+ * Dieser Weg läuft im Wirkbetrieb nicht über die Befugnis einer Einrichtung — die entsteht
+ * durch das Stecken der eGK und gilt für eine Praxis. Versicherte melden sich über ihre
+ * GesundheitsID an; eine Vertretung wird in der Akte hinterlegt. Die Demo bildet weder IDP
+ * noch Vertretungsverwaltung nach und trägt die Kennung deshalb in `x-demo-versicherte`.
+ *
+ * ⚠ Keine ePA-Schnittstelle. Der Wert wird ausschließlich gegen `x-insurantid` geprüft:
+ * Wer sich als Versicherte:r meldet, kommt genau an eine Akte — die eigene oder die, für die
+ * die Vertretung gilt. Ein Weg zu einer dritten Akte entsteht dadurch nicht.
+ */
+function versichertenzugang(anfrage: { headers: Record<string, unknown> }): string {
+  return String(anfrage.headers['x-demo-versicherte'] ?? '');
+}
+
+/**
  * x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). Der Medication
  * Service verlangt eine ClientId von genau 20 Zeichen (CapabilityStatement, IG 1.3.5).
  */
@@ -79,11 +97,13 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     if (!istEpaWeg(anfrage.url)) return;
 
     const pfad = anfrage.url.split('?')[0] ?? '';
-    const noetigeStufe = pfad.startsWith(IMPFLISTE_BASIS)
-      ? 2
-      : pfad.startsWith(DIAGNOSEDIENST_BASIS) || pfad.startsWith(PATIENT_SUMMARY_BASIS)
-        ? 1
-        : 0;
+    const noetigeStufe = pfad.startsWith(AKTENLOTSE_BASIS)
+      ? AB_STUFE.aktenlotse
+      : pfad.startsWith(IMPFLISTE_BASIS) || pfad.startsWith(DIAGNOSEDIENST_BASIS)
+        ? AB_STUFE.listen
+        : pfad.startsWith(PATIENT_SUMMARY_BASIS)
+          ? AB_STUFE.patientSummary
+          : 0;
     if (!abStufe(noetigeStufe)) {
       return antwort
         .code(404)
@@ -138,7 +158,13 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     // Die Befugnis selbst entsteht ohne bestehende Befugnis — dafür ist sie da.
     if (pfad === BEFUGNIS_WEG) return;
 
-    if (!gueltigeBefugnis(kvnr, sitzungAus(anfrage))) {
+    /*
+     * Zwei Zugangswege, eine Prüfung: entweder eine gültige Befugnis der Einrichtung — oder
+     * der ✦ Versichertenzugang auf genau die eigene Akte. Beides führt zu denselben Daten;
+     * der Weg entscheidet nicht über den Inhalt.
+     */
+    const alsVersicherte = versichertenzugang(anfrage) === kvnr;
+    if (!alsVersicherte && !gueltigeBefugnis(kvnr, sitzungAus(anfrage))) {
       return antwort
         .code(403)
         .send(
@@ -196,6 +222,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
   diagnosedienstEinhaengen(app, kvnrAus, sitzungAus);
   impflisteEinhaengen(app, kvnrAus, sitzungAus);
   patientSummaryEinhaengen(app, kvnrAus);
+  aktenlotseEinhaengen(app);
   informationEinhaengen(app);
   erezeptEinhaengen(app, sitzungAus);
 
@@ -263,7 +290,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     if (!bestandVorhanden(kvnr)) {
       return antwort.code(409).send(fehler('conflict', 'Keine Akte.'));
     }
-    const stufe = abStufe(2) ? 2 : abStufe(1) ? 1 : 0;
+    const stufe = STUFE[betriebslage.ausbaustand];
     return { angelegt: fremdeEintraegeAnlegen(kvnr, stufe) };
   });
 
@@ -335,7 +362,8 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       ohneBefugnis: '403 notEntitled',
     },
     mhd: [
-      `GET ${MHD_BASIS}/DocumentReference — ITI-67, auch _content (Volltext)`,
+      `GET ${MHD_BASIS}/DocumentReference — ITI-67; _content (Volltext) ab Weiterentwicklung 1`,
+      `GET ${MHD_BASIS}/metadata — CapabilityStatement mit den Suchparametern`,
       `GET ${MHD_ABRUF}/{entryUUID}.{Endung} — ITI-68`,
     ],
     medikation: [
@@ -354,7 +382,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     vorschlaege: [
       {
         dienst: 'Diagnose-Service für Allergien und Diagnosen — Vorschlag, nicht spezifiziert',
-        aktiv: abStufe(1),
+        aktiv: abStufe(AB_STUFE.listen),
         basis: DIAGNOSEDIENST_BASIS,
         operationen: [
           '$condition-list',
@@ -370,7 +398,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       {
         dienst:
           'Patient Summary als Sicht aus den Diensten der ePA — Vorschlag, nicht spezifiziert',
-        aktiv: abStufe(1),
+        aktiv: abStufe(AB_STUFE.patientSummary),
         basis: PATIENT_SUMMARY_BASIS,
         operationen: ['metadata', 'Patient/$summary'],
         grundlage: 'Operation nach HL7 IPS $summary, Inhalt nach HL7 Europe EPS 1.0.0-ballot',
@@ -378,7 +406,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       },
       {
         dienst: 'Impfliste — Vorschlag, nicht spezifiziert',
-        aktiv: abStufe(2),
+        aktiv: abStufe(AB_STUFE.listen),
         basis: IMPFLISTE_BASIS,
         operationen: [
           '$immunization-list',
@@ -387,6 +415,14 @@ export function wegeEinhaengen(app: FastifyInstance): void {
           '$update-immunization-entry',
         ],
         grundlage: 'Einträge nach immunization-eu-core (HL7 Europe), Mechanik wie Diagnose-Service',
+      },
+      {
+        dienst: 'Aktenlotse — Vorschlag, nicht spezifiziert',
+        aktiv: abStufe(AB_STUFE.aktenlotse),
+        basis: AKTENLOTSE_BASIS,
+        operationen: ['metadata', 'frage', 'kontext', 'vorschlaege'],
+        grundlage:
+          'kein FHIR — Auskunft über vorhandene Ressourcen. Regelbasiert statt mit Sprachmodell; liest nur die Akte aus x-insurantid und nur, was im Ausbaustand sichtbar ist. Kein Schreibweg.',
       },
     ],
     nichtNachgebildet: [

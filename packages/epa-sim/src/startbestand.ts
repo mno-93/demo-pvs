@@ -1,13 +1,14 @@
 import {
   allergieNachFhir,
   BEFUND_HOFFMANN,
+  briefPdfErzeugen,
+  briefTextzeilen,
   BEFUND_HOFFMANN_MAERZ,
   BEFUND_YILDIZ,
   CODESYSTEM,
   diagnoseNachFhir,
   impfstoffe,
   impfungNachFhir,
-  dokumenttypen,
   laborbefundBauen,
   pdfErzeugen,
   psRelevanzSetzen,
@@ -18,7 +19,15 @@ import {
   type Impfung,
   type Ressource,
 } from '@demo-pvs/kern';
-import { sha256Hex, utf8AlsBytezeichen } from './plattform.ts';
+import { sha256Hex } from './plattform.ts';
+import {
+  entlassbriefHoffmannBrief,
+  entlassbriefHoffmannFhir,
+  entlassbriefSchrittmacherBrief,
+  kardiologieBefundberichtBrief,
+  kardiologieKontrolleBrief,
+  kardiologieKontrolleFhir,
+} from './briefe.ts';
 import { bestandFuer, bestaendeLeeren, type Dokument, type Kodewert } from './bestand.ts';
 import { befugnisErteilen, befugnisseLeeren } from './befugnis.ts';
 import { chronologieAnlegen } from './chronologie.ts';
@@ -38,10 +47,11 @@ import {
  * erfunden, die Telematik-IDs ebenso.
  *
  * Die Dokumente zeigen den Spezifikationsstand:
- * - ein **eArztbrief** — im Release 3.1.3 registriert (`urn:gematik:ig:Arztbrief:r3.1`);
+ * - **Arzt- und Entlassbriefe** als PDF mit Fließtext, wie sie heute in der Akte liegen
+ *   (`briefe.ts`); ab der Weiterentwicklung liegen **neue** Briefe zusätzlich strukturiert vor
+ *   (✦ FHIR nach dem Vorbild des HL7 Europe Hospital Discharge Report), ältere bleiben PDF;
  * - **Laborbefunde** — im Release 3.1.3 als PDF, in der Vorschau auf ePA 3.2 als
- *   strukturierter Befund nach dgLP (ohne veröffentlichten formatCode);
- * - der **Entlassbrief** — im Release 3.1.3 als PDF, in der Weiterentwicklung strukturiert.
+ *   strukturierter Befund nach dgLP (ohne veröffentlichten formatCode).
  *
  * Für Herrn Krüger liegt nichts vor; er hat dem Medikationsprozess widersprochen. Frau Weber
  * (nur im Praxissystem) hat keine Akte.
@@ -131,210 +141,7 @@ function alsRelevantMarkieren(kvnr: string, ...kennungen: string[]): void {
   });
 }
 
-/** Registrierter formatCode aus dem übernommenen Katalog — nie von Hand gesetzt. */
-function registriert(formatCode: string): Kodewert {
-  const eintrag = dokumenttypen.find((d) => d.formatCode === formatCode);
-  if (!eintrag) throw new Error(`Nicht registriert: ${formatCode}`);
-  return kode(eintrag.formatCode, eintrag.formatSystem ?? '', eintrag.formatAnzeige);
-}
-
 const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
-const SCT = 'http://snomed.info/sct';
-const ICD = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm';
-
-/* ---------- Strukturierter Entlassbrief (Vorgriff auf die Weiterentwicklung) ---------- */
-
-function entlassbriefHoffmann(): Record<string, unknown> {
-  const pid = `pat-${KVNR.hoffmann}`;
-  const diagnose = (
-    id: string,
-    icd: string,
-    sct: string,
-    text: string,
-    status: string,
-    kategorie: string,
-    beginn: string,
-  ): Ressource => ({
-    resourceType: 'Condition',
-    id,
-    clinicalStatus: {
-      coding: [
-        { system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: status },
-      ],
-    },
-    verificationStatus: {
-      coding: [
-        { system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status', code: 'confirmed' },
-      ],
-    },
-    category: [
-      {
-        coding: [
-          { system: 'http://terminology.hl7.org/CodeSystem/condition-category', code: kategorie },
-        ],
-      },
-    ],
-    code: {
-      coding: [
-        { system: ICD, code: icd, display: text },
-        { system: SCT, code: sct },
-      ],
-      text,
-    },
-    subject: { reference: `Patient/${pid}` },
-    onsetDateTime: beginn,
-    recordedDate: '2026-07-17',
-    recorder: { display: 'Dr. med. Lea Wagner' },
-  });
-  const allergie = (
-    id: string,
-    sct: string,
-    atc: string | null,
-    text: string,
-    typ: string,
-    krit: string,
-    man: [string, string],
-  ): Ressource => ({
-    resourceType: 'AllergyIntolerance',
-    id,
-    clinicalStatus: {
-      coding: [
-        {
-          system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
-          code: 'active',
-        },
-      ],
-    },
-    verificationStatus: {
-      coding: [
-        {
-          system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-verification',
-          code: 'confirmed',
-        },
-      ],
-    },
-    type: typ,
-    category: ['medication'],
-    criticality: krit,
-    code: {
-      coding: [
-        { system: SCT, code: sct, display: text },
-        ...(atc ? [{ system: ATC, code: atc }] : []),
-      ],
-      text,
-    },
-    patient: { reference: `Patient/${pid}` },
-    recordedDate: '2026-07-17',
-    recorder: { display: 'Dr. med. Lea Wagner' },
-    reaction: [
-      {
-        manifestation: [{ coding: [{ system: SCT, code: man[0], display: man[1] }], text: man[1] }],
-      },
-    ],
-  });
-  const ressourcen: Ressource[] = [
-    {
-      resourceType: 'Composition',
-      id: 'comp-kh-e',
-      status: 'final',
-      // LOINC 18842-5 „Discharge summary". Profilkonformität zu MIO KH-E nicht behauptet.
-      type: {
-        coding: [{ system: 'http://loinc.org', code: '18842-5', display: 'Discharge summary' }],
-      },
-      subject: { reference: `Patient/${pid}` },
-      date: '2026-07-17',
-      author: [{ display: 'Dr. med. Lea Wagner, Klinikum Sonnenschein' }],
-      title: 'Entlassbrief stationäre Behandlung',
-    },
-    {
-      resourceType: 'Patient',
-      id: pid,
-      identifier: [{ system: 'http://fhir.de/sid/gkv/kvid-10', value: KVNR.hoffmann }],
-    },
-    diagnose(
-      'kh-cond-1',
-      'I48.1',
-      '440028005',
-      'Vorhofflimmern, persistierend',
-      'active',
-      'problem-list-item',
-      '2026-07-17',
-    ),
-    diagnose(
-      'kh-cond-2',
-      'E11.74',
-      '44054006',
-      'Diabetes mellitus, Typ 2: Mit multiplen Komplikationen',
-      'active',
-      'problem-list-item',
-      '2026-07-17',
-    ),
-    diagnose(
-      'kh-cond-3',
-      'N39.0',
-      '68566005',
-      'Harnwegsinfektion, Lokalisation nicht näher bezeichnet',
-      'active',
-      'encounter-diagnosis',
-      '2026-07-12',
-    ),
-    allergie('kh-allg-1', '764146007', 'J01C', 'Penicillin', 'allergy', 'high', [
-      '247471006',
-      'Makulopapulöses Exanthem',
-    ]),
-    allergie('kh-allg-2', '426722004', 'V08A', 'Iodhaltiges Kontrastmittel', 'intolerance', 'low', [
-      '422587007',
-      'Übelkeit',
-    ]),
-    {
-      resourceType: 'Procedure',
-      id: 'kh-proc-1',
-      status: 'completed',
-      code: {
-        coding: [
-          {
-            system: 'http://fhir.de/CodeSystem/bfarm/ops',
-            code: '8-640',
-            display: 'Kardiale Defibrillation und Kardioversion',
-          },
-        ],
-        text: 'Kardiale Defibrillation und Kardioversion',
-      },
-      subject: { reference: `Patient/${pid}` },
-      performedDateTime: '2026-07-18',
-    },
-    // Implantat aus der Anamnese: Zweikammer-Schrittmacher seit 2019, nach der Kardioversion
-    // kontrolliert. ⚠ SNOMED CT 14106009 nicht gegen einen Terminologieserver geprüft; das
-    // Beispiel ist erfunden und fachlich von der Medizin zu bestätigen.
-    {
-      resourceType: 'Device',
-      id: 'kh-device-1',
-      type: {
-        coding: [
-          { system: SCT, code: '14106009', display: 'Cardiac pacemaker, device (physical object)' },
-        ],
-        text: 'Herzschrittmacher (Zweikammer)',
-      },
-      patient: { reference: `Patient/${pid}` },
-    },
-    {
-      resourceType: 'DeviceUseStatement',
-      id: 'kh-device-use-1',
-      status: 'active',
-      subject: { reference: `Patient/${pid}` },
-      timingDateTime: '2019-04-02',
-      recordedOn: '2026-07-17',
-      device: { reference: 'Device/kh-device-1' },
-      note: [{ text: 'Kontrolle nach Kardioversion am 18.07.2026 unauffällig' }],
-    },
-  ];
-  return {
-    resourceType: 'Bundle',
-    type: 'document',
-    timestamp: '2026-07-17T14:00:00',
-    entry: ressourcen.map((r) => ({ fullUrl: `urn:uuid:${r.id}`, resource: r })),
-  };
-}
 
 /* ---------- Medikation ---------- */
 
@@ -625,8 +432,9 @@ const KARDIOLOGIE: Handelnde = {
 /**
  * Demo-Steuerung: Eine andere Einrichtung trägt jetzt ein — damit „neu seit dem letzten Aufruf"
  * vorführbar ist. Die Kardiologie stellt einen Kontrollbefund ein und ändert den
- * Medikationsplan (Torasemid neu, Dosis eines bestehenden Eintrags geändert); ab Stufe 1 trägt
- * sie eine Diagnose ein und markiert sie, ab Stufe 2 impft die Apotheke gegen Grippe.
+ * Medikationsplan (Torasemid neu, Dosis eines bestehenden Eintrags geändert); ab Stufe 2 ist der
+ * Befund strukturiert, ab Stufe 3 trägt sie eine Diagnose ein und markiert sie, und die Apotheke
+ * impft gegen Grippe.
  */
 export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
   const apotheke: Handelnde = {
@@ -639,37 +447,37 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
   const bestand = bestandFuer(kvnr);
   const angelegt: string[] = [];
 
-  // Kontrollbefund als eArztbrief, eingestellt jetzt.
-  const text = [
-    'Kardiologische Praxis am Wall — Dr. med. Jonas Behrens',
-    `Befundbericht Kontrolle vom ${datum.split('-').reverse().join('.')}`,
-    'Anlass: Zunahme der Belastungsdyspnoe, Unterschenkelödeme',
-    'Echokardiographie: LVEF 40 %',
-    'Empfehlung: Torasemid 10 mg morgens, Bisoprolol auf 5 mg steigern',
-  ];
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<ClinicalDocument xmlns="urn:hl7-org:v3"><title>Befundbericht Kardiologie, Kontrolle</title><component><structuredBody><component><section><text>${text
-    .map((z) => `<paragraph>${z}</paragraph>`)
-    .join('')}</text></section></component></structuredBody></component></ClinicalDocument>`;
-  const bytes = utf8AlsBytezeichen(xml);
+  // Kontrollbefund der Kardiologie, eingestellt jetzt: als PDF, ab Weiterentwicklung 2 als
+  // ✦ strukturierter Arztbrief.
+  const brief = kardiologieKontrolleBrief(datum);
+  const zeilen = briefTextzeilen(brief);
   const dokId = neueId('eab');
-  bestand.dokumente.push({
+  const kopfdaten = {
     id: dokId,
     uniqueId: abgeleiteteUniqueId(dokId),
     titel: 'Befundbericht Kardiologie, Kontrolle',
     classCode: kode('BRI', OID_KLASSE, 'Brief'),
     typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
-    formatCode: registriert('urn:gematik:ig:Arztbrief:r3.1'),
-    mimeType: 'application/xml',
     ordner: null,
     erstellt: heute,
     eingestellt: heute,
     autor: behrens,
     einrichtung: KARDIOLOGIE.anzeige,
-    groesseBytes: bytes.length,
-    inhalt: null,
-    datei: bytes,
-    text: text.join(' '),
-  });
+    text: zeilen.join(' '),
+    textzeilen: zeilen,
+  };
+  if (stufe >= 2) {
+    const inhalt = kardiologieKontrolleFhir(kvnr, datum, dokId);
+    bestand.dokumente.push({
+      ...kopfdaten,
+      formatCode: null,
+      mimeType: 'application/fhir+json',
+      groesseBytes: JSON.stringify(inhalt).length,
+      inhalt,
+    });
+  } else {
+    bestand.dokumente.push(pdfDokument({ ...kopfdaten, datei: briefPdfErzeugen(brief) }));
+  }
   angelegt.push(`DocumentReference/${eintragsUuid(bestand.dokumente.at(-1)!)}`);
 
   // Medikationsplan: neues Mittel aus Verordnung, Dosis eines bestehenden Eintrags geändert.
@@ -737,7 +545,7 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
   }
   chronologieAnlegen(bestand.medikation, EMP, KARDIOLOGIE, heute);
 
-  if (stufe >= 1) {
+  if (stufe >= 3) {
     const { eintrag } = eintragAnlegen(
       kvnr,
       psRelevanzSetzen(
@@ -759,7 +567,7 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
     listeFortschreiben(kvnr, 'Condition', KARDIOLOGIE, heute);
     angelegt.push(`Condition/${String(eintrag.id)}`);
   }
-  if (stufe >= 2) {
+  if (stufe >= 3) {
     const impfung = eintragAnlegen(
       kvnr,
       impfEintrag(kvnr, 'J07BB02', datum, 'Apothekerin Lisa Kaya, Stadtgarten-Apotheke', {
@@ -810,8 +618,10 @@ export function startbestandAufbauen(): void {
   const hoffmann = bestandFuer(KVNR.hoffmann);
   hoffmann.demographie = { vorname: 'Renate', nachname: 'Hoffmann', geburtsdatum: '1958-03-14' };
 
-  // Entlassbrief: im Release 3.1.3 als PDF, in der Weiterentwicklung strukturiert.
-  const entlassbrief = entlassbriefHoffmann();
+  /*
+   * Entlassbrief des Klinikums: im Release 3.1.3 als PDF mit Fließtext, ab der
+   * Weiterentwicklung als ✦ FHIR-Dokument mit denselben Inhalten (`briefe.ts`).
+   */
   const briefkopf = {
     titel: 'Entlassbrief stationäre Behandlung',
     classCode: kode('BRI', OID_KLASSE, 'Brief'),
@@ -821,39 +631,18 @@ export function startbestandAufbauen(): void {
     autor: 'Dr. med. Lea Wagner',
     einrichtung: 'Klinikum Sonnenschein',
   };
-  const brieftext = [
-    'Stationärer Aufenthalt 12.07.2026 bis 18.07.2026',
-    '',
-    'Diagnosen',
-    '   I48.1 Vorhofflimmern, persistierend (Erstdiagnose)',
-    '   E11.74 Diabetes mellitus Typ 2 mit multiplen Komplikationen',
-    '   N39.0 Harnwegsinfektion, behoben',
-    '',
-    'Allergien und Unverträglichkeiten',
-    '   Penicillin: makulopapulöses Exanthem unter Ampicillin i. v. (14.07.2026)',
-    '   Iodhaltiges Kontrastmittel: Übelkeit (Unverträglichkeit)',
-    '',
-    'Prozeduren',
-    '   18.07.2026 Elektrische Kardioversion (OPS 8-640)',
-    '',
-    'Implantate',
-    '   Herzschrittmacher (Zweikammer) seit 04/2019, Kontrolle nach Kardioversion unauffällig',
-    '',
-    'Entlassmedikation',
-    '   Apixaban 5 mg 1-0-1, Metformin 1000 mg 1-0-1, Ramipril 5 mg 1-0-0,',
-    '   Bisoprolol 2,5 mg 1-0-0, Atorvastatin 40 mg 0-0-1',
-    '',
-    'Dr. med. Lea Wagner, Klinik für Innere Medizin',
-  ];
-  const briefPdf = pdfErzeugen('Entlassbrief — Klinikum Sonnenschein', brieftext);
+  const entlassbrief = entlassbriefHoffmannBrief();
+  const brieftext = briefTextzeilen(entlassbrief);
+  const strukturiert = entlassbriefHoffmannFhir(KVNR.hoffmann);
   hoffmann.dokumente.push(
     pdfDokument({
       ...briefkopf,
       id: 'kh-e-2026-07-17-pdf',
       uniqueId: abgeleiteteUniqueId('kh-e-2026-07-17-pdf'),
-      datei: briefPdf,
+      datei: briefPdfErzeugen(entlassbrief),
       text: brieftext.join(' '),
-      nurIn: 'release-3.1.3',
+      textzeilen: brieftext,
+      ersetztAb: 'weiterentwicklung-2',
     }),
     {
       ...briefkopf,
@@ -861,10 +650,32 @@ export function startbestandAufbauen(): void {
       uniqueId: abgeleiteteUniqueId('kh-e-2026-07-17'),
       formatCode: null,
       mimeType: 'application/fhir+json',
-      groesseBytes: JSON.stringify(entlassbrief).length,
-      inhalt: entlassbrief,
-      nurIn: 'weiterentwicklung',
+      groesseBytes: JSON.stringify(strukturiert).length,
+      inhalt: strukturiert,
+      text: brieftext.join(' '),
+      textzeilen: brieftext,
+      nurIn: 'weiterentwicklung-2',
     },
+  );
+
+  // Älterer Entlassbrief (Schrittmacherimplantation 2019): nur PDF, in jedem Ausbaustand.
+  const schrittmacher = entlassbriefSchrittmacherBrief();
+  const schrittmacherText = briefTextzeilen(schrittmacher);
+  hoffmann.dokumente.push(
+    pdfDokument({
+      titel: 'Entlassbrief stationäre Behandlung',
+      classCode: kode('BRI', OID_KLASSE, 'Brief'),
+      typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
+      ordner: null,
+      erstellt: '2019-04-05T13:00:00',
+      autor: 'Dr. med. Bernd Albers',
+      einrichtung: 'Kreisklinikum Weserbogen',
+      id: 'kh-e-2019-04-05-pdf',
+      uniqueId: abgeleiteteUniqueId('kh-e-2019-04-05-pdf'),
+      datei: briefPdfErzeugen(schrittmacher),
+      text: schrittmacherText.join(' '),
+      textzeilen: schrittmacherText,
+    }),
   );
 
   // Laborbefund: im Release 3.1.3 als PDF, in der Vorschau auf ePA 3.2 strukturiert (dgLP).
@@ -900,6 +711,27 @@ export function startbestandAufbauen(): void {
     },
   );
 
+  /*
+   * Eingescannter Altbefund ohne Textebene. Er trägt keinen Inhalt, den ein Dienst lesen
+   * könnte — weder die Volltextsuche noch der ✦ Aktenlotse. Genau dafür ist er da: Er macht
+   * sichtbar, dass eine Antwort nie den ganzen Bestand abdeckt, und erscheint in der
+   * Umfangsangabe des Lotsen als übergangene Quelle.
+   */
+  hoffmann.dokumente.push(
+    pdfDokument({
+      titel: 'Vorbefund Kardiologie (eingescannt)',
+      classCode: kode('BEF', OID_KLASSE, 'Befundbericht'),
+      typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
+      ordner: null,
+      erstellt: '2019-04-11T09:00:00',
+      autor: 'unbekannt',
+      einrichtung: 'Praxis Dr. Kolbe, Oldenburg (Vorbehandlung)',
+      id: 'scan-2019-04-11',
+      uniqueId: abgeleiteteUniqueId('scan-2019-04-11'),
+      datei: pdfErzeugen('Vorbefund Kardiologie', ['[Seite eingescannt, keine Textebene]']),
+    }),
+  );
+
   // Vorbefund aus der Vorbehandlung (März): Verlauf der Nierenfunktion, in beiden Formen.
   const laborMaerz = laborbefundBauen(BEFUND_HOFFMANN_MAERZ);
   const laborMaerzKopf = {
@@ -930,37 +762,29 @@ export function startbestandAufbauen(): void {
     },
   );
 
-  // eArztbrief der Kardiologie: registriertes Format, aber ohne strukturierte Einträge. Die
-  // Echokardiographie steht nur im Text — die Patient Summary kennt sie nicht.
-  const kardioText = [
-    'Kardiologische Praxis am Wall — Dr. med. Jonas Behrens',
-    'Befundbericht vom 03.06.2026, Patientin Renate Hoffmann, geb. 14.03.1958',
-    'Anlass: Belastungsdyspnoe, Palpitationen',
-    'Echokardiographie: LVEF 45 %, leichte Mitralinsuffizienz, linker Vorhof dilatiert',
-    'Langzeit-EKG: intermittierendes Vorhofflimmern',
-    'Empfehlung: Antikoagulation prüfen, Kontrolle in 6 Monaten',
-  ];
-  const kardioXml = `<?xml version="1.0" encoding="UTF-8"?>\n<ClinicalDocument xmlns="urn:hl7-org:v3"><title>Befundbericht Kardiologie</title><component><structuredBody><component><section><text>${kardioText
-    .map((z) => `<paragraph>${z}</paragraph>`)
-    .join('')}</text></section></component></structuredBody></component></ClinicalDocument>`;
-  const kardioBytes = utf8AlsBytezeichen(kardioXml);
-  hoffmann.dokumente.push({
-    id: 'eab-2026-06-03',
-    uniqueId: abgeleiteteUniqueId('eab-2026-06-03'),
-    titel: 'Befundbericht Kardiologie',
-    classCode: kode('BRI', OID_KLASSE, 'Brief'),
-    typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
-    formatCode: registriert('urn:gematik:ig:Arztbrief:r3.1'),
-    mimeType: 'application/xml',
-    ordner: null,
-    erstellt: '2026-06-03T10:30:00',
-    autor: 'Dr. med. Jonas Behrens',
-    einrichtung: 'Kardiologische Praxis am Wall',
-    groesseBytes: kardioBytes.length,
-    inhalt: null,
-    datei: kardioBytes,
-    text: kardioText.join(' '),
-  });
+  /*
+   * Befundbericht der Kardiologie als eArztbrief: In der Akte liegt das PDF/A, das nach der
+   * Richtlinie alle Inhalte trägt. Strukturierte Einträge gibt es nicht — die
+   * Echokardiographie steht nur im Text, auch in der Weiterentwicklung (älterer Brief).
+   */
+  const kardio = kardiologieBefundberichtBrief();
+  const kardioText = briefTextzeilen(kardio);
+  hoffmann.dokumente.push(
+    pdfDokument({
+      id: 'eab-2026-06-03',
+      uniqueId: abgeleiteteUniqueId('eab-2026-06-03'),
+      titel: 'Befundbericht Kardiologie',
+      classCode: kode('BRI', OID_KLASSE, 'Brief'),
+      typeCode: kode('BERI', OID_TYP, 'Arztberichte'),
+      ordner: null,
+      erstellt: '2026-06-03T10:30:00',
+      autor: 'Dr. med. Jonas Behrens',
+      einrichtung: 'Kardiologische Praxis am Wall',
+      datei: briefPdfErzeugen(kardio),
+      text: kardioText.join(' '),
+      textzeilen: kardioText,
+    }),
+  );
 
   // Medikation: Verordnungen und Plan vom Klinikum, Abgaben aus der Apotheke.
   const mittel: [string, string, string, string, string][] = [

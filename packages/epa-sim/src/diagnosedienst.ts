@@ -554,7 +554,7 @@ function listenwegeEinhaengen(
  * `$update-immunization-entry`, Lesenachweis, Änderungseinträge, Berichtigen über den Status.
  * Einträge nach `immunization-eu-core` (HL7 Europe), wie ihn die Section „Immunizations" der EPS
  * verlangt. Eine Relevanzmarkierung gibt es nicht: Jede Impfung zählt für den Impfschutz.
- * Nur im Ausbaustand „Weiterentwicklung 2".
+ * Ab Ausbaustand „Weiterentwicklung 3".
  */
 export const IMPFLISTE_BASIS = '/epa/vorschlag/immunization/api/v1/fhir';
 

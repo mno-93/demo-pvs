@@ -32,6 +32,13 @@ beforeEach(async () => {
   await app?.close();
   app = await simulatorBauen();
   befugnisErteilen(HOFFMANN, PRAXIS, new Date(), 'eGK');
+  // Der Standard-Ausbaustand ist die aktuelle Spezifikation; diese Prüfungen betreffen die
+  // ✦ Vorschläge und stellen den Ausbaustand deshalb ausdrücklich ein.
+  await app.inject({
+    method: 'POST',
+    url: '/verwaltung/betriebslage',
+    payload: { ausbaustand: 'weiterentwicklung-3' },
+  });
 });
 afterAll(async () => {
   await app?.close();

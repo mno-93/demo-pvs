@@ -1,6 +1,6 @@
 # Quellen
 
-Öffentliche Spezifikationen, gegen die die Demo gebaut ist. Stand der Prüfung: 01.10.2026.
+Öffentliche Spezifikationen, gegen die die Demo gebaut ist. Stand der Prüfung: 06.10.2026.
 
 ## ePA — Release 3.1.3
 
@@ -33,6 +33,14 @@
 | European Patient Summary, HL7 Europe (`hl7-eu/eps`)    | 1.0.0-ballot, Branch `1.0.0-ballot`, Commit `5a7a236` | `bundle-eu-eps`, `composition-eu-eps`, Pflicht-Sections, `emptyReason`, Section „Immunizations" (LOINC 11369-6), Sections Procedures (`procedure-eu-eps`) und Medical Devices (`deviceUseStatement-eu-eps`) |
 | International Patient Summary, HL7 (`hl7.fhir.uv.ips`) | —                                                     | Operation `$summary` als Muster                                                                                                                                                                             |
 | Xt-EHR EHDS Logical Information Models                 | 1.0.0                                                 | Patient Summary: Pflicht-Abschnitte, Kopf mit rechtlicher Authentifizierung (offene Frage 7.6)                                                                                                              |
+
+## Briefe (ADR 0033)
+
+| Quelle                                                                         | Version / Stand                                                | Verwendet für                                                                                                            |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| KBV, Richtlinie über die Übermittlung elektronischer Briefe (§ 383 SGB V)      | Fassung vom 17.05.2024, abgerufen 06.10.2026                   | Aufbau des eArztbriefs: PDF/A mit allen Inhalten, CDA-Teil (VHitG-Leitfaden „Arztbrief" 1.50) mit leerem `body` zulässig |
+| MIO Krankenhaus-Entlassbrief, `KBV_PR_MIO_KHE_Composition` (Simplifier `khe`)  | 1.0.0, abgerufen 06.10.2026                                    | Abschnittsfolge und Überschriften, SNOMED CT 373942005 als Dokumenttyp                                                   |
+| HL7 Europe Hospital Discharge Report (`hl7.fhir.eu.hdr`), `composition-eu-hdr` | CI-Build 1.0.0 vom 30.09.2026; veröffentlicht nur 0.1.0-ballot | `Composition.type` LOINC 34105-7, `encounter` 1..1, LOINC-Codes der Abschnitte                                           |
 
 Die FHIR-Pakete sind über die FHIR-Paketregistrierung (etwa Simplifier) unter Name und Version
 abrufbar.

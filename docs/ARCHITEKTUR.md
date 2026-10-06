@@ -97,7 +97,7 @@ Operationen gesperrt. Den Verordnungsdatensatz baut `kern/fhir/erezept.ts`; das 
 
 ## ✦ Weiterentwicklung: Diagnose-Service
 
-Im Ausbaustand „Weiterentwicklung" bietet der Simulator zusätzlich einen Dienst mit
+Ab Ausbaustand „Weiterentwicklung 3" bietet der Simulator zusätzlich einen Dienst mit
 Allergienliste und Diagnosenliste nach dem Muster des Medication Service und der
 österreichischen e-Diagnose — [0018](entscheidungen/0018-diagnose-service-als-weiterentwicklung.md),
 [0019](entscheidungen/0019-konformitaet-mit-den-implementation-guides.md). Er teilt die
@@ -122,7 +122,7 @@ Listeneintrag (`ps-relevant`, gesetzt über `$flag-…-entry`) —
 in `pvs/src/bausteine/PsMarke.tsx`; die Farbe steht als `--ps` in `stil/global.css`.
 
 ✦ Die Impfliste (`epa-sim/src/diagnosedienst.ts`, `impflisteEinhaengen`) nutzt dieselben
-Listenwege wie Allergien und Diagnosen, unter eigener Basis und erst ab „Weiterentwicklung 2"
+Listenwege wie Allergien und Diagnosen, unter eigener Basis und ebenfalls ab „Weiterentwicklung 3"
 ([0026](entscheidungen/0026-impfliste-als-zentrale-liste.md)); im PVS lesen und schreiben
 `pvs/src/epa/impfliste.ts` und `pvs/src/module/Impfungen.tsx`.
 

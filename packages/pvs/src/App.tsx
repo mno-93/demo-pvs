@@ -15,6 +15,9 @@ import { Labor } from './module/Labor.js';
 import { Abrechnung } from './module/Abrechnung.js';
 import { Stammdaten } from './module/Stammdaten.js';
 import { Rezeptstapel, useStapelzahl } from './module/Rezeptstapel.js';
+import { PraxisLotse } from './lotse/PraxisLotse.js';
+import { useLotseVorhanden } from './lotse/vorhanden.js';
+import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
 import { protokollUmschalten, useAufrufe, useProtokollSichtbar } from './epa/protokoll.js';
@@ -39,6 +42,7 @@ export function App() {
           <Route path="/" element={<Tagesuebersicht />} />
           <Route path="/patienten" element={<Patientenliste />} />
           <Route path="/rezepte" element={<Rezeptstapel />} />
+          <Route path="/versicherte" element={<Versichertensicht />} />
           <Route path="/patient/:patientId" element={<Patientenkartei />}>
             <Route index element={<Navigate to="karteikarte" replace />} />
             <Route path="karteikarte" element={<Karteikarte />} />
@@ -47,6 +51,7 @@ export function App() {
             <Route path="impfungen" element={<Impfungen />} />
             <Route path="labor" element={<Labor />} />
             <Route path="dokumente" element={<Dokumente />} />
+            <Route path="lotse" element={<PraxisLotse />} />
             <Route path="epa" element={<EpaUmleitung />} />
             <Route path="abrechnung" element={<Abrechnung />} />
             <Route path="stammdaten" element={<Stammdaten />} />
@@ -72,6 +77,8 @@ function Kopf() {
   const vorfuehrmodus = useZustand((z) => z.vorfuehrmodus);
   const aufrufe = useAufrufe();
   const protokollOffen = useProtokollSichtbar();
+  // ✦ Die Versichertensicht gehört zum Aktenlotsen und erscheint nur mit ihm.
+  const lotseDa = useLotseVorhanden() === true;
 
   return (
     <header className="kopf">
@@ -147,6 +154,11 @@ function Kopf() {
         <NavLink to="/patienten" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
           Patient:innen
         </NavLink>
+        {lotseDa && (
+          <NavLink to="/versicherte" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
+            Versichertensicht ✦
+          </NavLink>
+        )}
         <NavLink to="/rezepte" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
           Rezepte
           {stapel > 0 && (

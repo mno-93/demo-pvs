@@ -18,6 +18,7 @@ export * from './fachlogik/laborbefund.js';
 export * from './fachlogik/dokumentinhalt.js';
 export * from './fachlogik/listenabgleich.js';
 export * from './fachlogik/listenordnung.js';
+export * from './fachlogik/lotse.js';
 export * from './fachlogik/pdf.js';
 export * from './fhir/typen.js';
 export * from './fhir/abbildung.js';

@@ -44,6 +44,11 @@
   --ps-weich: #f5f3f9;
   --ps-linie: #d3cbe4;
 
+  /* ✦ Aktenlotse. Eigene Farbe, weil Violett und ★ der Patient Summary vorbehalten sind. */
+  --lotse: #1a6068;
+  --lotse-weich: #eef6f7;
+  --lotse-linie: #bcd7da;
+
   /* Kopfleiste */
   --kopf-grund: #1f2b3a;
   --kopf-text: #e8ecf1;
@@ -1420,6 +1425,28 @@ table.befund-tabelle tr.auffaellig td {
   padding-left: 18px;
   font-size: 0.92em;
 }
+/* Strukturierter Brief: Erzähltext je Abschnitt, Einträge darunter */
+.brief-absatz {
+  margin: 0 0 6px;
+  font-size: 0.92em;
+  line-height: 1.45;
+  max-width: 80ch;
+}
+.brief-eintraege {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.85em;
+  color: var(--text-leise);
+  background: var(--flaeche2);
+  border-left: 3px solid var(--akzent-linie);
+}
+.brief-eintraege .marker {
+  font-family: var(--mono);
+  font-size: 0.85em;
+}
 .befundliste {
   list-style: none;
   margin: 0;
@@ -1984,4 +2011,531 @@ td.split-mitte .marker {
     display: block;
     overflow-x: auto;
   }
+}
+
+/* ---------- ✦ Aktenlotse ---------- */
+
+.lotse-kopf,
+.lotse-antwort-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lotse-kopf h2 {
+  margin: 0;
+}
+
+.lotse-praxis {
+  display: grid;
+  gap: 16px;
+}
+
+.lotse-fragefeld {
+  display: grid;
+  gap: 10px;
+}
+
+.lotse-eingabe {
+  display: flex;
+  gap: 8px;
+}
+
+.lotse-eingabe input {
+  flex: 1;
+  min-width: 0;
+}
+
+.lotse-vorschlagsfragen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.lotse-antwort {
+  margin-top: 14px;
+  border-top: 1px solid var(--linie);
+  padding-top: 12px;
+}
+
+.lotse-antwort h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.lotse-absatz {
+  margin: 0 0 14px;
+  padding-left: 10px;
+  border-left: 2px solid var(--lotse-linie);
+}
+
+.lotse-absatz-titel {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: var(--lotse);
+}
+
+.lotse-zeile {
+  margin: 0 0 2px;
+  line-height: 1.45;
+}
+
+.lotse-hinweis {
+  margin: 0 0 12px;
+  color: var(--text-leise);
+  font-style: italic;
+}
+
+.lotse-fehler {
+  color: var(--fehler);
+}
+
+/* Quellenverweis */
+
+.lotse-quellen {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-leise);
+}
+
+.lotse-quelle-knopf {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--lotse);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+}
+
+.lotse-quelle-knopf:hover {
+  color: var(--text);
+}
+
+/* Geöffnete Unterlage */
+
+.lotse-blatt {
+  display: grid;
+  gap: 6px;
+}
+
+.lotse-blatt-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lotse-blatt-text {
+  margin: 4px 0 0;
+  padding: 10px 12px;
+  background: var(--lotse-weich);
+  border: 1px solid var(--lotse-linie);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.lotse-knopf {
+  border-color: var(--lotse-linie);
+  color: var(--lotse);
+}
+
+/* Umfang */
+
+.lotse-umfang {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--linie);
+  font-size: 0.8rem;
+  color: var(--text-leise);
+}
+
+.lotse-umfang-zahl {
+  font-weight: 600;
+}
+
+.lotse-umfang-liste {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+/* Begriffe */
+
+.lotse-begriffe {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  background: var(--flaeche2);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+}
+
+.lotse-begriffe > div {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.lotse-begriffe dt {
+  font-weight: 600;
+  min-width: 11em;
+}
+
+.lotse-begriffe dd {
+  margin: 0;
+  color: var(--text-leise);
+}
+
+/* Abweichungen und Vorschläge */
+
+.lotse-abweichungen,
+.lotse-kontext {
+  margin-top: 14px;
+}
+
+.lotse-abweichungen h3,
+.lotse-kontext h3 {
+  font-size: 0.95rem;
+  margin: 0 0 8px;
+}
+
+.lotse-zahl {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 1.4em;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--warn-weich);
+  border: 1px solid var(--warn-linie);
+  color: var(--warn);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.lotse-abweichungen-liste,
+.lotse-vorschlagsliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.lotse-abweichungen-liste li {
+  padding: 8px 10px;
+  background: var(--warn-weich);
+  border: 1px solid var(--warn-linie);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 4px;
+}
+
+.lotse-abweichung-text {
+  font-weight: 600;
+}
+
+.lotse-vorschlagsliste li {
+  padding: 10px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.lotse-vorschlagsliste li.bestaetigt {
+  background: var(--gut-weich);
+  border-color: var(--gut-linie);
+}
+
+.lotse-vorschlag-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lotse-vorschlag-text {
+  font-weight: 600;
+}
+
+/* ---------- ✦ Versichertensicht ---------- */
+
+.versichertensicht {
+  padding: 8px 0 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.telefon {
+  position: relative;
+  width: 400px;
+  max-width: 100%;
+  background: var(--flaeche);
+  border: 10px solid #1f2b3a;
+  border-radius: 28px;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 18%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 640px;
+}
+
+.telefon-kopf {
+  background: var(--kopf-grund);
+  color: var(--kopf-text);
+  padding: 12px 14px;
+  display: grid;
+  gap: 8px;
+}
+
+.telefon-marke {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.telefon-rollenwahl {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 5px 6px;
+  border-radius: var(--radius);
+  border: 1px solid var(--kopf-linie);
+  background: var(--flaeche);
+  color: var(--text);
+}
+
+.telefon-akte {
+  padding: 10px 14px;
+  background: var(--lotse-weich);
+  border-bottom: 1px solid var(--lotse-linie);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.telefon-name {
+  font-weight: 600;
+}
+
+.telefon-geb {
+  font-size: 0.78rem;
+  color: var(--text-leise);
+}
+
+.telefon-inhalt {
+  padding: 14px;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.lotse-lesart {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lotse-lesart-titel {
+  font-size: 0.8rem;
+  color: var(--text-leise);
+}
+
+.lotse-ohne-rechte {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  padding: 14px;
+  background: var(--flaeche2);
+  border: 1px dashed var(--linie-stark);
+  border-radius: var(--radius);
+}
+
+.lotse-vorlesen {
+  flex-shrink: 0;
+}
+
+/* Abschnitte des Lotsen */
+
+.lotse-abschnitt {
+  border-top: 1px solid var(--linie);
+}
+
+.lotse-abschnitt:first-of-type {
+  border-top: 0;
+}
+
+.lotse-abschnitt-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  color: var(--text);
+}
+
+.lotse-abschnitt-kopf:hover .lotse-abschnitt-titel {
+  text-decoration: underline;
+}
+
+.lotse-abschnitt-titel {
+  font-weight: 600;
+}
+
+.lotse-pfeil {
+  color: var(--text-sehr-leise);
+  width: 1em;
+}
+
+.lotse-abschnitt.betont .lotse-abschnitt-titel {
+  color: var(--warn);
+}
+
+.lotse-abschnitt-inhalt {
+  padding: 0 0 14px 1.5em;
+}
+
+.lotse-mehr {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--lotse);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+}
+
+/* Bereiche der Versichertenansicht */
+
+.telefon-bereiche {
+  display: flex;
+  border-bottom: 1px solid var(--linie);
+  background: var(--flaeche2);
+}
+
+.telefon-bereiche button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text-leise);
+}
+
+.telefon-bereiche button.aktiv {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--lotse);
+  background: var(--flaeche);
+}
+
+.telefon-zahl {
+  font-size: 0.75rem;
+  color: var(--text-sehr-leise);
+}
+
+.telefon-neu {
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--lotse);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Dokumente in der Versichertenansicht */
+
+.telefon-dokumentliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.telefon-dokumentliste button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  background: var(--flaeche);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.telefon-dokumentliste button:hover {
+  border-color: var(--lotse-linie);
+  background: var(--lotse-weich);
+}
+
+.telefon-dok-titel {
+  font-weight: 600;
+}
+
+.telefon-dok-zeile {
+  font-size: 0.8rem;
+  color: var(--text-leise);
+}
+
+.telefon-dokument {
+  display: grid;
+  gap: 6px;
+}
+
+.telefon-dokument-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+/* Ein langer Titel darf den Knopf nicht aus dem Rahmen schieben. */
+.telefon-dokument-kopf strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.telefon-dokument-kopf .knopf {
+  flex-shrink: 0;
+}
+
+/*
+ * Rasterkinder bekommen von sich aus `min-width: auto` und schrumpfen deshalb nicht unter
+ * ihren Inhalt. Ein breites Dokument schöbe den Inhalt sonst aus dem Telefonrahmen heraus.
+ */
+.telefon-inhalt,
+.telefon-inhalt > *,
+.telefon-dokument > * {
+  min-width: 0;
+}
+
+.telefon-inhalt {
+  overflow-x: hidden;
 }

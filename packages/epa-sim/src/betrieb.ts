@@ -6,23 +6,39 @@
  * im Projekt gestritten wird: fehlende Befugnis, gleichzeitige Änderung, Latenz.
  */
 /**
- * Ausbaustand der ePA. `release-3.1.3` bildet nur ab, was spezifiziert ist (ADR 0013).
- * `weiterentwicklung` schaltet zusätzlich die Vorschau auf ePA 3.2 (strukturierte
- * Laborbefunde), den vorgeschlagenen Diagnose-Service (ADR 0018) und die Patient Summary
- * (ADR 0021) frei.
+ * Ausbaustand der ePA. `release-3.1.3` bildet nur ab, was spezifiziert ist (ADR 0013). Die
+ * Weiterentwicklungen bauen aufeinander auf (ADR 0034):
+ * - `weiterentwicklung` (1): strukturierte Laborbefunde (Vorschau auf ePA 3.2) und Volltextsuche;
+ * - `weiterentwicklung-2` (2): ✦ Arzt- und Entlassbriefe als FHIR-Dokument (ADR 0033);
+ * - `weiterentwicklung-3` (3): ✦ Allergien- und Diagnosenliste (ADR 0018), Impfliste (ADR 0026)
+ *   und Patient Summary (ADR 0021);
+ * - `weiterentwicklung-4` (4): ✦ Aktenlotse (ADR 0032).
  */
-export type Ausbaustand = 'release-3.1.3' | 'weiterentwicklung' | 'weiterentwicklung-2';
+export type Ausbaustand =
+  | 'release-3.1.3'
+  | 'weiterentwicklung'
+  | 'weiterentwicklung-2'
+  | 'weiterentwicklung-3'
+  | 'weiterentwicklung-4';
 
-/**
- * Stufen in aufsteigender Reihenfolge; jede enthält die vorige. Stufe 1: ✦ Listen für Allergien
- * und Diagnosen, Patient Summary, strukturierte Laborbefunde. Stufe 2: zusätzlich ✦ die
- * Impfliste (ADR 0026).
- */
+/** Stufen in aufsteigender Reihenfolge; jede enthält die vorige. */
 export const STUFE: Record<Ausbaustand, number> = {
   'release-3.1.3': 0,
   weiterentwicklung: 1,
   'weiterentwicklung-2': 2,
+  'weiterentwicklung-3': 3,
+  'weiterentwicklung-4': 4,
 };
+
+/** Ab welcher Stufe ein Dienst oder eine Fähigkeit vorhanden ist. */
+export const AB_STUFE = {
+  laborbefunde: 1,
+  volltextsuche: 1,
+  strukturierteBriefe: 2,
+  listen: 3,
+  patientSummary: 3,
+  aktenlotse: 4,
+} as const;
 
 export function abStufe(stufe: number): boolean {
   return STUFE[betriebslage.ausbaustand] >= stufe;
@@ -51,7 +67,7 @@ export interface Betriebslage {
 
 export const STANDARD_BETRIEBSLAGE: Betriebslage = {
   verzoegerungMs: 0,
-  ausbaustand: 'weiterentwicklung-2',
+  ausbaustand: 'release-3.1.3',
   fremdeAenderungVorSchreibzugriff: false,
   patientSummaryQuellen: 'listen',
   erezeptVerzoegerungMs: 3000,

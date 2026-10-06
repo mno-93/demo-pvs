@@ -64,6 +64,167 @@ export function pdfErzeugen(titel: string, zeilen: readonly string[]): string {
   return datei;
 }
 
+/* ---------- Briefe ---------- */
+
+/**
+ * Ein Baustein eines Briefs. `zeile` ist eine eingerückte Listenzeile (Diagnose, Mittel),
+ * `absatz` Fließtext, der umbrochen wird.
+ */
+export type Briefbaustein =
+  | { art: 'ueberschrift'; text: string }
+  | { art: 'absatz'; text: string }
+  | { art: 'zeile'; text: string }
+  | { art: 'leer' };
+
+/** Ein Arzt- oder Entlassbrief, wie er als PDF in der ePA liegt: Kopf, Anschrift, Text. */
+export interface Briefvorlage {
+  /** Briefkopf der Einrichtung; die erste Zeile ist der Name. */
+  absender: string[];
+  empfaenger: string[];
+  ortDatum: string;
+  betreff: string;
+  bausteine: Briefbaustein[];
+  fusszeile: string;
+}
+
+/**
+ * Die Textzeilen eines Briefs, wie sie die Textebene des PDFs trägt: Betreff, dann je
+ * Baustein eine Zeile. Überschriften stehen ohne Einzug, Listenzeilen eingerückt, ein
+ * Abschnitt endet an der Leerzeile — so lesen Volltextsuche und ✦ Aktenlotse den Brief.
+ */
+export function briefTextzeilen(b: Briefvorlage): string[] {
+  return [
+    b.betreff,
+    '',
+    ...b.bausteine.map((x) =>
+      x.art === 'leer' ? '' : x.art === 'zeile' ? `   ${x.text}` : x.text,
+    ),
+  ];
+}
+
+/** Bricht Text an Leerzeichen um — Breite in Zeichen, für Helvetica 10 pt grob geschätzt. */
+function umbrechen(text: string, breite: number): string[] {
+  const zeilen: string[] = [];
+  let aktuell = '';
+  for (const wort of text.split(/\s+/).filter(Boolean)) {
+    if (aktuell && aktuell.length + 1 + wort.length > breite) {
+      zeilen.push(aktuell);
+      aktuell = wort;
+    } else aktuell = aktuell ? `${aktuell} ${wort}` : wort;
+  }
+  if (aktuell) zeilen.push(aktuell);
+  return zeilen.length > 0 ? zeilen : [''];
+}
+
+/**
+ * Mehrseitiges Brief-PDF mit Briefkopf, Anschriftfeld, Betreff, Abschnitten und Fußzeile mit
+ * Seitenzahl. Helvetica und Helvetica-Bold, WinAnsi-Kodierung. Die Textebene ist echt — die
+ * Volltextsuche findet, was im Brief steht.
+ */
+export function briefPdfErzeugen(b: Briefvorlage): string {
+  const LINKS = 64;
+  const RECHTS = 531;
+  const OBEN = 792;
+  const UNTEN = 72;
+  type Schrift = 'F1' | 'F2';
+  const seiten: string[][] = [[]];
+  let y = OBEN;
+  const seite = () => seiten.at(-1)!;
+  const neueSeite = () => {
+    seiten.push([]);
+    y = OBEN;
+  };
+  const text = (t: string, x: number, schrift: Schrift, groesse: number, grau = 0) =>
+    seite().push(
+      `${grau} g BT /${schrift} ${groesse} Tf ${x} ${y.toFixed(1)} Td (${maskieren(t)}) Tj ET`,
+    );
+  const vor = (abstand: number, folgend = 0) => {
+    if (y - abstand - folgend < UNTEN) neueSeite();
+    else y -= abstand;
+  };
+
+  // Briefkopf
+  b.absender.forEach((z, i) => {
+    text(z, LINKS, i === 0 ? 'F2' : 'F1', i === 0 ? 13 : 8.5, i === 0 ? 0 : 0.35);
+    y -= i === 0 ? 15 : 11;
+  });
+  y -= 4;
+  seite().push(`0.6 G 0.5 w ${LINKS} ${y} m ${RECHTS} ${y} l S`);
+  y -= 30;
+  // Anschrift links, Ort und Datum rechts auf Höhe der ersten Zeile
+  const anschriftOben = y;
+  for (const z of b.empfaenger) {
+    text(z, LINKS, 'F1', 10);
+    y -= 13;
+  }
+  const merk = y;
+  y = anschriftOben;
+  text(b.ortDatum, RECHTS - b.ortDatum.length * 4.9, 'F1', 10);
+  y = merk - 26;
+  for (const z of umbrechen(b.betreff, 82)) {
+    text(z, LINKS, 'F2', 10.5);
+    y -= 14;
+  }
+  y -= 8;
+
+  for (const x of b.bausteine) {
+    if (x.art === 'leer') {
+      y -= 7;
+    } else if (x.art === 'ueberschrift') {
+      vor(10, 30);
+      text(x.text, LINKS, 'F2', 10.5);
+      y -= 15;
+    } else {
+      const einzug = x.art === 'zeile' ? 14 : 0;
+      for (const z of umbrechen(x.text, x.art === 'zeile' ? 88 : 94)) {
+        vor(0, 14);
+        text(z, LINKS + einzug, 'F1', 10);
+        y -= 13.5;
+      }
+    }
+  }
+
+  // Fußzeile je Seite
+  const anzahl = seiten.length;
+  seiten.forEach((ops, i) => {
+    const fuss = `Seite ${i + 1} von ${anzahl}`;
+    ops.push(`0.6 G 0.5 w ${LINKS} 52 m ${RECHTS} 52 l S`);
+    ops.push(`0.4 g BT /F1 8 Tf ${LINKS} 40 Td (${maskieren(b.fusszeile)}) Tj ET`);
+    ops.push(`0.4 g BT /F1 8 Tf ${RECHTS - fuss.length * 3.9} 40 Td (${maskieren(fuss)}) Tj ET`);
+  });
+
+  // Objekte: 1 Katalog, 2 Seitenbaum, 3 F1, 4 F2, dann je Seite Seite und Inhalt
+  const objekte: string[] = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
+  ];
+  const kinder: string[] = [];
+  seiten.forEach((ops) => {
+    const nr = objekte.length + 1;
+    kinder.push(`${nr} 0 R`);
+    const inhalt = ops.join('\n');
+    objekte.push(
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${nr + 1} 0 R >>`,
+      `<< /Length ${inhalt.length} >>\nstream\n${inhalt}\nendstream`,
+    );
+  });
+  objekte[1] = `<< /Type /Pages /Kids [${kinder.join(' ')}] /Count ${kinder.length} >>`;
+
+  let datei = '%PDF-1.4\n';
+  const lagen: number[] = [];
+  objekte.forEach((o, i) => {
+    lagen.push(datei.length);
+    datei += `${i + 1} 0 obj\n${o}\nendobj\n`;
+  });
+  const verzeichnis = datei.length;
+  datei += `xref\n0 ${objekte.length + 1}\n0000000000 65535 f \n`;
+  datei += lagen.map((l) => `${String(l).padStart(10, '0')} 00000 n \n`).join('');
+  datei += `trailer\n<< /Size ${objekte.length + 1} /Root 1 0 R >>\nstartxref\n${verzeichnis}\n%%EOF\n`;
+  return datei;
+}
+
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 /** Base64 einer Zeichenkette, deren Zeichen je ein Byte sind (wie die PDF-Datei oben). */

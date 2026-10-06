@@ -1,4 +1,11 @@
-import type { Ressource } from '@demo-pvs/kern';
+import type {
+  Lesart,
+  Lotsenantwort,
+  Lotsenkontext,
+  Lotsenvorschlaege,
+  Quellentext,
+  Ressource,
+} from '@demo-pvs/kern';
 import { aufrufNotieren } from './protokoll.js';
 import { abrufen } from './transport.js';
 
@@ -42,6 +49,7 @@ const BEFUGNIS = '/epa/basic/api/v1/ps/entitlements';
 const PATIENT_SUMMARY = '/epa/vorschlag/patient-summary/api/v1/fhir';
 const DIAGNOSEDIENST = '/epa/vorschlag/diagnosis/api/v1/fhir';
 const IMPFLISTE = '/epa/vorschlag/immunization/api/v1/fhir';
+const AKTENLOTSE = '/epa/vorschlag/aktenlotse/api/v1';
 const EMP_IDENTIFIER = 'https://gematik.de/fhir/sid/emp-identifier';
 const INFORMATION = '/information/api/v1/ehr';
 const ERP = '/erp';
@@ -63,6 +71,7 @@ export const GRUNDLAGE = {
   dienst: '✦ Vorschlag Diagnose-Service · nicht spezifiziert',
   impfliste: '✦ Vorschlag Impfliste · nicht spezifiziert, Einträge nach immunization-eu-core',
   summary: '✦ Vorschlag Patient Summary · $summary nach IPS, Inhalt nach EPS 1.0.0-ballot',
+  lotse: '✦ Vorschlag Aktenlotse · nicht spezifiziert, kein FHIR, regelbasiert',
   aktenstatus: 'getRecordStatus · OpenAPI I_Information_Service 1.5.1',
   widersprueche: 'getConsentDecisionInformation · OpenAPI I_Information_Service 1.5.1',
   erpErstellen: 'Task/$create · gematik api-erp (Demo-Ersatz)',
@@ -127,7 +136,10 @@ interface Anfrage {
   inhaltstyp?: 'application/json' | 'application/fhir+json';
   /** Ein Dokument abrufen statt JSON zu lesen. */
   datei?: boolean;
-  /** Weitere Kopfzeilen, etwa `X-AccessCode` beim E-Rezept-Fachdienst. */
+  /**
+   * Weitere Kopfzeilen, etwa `X-AccessCode` beim E-Rezept-Fachdienst oder der ✦
+   * Versichertenzugang `x-demo-versicherte`.
+   */
   zusatz?: Record<string, string>;
 }
 
@@ -187,6 +199,7 @@ async function senden<T>({
           ? { 'X-Requesting-Organization': base64(JSON.stringify(ORGANISATION)) }
           : {}),
         ...(koerper !== undefined ? { 'content-type': inhaltstyp } : {}),
+        ...zusatz,
       }
     : fachdienst
       ? {
@@ -292,15 +305,42 @@ function parameterRessource(
 
 /* ---------- MHD Service ---------- */
 
-export async function dokumenteSuchen(kvnr: string, volltext?: string): Promise<Ressource[]> {
+export async function dokumenteSuchen(
+  kvnr: string,
+  volltext?: string,
+  /**
+   * Gesetzt, wenn nicht die Praxis sucht, sondern die versicherte Person in ihrer eigenen
+   * Anwendung. Derselbe Weg, dieselbe Antwort — nur ein anderer Zugang (✦ Demo-Ersatz).
+   */
+  alsVersicherte?: string,
+): Promise<Ressource[]> {
   const suche = new URLSearchParams({ status: 'current' });
   if (volltext?.trim()) suche.set('_content', volltext.trim());
   const { inhalt } = await anfragen<Bundle>({
     pfad: `${MHD}/DocumentReference?${suche.toString()}`,
     kvnr,
     grundlage: GRUNDLAGE.iti67,
+    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
   });
   return treffer(inhalt);
+}
+
+/** Ob der Dokumentendienst die Volltextsuche (`_content`) anbietet — laut CapabilityStatement. */
+let volltextAngeboten: boolean | null = null;
+
+export async function volltextsucheVerfuegbar(): Promise<boolean> {
+  if (volltextAngeboten !== null) return volltextAngeboten;
+  const { inhalt } = await anfragen<{
+    rest?: { resource?: { type?: string; searchParam?: { name?: string }[] }[] }[];
+  }>({
+    pfad: `${MHD}/metadata`,
+    grundlage: GRUNDLAGE.iti67,
+  });
+  volltextAngeboten = (inhalt.rest ?? [])
+    .flatMap((r) => r.resource ?? [])
+    .filter((r) => r.type === 'DocumentReference')
+    .some((r) => (r.searchParam ?? []).some((p) => p.name === '_content'));
+  return volltextAngeboten;
 }
 
 /**
@@ -344,7 +384,11 @@ export function istDatei(inhalt: unknown): inhalt is EpaDatei {
 }
 
 /** ITI-68 über die URL aus `DocumentReference.content.attachment.url`. */
-export async function dokumentAbrufen(kvnr: string, verweis: Ressource): Promise<unknown> {
+export async function dokumentAbrufen(
+  kvnr: string,
+  verweis: Ressource,
+  alsVersicherte?: string,
+): Promise<unknown> {
   const url = (verweis['content'] as { attachment?: { url?: string } }[] | undefined)?.[0]
     ?.attachment?.url;
   if (!url) throw new EpaFehler(0, 'Der Dokumentverweis nennt keine Abrufadresse.');
@@ -353,6 +397,7 @@ export async function dokumentAbrufen(kvnr: string, verweis: Ressource): Promise
     kvnr,
     grundlage: GRUNDLAGE.iti68,
     datei: true,
+    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
   });
   return inhalt;
 }
@@ -703,9 +748,11 @@ let betriebsstand = 0;
 const betriebshoerer = new Set<() => void>();
 
 function betriebsstandErhoehen(): void {
+  volltextAngeboten = null;
   impflisteAngeboten = null;
   dienstAngeboten = null;
   summaryAngeboten = null;
+  lotseAngeboten = null;
   betriebsstand += 1;
   betriebshoerer.forEach((h) => h());
 }
@@ -726,11 +773,17 @@ export function klientZuruecksetzen(): void {
   impflisteAngeboten = null;
   dienstAngeboten = null;
   summaryAngeboten = null;
+  lotseAngeboten = null;
   laufend.clear();
 }
 
 /** Welche ePA der Simulator darstellt: das Release oder die Weiterentwicklung. */
-export type Ausbaustand = 'release-3.1.3' | 'weiterentwicklung' | 'weiterentwicklung-2';
+export type Ausbaustand =
+  | 'release-3.1.3'
+  | 'weiterentwicklung'
+  | 'weiterentwicklung-2'
+  | 'weiterentwicklung-3'
+  | 'weiterentwicklung-4';
 
 export interface Betriebslage {
   verzoegerungMs: number;
@@ -1088,6 +1141,89 @@ export async function patientSummaryAbrufen(kvnr: string): Promise<unknown> {
     grundlage: GRUNDLAGE.summary,
   });
   return inhalt;
+}
+
+/* ---------- ✦ Aktenlotse (Vorschlag, ab Ausbaustand „Weiterentwicklung 4") ---------- */
+
+/**
+ * Der Lotse läuft über dieselbe Prüfkette wie jeder andere ePA-Weg: dieselbe Sitzung,
+ * dieselbe Befugnis, dieselbe Akte. Er bekommt dadurch keine eigenen Rechte — er sieht
+ * genau so viel wie das aufrufende System.
+ */
+export async function lotseFragen(
+  kvnr: string,
+  frage: string,
+  lesart: Lesart = 'fach',
+  /** Gesetzt, wenn nicht die Praxis fragt, sondern die versicherte Person oder ihre Vertretung. */
+  alsVersicherte?: string,
+): Promise<Lotsenantwort> {
+  const { inhalt } = await anfragen<Lotsenantwort>({
+    methode: 'POST',
+    pfad: `${AKTENLOTSE}/frage`,
+    kvnr,
+    koerper: { frage, lesart },
+    inhaltstyp: 'application/json',
+    grundlage: alsVersicherte ? `${GRUNDLAGE.lotse} · Versichertenzugang` : GRUNDLAGE.lotse,
+    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
+  });
+  return inhalt;
+}
+
+/** Kontext zum Anlass des Kontakts, mit Hinweis auf auseinandergehende Angaben. */
+export async function lotseKontext(kvnr: string, anlass: string): Promise<Lotsenkontext> {
+  const { inhalt } = await anfragen<Lotsenkontext>({
+    pfad: `${AKTENLOTSE}/kontext?anlass=${encodeURIComponent(anlass)}`,
+    kvnr,
+    inhaltstyp: 'application/json',
+    grundlage: GRUNDLAGE.lotse,
+  });
+  return inhalt;
+}
+
+/** Was eine strukturierte Liste aus dem unstrukturierten Bestand aufnehmen könnte. */
+export async function lotseVorschlaege(kvnr: string): Promise<Lotsenvorschlaege> {
+  const { inhalt } = await anfragen<Lotsenvorschlaege>({
+    pfad: `${AKTENLOTSE}/vorschlaege`,
+    kvnr,
+    inhaltstyp: 'application/json',
+    grundlage: GRUNDLAGE.lotse,
+  });
+  return inhalt;
+}
+
+/** Eine Unterlage öffnen und nachlesen — der Weg, auf den die Quellenangabe einer Antwort zeigt. */
+export async function lotseQuelle(
+  kvnr: string,
+  quelleId: string,
+  alsVersicherte?: string,
+): Promise<Quellentext> {
+  const { inhalt } = await anfragen<Quellentext>({
+    pfad: `${AKTENLOTSE}/quelle/${encodeURIComponent(quelleId)}`,
+    kvnr,
+    inhaltstyp: 'application/json',
+    grundlage: GRUNDLAGE.lotse,
+    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
+  });
+  return inhalt;
+}
+
+/** Ob der Ausbaustand den Lotsen anbietet. */
+let lotseAngeboten: boolean | null = null;
+
+export async function lotseVorhanden(): Promise<boolean> {
+  if (lotseAngeboten !== null) return lotseAngeboten;
+  try {
+    await anfragen({
+      pfad: `${AKTENLOTSE}/metadata`,
+      inhaltstyp: 'application/json',
+      grundlage: GRUNDLAGE.lotse,
+    });
+    lotseAngeboten = true;
+  } catch (f) {
+    if (!(f instanceof EpaFehler && f.status === 404)) throw f;
+    lotseAngeboten = false;
+  }
+  return lotseAngeboten;
 }
 
 /** ✦ Markiert einen Listeneintrag als relevant für die Patient Summary oder hebt das auf. */

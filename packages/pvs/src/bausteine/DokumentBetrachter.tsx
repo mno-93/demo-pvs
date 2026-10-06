@@ -61,42 +61,84 @@ export function DokumentBetrachter({
   );
 }
 
+interface Briefabschnitt {
+  title?: string;
+  text?: { div?: string };
+  entry?: { reference?: string }[];
+}
+
+/** Absätze aus dem Erzähltext eines Abschnitts (XHTML), ohne Markup. */
+function absaetzeAus(div: string | undefined): string[] {
+  if (!div) return [];
+  const dok = new DOMParser().parseFromString(div, 'text/html');
+  const absaetze = [...dok.querySelectorAll('p, li')].map((p) => p.textContent ?? '');
+  return absaetze.length > 0 ? absaetze : [dok.body.textContent ?? ''];
+}
+
+/**
+ * Ein strukturierter Brief, wie er gelesen wird: Abschnitt für Abschnitt mit seinem
+ * Erzähltext. Was ein Abschnitt zusätzlich als Eintrag führt, steht darunter mit Code — das
+ * ist der Teil, den Listen und Patient Summary nachnutzen können.
+ */
 function StrukturierterBrief({ inhalt }: { inhalt: unknown }) {
   const s = dokumentinhaltLesen(inhalt);
-  const komposition = ((inhalt as { entry?: { resource: Ressource }[] }).entry ?? [])
-    .map((e) => e.resource)
-    .find((r) => r.resourceType === 'Composition');
-  const abschnitt = (titel: string, liste: Ressource[], zeile: (r: Ressource) => string) =>
-    liste.length > 0 && (
-      <div className="befund-gruppe">
-        <div className="befund-gruppe-titel">
-          {titel} ({liste.length})
-        </div>
-        <ul className="brief-liste">
-          {liste.map((r) => (
-            <li key={String(r.id)}>{zeile(r)}</li>
-          ))}
-        </ul>
-      </div>
-    );
+  const ressourcen = ((inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
+    (e) => e.resource,
+  );
+  const komposition = ressourcen.find((r) => r.resourceType === 'Composition');
+  const nachVerweis = new Map(ressourcen.map((r) => [`${r.resourceType}/${String(r.id)}`, r]));
+  const abschnitte = (komposition?.['section'] as Briefabschnitt[] | undefined) ?? [];
+  const autor = (komposition?.['author'] as { display?: string }[] | undefined)?.[0]?.display;
+  /** Ein Eintrag in Kurzform: der Code, sonst die Bezeichnung. */
+  const kurz = (r: Ressource) => {
+    if (r.resourceType === 'DeviceUseStatement') {
+      const geraet = nachVerweis.get(String((r['device'] as { reference?: string })?.reference));
+      return geraet ? textVon(geraet, 'type') : 'Gerät';
+    }
+    return codeVon(r) ?? textVon(r);
+  };
   return (
     <div>
       <div className="reihe" style={{ marginBottom: 6 }}>
         <Marker ton="akzent">
-          {s.art === 'Entlassbrief' ? 'Strukturierter Entlassbrief' : 'Strukturiertes Dokument'}
+          {s.art === 'Entlassbrief' ? 'Strukturierter Entlassbrief' : 'Strukturierter Arztbrief'}
         </Marker>
         <b>{String(komposition?.['title'] ?? '')}</b>
         <span className="leise-klein">
           {deutschesDatum(datumVon(komposition ?? { resourceType: 'Composition' }))}
+          {autor ? ` · ${autor}` : ''}
         </span>
       </div>
-      {abschnitt('Diagnosen', s.diagnosen, (r) => `${textVon(r)} · ${codeVon(r) ?? 'ohne Code'}`)}
-      {abschnitt(
-        'Allergien und Unverträglichkeiten',
-        s.allergien,
-        (r) => `${textVon(r)} · ${codeVon(r) ?? 'ohne Code'}`,
-      )}
-      {abschnitt('Prozeduren', s.prozeduren, (r) => `${textVon(r)} · ${codeVon(r) ?? 'ohne Code'}`)}
+      {abschnitte.map((a, i) => {
+        const eintraege = (a.entry ?? [])
+          .map((e) => nachVerweis.get(String(e.reference)))
+          .filter((r): r is Ressource => !!r);
+        return (
+          <section key={i} className="befund-gruppe" aria-label={a.title}>
+            <div className="befund-gruppe-titel">{a.title}</div>
+            {absaetzeAus(a.text?.div).map((p, j) => (
+              <p key={j} className="brief-absatz">
+                {p}
+              </p>
+            ))}
+            {eintraege.length > 0 && (
+              <p className="brief-eintraege">
+                {[...new Set(eintraege.map((r) => r.resourceType))].map((typ) => {
+                  const gleiche = eintraege.filter((r) => r.resourceType === typ);
+                  return (
+                    <span key={typ}>
+                      <span className="marker">
+                        {gleiche.length} × {typ}
+                      </span>{' '}
+                      {gleiche.map(kurz).join(', ')}
+                    </span>
+                  );
+                })}
+              </p>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }

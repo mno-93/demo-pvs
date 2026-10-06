@@ -8,7 +8,7 @@ import type { Ausbaustand } from './betrieb.ts';
  * Ebenen, wie im Konzept 3.1.3 getrennt:
  * - **Dokumente** im XDS Document Service, lesbar über den MHD Service (ITI-67, ITI-68);
  * - **FHIR-Ressourcen** des Medication Service (eML, eMP, Provenance);
- * - ✦ **Listen** des vorgeschlagenen Diagnose-Service (nur im Ausbaustand „Weiterentwicklung").
+ * - ✦ **Listen** des vorgeschlagenen Diagnose-Service (ab Ausbaustand „Weiterentwicklung 3").
  */
 
 export interface Kodewert {
@@ -49,8 +49,16 @@ export interface Dokument {
   datei?: string;
   /** Lesbarer Text eines unstrukturierten Dokuments — Grundlage der Volltextsuche. */
   text?: string;
+  /**
+   * Derselbe Text in Zeilen. Die Volltextsuche braucht ihn nicht, der ✦ Aktenlotse schon:
+   * Er belegt jede Aussage mit genau der Zeile, aus der sie stammt, und erkennt Abschnitte
+   * an ihren Überschriften.
+   */
+  textzeilen?: string[];
   /** Sichtbar nur in diesem Ausbaustand, etwa der strukturierte Laborbefund ab ePA 3.2. */
   nurIn?: Ausbaustand;
+  /** Ab diesem Ausbaustand liegt das Dokument strukturiert vor; diese Fassung ist dann weg. */
+  ersetztAb?: Ausbaustand;
 }
 
 export interface Demographie {

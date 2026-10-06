@@ -47,6 +47,13 @@ beforeEach(async () => {
   await app?.close();
   app = await simulatorBauen();
   befugnisErteilen(HOFFMANN, PRAXIS, new Date(), 'eGK');
+  // Der Standard-Ausbaustand ist die aktuelle Spezifikation; diese Prüfungen betreffen die
+  // ✦ Vorschläge und stellen den Ausbaustand deshalb ausdrücklich ein.
+  await app.inject({
+    method: 'POST',
+    url: '/verwaltung/betriebslage',
+    payload: { ausbaustand: 'weiterentwicklung-3' },
+  });
 });
 
 afterAll(async () => {
@@ -181,6 +188,100 @@ describe('MHD', () => {
     expect(datei.statusCode).toBe(200);
     expect(datei.headers['content-type']).toContain('application/pdf');
     expect(datei.body.startsWith('%PDF')).toBe(true);
+  });
+
+  it('führt Arzt- und Entlassbriefe im Release nur als PDF, ab der Weiterentwicklung neue Briefe zusätzlich strukturiert', async () => {
+    const briefe = async () =>
+      (
+        (
+          await app.inject({
+            method: 'GET',
+            url: `${MHD}/DocumentReference?status=current`,
+            headers: kopf(),
+          })
+        ).json().entry as {
+          resource: {
+            description: string;
+            date: string;
+            content: { attachment: { contentType: string; url: string } }[];
+          };
+        }[]
+      )
+        .map((e) => e.resource)
+        .filter((r) => /brief|befundbericht/i.test(r.description))
+        .map((r) => ({
+          titel: r.description,
+          jahr: r.date.slice(0, 4),
+          art: r.content[0]!.attachment.contentType,
+          url: r.content[0]!.attachment.url,
+        }));
+
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'release-3.1.3' },
+    });
+    const imRelease = await briefe();
+    expect(imRelease.length).toBe(3);
+    expect(imRelease.every((b) => b.art === 'application/pdf')).toBe(true);
+
+    // Weiterentwicklung 1 bringt Laborbefunde und Volltext, die Briefe bleiben PDF.
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung' },
+    });
+    expect((await briefe()).every((b) => b.art === 'application/pdf')).toBe(true);
+
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung-2' },
+    });
+    const weiter = await briefe();
+    // Der Entlassbrief von 2026 strukturiert; der Brief von 2019 und der Befundbericht bleiben PDF.
+    expect(weiter.filter((b) => b.art === 'application/fhir+json').map((b) => b.jahr)).toEqual([
+      '2026',
+    ]);
+    expect(weiter.filter((b) => b.art === 'application/pdf')).toHaveLength(2);
+    const strukturiert = weiter.find((b) => b.art === 'application/fhir+json')!;
+    const bundle = (
+      await app.inject({ method: 'GET', url: strukturiert.url, headers: kopf() })
+    ).json() as { entry: { resource: Record<string, unknown> }[] };
+    const komposition = bundle.entry[0]!.resource;
+    // Nach dem Vorbild des HL7 Europe Hospital Discharge Report: LOINC 34105-7, Encounter 1..1.
+    expect(JSON.stringify(komposition['type'])).toContain('34105-7');
+    expect(komposition['encounter']).toBeDefined();
+    const titel = (komposition['section'] as { title: string }[]).map((s) => s.title);
+    expect(titel).toContain('Therapie und Verlauf');
+    expect(titel).toContain('Entlassmedikation');
+  });
+
+  it('bietet die Volltextsuche erst ab Weiterentwicklung 1 an und lehnt _content vorher ab', async () => {
+    const parameter = async () =>
+      (
+        (await app.inject({ method: 'GET', url: `${MHD}/metadata` })).json() as {
+          rest: { resource: { searchParam: { name: string }[] }[] }[];
+        }
+      ).rest[0]!.resource[0]!.searchParam.map((p) => p.name);
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'release-3.1.3' },
+    });
+    expect(await parameter()).not.toContain('_content');
+    const abgelehnt = await app.inject({
+      method: 'GET',
+      url: `${MHD}/DocumentReference?_content=Vorhofflimmern`,
+      headers: kopf(),
+    });
+    expect(abgelehnt.statusCode).toBe(400);
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung' },
+    });
+    expect(await parameter()).toContain('_content');
   });
 
   it('findet Dokumente über die Volltextsuche', async () => {
@@ -398,19 +499,30 @@ describe('✦ Patient Summary', () => {
     expect(JSON.stringify(geraet?.['type'])).toContain('14106009');
   });
 
-  it('bietet die Impfliste erst in Stufe 2; Stufe 1 lässt den Abschnitt leer', async () => {
-    await app.inject({
-      method: 'POST',
-      url: '/verwaltung/betriebslage',
-      payload: { ausbaustand: 'weiterentwicklung' },
-    });
-    const liste = await app.inject({
-      method: 'GET',
-      url: '/epa/vorschlag/immunization/api/v1/fhir/metadata',
-    });
-    expect(liste.statusCode).toBe(404);
-    const ps = await summary();
-    expect(ps.abschnitte.find((x) => x.schluessel === 'impfungen')!.quelle).toBe('none');
+  it('bietet Listen, Impfliste und Patient Summary erst ab Stufe 3, den Aktenlotsen ab Stufe 4', async () => {
+    const vorhanden = async (pfad: string) =>
+      (await app.inject({ method: 'GET', url: `${pfad}/metadata` })).statusCode === 200;
+    const dienste = [
+      '/epa/vorschlag/diagnosis/api/v1/fhir',
+      '/epa/vorschlag/immunization/api/v1/fhir',
+      '/epa/vorschlag/patient-summary/api/v1/fhir',
+      '/epa/vorschlag/aktenlotse/api/v1',
+    ];
+    const erwartet: Record<string, boolean[]> = {
+      weiterentwicklung: [false, false, false, false],
+      'weiterentwicklung-2': [false, false, false, false],
+      'weiterentwicklung-3': [true, true, true, false],
+      'weiterentwicklung-4': [true, true, true, true],
+    };
+    for (const [ausbaustand, soll] of Object.entries(erwartet)) {
+      await app.inject({
+        method: 'POST',
+        url: '/verwaltung/betriebslage',
+        payload: { ausbaustand },
+      });
+      const ist = await Promise.all(dienste.map(vorhanden));
+      expect([ausbaustand, ...ist]).toEqual([ausbaustand, ...soll]);
+    }
   });
 
   it('zeigt ohne geführte Listen nur, was automatisch entsteht', async () => {
@@ -422,13 +534,15 @@ describe('✦ Patient Summary', () => {
     const ps = await summary();
     const abschnitt = (s: string) => ps.abschnitte.find((x) => x.schluessel === s)!;
     // Allergien und Diagnosen aus dem strukturierten Entlassbrief — ungeprüft und ohne Auswahl:
-    // die längst behobene Harnwegsinfektion steht dort als aktiv und kommt mit.
+    // alle sieben aktiven Diagnosen des Briefs, auch die Harnwegsinfektion, die bei Abfassung
+    // noch behandelt wurde und heute behoben ist. Die behobene Obstipation fällt weg.
     expect(abschnitt('allergien').quelle).toBe('structured-documents');
     expect(abschnitt('allergien').eintraege).toHaveLength(2);
     expect(abschnitt('diagnosen').quelle).toBe('structured-documents');
     const codes = abschnitt('diagnosen').eintraege.map((r) => JSON.stringify(r['code']));
-    expect(codes).toHaveLength(3);
+    expect(codes).toHaveLength(7);
     expect(codes.some((c) => c.includes('N39.0'))).toBe(true);
+    expect(codes.some((c) => c.includes('K59.09'))).toBe(false);
     expect(JSON.stringify(abschnitt('diagnosen').eintraege[0]!.extension)).toContain(
       'Entlassbrief',
     );

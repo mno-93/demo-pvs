@@ -5,10 +5,15 @@
 Eine Demonstrationsanwendung, die den Alltag einer hausärztlichen Praxis so weit nachbildet, dass
 sich prüfen lässt, was eine ärztlich verantwortete Patient Summary kostet — gemessen an der
 Dokumentation, die ohnehin stattfindet. Dazu gehört ein ePA-Simulator nach den veröffentlichten
-Spezifikationen der gematik (Release ePA 3.1.3) mit zwei zuschaltbaren Ausbaustufen.
-„Weiterentwicklung 1": strukturierte Laborbefunde (Vorschau ePA 3.2), ✦ ein Diagnose-Service mit
-Allergienliste und Diagnosenliste und ✦ die Patient Summary als Sicht auf diese Quellen.
-„Weiterentwicklung 2" ergänzt ✦ eine Impfliste mit derselben Mechanik.
+Spezifikationen der gematik (Release ePA 3.1.3) mit vier zuschaltbaren, aufeinander aufbauenden
+Ausbaustufen. „Weiterentwicklung 1": strukturierte Laborbefunde (Vorschau ePA 3.2) und
+Volltextsuche. „Weiterentwicklung 2": ✦ Arzt- und Entlassbriefe als FHIR-Dokument nach
+europäischem Vorbild. „Weiterentwicklung 3": ✦ Allergien-, Diagnosen- und Impfliste und ✦ die
+Patient Summary als Sicht auf diese Quellen. „Weiterentwicklung 4" schaltet ✦ den
+**Aktenlotsen** frei: einen Auskunftsdienst, der Fragen an den Aktenbestand in
+zusammenhängenden Sätzen beantwortet — mit der Unterlage, in der es nachzulesen ist, mit der Angabe,
+wie viele Unterlagen gelesen wurden und welche nicht, und ohne zu bewerten. Die Demo startet im
+Release 3.1.3; die Ausbaustufen werden über das Aufrufprotokoll zugeschaltet.
 
 Die Karteikarte zeigt den Verlauf je Besuch: Notizen, strukturierte Einträge und Dokumente eines
 Tages in einem Block. Medikation, Dokumente, Patient Summary und Listen zeigen, was andere
@@ -86,6 +91,8 @@ npm run vorschau:gehostet
 ## Erste Schritte in der Demo
 
 1. **Renate Hoffmann** öffnen → „ePA öffnen": Die ePA verweigert den Zugriff. „eGK einlesen".
+   **Dokumente**: Laborbefunde, Arzt- und Entlassbriefe liegen als PDF vor — wie heute.
+   Für die folgenden Schritte **ePA-Aufrufe → Ausbaustand → „Weiterentwicklung 3"** wählen.
 2. **Diagnosen und Allergien**: links die Praxis, rechts die Listen der ePA (✦). Vorhofflimmern
    „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
@@ -100,8 +107,20 @@ npm run vorschau:gehostet
    trägt ein, Apotheke gibt ab).
 7. **Aufrufprotokoll → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
    Band „Seit dem letzten Aufruf …" und Marken **neu** an den fremden Einträgen.
+8. **Aufrufprotokoll → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
+   Im Patientenkopf und in den Reitern erscheint „Aktenlotse ✦", in der Navigation
+   „Versichertensicht ✦".
+9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
+   anklickbar, sie öffnet sich zum Nachlesen. „5 von 6 Unterlagen gelesen", der eingescannte
+   Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht
+   im Plan. Darunter Vorschläge für die Listen.
+10. **Versichertensicht**: aufgebaut wie ein FdV — Einstieg ist die Dokumentenliste, der Aktenlotse
+    ist ein Bereich daneben. Dort „Welche Medikamente nehme ich und wofür?" fragen; die
+    Quellenangabe unter der Antwort öffnet das Dokument im Bereich „Dokumente". Rolle auf
+    **Vertretung entzogen** umschalten: Akte und Lotse sind gleichermaßen leer — er hat keine
+    eigenen Rechte.
 
-Weitere Abläufe: [SPEZIFIKATION.md, Abschnitt 10](docs/SPEZIFIKATION.md#10-vorführung). Wozu jedes
+Weitere Abläufe: [SPEZIFIKATION.md, Abschnitt 11](docs/SPEZIFIKATION.md#11-vorführung). Wozu jedes
 Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).
 
 ## Aufbau
@@ -109,7 +128,8 @@ Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbes
 ```
 packages/kern      Domänentypen, Terminologien, Fachlogik, FHIR-Abbildung — ohne Oberflächenbezug
 packages/epa-sim   ePA-Simulator: Befugnis, Information Service, MHD Service, Medication Service;
-                   ✦ Diagnose-Service, ✦ Impfliste, ✦ Patient Summary; E-Rezept-Fachdienst (Demo-Ersatz)
+                   ✦ Diagnose-Service, ✦ Impfliste, ✦ Patient Summary, ✦ Aktenlotse;
+                   E-Rezept-Fachdienst (Demo-Ersatz)
 packages/pvs       Praxisverwaltung: React, Vite
 daten/kataloge     Katalogauszüge und Wertelisten — nicht amtlich, mit Herkunft im Kopf
 docs               Spezifikation, Quellen, Architektur, Entwicklung, Entscheidungen

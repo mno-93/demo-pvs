@@ -89,7 +89,7 @@ export function istEmpEintrag(r: Ressource): boolean {
 }
 
 /** Einträge mit Status aktiv oder pausiert bilden den gültigen Plan. */
-const IM_PLAN = new Set(['active', 'on-hold']);
+export const IM_PLAN = new Set(['active', 'on-hold']);
 
 export const EMP: Chronologieart = {
   profil: PROFIL.chronologie,
