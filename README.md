@@ -108,8 +108,8 @@ npm run vorschau:gehostet
 7. **Konfiguration → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
    Band „Seit dem letzten Aufruf …" und Marken **neu** an den fremden Einträgen.
 8. **Konfiguration → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
-   Im Patientenkopf und in den Reitern erscheint „Aktenlotse ✦", in der Navigation
-   „Versichertensicht ✦".
+   Im Patientenkopf öffnet „Aktenlotse ✦" die ePA auf dem Bereich des Lotsen; er steht auch als
+   Reiter der Kartei. In der Navigation erscheint „Versichertensicht ✦".
 9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
    anklickbar, sie öffnet sich zum Nachlesen. „5 von 6 Unterlagen gelesen", der eingescannte
    Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht

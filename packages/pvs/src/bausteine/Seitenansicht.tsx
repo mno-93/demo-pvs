@@ -11,6 +11,7 @@ import { pdfSeitenLesen, type Seite } from '@demo-pvs/kern';
  */
 export function Seitenansicht({ seiten, markieren }: { seiten: Seite[]; markieren: string[] }) {
   const erste = useRef<SVGRectElement | null>(null);
+  const rahmen = useRef<HTMLDivElement | null>(null);
   const muster = useMemo(
     () =>
       markieren
@@ -31,13 +32,20 @@ export function Seitenansicht({ seiten, markieren }: { seiten: Seite[]; markiere
     );
   };
 
+  // Zur ersten Markierung — nur innerhalb der Seitenansicht, nicht die Umgebung mitscrollen.
   useEffect(() => {
-    erste.current?.scrollIntoView?.({ block: 'center', inline: 'nearest' });
+    const ziel = erste.current;
+    const kasten = rahmen.current;
+    if (!ziel || !kasten || typeof ziel.getBoundingClientRect !== 'function') return;
+    const z = ziel.getBoundingClientRect();
+    const k = kasten.getBoundingClientRect();
+    kasten.scrollTop += z.top - k.top - k.height / 3;
+    kasten.scrollLeft += Math.max(0, z.left - k.left - 16);
   }, [seiten, muster]);
 
   let ersteGesetzt = false;
   return (
-    <div className="seitenansicht" aria-label="Dokument, Stellen zur Antwort markiert">
+    <div ref={rahmen} className="seitenansicht" aria-label="Dokument, Stellen zur Antwort markiert">
       {seiten.map((s, i) => (
         <svg
           key={i}

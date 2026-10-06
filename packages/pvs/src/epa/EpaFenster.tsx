@@ -25,6 +25,8 @@ import { ausfuehren, useAuswahl } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Leer, Marker } from '../bausteine/Bausteine.js';
 import { Befundansicht } from '../bausteine/Befundansicht.js';
+import { AktenlotseInhalt } from '../lotse/PraxisLotse.js';
+import { useLotseVorhanden } from '../lotse/vorhanden.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
   EINRICHTUNG,
@@ -139,11 +141,13 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
   const mitListen = dienst.daten === true;
   const summaryDienst = useEpaAbfrage(() => patientSummaryVerfuegbar(), [betriebsstand]);
   const mitSummary = summaryDienst.daten === true;
+  const mitLotse = useLotseVorhanden() === true;
   const zugriff = !dokumente.fehler;
   // Ein Reiter, den das Aktensystem nicht (mehr) anbietet, fällt auf die Übersicht zurück.
   const ansicht: EpaBereich =
     (bereich === 'summary' && summaryDienst.daten === false) ||
-    (bereich === 'listen' && dienst.daten === false)
+    (bereich === 'listen' && dienst.daten === false) ||
+    (bereich === 'lotse' && !mitLotse)
       ? 'uebersicht'
       : bereich;
   const navigiere = useNavigate();
@@ -282,7 +286,13 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
 
         <nav className="epa-fenster-reiter" aria-label="Bereiche der ePA">
           {EPA_BEREICHE.filter(
-            (b) => !b.bedingung || (b.bedingung === 'listen' ? mitListen : mitSummary),
+            (b) =>
+              !b.bedingung ||
+              (b.bedingung === 'listen'
+                ? mitListen
+                : b.bedingung === 'lotse'
+                  ? mitLotse
+                  : mitSummary),
           ).map((b) => (
             <button
               key={b.schluessel}
@@ -369,6 +379,8 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
               daten={listen.daten}
               neuLaden={listen.neuLaden}
             />
+          ) : ansicht === 'lotse' ? (
+            <AktenlotseInhalt patientId={patient.id} />
           ) : ansicht === 'labor' ? (
             <LaborbefundeInEpa {...gemeinsam} laeuft={laeuft} />
           ) : (

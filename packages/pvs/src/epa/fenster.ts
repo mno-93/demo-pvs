@@ -10,13 +10,13 @@ import { useSyncExternalStore } from 'react';
  */
 
 export type EpaBereich =
-  'summary' | 'uebersicht' | 'dokumente' | 'medikation' | 'listen' | 'labor' | 'inhalte';
+  'summary' | 'uebersicht' | 'dokumente' | 'medikation' | 'listen' | 'labor' | 'inhalte' | 'lotse';
 
 export const EPA_BEREICHE: {
   schluessel: EpaBereich;
   beschriftung: string;
-  /** Nur, wenn das Aktensystem den ✦ Dienst anbietet (ADR 0018, 0021). */
-  bedingung?: 'listen' | 'summary';
+  /** Nur, wenn das Aktensystem den ✦ Dienst anbietet (ADR 0018, 0021, 0032). */
+  bedingung?: 'listen' | 'summary' | 'lotse';
 }[] = [
   { schluessel: 'summary', beschriftung: 'Patient Summary', bedingung: 'summary' },
   { schluessel: 'uebersicht', beschriftung: 'Übersicht' },
@@ -25,6 +25,8 @@ export const EPA_BEREICHE: {
   { schluessel: 'listen', beschriftung: 'Diagnosen und Allergien', bedingung: 'listen' },
   { schluessel: 'labor', beschriftung: 'Laborbefunde' },
   { schluessel: 'inhalte', beschriftung: 'Inhalte aus Dokumenten' },
+  // ✦ Der Aktenlotse ist eine Anwendung der ePA — er steht deshalb auch hier, nicht nur im PVS.
+  { schluessel: 'lotse', beschriftung: 'Aktenlotse ✦', bedingung: 'lotse' },
 ];
 
 export interface EpaFensterzustand {

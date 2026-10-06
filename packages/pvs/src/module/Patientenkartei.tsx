@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link, NavLink, Navigate, Outlet, useParams } from 'react-router-dom';
+import { NavLink, Navigate, Outlet, useParams } from 'react-router-dom';
 import {
   alterInJahren,
   deutschesDatum,
@@ -100,9 +100,14 @@ export function Patientenkartei() {
             <EgkKnopf patientId={patient.id} />
             {nutzbar && <SummaryKnopf patientId={patient.id} />}
             {nutzbar && lotseDa && (
-              <Link className="knopf lotse-knopf" to={`/patient/${patient.id}/lotse`}>
+              <button
+                type="button"
+                className="knopf lotse-knopf"
+                aria-haspopup="dialog"
+                onClick={() => epaFensterOeffnen(patient.id, 'lotse')}
+              >
                 Aktenlotse ✦
-              </Link>
+              </button>
             )}
             <EpaKnopf patientId={patient.id} ohneAkte={ohneAkte} />
           </span>

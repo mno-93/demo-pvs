@@ -2703,3 +2703,11 @@ td.split-mitte .marker {
   width: 560px;
   max-width: none;
 }
+
+/* Im ePA-Fenster steht der Aktenlotse ohne eigene Karte — das Fenster rahmt ihn schon. */
+.epa-fenster .lotse-praxis.karte {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+  background: transparent;
+}

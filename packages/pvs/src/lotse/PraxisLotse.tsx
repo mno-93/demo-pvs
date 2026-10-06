@@ -63,8 +63,16 @@ type Geoeffnet =
   | { art: 'dokument'; verweis: Dokumentverweis; inhalt: unknown; markieren: string[] }
   | { art: 'text'; quelle: Quellentext; markieren: string[] };
 
+/** Reiter „Aktenlotse" der Patientenkartei. */
 export function PraxisLotse() {
-  const patientId = usePatientId();
+  return <AktenlotseInhalt patientId={usePatientId()} />;
+}
+
+/**
+ * Der Aktenlotse für eine Akte, aus Sicht der Praxis — im Reiter der Patientenkartei und als
+ * Bereich im ePA-Fenster: Er ist eine Anwendung der ePA, das PVS bindet sie ein.
+ */
+export function AktenlotseInhalt({ patientId }: { patientId: string }) {
   const patient = useZustand((z) => z.patienten.find((p) => p.id === patientId));
   // Ohne Befugnis antwortet die ePA nicht. Wird sie erteilt, liest der Lotse neu — sonst
   // bliebe der Hinweis stehen, obwohl der Zugang inzwischen besteht.
