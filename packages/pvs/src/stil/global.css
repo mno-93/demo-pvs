@@ -245,6 +245,11 @@ textarea {
   font-weight: 500;
   color: var(--text);
 }
+/* Ein Verweis, der wie ein Knopf aussieht (etwa zur Dokumentation) */
+a.knopf {
+  display: inline-block;
+  text-decoration: none;
+}
 .knopf:hover:not(:disabled) {
   background: var(--flaeche2);
   color: var(--text);

@@ -111,17 +111,17 @@ export function Aufrufprotokoll() {
   }
 
   return (
-    <aside className="protokoll" aria-label="Aufrufe an die ePA">
+    <aside className="protokoll" aria-label="Konfiguration und Aufrufe an die ePA">
       <div className="protokoll-kopf">
-        <h3>ePA-Aufrufe</h3>
-        <span className="marker neutral">{aufrufe.length}</span>
+        <h3>Konfiguration</h3>
+        <span className="marker neutral">{aufrufe.length} ePA-Aufrufe</span>
         <button type="button" className="knopf klein rechts" onClick={protokollLeeren}>
           leeren
         </button>
         <button
           type="button"
           className="schliessen"
-          aria-label="Aufrufprotokoll schließen"
+          aria-label="Konfiguration schließen"
           title="Schließen (Esc)"
           onClick={protokollSchliessen}
         >

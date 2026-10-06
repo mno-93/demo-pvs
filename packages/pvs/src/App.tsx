@@ -20,9 +20,12 @@ import { useLotseVorhanden } from './lotse/vorhanden.js';
 import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
-import { protokollUmschalten, useAufrufe, useProtokollSichtbar } from './epa/protokoll.js';
+import { protokollUmschalten, useProtokollSichtbar } from './epa/protokoll.js';
 import { aktensystemZuruecksetzen, klientZuruecksetzen } from './epa/klient.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
+
+/** Spezifikation, Entscheidungen und Anleitung der Demo — im öffentlichen Repository. */
+const DOKUMENTATION = 'https://github.com/mno-93/demo-pvs/tree/main/docs';
 
 export function App() {
   const vorfuehrmodus = useZustand((z) => z.vorfuehrmodus);
@@ -75,7 +78,6 @@ function Kopf() {
   const heute = useZustand((z) => z.heute);
   const handlungen = useZustand((z) => z.handlungen);
   const vorfuehrmodus = useZustand((z) => z.vorfuehrmodus);
-  const aufrufe = useAufrufe();
   const protokollOffen = useProtokollSichtbar();
   // ✦ Die Versichertensicht gehört zum Aktenlotsen und erscheint nur mit ihm.
   const lotseDa = useLotseVorhanden() === true;
@@ -121,8 +123,17 @@ function Kopf() {
             aria-pressed={protokollOffen}
             onClick={protokollUmschalten}
           >
-            ePA-Aufrufe{aufrufe.length > 0 ? ` (${aufrufe.length})` : ''}
+            Konfiguration
           </button>
+          <a
+            className="knopf"
+            href={DOKUMENTATION}
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Dokumentation auf GitHub (öffnet ein neues Fenster)"
+          >
+            Dokumentation ↗
+          </a>
           <button
             type="button"
             className="knopf"

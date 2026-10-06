@@ -92,7 +92,7 @@ npm run vorschau:gehostet
 
 1. **Renate Hoffmann** öffnen → „ePA öffnen": Die ePA verweigert den Zugriff. „eGK einlesen".
    **Dokumente**: Laborbefunde, Arzt- und Entlassbriefe liegen als PDF vor — wie heute.
-   Für die folgenden Schritte **ePA-Aufrufe → Ausbaustand → „Weiterentwicklung 3"** wählen.
+   Für die folgenden Schritte **Konfiguration → Ausbaustand → „Weiterentwicklung 3"** wählen.
 2. **Diagnosen und Allergien**: links die Praxis, rechts die Listen der ePA (✦). Vorhofflimmern
    „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
@@ -101,13 +101,13 @@ npm run vorschau:gehostet
    Splitscreen — die Listen bleiben vollständig.
 5. **Medikation**: Ramipril „Rezept" → „Signieren und senden". Nach wenigen Sekunden steht die
    Verordnung in der Medikationsliste, verknüpft mit dem Planeintrag.
-6. **ePA-Aufrufe** (oben rechts): jeder Aufruf mit Grundlage; darunter die Demo-Steuerung
+6. **Konfiguration** (oben rechts): die Demo-Steuerung und jeder Aufruf an die ePA mit Grundlage. Daneben führt **Dokumentation ↗** zur Spezifikation auf GitHub. Demo-Steuerung:
    (Ausbaustand, Konflikt, Befugnis entziehen, Patient Summary geführt oder automatisch,
    Übertragungszeit des E-Rezepts, Akten sperren oder Widerspruch setzen, andere Einrichtung
    trägt ein, Apotheke gibt ab).
-7. **Aufrufprotokoll → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
+7. **Konfiguration → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
    Band „Seit dem letzten Aufruf …" und Marken **neu** an den fremden Einträgen.
-8. **Aufrufprotokoll → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
+8. **Konfiguration → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
    Im Patientenkopf und in den Reitern erscheint „Aktenlotse ✦", in der Navigation
    „Versichertensicht ✦".
 9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
