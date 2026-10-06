@@ -5,6 +5,7 @@ import {
   medikationAbgleichen,
   medikationszeilenZerlegen,
   vorschlaegeAusText,
+  VORSCHLAGSFRAGEN,
   type Lotsenquelle,
 } from './lotse.js';
 
@@ -80,6 +81,59 @@ describe('Absicht erkennen', () => {
 
   it('fällt auf die Stellensuche zurück, statt zu raten', () => {
     expect(absichtErkennen('Wie geht es meinem Hund?')).toBe('stellensuche');
+  });
+
+  it('erkennt Fragen, die eine Bewertung verlangen', () => {
+    for (const frage of [
+      'Werde ich wieder gesund?',
+      'Ist das schlimm?',
+      'Ist das gefährlich?',
+      'Muss ich mir Sorgen machen?',
+      'Ist mein Nierenwert normal?',
+      'Ist das ein Notfall?',
+    ]) {
+      expect(absichtErkennen(frage), frage).toBe('bewertung');
+    }
+  });
+
+  it('lässt die Bewertung vor dem Thema gehen', () => {
+    expect(absichtErkennen('Soll ich das Medikament absetzen?')).toBe('bewertung');
+  });
+
+  it('hält die angebotenen Fragen für beantwortbar', () => {
+    for (const frage of [...VORSCHLAGSFRAGEN.versicherte, ...VORSCHLAGSFRAGEN.praxis]) {
+      expect(absichtErkennen(frage), frage).not.toBe('bewertung');
+    }
+  });
+});
+
+describe('Grenze: keine Bewertung', () => {
+  it('antwortet ohne Absätze und begründet die Ablehnung', () => {
+    const antwort = lotseAntworten('Werde ich wieder gesund?', ALLE, 'alltag');
+    expect(antwort.grenze).toBe('bewertung');
+    expect(antwort.absaetze).toEqual([]);
+    expect(antwort.hinweis).toContain('Das wäre eine Bewertung');
+    expect(antwort.hinweis).not.toContain('112');
+  });
+
+  it('nennt Versicherten Notruf und Bereitschaftsdienst, wenn die Frage dringlich klingt', () => {
+    const antwort = lotseAntworten('Ist das ein Notfall?', ALLE, 'alltag');
+    expect(antwort.hinweis).toContain('Notruf 112');
+    expect(antwort.hinweis).toContain('116 117');
+  });
+
+  it('spricht in der Praxis fachlich und ohne Notrufnummern', () => {
+    const antwort = lotseAntworten('Ist das ein Notfall?', ALLE, 'fach', {
+      art: 'praxis',
+      name: 'Renate Hoffmann',
+    });
+    expect(antwort.grenze).toBe('bewertung');
+    expect(antwort.hinweis).toContain('bewertet nicht');
+    expect(antwort.hinweis).not.toContain('112');
+  });
+
+  it('beantwortet gewöhnliche Fragen ohne Grenze', () => {
+    expect(lotseAntworten('Was vertrage ich nicht?', ALLE).grenze).toBeNull();
   });
 });
 

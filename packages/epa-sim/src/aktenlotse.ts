@@ -75,6 +75,19 @@ function laborzeilen(d: Dokument): string[] {
  * „Welche Medikamente nehme ich und wofür?" — der Grund steht nur dort (`reasonCode`).
  */
 function medikationsplanQuelle(kvnr: string, heute: string): Lotsenquelle | null {
+  // Nach Widerspruch gegen den Medikationsprozess ist der Plan gesperrt (`wege.ts`, 423) — der
+  // Lotse darf ihn nicht über einen Umweg lesen. Er zählt ihn aber als übergangen, damit die
+  // Umfangsangabe sagt, was fehlt (wie die Patient Summary: `zurueckgehalten`).
+  if (medikationGesperrt(kvnr)) {
+    return {
+      id: 'medikationsplan',
+      titel: 'Medikationsplan (eMP)',
+      datum: heute,
+      einrichtung: 'elektronische Patientenakte',
+      zeilen: [],
+      nichtLesbar: 'nach Widerspruch gegen den Medikationsprozess nicht einbezogen',
+    };
+  }
   const zeilen = planEintraege(kvnr).map(({ mittel, dosis, grund }) =>
     [mittel, dosis, grund ? `wegen ${grund}` : ''].filter(Boolean).join(' — '),
   );
@@ -86,6 +99,11 @@ function medikationsplanQuelle(kvnr: string, heute: string): Lotsenquelle | null
     einrichtung: 'elektronische Patientenakte',
     zeilen,
   };
+}
+
+/** Widerspruch gegen den Medikationsprozess — dieselbe Sperre wie im Medication Service. */
+function medikationGesperrt(kvnr: string): boolean {
+  return bestandFuer(kvnr).widersprueche.medication === 'deny';
 }
 
 /**
@@ -210,7 +228,12 @@ export function kontextBilden(
   return {
     anlass: anlass || 'nach Krankenhausaufenthalt',
     verlauf: antwort.absaetze,
-    abweichungen: ausBrief.length > 0 ? medikationAbgleichen(ausBrief, planMittel(kvnr)) : [],
+    // Ohne lesbaren Plan gibt es nichts abzugleichen: Jedes Mittel stünde sonst als „fehlt im
+    // Plan" da, obwohl der Plan nur gesperrt ist.
+    abweichungen:
+      ausBrief.length > 0 && !medikationGesperrt(kvnr)
+        ? medikationAbgleichen(ausBrief, planMittel(kvnr))
+        : [],
     umfang: antwort.umfang,
   };
 }

@@ -98,6 +98,11 @@ export interface Lotsenantwort {
   umfang: Umfang;
   /** Fachbegriffe aus den gelesenen Stellen mit ihrer Umschreibung. */
   begriffe: Alltagswort[];
+  /**
+   * Gesetzt, wenn der Lotse die Frage bewusst nicht beantwortet, weil sie eine Bewertung
+   * verlangt. Dann gibt es keine Absätze, und der Hinweis trägt die Begründung.
+   */
+  grenze?: 'bewertung' | null;
 }
 
 /* ---------- Absichten ---------- */
@@ -106,9 +111,42 @@ export interface Lotsenantwort {
  * Welche Frage gestellt wurde. Bewusst eine kurze, geschlossene Liste: Was der Lotse nicht
  * erkennt, beantwortet er als Stellensuche — und sagt das auch.
  */
-export type Absicht = 'laborverlauf' | 'krankenhaus' | 'allergien' | 'medikation' | 'stellensuche';
+export type Absicht =
+  'bewertung' | 'laborverlauf' | 'krankenhaus' | 'allergien' | 'medikation' | 'stellensuche';
 
-const STICHWOERTER: Record<Exclude<Absicht, 'stellensuche'>, string[]> = {
+/**
+ * Fragen, die eine Bewertung verlangen — wie ernst etwas ist, wie es weitergeht, was zu tun
+ * ist. Muster über der normalisierten Frage (ohne Umlaute).
+ *
+ * ▸ Sie werden **vor** allen anderen Absichten geprüft: „Soll ich das Medikament absetzen?"
+ * nennt ein Medikament, fragt aber nach einer Empfehlung. Lieber einmal zu oft ablehnen als
+ * einmal eine Empfehlung aus Dokumentstellen zusammensetzen.
+ */
+const BEWERTUNG: RegExp[] = [
+  /\bwieder gesund\b/,
+  /\bgesund werden\b/,
+  /\bheilbar\b/,
+  /\bschlimm/,
+  /\bgefaehrlich/,
+  /\bbedenklich/,
+  /\bernst\b/,
+  /\bsterben\b/,
+  /\blebenserwartung\b/,
+  /\bwie lange (lebe|habe) ich\b/,
+  /\bprognose\b/,
+  /\bsorgen\b/,
+  /\bsollt?e? ich\b/,
+  /\bmuss ich\b/,
+  /\babsetzen\b/,
+  /\bnormal\b/,
+  /\bdringend\b/,
+  /\bnotfall\b/,
+];
+
+/** Bewertungsfragen, hinter denen akute Beschwerden stehen können. */
+const DRINGLICH: RegExp[] = [/\bdringend\b/, /\bnotfall\b/, /\bsofort\b/, /\bakut/];
+
+const STICHWOERTER: Record<Exclude<Absicht, 'stellensuche' | 'bewertung'>, string[]> = {
   laborverlauf: [
     'niere',
     'nieren',
@@ -179,6 +217,7 @@ function normalisiere(text: string): string {
  */
 export function absichtErkennen(frage: string): Absicht {
   const f = normalisiere(frage);
+  if (BEWERTUNG.some((m) => m.test(f))) return 'bewertung';
   for (const absicht of ['laborverlauf', 'krankenhaus', 'allergien', 'medikation'] as const) {
     if (STICHWOERTER[absicht].some((w) => f.includes(normalisiere(w)))) return absicht;
   }
@@ -616,6 +655,32 @@ function stellensuche(frage: string, quellen: Lotsenquelle[], lesart: Lesart): L
   return absaetze;
 }
 
+/* ---------- Grenze: keine Bewertung ---------- */
+
+/**
+ * Die Antwort auf eine Bewertungsfrage. Sie verweist an die, die bewerten dürfen, und sagt,
+ * was der Lotse stattdessen kann.
+ *
+ * ▸ Notruf und Bereitschaftsdienst nennt der Lotse nur Versicherten und nur, wenn die Frage
+ * nach Dringlichkeit klingt. Das ist keine Einstufung — er sagt nicht, *ob* es dringend ist,
+ * sondern wohin man sich wendet, wenn es das ist.
+ */
+function grenzhinweis(frage: string, ansprache: Ansprache): string {
+  if (ansprache.art === 'praxis') {
+    return 'Die Frage verlangt eine Bewertung — Einordnung, Prognose oder Empfehlung. Der Lotse gibt wieder, was in den Unterlagen steht, und bewertet nicht.';
+  }
+  const dringlich = DRINGLICH.some((m) => m.test(normalisiere(frage)));
+  return [
+    dringlich
+      ? 'Bei akuten Beschwerden: Notruf 112 oder ärztlicher Bereitschaftsdienst 116 117.'
+      : null,
+    'Ob etwas ernst ist, wie es weitergeht oder was Sie tun sollten, beantwortet der Lotse nicht. Das wäre eine Bewertung, und die gehört in das Gespräch mit Ihrer Ärztin oder Ihrem Arzt.',
+    'Was in Ihren Unterlagen steht, zeigt er Ihnen.',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
 /* ---------- Die Antwort ---------- */
 
 export function lotseAntworten(
@@ -627,6 +692,17 @@ export function lotseAntworten(
   const umfang = umfangBilden(quellen);
   const lesbare = quellen.filter((q) => q.zeilen.length > 0);
   const absicht = absichtErkennen(frage);
+
+  if (absicht === 'bewertung') {
+    return {
+      frage,
+      absaetze: [],
+      hinweis: grenzhinweis(frage, ansprache),
+      umfang,
+      begriffe: [],
+      grenze: 'bewertung',
+    };
+  }
 
   const absaetze =
     absicht === 'laborverlauf'
@@ -660,6 +736,7 @@ export function lotseAntworten(
         .flatMap((q) => q.zeilen)
         .join(' '),
     ),
+    grenze: null,
   };
 }
 

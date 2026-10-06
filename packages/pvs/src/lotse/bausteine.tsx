@@ -259,7 +259,30 @@ export function Vorlesen({ text }: { text: string }) {
 
 /** Die Antwort als zusammenhängender Text — Grundlage der Sprachausgabe. */
 export function antwortAlsText(antwort: Lotsenantwort): string {
-  return antwort.absaetze.map((a) => a.text).join(' ');
+  return [antwort.hinweis, ...antwort.absaetze.map((a) => a.text)].filter(Boolean).join(' ');
+}
+
+/* ---------- Grenze ---------- */
+
+/**
+ * Der Hinweis über einer Antwort — oder, wenn der Lotse eine Bewertungsfrage ablehnt, die
+ * Ablehnung selbst.
+ *
+ * ▸ Die Ablehnung steht nicht kursiv und leise wie ein Randhinweis, sondern als eigene
+ * Antwort mit Marker: Sie ist die sichtbarste Form von Prinzip 4 und soll nicht wie ein
+ * Fehler aussehen.
+ */
+export function Antworthinweis({ antwort }: { antwort: Lotsenantwort }) {
+  if (!antwort.hinweis) return null;
+  if (antwort.grenze === 'bewertung') {
+    return (
+      <div className="lotse-grenze">
+        <span className="marker lotse">Keine Bewertung</span>
+        <p>{antwort.hinweis}</p>
+      </div>
+    );
+  }
+  return <p className="lotse-hinweis">{antwort.hinweis}</p>;
 }
 
 /* ---------- Fragefeld ---------- */

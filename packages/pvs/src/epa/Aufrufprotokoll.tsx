@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { deutschesDatum } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
+import { befugnisseAblaufenLassen, useEinlesungen } from './befugnis.js';
+import { useBetriebsstand } from './epa-bestand.js';
 import {
   EINRICHTUNG,
   akteSetzen,
@@ -10,7 +12,6 @@ import {
   apothekeGibtAb,
   apothekeStorniertAbgabe,
   apothekenRezepteLesen,
-  befugnisseEntziehen,
   befugnisseLesen,
   betriebslageLesen,
   betriebslageSetzen,
@@ -52,10 +53,14 @@ export function Aufrufprotokoll() {
     aktenLesen().then(setzeAkten, () => setzeAkten([]));
   }
 
+  // Auch nach dem Einlesen einer eGK und nach jeder Umstellung: Die Befugnisliste zeigt sonst
+  // einen Stand, der dem Kopf der Patientenakte widerspricht.
+  const einlesungen = useEinlesungen();
+  const betriebsstand = useBetriebsstand();
   useEffect(() => {
     if (!sichtbar) return;
     stand();
-  }, [sichtbar]);
+  }, [sichtbar, einlesungen, betriebsstand]);
 
   // Nach einem Aufruf an den E-Rezept-Fachdienst zeigt die Apotheke das neue Rezept.
   const letzterFachdienstAufruf = aufrufe.find((a) => a.pfad.startsWith('/erp/'))?.id ?? 0;
@@ -169,7 +174,7 @@ export function Aufrufprotokoll() {
                 className="knopf klein"
                 style={{ marginTop: 6 }}
                 disabled={eigene.length === 0}
-                onClick={() => befugnisseEntziehen().then(stand, stand)}
+                onClick={() => befugnisseAblaufenLassen().then(stand, stand)}
               >
                 Befugnisse entziehen
               </button>

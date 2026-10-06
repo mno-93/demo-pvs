@@ -6,6 +6,7 @@ import { startzustand } from '../daten/startdaten.js';
 import { lesen, speicherStarten } from '../speicher/speicher.js';
 import { epaFensterSchliessen } from './fenster.js';
 import { klientZuruecksetzen } from './klient.js';
+import { befugnisseAblaufenLassen } from './befugnis.js';
 import { dauerhafteBefugnis, epaAttrappe } from '../testhilfe/epa-attrappe.js';
 
 /**
@@ -126,5 +127,27 @@ describe('ePA ohne Befugnis', () => {
     expect(
       aufrufe.filter((a) => a.pfad.startsWith('/epa/') && a.kopf['x-insurantid']),
     ).toHaveLength(0);
+  });
+});
+
+describe('Befugnisse ablaufen lassen (Demo-Steuerung)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('entzieht sie in der ePA und vergisst sie im Praxissystem — wie nach 90 Tagen', async () => {
+    const aufrufe = epaAttrappe((a) =>
+      a.pfad === '/verwaltung/befugnisse/entziehen'
+        ? { status: 200, inhalt: { entzogen: 1 } }
+        : undefined,
+    );
+    speicherStarten({
+      ...startzustand(),
+      epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')],
+    });
+
+    expect(await befugnisseAblaufenLassen()).toBe(1);
+    expect(aufrufe.some((a) => a.pfad === '/verwaltung/befugnisse/entziehen')).toBe(true);
+    expect(lesen().epaBefugnisse).toEqual([]);
   });
 });

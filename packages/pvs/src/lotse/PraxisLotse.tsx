@@ -29,7 +29,13 @@ import {
 import { useZustand } from '../speicher/speicher.js';
 import { usePatientId } from '../module/Patientenkartei.js';
 import { EgkKnopf } from '../epa/befugnis.js';
-import { dokumentverweisLesen, ohneBefugnis, type Dokumentverweis } from '../epa/epa-bestand.js';
+import {
+  dokumentverweisLesen,
+  fehlerTitel,
+  ohneBefugnis,
+  useBetriebsstand,
+  type Dokumentverweis,
+} from '../epa/epa-bestand.js';
 import {
   EpaFehler,
   dokumentAbrufen,
@@ -40,7 +46,14 @@ import {
   lotseVorschlaege,
 } from '../epa/klient.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
-import { Absaetze, Fragefeld, Umfangsangabe, belegzeilen, tag } from './bausteine.js';
+import {
+  Absaetze,
+  Antworthinweis,
+  Fragefeld,
+  Umfangsangabe,
+  belegzeilen,
+  tag,
+} from './bausteine.js';
 import { useLotseVorhanden } from './vorhanden.js';
 
 const LISTE_BEZEICHNUNG: Record<string, string> = {
@@ -91,22 +104,31 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
   const [geoeffnet, setzeGeoeffnet] = useState<Geoeffnet | null>(null);
   const [kontextGanz, setzeKontextGanz] = useState(false);
   const angeboten = useLotseVorhanden();
+  // Nach jeder Umstellung der Demo-Steuerung — neue Einträge, Widerspruch, Sperre, entzogene
+  // Befugnis — liest der Lotse neu, wie jede andere Ansicht der ePA auch.
+  const betriebsstand = useBetriebsstand();
 
   useEffect(() => {
     if (!kvnr || angeboten !== true) return;
     setzeFehler(null);
+    // Eine Antwort von vorher beruht auf einem Stand, den es nicht mehr gibt.
+    setzeAntwort(null);
+    setzeGeoeffnet(null);
     void lotseKontext(kvnr, 'nach Krankenhausaufenthalt')
       .then(setzeKontext)
-      .catch((f: unknown) =>
-        setzeFehler(f instanceof Error ? f : new Error('Kontext nicht lesbar')),
-      );
+      .catch((f: unknown) => {
+        // Kein Überblick aus einem Stand, den die ePA gerade abgelehnt hat.
+        setzeKontext(null);
+        setzeVorschlaege(null);
+        setzeFehler(f instanceof Error ? f : new Error('Kontext nicht lesbar'));
+      });
     void lotseVorschlaege(kvnr)
       .then(setzeVorschlaege)
-      .catch(() => undefined);
+      .catch(() => setzeVorschlaege(null));
     void dokumenteSuchen(kvnr)
       .then((r) => setzeVerweise(r.map(dokumentverweisLesen)))
-      .catch(() => undefined);
-  }, [kvnr, angeboten, befugnisBis]);
+      .catch(() => setzeVerweise([]));
+  }, [kvnr, angeboten, befugnisBis, betriebsstand]);
 
   /** Öffnet die Unterlage hinter einer Angabe und markiert die Stellen, auf denen sie beruht. */
   async function nachlesen(q: Quellenangabe, markieren: string[]) {
@@ -182,12 +204,22 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
         umfang={
           umfang
             ? `${umfang.gelesen} von ${umfang.gesamt} Unterlagen gelesen${
-                umfang.uebergangen.length > 0 ? ` · ${umfang.uebergangen.length} nicht lesbar` : ''
+                umfang.uebergangen.length > 0 ? ` · ${umfang.uebergangen.length} nicht gelesen` : ''
               }`
             : null
         }
       />
-      {fehler && <p className="lotse-fehler">{fehler.message}</p>}
+      {fehler && (
+        <p className="lotse-fehler">
+          {fehler instanceof EpaFehler ? (
+            <>
+              <b>{fehlerTitel(fehler)}</b> {fehler.diagnose}
+            </>
+          ) : (
+            fehler.message
+          )}
+        </p>
+      )}
 
       <div className="lotse-raster">
         <div className="lotse-spalte" aria-label="Überblick">
@@ -360,7 +392,7 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
               {laeuft && <p className="leer">Der Lotse liest …</p>}
               {antwort && !laeuft && (
                 <div className="lotse-antwort" aria-live="polite">
-                  {antwort.hinweis && <p className="lotse-hinweis">{antwort.hinweis}</p>}
+                  <Antworthinweis antwort={antwort} />
                   <Absaetze
                     absaetze={antwort.absaetze}
                     oeffnen={(q) => void nachlesen(q, belegzeilen(antwort.absaetze, q.quelleId))}

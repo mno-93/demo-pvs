@@ -663,3 +663,74 @@ describe('✦ Patient Summary', () => {
     expect(veraltet.statusCode).toBe(409);
   });
 });
+
+describe('✦ Aktenlotse — Rechte und Grenze', () => {
+  const LOTSE = '/epa/vorschlag/aktenlotse/api/v1';
+
+  beforeEach(async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung-4' },
+    });
+  });
+
+  const fragen = (frage: string, zusatz: Record<string, string> = {}) =>
+    app.inject({
+      method: 'POST',
+      url: `${LOTSE}/frage`,
+      headers: kopf({ 'content-type': 'application/json', ...zusatz }),
+      payload: { frage, lesart: 'alltag' },
+    });
+
+  it('lehnt eine Bewertungsfrage ab — für Versicherte wie für die Praxis', async () => {
+    const versicherte = (
+      await fragen('Werde ich wieder gesund?', { 'x-demo-versicherte': HOFFMANN })
+    ).json();
+    expect(versicherte.grenze).toBe('bewertung');
+    expect(versicherte.absaetze).toEqual([]);
+    expect(versicherte.hinweis).toContain('Ärztin oder Ihrem Arzt');
+
+    const praxis = (await fragen('Werde ich wieder gesund?')).json();
+    expect(praxis.grenze).toBe('bewertung');
+    expect(praxis.hinweis).toContain('bewertet nicht');
+  });
+
+  it('antwortet ohne Befugnis gar nicht — auch nicht mit einer Ablehnung', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/befugnisse/entziehen',
+      payload: { telematikId: PRAXIS },
+    });
+    const antwort = await fragen('Werde ich wieder gesund?');
+    expect(antwort.statusCode).toBe(403);
+    expect(antwort.json().errorCode).toBe('notEntitled');
+    // Der Versichertenzugang hängt nicht an der Befugnis der Praxis.
+    expect(
+      (await fragen('Was vertrage ich nicht?', { 'x-demo-versicherte': HOFFMANN })).statusCode,
+    ).toBe(200);
+  });
+
+  it('liest den Medikationsplan nach Widerspruch nicht — und sagt das', async () => {
+    const vorher = (await fragen('Welche Medikamente nehme ich und wofür?')).json();
+    expect(JSON.stringify(vorher.absaetze)).toContain('Medikationsplan');
+
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/akte',
+      payload: { kvnr: HOFFMANN, medication: 'deny' },
+    });
+    const nachher = (await fragen('Welche Medikamente nehme ich und wofür?')).json();
+    expect(JSON.stringify(nachher.absaetze)).not.toContain('Medikationsplan');
+    expect(nachher.umfang.uebergangen).toContainEqual({
+      titel: 'Medikationsplan (eMP)',
+      grund: 'nach Widerspruch gegen den Medikationsprozess nicht einbezogen',
+    });
+
+    // Ohne lesbaren Plan keine Abweichung „fehlt im Plan".
+    const kontext = (
+      await app.inject({ method: 'GET', url: `${LOTSE}/kontext?anlass=`, headers: kopf() })
+    ).json();
+    expect(kontext.abweichungen).toEqual([]);
+  });
+});

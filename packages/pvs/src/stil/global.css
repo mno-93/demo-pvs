@@ -2088,6 +2088,24 @@ td.split-mitte .marker {
   line-height: 1.45;
 }
 
+.lotse-grenze {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  background: var(--lotse-weich);
+  border: 1px solid var(--lotse-linie);
+  border-left: 3px solid var(--lotse);
+  border-radius: var(--radius);
+}
+.lotse-grenze p {
+  margin: 6px 0 0;
+  color: var(--text);
+}
+.marker.lotse {
+  background: var(--flaeche);
+  color: var(--lotse);
+  border-color: var(--lotse-linie);
+}
+
 .lotse-hinweis {
   margin: 0 0 12px;
   color: var(--text-leise);

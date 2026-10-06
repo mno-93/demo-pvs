@@ -934,6 +934,10 @@ export async function befugnisseEntziehen(): Promise<number> {
     koerper: { telematikId: EINRICHTUNG.telematikId },
     grundlage: GRUNDLAGE.verwaltung,
   });
+  // Wie jede Umstellung der Demo-Steuerung: Offene Ansichten fragen neu, bekommen 403
+  // `notEntitled` und berichtigen darüber den Stand des Praxissystems (ADR 0017). Ohne das
+  // stünde im Kopf noch „ePA-Befugnis bis …" neben Daten, die es nicht mehr geben dürfte.
+  betriebsstandErhoehen();
   return inhalt.entzogen;
 }
 

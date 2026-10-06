@@ -800,9 +800,10 @@ Schnittstelle mit einem Modell innerhalb der TI.
 | `GET …/vorschlaege`      | Einträge, die eine strukturierte Liste aus unstrukturiertem Text aufnehmen könnte — als Vorschlag, mit Herkunft                                       |
 | `GET …/quelle/{id}`      | Eine Unterlage öffnen und nachlesen — der Weg, auf den die Quellenangabe einer Antwort zeigt. Liefert nichts, was der Lotse nicht ohnehin gelesen hat |
 
-Die Frage wird einer von fünf Absichten zugeordnet (Laborverlauf, Krankenhaus, Allergien,
-Medikation, Stellensuche). Was keine davon trifft, beantwortet der Dienst als Stellensuche — und
-sagt das in seinem Hinweis.
+Die Frage wird einer von sechs Absichten zugeordnet (Bewertung, Laborverlauf, Krankenhaus,
+Allergien, Medikation, Stellensuche). Die Bewertung wird zuerst geprüft und nicht beantwortet
+(8.8). Was keine davon trifft, beantwortet der Dienst als Stellensuche — und sagt das in seinem
+Hinweis.
 
 ### 8.3 Umfangsangabe
 
@@ -812,6 +813,12 @@ Jede Antwort nennt, wie viele Quellen gelesen wurden und welche nicht, mit Grund
 Antwort einen relevanten Befund **nicht** nennt und trotzdem vollständig wirkt. Auslassung ist das
 größere Risiko als Erfindung. Der Startbestand führt dafür einen eingescannten Vorbefund ohne
 Textebene: Für Frau Hoffmann lautet die Angabe „6 von 7 Unterlagen gelesen".
+
+Hat die versicherte Person dem Medikationsprozess widersprochen, ist der Medikationsplan für
+Einrichtungen gesperrt (423). Der Lotse liest ihn dann **nicht über einen Umweg**, sondern zählt ihn
+als übergangen — „nach Widerspruch gegen den Medikationsprozess nicht einbezogen" —, und der
+Abgleich mit dem Entlassbrief entfällt: Ohne lesbaren Plan stünde sonst jedes Mittel als „fehlt im
+Plan" da. Dieselbe Regel wie in der Patient Summary (7, `zurueckgehalten`).
 
 ### 8.4 Ansprache, Lesart und Belege
 
@@ -841,14 +848,15 @@ nur dort (`reasonCode`). Seine Zeilen werden als Liste geöffnet, die belegenden
 
 **Praxissicht** — Reiter „Aktenlotse" der Patientenkartei, in zwei Spalten (ADR 0035):
 
-| Spalte        | Inhalt                                                                                                                                                                                                                             |
-| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Überblick** | **Zu klären** (hervorgehoben, nur wenn etwas vorliegt) · **Kontext** zum Anlass als knappe Liste, zunächst vier Angaben · **Vorschläge für die Listen**, nach Liste gruppiert und zugeklappt · Umfang, wenn etwas nicht lesbar war |
-| **Nachlesen** | **Frage an die Akte** mit Antwort — oder die **geöffnete Unterlage** mit den markierten Stellen und dem Weg zurück zur Antwort                                                                                                     |
+| Spalte        | Inhalt                                                                                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Überblick** | **Zu klären** (hervorgehoben, nur wenn etwas vorliegt) · **Kontext** zum Anlass als knappe Liste, zunächst vier Angaben · **Vorschläge für die Listen**, nach Liste gruppiert und zugeklappt · Umfang, wenn etwas nicht gelesen wurde |
+| **Nachlesen** | **Frage an die Akte** mit Antwort — oder die **geöffnete Unterlage** mit den markierten Stellen und dem Weg zurück zur Antwort                                                                                                        |
 
 Jede Angabe im Überblick trägt einen kurzen Verweis auf ihre Unterlage („Entlassbrief ·
 17.07.2026"). Ein Klick öffnet sie rechts — als Dokument aus der Akte (ITI-68), seitengetreu, mit der
-belegenden Zeile markiert. Kopfzeile: „6 von 7 Unterlagen gelesen · 1 nicht lesbar".
+belegenden Zeile markiert. Kopfzeile: „6 von 7 Unterlagen gelesen · 1 nicht gelesen" — „nicht
+gelesen" statt „nicht lesbar", weil auch ein gesperrter Medikationsplan darunter fallen kann.
 
 ▸ Im Gespräch braucht es zweierlei zugleich: was vor dem Kontakt zu wissen ist, und den Blick in die
 Quelle. Eine Spalte für beides zwang zum Scrollen zwischen Antwort und Beleg.
@@ -904,6 +912,48 @@ meldepflichtiger oder abrechnungsrelevanter Angaben ohne menschliche Bestätigun
 
 ▸ Diese Liste ist kein Vorbehalt, sondern der Entwurf: Sie ist die Zweckbestimmung, und die
 entscheidet über die regulatorische Einordnung.
+
+### 8.8 Grenze: keine Bewertung
+
+Fragen, die eine Bewertung verlangen — wie ernst etwas ist, wie es weitergeht, was zu tun ist —,
+beantwortet der Lotse **sichtbar nicht** (ADR 0036). Erkannt werden sie an Mustern wie „wieder
+gesund", „schlimm", „gefährlich", „Sorgen", „soll ich", „muss ich", „absetzen", „normal",
+„Prognose", „Notfall" (`BEWERTUNG` in `kern/fachlogik/lotse.ts`), und zwar **vor** allen anderen
+Absichten: „Soll ich das Metformin absetzen?" nennt ein Medikament, fragt aber nach einer
+Empfehlung.
+
+Die Antwort hat dann keine Absätze, sondern nur den Hinweis, gekennzeichnet mit `grenze:
+'bewertung'`:
+
+| Wer fragt   | Antwort                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Versicherte | „Ob etwas ernst ist, wie es weitergeht oder was Sie tun sollten, beantwortet der Lotse nicht. Das wäre eine Bewertung, und die gehört in das Gespräch mit Ihrer Ärztin oder Ihrem Arzt. …" |
+| Praxis      | „Die Frage verlangt eine Bewertung — Einordnung, Prognose oder Empfehlung. Der Lotse gibt wieder, was in den Unterlagen steht, und bewertet nicht."                                        |
+
+Klingt die Frage nach Dringlichkeit („Notfall", „dringend", „sofort", „akut"), stellt der Lotse
+Versicherten **Notruf 112 und den ärztlichen Bereitschaftsdienst 116 117** voran. ▸ Das ist keine
+Einstufung: Er sagt nicht, _ob_ es dringend ist, sondern wohin man sich wendet, wenn es das ist.
+
+In der Oberfläche steht die Ablehnung nicht als leiser Randhinweis, sondern als eigene Antwort mit
+dem Marker **„Keine Bewertung"**; „Vorlesen" liest sie vor. Eine Umfangsangabe entfällt — gelesen
+wurde nichts, und „6 von 7 gelesen" unter einer Ablehnung wäre irreführend.
+
+⚠ Musterliste, kein Sprachverständnis. Ein Modell würde die Absicht anders erkennen; die Grenze
+selbst — Ablehnung mit Verweis, ohne Absatz — bliebe dieselbe.
+
+### 8.9 Ein Stand für alle Ansichten
+
+Was die ePA zu Befugnis, Sperre und Widerspruch sagt, gilt in jeder Ansicht gleichzeitig:
+
+- **Befugnisse entziehen** (Konfiguration) wirkt wie der Ablauf der 90 Tage: Die ePA löscht sie, und
+  das Praxissystem vergisst sie auch — es kennt das Ende jeder Befugnis selbst. Danach fragen alle
+  offenen Ansichten neu (`betriebsstandErhoehen`) und zeigen „eGK einlesen" statt Daten.
+- **Jede Umstellung der Demo-Steuerung** — neue Einträge, Widerspruch, Sperre, Ausbaustand — liest
+  auch der Lotse neu. Eine Antwort von vorher verfällt, eine geöffnete Unterlage schließt.
+- **Eine gesperrte Akte ist nicht leer.** Die Versichertensicht zeigt „Die ePA ist vorübergehend
+  gesperrt." wie das Praxissystem — keine Dokumentenzahl, kein „Keine Dokumente in der Akte".
+- Fehlermeldungen des Lotsen nennen in der Praxis die Lage und die Diagnose der ePA (wie das
+  ePA-Fenster), in der Versichertensicht nur die Lage in Alltagssprache.
 
 ## 9 Erfassung und Terminologie
 
@@ -983,11 +1033,14 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 | Laborbefund als PDF und als FHIR                | Ausbaustand „Release 3.1.3" → ePA-Fenster, Laborbefunde → PDF; „Weiterentwicklung 1" → strukturierter Befund; dort auch die Volltextsuche, im Release fehlt das Suchfeld                                                                                                                                                                                               |
 | Volltextsuche                                   | ePA-Fenster, Dokumente → „Kreatinin"                                                                                                                                                                                                                                                                                                                                   |
 | ✦ Suche gegen Auskunft                          | ePA-Fenster, Dokumente → „Kreatinin“ findet zwei Dokumente. Dann Reiter „Aktenlotse“ → „Wie haben sich die Nierenwerte entwickelt?“ → eGFR 46 → 38 mit je zwei Belegen. Die Suche findet Dokumente, der Lotse beantwortet die Frage                                                                                                                                    |
-| ✦ Lotse: Kontext und Widerspruch                | Frau Hoffmann nach dem Einlesen → Reiter „Aktenlotse“: Kontext zum Krankenhausaufenthalt, „4 von 5 Unterlagen gelesen“ mit dem eingescannten Vorbefund, und genau eine Abweichung — Metformin steht im Entlassbrief, nicht im Plan                                                                                                                                     |
+| ✦ Lotse: Kontext und Widerspruch                | Frau Hoffmann nach dem Einlesen → „Aktenlotse ✦“ im Kopf: Kontext zum Krankenhausaufenthalt, „6 von 7 Unterlagen gelesen · 1 nicht gelesen“ mit dem eingescannten Vorbefund, und genau eine Abweichung — Metformin steht im Entlassbrief, nicht im Plan                                                                                                                |
 | ✦ Lotse: Vorschläge für die Listen              | Derselbe Reiter, unten: Echokardiographie aus dem eArztbrief als Prozedur vorgeschlagen, mit Herkunft und Beleg → „Bestätigen“. Vorschlag, kein Eintrag                                                                                                                                                                                                                |
-| ✦ Versichertensicht                             | Navigation „Versichertensicht“ → „Was stand im Brief vom Krankenhaus?“ → Antwort in Alltagssprache mit Belegen, „Vorlesen“, Umschaltung „Wie im Dokument“                                                                                                                                                                                                              |
-| ✦ Keine eigenen Rechte                          | Versichertensicht → Rolle „Sabine Hoffmann — Tochter · Vertretung“: dieselbe Antwort. Dann „Vertretung entzogen“: „Keine Quellen · keine Antwort“ — der Lotse sieht die Akte nicht                                                                                                                                                                                     |
-| Befugnis verloren                               | Konfiguration → „Befugnisse entziehen" → nächster Abruf 403                                                                                                                                                                                                                                                                                                            |
+| ✦ Versichertensicht                             | Navigation „Versichertensicht“ → Aktenlotse → „Was vertrage ich nicht?“ → Antwort in Alltagssprache, „Vorlesen“ → „Im Dokument nachlesen“ öffnet den Entlassbrief mit markierten Stellen                                                                                                                                                                               |
+| ✦ Keine eigenen Rechte                          | Versichertensicht → Rolle „Sabine Hoffmann — Tochter · Vertretung“: dieselbe Antwort. Dann „Vertretung entzogen“: „Keine Akte · keine Dokumente · keine Antwort“ — der Lotse sieht die Akte nicht                                                                                                                                                                      |
+| Befugnis verloren                               | Konfiguration → „Befugnisse entziehen“ → Kopf „keine ePA-Befugnis“; ePA-Fenster und Aktenlotse zeigen „eGK einlesen“ statt Daten → „eGK einlesen“ → alles wieder da (8.9)                                                                                                                                                                                              |
+| ✦ Keine Bewertung                               | Versichertensicht → Aktenlotse → „Werde ich wieder gesund?“ → Marker „Keine Bewertung“, Verweis an Ärztin oder Arzt, „Vorlesen“ liest die Ablehnung; „Ist das ein Notfall?“ nennt zusätzlich 112 und 116 117. In der Praxis: „Ist das gefährlich?“ → fachliche Ablehnung (8.8)                                                                                         |
+| ✦ Lotse liest mit                               | Konfiguration → Akten → Hoffmann „andere Einrichtung trägt ein“ → „Aktenlotse ✦“: „7 von 8 Unterlagen gelesen“, eine zweite Abweichung (Torasemid im Plan, nicht im Brief)                                                                                                                                                                                             |
+| ✦ Lotse nach Widerspruch                        | Konfiguration → Akten → Hoffmann „Widerspruch Medikation“ → „Aktenlotse ✦“: keine Abweichung, „5 von 7 Unterlagen gelesen“, Medikationsplan als „nicht einbezogen“ (8.3)                                                                                                                                                                                               |
 | Release 3.1.3                                   | Ausbaustand umschalten → die Listen verschwinden, der Splitscreen zeigt nur die Praxisseite                                                                                                                                                                                                                                                                            |
 | Patient Summary in einem Klick                  | Frau Hoffmann nach dem Einlesen → „Patient Summary" im Kopf → sieben von acht Abschnitten mit Inhalt (ab Weiterentwicklung 3)                                                                                                                                                                                                                                          |
 | Pflege an der Quelle                            | Patient Summary → „Zur Diagnosenübersicht" → Nierenkrankheit „in die ePA →" → Patient Summary zeigt drei Diagnosen                                                                                                                                                                                                                                                     |
@@ -1020,6 +1073,7 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 
 | Datum      | Anlass                                                                                             | Änderungen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 06.10.2026 | Grenze zur Bewertung; ein Stand für alle Ansichten                                                 | Der Aktenlotse lehnt Bewertungsfragen sichtbar ab, mit Marker „Keine Bewertung“ und bei Dringlichkeit 112/116 117 für Versicherte (8.2, 8.8); nach Widerspruch liest er den Medikationsplan nicht und gleicht nicht ab (8.3); „Befugnisse entziehen“ wirkt in ePA und Praxissystem zugleich, alle Ansichten fragen neu; der Lotse liest nach jeder Umstellung neu; gesperrte Akte in der Versichertensicht als gesperrt (8.9, ADR 0036); Kopfzeile „nicht gelesen“ statt „nicht lesbar“ (8.5); Abläufe in 11 berichtigt und ergänzt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | 06.10.2026 | Aktenlotse im ePA-Fenster                                                                          | Der Aktenlotse ist als Bereich „Aktenlotse ✦" im ePA-Fenster erreichbar (4.2, 8.5); die Schaltfläche im Patientenkopf öffnet ihn dort; der Reiter der Kartei bleibt. Die Seitenansicht springt nur in sich selbst zur Markierung, ohne die Umgebung zu verschieben                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 | 06.10.2026 | Aktenlotse: Ansprache, Nachlesen, Praxissicht                                                      | In der Praxis spricht der Lotse über die Person („Renate Hoffmann war …"), für Versicherte zu ihr (8.4); Antworten tragen Belegzeilen; „Im Dokument nachlesen" öffnet das Dokument mit markierten Stellen, die Umschaltung „Wie im Dokument" entfällt (8.5); Praxissicht in zwei Spalten Überblick und Nachlesen; strukturierte Dokumente auch als PDF-Ansicht, Seitenansicht mit Markierung (5.4, ADR 0035); UX-Grundsatz U31                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | 06.10.2026 | Kopfleiste                                                                                         | „ePA-Aufrufe" heißt „Konfiguration" (Demo-Steuerung und Aufrufprotokoll); neuer Verweis „Dokumentation ↗" auf die Dokumentation im Repository                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

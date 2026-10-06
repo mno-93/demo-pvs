@@ -23,9 +23,10 @@ import {
   type Ressource,
 } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
-import { dokumentAbrufen, dokumenteSuchen, lotseFragen } from '../epa/klient.js';
+import { EpaFehler, dokumentAbrufen, dokumenteSuchen, lotseFragen } from '../epa/klient.js';
 import {
   dokumentverweisLesen,
+  fehlerTitel,
   useBetriebsstand,
   type Dokumentverweis,
 } from '../epa/epa-bestand.js';
@@ -35,6 +36,7 @@ import {
   Begriffe,
   belegzeilen,
   Fragefeld,
+  Antworthinweis,
   Umfangsangabe,
   Vorlesen,
   antwortAlsText,
@@ -65,6 +67,8 @@ export function Versichertensicht() {
   const [rolle, setzeRolle] = useState<Rolle>('versicherte');
   const [bereich, setzeBereich] = useState<Bereich>('dokumente');
   const [fehler, setzeFehler] = useState<string | null>(null);
+  /** Die ePA hat den Zugang zur ganzen Akte abgelehnt — etwa weil sie gesperrt ist. */
+  const [aktenfehler, setzeAktenfehler] = useState<string | null>(null);
 
   const [verweise, setzeVerweise] = useState<Dokumentverweis[] | null>(null);
   const [offenesDokument, setzeOffenesDokument] = useState<Dokumentverweis | null>(null);
@@ -85,12 +89,19 @@ export function Versichertensicht() {
       return;
     }
     let abgebrochen = false;
+    setzeAktenfehler(null);
     void dokumenteSuchen(kvnr, undefined, kvnr)
       .then((r: Ressource[]) => {
         if (!abgebrochen) setzeVerweise(r.map(dokumentverweisLesen));
       })
-      .catch(() => {
-        if (!abgebrochen) setzeVerweise([]);
+      .catch((f: unknown) => {
+        if (abgebrochen) return;
+        // Keine stille Null und kein „Keine Dokumente": Eine gesperrte Akte ist nicht leer. Sie
+        // heißt hier dasselbe wie im Praxissystem, und Dokumente wie Lotse treten zurück.
+        setzeVerweise(null);
+        setzeAktenfehler(
+          f instanceof EpaFehler ? fehlerTitel(f) : 'Die ePA hat nicht geantwortet.',
+        );
       });
     return () => {
       abgebrochen = true;
@@ -130,10 +141,15 @@ export function Versichertensicht() {
     [verweise, dokumentOeffnen],
   );
 
-  // Beim Rollenwechsel verfällt alles: Es gehört zu den Rechten, unter denen es entstand.
+  // Beim Rollenwechsel verfällt alles: Es gehört zu den Rechten, unter denen es entstand. Nach
+  // einer Umstellung der Demo-Steuerung ebenso — das geöffnete Dokument gibt es vielleicht
+  // nicht mehr in dieser Fassung.
   useEffect(() => {
     setzeOffenesDokument(null);
     setzeInhalt(null);
+    setzeMarkieren([]);
+  }, [rolle, betriebsstand]);
+  useEffect(() => {
     setzeFehler(null);
   }, [rolle]);
 
@@ -201,6 +217,8 @@ export function Versichertensicht() {
               <span className="marker">ohne Vertretung</span>
               <p className="lotse-zeile">Keine Akte · keine Dokumente · keine Antwort</p>
             </div>
+          ) : aktenfehler ? (
+            <p className="lotse-fehler">{aktenfehler}</p>
           ) : bereich === 'dokumente' ? (
             <Dokumentenbereich
               verweise={verweise}
@@ -216,7 +234,8 @@ export function Versichertensicht() {
               }}
             />
           ) : (
-            <Lotsenbereich kvnr={kvnr} zurQuelle={zurQuelle} />
+            // Neu aufgebaut nach jeder Umstellung: Eine alte Antwort beruht auf altem Stand.
+            <Lotsenbereich key={betriebsstand} kvnr={kvnr} zurQuelle={zurQuelle} />
           )}
           {fehler && <p className="lotse-fehler">{fehler}</p>}
         </div>
@@ -316,7 +335,13 @@ function Lotsenbereich({
       // Alltagssprache; wer es genau wissen will, springt ins Dokument.
       setzeAntwort(await lotseFragen(kvnr, frage, 'alltag', kvnr));
     } catch (f) {
-      setzeFehler(f instanceof Error ? f.message : 'Der Lotse hat nicht geantwortet.');
+      setzeFehler(
+        f instanceof EpaFehler
+          ? fehlerTitel(f)
+          : f instanceof Error
+            ? f.message
+            : 'Der Lotse hat nicht geantwortet.',
+      );
       setzeAntwort(null);
     } finally {
       setzeLaeuft(false);
@@ -342,14 +367,15 @@ function Lotsenbereich({
             <h3>{antwort.frage}</h3>
             <Vorlesen text={antwortAlsText(antwort)} />
           </div>
-          {antwort.hinweis && <p className="lotse-hinweis">{antwort.hinweis}</p>}
+          <Antworthinweis antwort={antwort} />
           <Absaetze
             absaetze={antwort.absaetze}
             vorsatz="Im Dokument nachlesen:"
             oeffnen={(q) => zurQuelle(q, belegzeilen(antwort.absaetze, q.quelleId))}
           />
           <Begriffe antwort={antwort} />
-          <Umfangsangabe umfang={antwort.umfang} />
+          {/* Eine abgelehnte Frage hat nichts gelesen — eine Umfangsangabe wäre irreführend. */}
+          {!antwort.grenze && <Umfangsangabe umfang={antwort.umfang} />}
         </section>
       )}
     </>

@@ -7,6 +7,7 @@ import { Marker } from '../bausteine/Bausteine.js';
 import {
   EpaFehler,
   befugnisRegistrieren,
+  befugnisseEntziehen,
   beiFehlenderBefugnis,
   pruefungsnachweisBilden,
 } from './klient.js';
@@ -41,6 +42,18 @@ export function befugnisabgleichEinrichten(): void {
     const patient = lesen().patienten.find((p) => p.versicherung.kvnr === kvnr);
     if (patient) ausfuehren(vorgaenge.befugnisVerloren(patient.id));
   });
+}
+
+/**
+ * Demo-Steuerung „Befugnisse entziehen" — wie nach Ablauf der 90 Tage. Dann weiß es auch das
+ * Praxissystem: Es kennt das Ende jeder Befugnis selbst und muss nicht erst an einem 403 merken,
+ * dass sie vorbei ist. Ohne diesen Schritt stünde im Kopf weiter „ePA-Befugnis bis …", solange
+ * keine Ansicht einen befugnispflichtigen Weg aufruft.
+ */
+export async function befugnisseAblaufenLassen(): Promise<number> {
+  const entzogen = await befugnisseEntziehen();
+  for (const b of lesen().epaBefugnisse) ausfuehren(vorgaenge.befugnisVerloren(b.patientId));
+  return entzogen;
 }
 
 /*
