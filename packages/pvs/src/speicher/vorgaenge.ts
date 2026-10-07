@@ -64,15 +64,6 @@ export const vorgaenge = {
     };
   },
 
-  vorfuehrmodus(an: boolean): Vorgang {
-    return {
-      name: 'vorfuehrmodus',
-      beschreibung: an ? 'Vorführmodus eingeschaltet' : 'Vorführmodus ausgeschaltet',
-      zaehltNicht: true,
-      anwenden: (z) => ({ ...z, vorfuehrmodus: an }),
-    };
-  },
-
   karteneintragAnlegen(patientId: string, kuerzel: Kuerzel, text: string): Vorgang {
     return {
       name: 'karteneintragAnlegen',

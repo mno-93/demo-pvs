@@ -23,22 +23,22 @@ Alle Farben, Radien und Schriften stehen als CSS-Variablen in
 [`packages/pvs/src/stil/global.css`](../packages/pvs/src/stil/global.css) (`:root`). ▸ In Figma
 sollten die Variablen **gleich heißen** — dann lässt sich jede Änderung eins zu eins übertragen.
 
-| Variable                                        | Wert                                          | Bedeutung                                            |
-| ----------------------------------------------- | --------------------------------------------- | ---------------------------------------------------- |
-| `--grund`                                       | `#f2f3f5`                                     | Seitenhintergrund                                    |
-| `--flaeche` / `--flaeche2`                      | `#ffffff` / `#f7f8fa`                         | Karten / abgesetzte Flächen (Mitte des Splitscreens) |
-| `--linie` / `--linie-stark`                     | `#dfe3e8` / `#c3c9d1`                         | Trennlinien, Rahmen                                  |
-| `--text` / `--text-leise` / `--text-sehr-leise` | `#1b2430` / `#4a5563` / `#6b7480`             | Fließtext / Nebenangaben / Vergangenes, Platzhalter  |
-| `--akzent` / `-dunkel` / `-weich` / `-linie`    | `#1d4a8a` / `#163a6c` / `#f0f4fa` / `#c9d6ea` | **ePA** und Haupthandlungen                          |
-| `--lokal` / `-weich` / `-linie`                 | `#2c6b5c` / `#f0f6f4` / `#c5ddd6`             | **Praxissystem** (lokaler Bestand)                   |
-| `--warn` / `-weich` / `-linie`                  | `#8f5300` / `#fdf6ea` / `#ead3a6`             | zu klären, Befugnis fehlt, Hinweis mit Pflicht       |
-| `--fehler` / `-weich` / `-linie`                | `#a1261f` / `#fbf1f0` / `#ebc5c1`             | Fehler, berichtigt, gesperrt                         |
-| `--gut` / `-weich` / `-linie`                   | `#2d6a3e` / `#f0f6f1` / `#c3dcc9`             | abgeglichen, bestätigt, verfügbar                    |
-| `--ps` / `-weich` / `-linie`                    | `#5a4589` / `#f5f3f9` / `#d3cbe4`             | ✦ **nur Patient Summary**: ★, Markierung, Zähler     |
-| `--kopf-grund` / `-text` / `-leise` / `-linie`  | `#1f2b3a` / `#e8ecf1` / `#a3aebb` / `#3a4859` | dunkle Kopfleiste des Systems                        |
-| `--radius` / `--radius-klein`                   | `4px` / `3px`                                 | Karten, Knöpfe, Felder / Marker                      |
-| `--schrift` / `--mono`                          | Systemschrift / Monospace                     | Text / Codes (ICD-10-GM, SNOMED CT, Pfade)           |
-| `--skala`                                       | `1` (Vorführmodus `1.15`)                     | vergrößert alles für Beamer und Termine              |
+| Variable                                        | Wert                                          | Bedeutung                                                 |
+| ----------------------------------------------- | --------------------------------------------- | --------------------------------------------------------- |
+| `--grund`                                       | `#f2f3f5`                                     | Seitenhintergrund                                         |
+| `--flaeche` / `--flaeche2`                      | `#ffffff` / `#f7f8fa`                         | Karten / abgesetzte Flächen (Mitte des Splitscreens)      |
+| `--linie` / `--linie-stark`                     | `#dfe3e8` / `#c3c9d1`                         | Trennlinien, Rahmen                                       |
+| `--text` / `--text-leise` / `--text-sehr-leise` | `#1b2430` / `#4a5563` / `#6b7480`             | Fließtext / Nebenangaben / Vergangenes, Platzhalter       |
+| `--akzent` / `-dunkel` / `-weich` / `-linie`    | `#1d4a8a` / `#163a6c` / `#f0f4fa` / `#c9d6ea` | **ePA** und Haupthandlungen                               |
+| `--lokal` / `-weich` / `-linie`                 | `#2c6b5c` / `#f0f6f4` / `#c5ddd6`             | **Praxissystem** (lokaler Bestand)                        |
+| `--warn` / `-weich` / `-linie`                  | `#8f5300` / `#fdf6ea` / `#ead3a6`             | zu klären, Befugnis fehlt, Hinweis mit Pflicht            |
+| `--fehler` / `-weich` / `-linie`                | `#a1261f` / `#fbf1f0` / `#ebc5c1`             | Fehler, berichtigt, gesperrt                              |
+| `--gut` / `-weich` / `-linie`                   | `#2d6a3e` / `#f0f6f1` / `#c3dcc9`             | abgeglichen, bestätigt, verfügbar                         |
+| `--ps` / `-weich` / `-linie`                    | `#5a4589` / `#f5f3f9` / `#d3cbe4`             | ✦ **nur Patient Summary**: ★, Markierung, Zähler          |
+| `--kopf-grund` / `-text` / `-leise` / `-linie`  | `#1f2b3a` / `#e8ecf1` / `#a3aebb` / `#3a4859` | dunkle Kopfleiste des Systems                             |
+| `--radius` / `--radius-klein`                   | `4px` / `3px`                                 | Karten, Knöpfe, Felder / Marker                           |
+| `--schrift` / `--mono`                          | Systemschrift / Monospace                     | Text / Codes (ICD-10-GM, SNOMED CT, Pfade)                |
+| `--skala`                                       | `1`                                           | Grundmaß aller Größen; für Beamer den Browser-Zoom nutzen |
 
 **Zwei Bestände, zwei Farben.** Grün-Türkis (`--lokal`) ist immer das Praxissystem, Blau
 (`--akzent`) immer die ePA — in Bändern, Spaltenköpfen und Rändern des Splitscreens. Neue Ansichten

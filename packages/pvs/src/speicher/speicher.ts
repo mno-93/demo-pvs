@@ -57,7 +57,7 @@ export function ausfuehren(vorgang: Vorgang): void {
 }
 
 export function zuruecksetzen(): void {
-  zustand = { ...ausgangszustand, vorfuehrmodus: zustand.vorfuehrmodus };
+  zustand = { ...ausgangszustand };
   hoerer.forEach((h) => h());
 }
 

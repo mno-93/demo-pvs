@@ -84,8 +84,6 @@ export interface Zustand {
   handlungen: number;
   /** Kurzprotokoll der Handlungen, jüngste zuerst. */
   protokoll: readonly Protokolleintrag[];
-  /** Vergrößerte Darstellung für die Vorführung. */
-  vorfuehrmodus: boolean;
 }
 
 export type EpaSicht = 'summary' | 'Condition' | 'AllergyIntolerance' | 'Immunization';

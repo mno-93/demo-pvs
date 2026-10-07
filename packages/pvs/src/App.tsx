@@ -28,12 +28,6 @@ import { befugnisabgleichEinrichten } from './epa/befugnis.js';
 const DOKUMENTATION = 'https://github.com/mno-93/demo-pvs/tree/main/docs';
 
 export function App() {
-  const vorfuehrmodus = useZustand((z) => z.vorfuehrmodus);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--skala', vorfuehrmodus ? '1.15' : '1');
-  }, [vorfuehrmodus]);
-
   // Meldet die ePA eine fehlende Befugnis, berichtigt das Praxissystem seinen Stand (ADR 0017).
   useEffect(() => befugnisabgleichEinrichten(), []);
 
@@ -77,7 +71,6 @@ function Kopf() {
   const nutzerliste = useZustand((z) => z.nutzerliste);
   const heute = useZustand((z) => z.heute);
   const handlungen = useZustand((z) => z.handlungen);
-  const vorfuehrmodus = useZustand((z) => z.vorfuehrmodus);
   const protokollOffen = useProtokollSichtbar();
   // ✦ Die Versichertensicht gehört zum Aktenlotsen und erscheint nur mit ihm.
   const lotseDa = useLotseVorhanden() === true;
@@ -134,14 +127,6 @@ function Kopf() {
           >
             Dokumentation ↗
           </a>
-          <button
-            type="button"
-            className="knopf"
-            aria-pressed={vorfuehrmodus}
-            onClick={() => ausfuehren(vorgaenge.vorfuehrmodus(!vorfuehrmodus))}
-          >
-            Vorführmodus
-          </button>
           <button
             type="button"
             className="knopf"

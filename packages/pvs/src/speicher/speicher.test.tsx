@@ -66,7 +66,14 @@ describe('Zustandsspeicher', () => {
   });
 
   it('zählt nur fachliche Vorgänge als Handlung', () => {
-    ausfuehren(vorgaenge.vorfuehrmodus(true));
+    // Eine Befugnis ist die Folge des Einlesens, keine eigene Handlung.
+    ausfuehren(
+      vorgaenge.befugnisErhalten(
+        'p-hoffmann',
+        '2026-12-08T10:00:00+01:00',
+        '2026-09-09T08:00:00+02:00',
+      ),
+    );
     expect(lesen().handlungen).toBe(0);
     ausfuehren(vorgaenge.karteneintragAnlegen('p-hoffmann', 'A', 'Testeintrag'));
     expect(lesen().handlungen).toBe(1);

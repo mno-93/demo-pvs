@@ -639,6 +639,5 @@ export function startzustand(): Zustand {
     epaLesezeichen: [],
     handlungen: 0,
     protokoll: [],
-    vorfuehrmodus: false,
   };
 }
