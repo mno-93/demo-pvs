@@ -29,6 +29,7 @@ import {
 import { useZustand } from '../speicher/speicher.js';
 import { usePatientId } from '../module/Patientenkartei.js';
 import { EgkKnopf } from '../epa/befugnis.js';
+import { epaFensterOeffnen } from '../epa/fenster.js';
 import {
   dokumentverweisLesen,
   fehlerTitel,
@@ -51,6 +52,7 @@ import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
   Absaetze,
   Antworthinweis,
+  Textquelle,
   Fragefeld,
   Umfangsangabe,
   belegzeilen,
@@ -410,16 +412,20 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
                   />
                 )
               ) : (
-                <ul className="lotse-textquelle">
-                  {geoeffnet.quelle.zeilen.map((z, i) => (
-                    <li
-                      key={i}
-                      className={geoeffnet.markieren.includes(z.trim()) ? 'markiert' : ''}
+                <>
+                  <Textquelle zeilen={geoeffnet.quelle.zeilen} markieren={geoeffnet.markieren} />
+                  {geoeffnet.quelle.quelleId === 'medikationsplan' && (
+                    // Der Plan ist kein Dokument, aber ein Bereich der ePA: dorthin, wo er
+                    // gepflegt wird.
+                    <button
+                      type="button"
+                      className="knopf"
+                      onClick={() => epaFensterOeffnen(patient.id, 'medikation')}
                     >
-                      {z}
-                    </li>
-                  ))}
-                </ul>
+                      Im Medikationsplan der ePA öffnen
+                    </button>
+                  )}
+                </>
               )}
             </section>
           ) : (

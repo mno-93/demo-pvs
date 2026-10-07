@@ -382,3 +382,21 @@ export function Quellenblatt({
     </div>
   );
 }
+
+/* ---------- Quelle ohne Datei ---------- */
+
+/**
+ * Eine Quelle, die kein Dokument ist — etwa der Medikationsplan: die Zeilen, die der Lotse
+ * gelesen hat, die belegenden hervorgehoben. Ein Verweis darauf führt hierher und nicht ins Leere.
+ */
+export function Textquelle({ zeilen, markieren }: { zeilen: string[]; markieren: string[] }) {
+  return (
+    <ul className="lotse-textquelle">
+      {zeilen.map((z, i) => (
+        <li key={i} className={markieren.includes(z.trim()) ? 'markiert' : ''}>
+          {z}
+        </li>
+      ))}
+    </ul>
+  );
+}

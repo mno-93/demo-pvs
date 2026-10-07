@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { lotseAntworten } from '@demo-pvs/kern';
@@ -161,6 +161,47 @@ describe('Versichertensicht des Aktenlotsen', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Für den Termin notieren' }));
     expect(screen.getByRole('button', { name: 'Für den Termin notiert' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Meine Fragen/ }));
-    expect(screen.getByText('Werde ich wieder gesund?')).toBeTruthy();
+    // Die Antwort bleibt verdeckt stehen; gesucht wird in der Fragenliste.
+    const liste = screen.getByRole('list', { name: 'Meine Fragen' });
+    expect(within(liste).getByText('Werde ich wieder gesund?')).toBeTruthy();
+  });
+
+  it('öffnet den Medikationsplan aus einer Antwort, obwohl er kein Dokument ist', async () => {
+    const plan = {
+      id: 'medikationsplan',
+      titel: 'Medikationsplan (eMP)',
+      datum: '2026-07-18',
+      einrichtung: 'elektronische Patientenakte',
+      zeilen: ['Apixaban 5 mg Filmtabletten — 1-0-1-0 — wegen Vorhofflimmern'],
+    };
+    epaAttrappe((a) => {
+      if (a.pfad === `${LOTSE}/metadata`) return { status: 200, inhalt: {} };
+      if (a.pfad === `${LOTSE}/beschriftung`) return { status: 200, inhalt: [] };
+      if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference'))
+        return { status: 200, inhalt: suchergebnis([]) };
+      if (a.pfad === `${LOTSE}/frage`) {
+        const { frage } = a.koerper as { frage: string };
+        return { status: 200, inhalt: lotseAntworten(frage, [plan], 'alltag') };
+      }
+      if (a.pfad === `${LOTSE}/quelle/medikationsplan`)
+        return { status: 200, inhalt: { ...plan, quelleId: plan.id, nichtLesbar: null } };
+      return undefined;
+    });
+    öffne();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Aktenlotse/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Welche Medikamente nehme ich und wofür?' }),
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /Medikationsplan \(eMP\)/ }));
+
+    expect(await screen.findByText(/Stand 18\.07\.2026/)).toBeTruthy();
+    const zeile = screen.getByText('Apixaban 5 mg Filmtabletten — 1-0-1-0 — wegen Vorhofflimmern');
+    expect(zeile.className).toContain('markiert');
+    expect(screen.queryByText(/nicht aus einem Dokument/)).toBeNull();
+
+    // Zurück führt zur selben Antwort, nicht zur leeren Frage.
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    expect(screen.getByRole('button', { name: /Medikationsplan \(eMP\)/ })).toBeTruthy();
   });
 });

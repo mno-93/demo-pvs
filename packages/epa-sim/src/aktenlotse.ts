@@ -18,7 +18,8 @@ import {
 } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { jetzt } from './fhir-hilfen.ts';
-import { IM_PLAN, istEmpEintrag } from './medikation.ts';
+import { EMP, IM_PLAN, istEmpEintrag } from './medikation.ts';
+import { aktuelleChronologie } from './chronologie.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
 
 /**
@@ -93,10 +94,13 @@ function medikationsplanQuelle(kvnr: string, heute: string): Lotsenquelle | null
     [mittel, dosis, grund ? `wegen ${grund}` : ''].filter(Boolean).join(' — '),
   );
   if (zeilen.length === 0) return null;
+  // Stand des Plans ist seine letzte Änderung (Chronologie des Medication Service), nicht das
+  // jüngste Dokument der Akte.
+  const stand = aktuelleChronologie(bestandFuer(kvnr).medikation, EMP)?.['recorded'];
   return {
     id: 'medikationsplan',
     titel: 'Medikationsplan (eMP)',
-    datum: heute,
+    datum: typeof stand === 'string' ? stand.slice(0, 10) : heute,
     einrichtung: 'elektronische Patientenakte',
     zeilen,
   };

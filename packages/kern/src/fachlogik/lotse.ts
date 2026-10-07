@@ -188,6 +188,8 @@ const STICHWOERTER: Record<Exclude<Absicht, 'stellensuche' | 'bewertung'>, strin
   medikation: [
     'medikament',
     'medikamente',
+    // „Medikation" und „Dauermedikation" — so fragt die Praxis (Vorschlagsfrage).
+    'medikation',
     'tablette',
     'tabletten',
     'arznei',

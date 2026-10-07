@@ -240,7 +240,7 @@ export function Fragenliste({
 }) {
   if (fragen.length === 0) return <p className="leer">Keine Fragen notiert.</p>;
   return (
-    <ul className="fragenliste">
+    <ul className="fragenliste" aria-label="Meine Fragen">
       {fragen.map((f) => (
         <li key={f.id}>
           <p className="lotse-zeile">{f.frage}</p>

@@ -20,6 +20,7 @@ import {
   VORSCHLAGSFRAGEN,
   type Lotsenantwort,
   type Quellenangabe,
+  type Quellentext,
   type Ressource,
 } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
@@ -29,6 +30,7 @@ import {
   dokumenteSuchen,
   lotseBeschriftung,
   lotseFragen,
+  lotseQuelle,
   type Beschriftungsbefund,
 } from '../epa/klient.js';
 import {
@@ -44,6 +46,7 @@ import {
   belegzeilen,
   Fragefeld,
   Antworthinweis,
+  Textquelle,
   Umfangsangabe,
   Vorlesen,
   antwortAlsText,
@@ -91,6 +94,11 @@ export function Versichertensicht() {
   /** ✦ Gesammelte Fragen und die gerade offene Rückfrage. */
   const [fragen, setzeFragen] = useState<Frageeintrag[]>([]);
   const [rueckfrage, setzeRueckfrage] = useState<OffeneRueckfrage | null>(null);
+  /** Eine Quelle ohne Datei — etwa der Medikationsplan —, geöffnet aus einer Antwort. */
+  const [offeneQuelle, setzeOffeneQuelle] = useState<{
+    quelle: Quellentext;
+    markieren: string[];
+  } | null>(null);
   /** ✦ Was laut Inhalt in unklar beschrifteten Dokumenten steht, nach Dokumentkennung. */
   const [beschriftung, setzeBeschriftung] = useState<Map<string, Beschriftungsbefund>>(new Map());
 
@@ -185,15 +193,17 @@ export function Versichertensicht() {
   const zurQuelle = useCallback(
     (q: Quellenangabe, stellen: string[]) => {
       const verweis = verweise?.find((v) => v.id === q.quelleId);
-      if (verweis) void dokumentOeffnen(verweis, stellen);
-      else
-        setzeFehler(
-          q.quelleId === 'medikationsplan'
-            ? 'Diese Angabe stammt aus dem Medikationsplan, nicht aus einem Dokument.'
-            : 'Dieses Dokument ist nicht mehr in der Akte.',
-        );
+      if (verweis) {
+        void dokumentOeffnen(verweis, stellen);
+        return;
+      }
+      // Kein Dokument — etwa der Medikationsplan. Der Verweis führt trotzdem hin: zu den Zeilen,
+      // die der Lotse gelesen hat, die belegenden markiert.
+      void lotseQuelle(kvnr, q.quelleId, kvnr)
+        .then((quelle) => setzeOffeneQuelle({ quelle, markieren: stellen }))
+        .catch(() => setzeFehler('Diese Angabe lässt sich nicht öffnen.'));
     },
-    [verweise, dokumentOeffnen],
+    [verweise, dokumentOeffnen, kvnr],
   );
 
   // Beim Rollenwechsel verfällt alles: Es gehört zu den Rechten, unter denen es entstand. Nach
@@ -203,7 +213,15 @@ export function Versichertensicht() {
     setzeOffenesDokument(null);
     setzeInhalt(null);
     setzeMarkieren([]);
+    setzeOffeneQuelle(null);
   }, [rolle, betriebsstand]);
+
+  /** Ein Bereichswechsel schließt, was darüber geöffnet war. */
+  const waehle = (b: Bereich) => {
+    setzeRueckfrage(null);
+    setzeOffeneQuelle(null);
+    setzeBereich(b);
+  };
   useEffect(() => {
     setzeFehler(null);
   }, [rolle]);
@@ -248,7 +266,7 @@ export function Versichertensicht() {
             type="button"
             className={bereich === 'dokumente' ? 'aktiv' : ''}
             aria-pressed={bereich === 'dokumente'}
-            onClick={() => setzeBereich('dokumente')}
+            onClick={() => waehle('dokumente')}
           >
             Dokumente
             {verweise && <span className="telefon-zahl">{verweise.length}</span>}
@@ -258,7 +276,7 @@ export function Versichertensicht() {
               type="button"
               className={bereich === 'lotse' ? 'aktiv' : ''}
               aria-pressed={bereich === 'lotse'}
-              onClick={() => setzeBereich('lotse')}
+              onClick={() => waehle('lotse')}
             >
               Aktenlotse
               <span className="telefon-neu">neu</span>
@@ -269,7 +287,7 @@ export function Versichertensicht() {
               type="button"
               className={bereich === 'fragen' ? 'aktiv' : ''}
               aria-pressed={bereich === 'fragen'}
-              onClick={() => setzeBereich('fragen')}
+              onClick={() => waehle('fragen')}
             >
               Meine Fragen
               {fragen.length > 0 && <span className="telefon-zahl">{fragen.length}</span>}
@@ -285,70 +303,103 @@ export function Versichertensicht() {
             </div>
           ) : aktenfehler ? (
             <p className="lotse-fehler">{aktenfehler}</p>
-          ) : rueckfrage ? (
-            <Rueckfrage
-              bezug={rueckfrage.bezug}
-              vorgabe={rueckfrage.vorgabe}
-              von={von}
-              notieren={notieren}
-              schliessen={() => setzeRueckfrage(null)}
-            />
-          ) : bereich === 'fragen' ? (
-            <Fragenliste
-              fragen={fragen}
-              entfernen={(id) => setzeFragen((alt) => alt.filter((f) => f.id !== id))}
-            />
-          ) : bereich === 'dokumente' ? (
-            <Dokumentenbereich
-              beschriftung={beschriftung}
-              nachfragen={
-                lotseDa
-                  ? (v) =>
-                      setzeRueckfrage({
-                        // Bei unklarer Beschriftung trägt der Zeiger auch, was laut Inhalt
-                        // darin steht — sonst weiß auch die Einrichtung nicht, welches gemeint ist.
-                        bezug: {
-                          titel: beschriftung.get(v.id)?.lautInhalt
-                            ? `${v.titel} (laut Inhalt: ${beschriftung.get(v.id)!.lautInhalt})`
-                            : v.titel,
-                          datum: v.datum,
-                          einrichtung: v.einrichtung,
-                        },
-                      })
-                  : undefined
-              }
-              verweise={verweise}
-              offenes={offenesDokument}
-              inhalt={inhalt}
-              markieren={markieren}
-              patientId={person.id}
-              oeffnen={(v) => void dokumentOeffnen(v)}
-              schliessen={() => {
-                setzeOffenesDokument(null);
-                setzeInhalt(null);
-                setzeMarkieren([]);
-              }}
-            />
           ) : (
-            // Neu aufgebaut nach jeder Umstellung: Eine alte Antwort beruht auf altem Stand.
-            <Lotsenbereich
-              key={betriebsstand}
-              kvnr={kvnr}
-              zurQuelle={zurQuelle}
-              anPraxis={(frage) =>
-                setzeRueckfrage({ bezug: null, vorgabe: { anliegen: 'bedeutung', frage } })
-              }
-              notieren={(frage) =>
-                notieren({
-                  id: neueFrageId(),
-                  frage,
-                  bezug: null,
-                  adressat: BEHANDELNDE_PRAXIS,
-                  von,
-                  zustand: 'notiert',
-                })
-              }
-            />
+            <>
+              {rueckfrage ? (
+                <Rueckfrage
+                  bezug={rueckfrage.bezug}
+                  vorgabe={rueckfrage.vorgabe}
+                  von={von}
+                  notieren={notieren}
+                  schliessen={() => setzeRueckfrage(null)}
+                />
+              ) : offeneQuelle ? (
+                <div className="telefon-dokument">
+                  <div className="telefon-dokument-kopf">
+                    <strong>{offeneQuelle.quelle.titel}</strong>
+                    <button
+                      type="button"
+                      className="knopf klein"
+                      onClick={() => setzeOffeneQuelle(null)}
+                    >
+                      Zurück
+                    </button>
+                  </div>
+                  <span className="herkunft">
+                    {offeneQuelle.quelle.einrichtung} · Stand {tag(offeneQuelle.quelle.datum)}
+                  </span>
+                  <Textquelle
+                    zeilen={offeneQuelle.quelle.zeilen}
+                    markieren={offeneQuelle.markieren}
+                  />
+                </div>
+              ) : null}
+              {/* Darunter bleibt alles stehen, nur verdeckt: „Zurück" führt zur selben Antwort. */}
+              <div hidden={!!rueckfrage || !!offeneQuelle}>
+                {bereich === 'fragen' && (
+                  <Fragenliste
+                    fragen={fragen}
+                    entfernen={(id) => setzeFragen((alt) => alt.filter((f) => f.id !== id))}
+                  />
+                )}
+                {bereich === 'dokumente' && (
+                  <Dokumentenbereich
+                    beschriftung={beschriftung}
+                    nachfragen={
+                      lotseDa
+                        ? (v) =>
+                            setzeRueckfrage({
+                              // Bei unklarer Beschriftung trägt der Zeiger auch, was laut Inhalt
+                              // darin steht — sonst weiß auch die Einrichtung nicht, welches gemeint ist.
+                              bezug: {
+                                titel: beschriftung.get(v.id)?.lautInhalt
+                                  ? `${v.titel} (laut Inhalt: ${beschriftung.get(v.id)!.lautInhalt})`
+                                  : v.titel,
+                                datum: v.datum,
+                                einrichtung: v.einrichtung,
+                              },
+                            })
+                        : undefined
+                    }
+                    verweise={verweise}
+                    offenes={offenesDokument}
+                    inhalt={inhalt}
+                    markieren={markieren}
+                    patientId={person.id}
+                    oeffnen={(v) => void dokumentOeffnen(v)}
+                    schliessen={() => {
+                      setzeOffenesDokument(null);
+                      setzeInhalt(null);
+                      setzeMarkieren([]);
+                    }}
+                  />
+                )}
+                {lotseDa && (
+                  <div hidden={bereich !== 'lotse'}>
+                    // Neu aufgebaut nach jeder Umstellung: Eine alte Antwort beruht auf altem
+                    Stand.
+                    <Lotsenbereich
+                      key={betriebsstand}
+                      kvnr={kvnr}
+                      zurQuelle={zurQuelle}
+                      anPraxis={(frage) =>
+                        setzeRueckfrage({ bezug: null, vorgabe: { anliegen: 'bedeutung', frage } })
+                      }
+                      notieren={(frage) =>
+                        notieren({
+                          id: neueFrageId(),
+                          frage,
+                          bezug: null,
+                          adressat: BEHANDELNDE_PRAXIS,
+                          von,
+                          zustand: 'notiert',
+                        })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            </>
           )}
           {fehler && <p className="lotse-fehler">{fehler}</p>}
         </div>

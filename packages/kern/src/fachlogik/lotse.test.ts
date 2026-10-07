@@ -100,6 +100,14 @@ describe('Absicht erkennen', () => {
     expect(absichtErkennen('Soll ich das Medikament absetzen?')).toBe('bewertung');
   });
 
+  it('beantwortet jede angebotene Frage mit mindestens einem belegten Absatz', () => {
+    for (const frage of [...VORSCHLAGSFRAGEN.versicherte, ...VORSCHLAGSFRAGEN.praxis]) {
+      const antwort = lotseAntworten(frage, ALLE);
+      expect(antwort.absaetze.length, frage).toBeGreaterThan(0);
+      expect(absichtErkennen(frage), frage).not.toBe('stellensuche');
+    }
+  });
+
   it('hält die angebotenen Fragen für beantwortbar', () => {
     for (const frage of [...VORSCHLAGSFRAGEN.versicherte, ...VORSCHLAGSFRAGEN.praxis]) {
       expect(absichtErkennen(frage), frage).not.toBe('bewertung');
