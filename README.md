@@ -109,7 +109,8 @@ npm run vorschau:gehostet
    Band „Seit dem letzten Aufruf …" und Marken **neu** an den fremden Einträgen.
 8. **Konfiguration → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
    Im Patientenkopf öffnet „Aktenlotse ✦" die ePA auf dem Bereich des Lotsen; er steht auch als
-   Reiter der Kartei. In der Navigation erscheint „Versichertensicht ✦".
+   Reiter der Kartei. In der Konfiguration erscheint „Versichertensicht ✦ → Meine ePA öffnen" — die
+   App der Versicherten, in eigenem Rahmen und nicht Teil des Praxissystems.
 9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
    anklickbar, sie öffnet sich zum Nachlesen. „9 von 10 Unterlagen gelesen", der eingescannte
    Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht

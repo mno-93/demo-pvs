@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ROLLE_BEZEICHNUNG } from '@demo-pvs/kern';
 import { ausfuehren, useZustand, zuruecksetzen } from './speicher/speicher.js';
 import { vorgaenge } from './speicher/vorgaenge.js';
@@ -16,7 +16,6 @@ import { Abrechnung } from './module/Abrechnung.js';
 import { Stammdaten } from './module/Stammdaten.js';
 import { Rezeptstapel, useStapelzahl } from './module/Rezeptstapel.js';
 import { PraxisLotse } from './lotse/PraxisLotse.js';
-import { useLotseVorhanden } from './lotse/vorhanden.js';
 import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
@@ -30,6 +29,37 @@ const DOKUMENTATION = 'https://github.com/mno-93/demo-pvs/tree/main/docs';
 export function App() {
   // Meldet die ePA eine fehlende Befugnis, berichtigt das Praxissystem seinen Stand (ADR 0017).
   useEffect(() => befugnisabgleichEinrichten(), []);
+  const { pathname } = useLocation();
+
+  /*
+   * ✦ Die Versichertensicht ist kein Teil des Praxissystems, sondern stellvertretend die App der
+   * Versicherten (FdV). Sie steht deshalb in einem eigenen Rahmen — ohne Praxis, Nutzerwahl und
+   * Navigation des PVS — und ist über die Konfiguration erreichbar.
+   */
+  if (pathname === '/versicherte') {
+    return (
+      <>
+        <header className="kopf kopf-versicherte">
+          <div className="kopf-oben">
+            <div className="marke">
+              <span className="punkt" aria-hidden="true" />
+              Versichertensicht ✦<span className="fiktiv">fiktiv</span>
+            </div>
+            <div className="kopf-rechts">
+              <KonfigurationKnopf />
+              <Link className="knopf" to="/">
+                Zum Praxissystem
+              </Link>
+            </div>
+          </div>
+        </header>
+        <main className="inhalt">
+          <Versichertensicht />
+        </main>
+        <Aufrufprotokoll />
+      </>
+    );
+  }
 
   return (
     <>
@@ -39,7 +69,6 @@ export function App() {
           <Route path="/" element={<Tagesuebersicht />} />
           <Route path="/patienten" element={<Patientenliste />} />
           <Route path="/rezepte" element={<Rezeptstapel />} />
-          <Route path="/versicherte" element={<Versichertensicht />} />
           <Route path="/patient/:patientId" element={<Patientenkartei />}>
             <Route index element={<Navigate to="karteikarte" replace />} />
             <Route path="karteikarte" element={<Karteikarte />} />
@@ -71,9 +100,6 @@ function Kopf() {
   const nutzerliste = useZustand((z) => z.nutzerliste);
   const heute = useZustand((z) => z.heute);
   const handlungen = useZustand((z) => z.handlungen);
-  const protokollOffen = useProtokollSichtbar();
-  // ✦ Die Versichertensicht gehört zum Aktenlotsen und erscheint nur mit ihm.
-  const lotseDa = useLotseVorhanden() === true;
 
   return (
     <header className="kopf">
@@ -110,14 +136,7 @@ function Kopf() {
               </option>
             ))}
           </select>
-          <button
-            type="button"
-            className="knopf"
-            aria-pressed={protokollOffen}
-            onClick={protokollUmschalten}
-          >
-            Konfiguration
-          </button>
+          <KonfigurationKnopf />
           <a
             className="knopf"
             href={DOKUMENTATION}
@@ -150,11 +169,6 @@ function Kopf() {
         <NavLink to="/patienten" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
           Patient:innen
         </NavLink>
-        {lotseDa && (
-          <NavLink to="/versicherte" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
-            Versichertensicht ✦
-          </NavLink>
-        )}
         <NavLink to="/rezepte" className={({ isActive }) => (isActive ? 'aktiv' : '')}>
           Rezepte
           {stapel > 0 && (
@@ -165,5 +179,14 @@ function Kopf() {
         </NavLink>
       </nav>
     </header>
+  );
+}
+
+function KonfigurationKnopf() {
+  const offen = useProtokollSichtbar();
+  return (
+    <button type="button" className="knopf" aria-pressed={offen} onClick={protokollUmschalten}>
+      Konfiguration
+    </button>
   );
 }

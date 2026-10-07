@@ -204,4 +204,40 @@ describe('Versichertensicht des Aktenlotsen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
     expect(screen.getByRole('button', { name: /Medikationsplan \(eMP\)/ })).toBeTruthy();
   });
+
+  it('steht in einem eigenen Rahmen, nicht im Praxissystem — erreichbar über die Konfiguration', async () => {
+    epaAttrappe((a) => {
+      if (a.pfad === `${LOTSE}/metadata`) return { status: 200, inhalt: {} };
+      if (a.pfad === `${LOTSE}/beschriftung`) return { status: 200, inhalt: [] };
+      if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference'))
+        return { status: 200, inhalt: suchergebnis([]) };
+      if (a.pfad === '/verwaltung/betriebslage')
+        return {
+          status: 200,
+          inhalt: {
+            verzoegerungMs: 0,
+            ausbaustand: 'weiterentwicklung-4',
+            fremdeAenderungVorSchreibzugriff: false,
+            patientSummaryQuellen: 'listen',
+            erezeptVerzoegerungMs: 3000,
+          },
+        };
+      return undefined;
+    });
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    // Im Praxissystem kein Eintrag in der Navigation …
+    expect(screen.queryByRole('link', { name: /Versichertensicht/ })).toBeNull();
+    // … sondern in der Konfiguration.
+    fireEvent.click(screen.getByRole('button', { name: 'Konfiguration' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'Meine ePA öffnen' }));
+
+    // Eigener Rahmen: keine Praxisnavigation, aber der Weg zurück.
+    expect(await screen.findByText('Renate Hoffmann — eigene Akte')).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Tagesübersicht' })).toBeNull();
+    expect(screen.getByRole('link', { name: 'Zum Praxissystem' })).toBeTruthy();
+  });
 });

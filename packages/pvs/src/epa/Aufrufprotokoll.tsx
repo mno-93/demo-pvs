@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { deutschesDatum } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
 import { befugnisseAblaufenLassen, useEinlesungen } from './befugnis.js';
@@ -37,6 +38,7 @@ import {
  * aufgeklappt zeigt sie Kopfzeilen und Körper. Schließt über das Kreuz und die Escape-Taste.
  */
 export function Aufrufprotokoll() {
+  const { pathname } = useLocation();
   const sichtbar = useProtokollSichtbar();
   const aufrufe = useAufrufe();
   const [lage, setzeLage] = useState<Betriebslage | null>(null);
@@ -160,6 +162,22 @@ export function Aufrufprotokoll() {
                 <option value="release-3.1.3">Release 3.1.3</option>
               </select>
             </div>
+            {/* ✦ Die App der Versicherten gehört nicht ins Praxissystem — sie wird von hier aus
+                geöffnet, und nur dort, wo es den Aktenlotsen gibt. */}
+            {lage.ausbaustand === 'weiterentwicklung-4' && (
+              <div className="protokoll-schalter">
+                Versichertensicht ✦<small>Frau Hoffmann, ihre ePA-App</small>
+                {pathname === '/versicherte' ? (
+                  <Link className="knopf klein" to="/" onClick={protokollSchliessen}>
+                    Zum Praxissystem
+                  </Link>
+                ) : (
+                  <Link className="knopf klein" to="/versicherte" onClick={protokollSchliessen}>
+                    Meine ePA öffnen
+                  </Link>
+                )}
+              </div>
+            )}
             <div className="protokoll-schalter">
               Befugnisse der Praxis ({eigene.length})
               <small>

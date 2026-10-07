@@ -2839,3 +2839,13 @@ td.split-mitte .marker {
   padding: 0;
   background: transparent;
 }
+
+/* ✦ Rahmen der Versichertensicht: keine Praxis, keine Navigation des PVS */
+.kopf-versicherte {
+  border-bottom: 3px solid var(--lotse);
+}
+.protokoll-schalter a.knopf {
+  align-self: flex-start;
+  margin-top: 6px;
+  text-decoration: none;
+}
