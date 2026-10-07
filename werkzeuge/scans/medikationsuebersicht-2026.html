@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #fff;
+      }
+      .blatt {
+        position: relative;
+        width: 1123px;
+        height: 794px;
+        padding: 46px 54px;
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #111;
+        font-size: 14px;
+      }
+      .kopf {
+        display: grid;
+        grid-template-columns: 1.2fr 1fr 1fr;
+        gap: 14px;
+        border: 2px solid #111;
+        padding: 10px 14px;
+        margin-bottom: 14px;
+      }
+      .kopf h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: 0.5px;
+      }
+      .kopf small {
+        display: block;
+        color: #333;
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        background: #ddd;
+        border: 1px solid #111;
+        padding: 6px 6px;
+        text-align: left;
+        font-size: 12px;
+      }
+      td {
+        border: 1px solid #111;
+        padding: 9px 6px;
+      }
+      td.z {
+        text-align: center;
+        width: 38px;
+      }
+      .fuss {
+        position: absolute;
+        left: 54px;
+        bottom: 40px;
+        font-size: 11px;
+        color: #333;
+      }
+      .hand {
+        position: absolute;
+        font-family: 'Bradley Hand', 'Noteworthy', cursive;
+        color: #203a8c;
+      }
+      .knick {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 396px;
+        border-top: 1px solid #d0d0d0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="blatt">
+      <div class="kopf">
+        <div>
+          <h1>Medikationsplan</h1>
+          <small>Seite 1 von 1</small>
+        </div>
+        <div>
+          <small>für: <b>Renate Hoffmann</b><br />geb. am: 14.03.1958</small>
+        </div>
+        <div>
+          <small
+            >ausgedruckt von:<br /><b>Hausarztpraxis Nordstadt</b><br />Dr. med. Petra Lang<br />Nordstraße
+            18 · 26990 Nordstadt<br />Tel. 0000 2233-0<br />ausgedruckt am: 12.03.2026</small
+          >
+        </div>
+      </div>
+      <table>
+        <tr>
+          <th style="width: 190px">Wirkstoff</th>
+          <th style="width: 70px">Stärke</th>
+          <th style="width: 90px">Form</th>
+          <th>mo</th>
+          <th>mi</th>
+          <th>ab</th>
+          <th>zn</th>
+          <th style="width: 70px">Einheit</th>
+          <th>Hinweise</th>
+          <th style="width: 170px">Grund</th>
+        </tr>
+        <tr>
+          <td>Ramipril</td>
+          <td>5 mg</td>
+          <td>Tabl</td>
+          <td class="z">1</td>
+          <td class="z">0</td>
+          <td class="z">0</td>
+          <td class="z">0</td>
+          <td>Stück</td>
+          <td>morgens</td>
+          <td>Bluthochdruck</td>
+        </tr>
+        <tr>
+          <td>Metformin</td>
+          <td>1000 mg</td>
+          <td>Filmtabl</td>
+          <td class="z">1</td>
+          <td class="z">0</td>
+          <td class="z">1</td>
+          <td class="z">0</td>
+          <td>Stück</td>
+          <td>zum Essen</td>
+          <td>Diabetes</td>
+        </tr>
+        <tr>
+          <td>Atorvastatin</td>
+          <td>40 mg</td>
+          <td>Filmtabl</td>
+          <td class="z">0</td>
+          <td class="z">0</td>
+          <td class="z">1</td>
+          <td class="z">0</td>
+          <td>Stück</td>
+          <td></td>
+          <td>Blutfette</td>
+        </tr>
+        <tr>
+          <td colspan="10" style="background: #eee; font-weight: bold; font-size: 12px">
+            Bedarfsmedikation
+          </td>
+        </tr>
+        <tr>
+          <td>Paracetamol</td>
+          <td>500 mg</td>
+          <td>Tabl</td>
+          <td colspan="4" style="text-align: center">bei Bedarf, max. 3x tgl.</td>
+          <td>Stück</td>
+          <td>nicht mit ASS</td>
+          <td>Schmerzen</td>
+        </tr>
+      </table>
+      <div class="knick"></div>
+      <div class="hand" style="left: 640px; top: 520px; font-size: 24px; transform: rotate(-3deg)">
+        Tablettenbox sonntags füllen!
+      </div>
+      <div class="hand" style="left: 120px; top: 560px; font-size: 20px; transform: rotate(2deg)">
+        Nierenwerte im Sommer kontrollieren
+      </div>
+      <div class="fuss">Bitte bringen Sie diesen Plan zu jedem Arzt- und Apothekenbesuch mit.</div>
+    </div>
+  </body>
+</html>

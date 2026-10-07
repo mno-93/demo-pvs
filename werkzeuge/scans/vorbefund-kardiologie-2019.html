@@ -1,0 +1,139 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #fff;
+      }
+      .blatt {
+        position: relative;
+        width: 794px;
+        height: 1123px;
+        padding: 70px 78px;
+        box-sizing: border-box;
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 15px;
+        line-height: 1.45;
+        color: #1a1a1a;
+      }
+      .kopf {
+        display: flex;
+        justify-content: space-between;
+        border-bottom: 2px solid #222;
+        padding-bottom: 10px;
+        margin-bottom: 26px;
+      }
+      .praxis {
+        font-family: 'Times New Roman', serif;
+        font-size: 21px;
+        font-weight: bold;
+        letter-spacing: 0.5px;
+      }
+      .praxis small {
+        display: block;
+        font-size: 13px;
+        font-weight: normal;
+        letter-spacing: 0;
+        margin-top: 3px;
+      }
+      .datum {
+        text-align: right;
+        font-size: 14px;
+      }
+      h1 {
+        font-size: 17px;
+        margin: 22px 0 14px;
+        text-decoration: underline;
+        font-weight: bold;
+      }
+      p {
+        margin: 0 0 10px;
+      }
+      .feld {
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 2px 10px;
+        margin-bottom: 12px;
+      }
+      .hand {
+        position: absolute;
+        font-family: 'Bradley Hand', 'Noteworthy', 'Marker Felt', cursive;
+        color: #203a8c;
+      }
+      .stempel {
+        position: absolute;
+        right: 92px;
+        bottom: 150px;
+        width: 210px;
+        height: 74px;
+        border: 3px double #5a2a6b;
+        color: #5a2a6b;
+        font-family: Arial, sans-serif;
+        font-size: 12px;
+        text-align: center;
+        transform: rotate(-7deg);
+        padding-top: 8px;
+        box-sizing: border-box;
+        opacity: 0.75;
+      }
+      .loch {
+        position: absolute;
+        left: 22px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #bbb;
+      }
+      .unterschrift {
+        font-family: 'Snell Roundhand', 'Bradley Hand', cursive;
+        font-size: 30px;
+        color: #203a8c;
+        margin-top: 30px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="blatt">
+      <div class="loch" style="top: 330px"></div>
+      <div class="loch" style="top: 700px"></div>
+      <div class="kopf">
+        <div class="praxis">
+          Kardiologische Praxis Dr. med. U. Brinkmann
+          <small>Musterweg 7 · 26999 Oldenburg · Tel. 0000 4711-0</small>
+        </div>
+        <div class="datum">Oldenburg, 11.04.2019</div>
+      </div>
+      <div class="feld">
+        <span>Patientin:</span><span>Hoffmann, Renate, geb. 14.03.1958</span> <span>Anlass:</span
+        ><span>Wund- und Schrittmacherkontrolle</span>
+      </div>
+      <h1>Kardiologischer Befund</h1>
+      <p>
+        Z. n. Implantation eines Zweikammer-Herzschrittmachers (DDD) am 02.04.2019 im Kreisklinikum
+        Weserbogen bei AV-Block II. Grades.
+      </p>
+      <p>Wunde: reizlos, trocken, keine Schwellung. Faeden entfernt.</p>
+      <p>
+        SM-Abfrage: DDD 60/min, Sondenwerte und Batterie regelrecht. Keine Wahrnehmungs- oder
+        Stimulationsdefekte.
+      </p>
+      <p>EKG: Sinusrhythmus, Frequenz 72/min, regelrechte atriale und ventrikulaere Stimulation.</p>
+      <p>Beurteilung: Regelrechte Funktion nach SM-Implantation.</p>
+      <p>
+        Procedere: Naechste SM-Kontrolle 07/2019, danach jaehrlich. Medikation unveraendert lt.
+        Entlassbrief.
+      </p>
+      <div class="unterschrift">U. Brinkmann</div>
+      <div class="hand" style="left: 430px; top: 612px; font-size: 23px; transform: rotate(-4deg)">
+        ASS nicht vertragen<br />(Magen) → abgesetzt!
+      </div>
+      <div class="hand" style="left: 96px; top: 868px; font-size: 21px; transform: rotate(2deg)">
+        Pat. bitte an Kontrolle 7/19 erinnern
+      </div>
+      <div class="stempel">EINGEGANGEN<br /><b>15. APR. 2019</b><br />Hausarztpraxis Nordstadt</div>
+    </div>
+  </body>
+</html>

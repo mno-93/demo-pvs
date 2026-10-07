@@ -70,6 +70,19 @@ Pfade an den Simulator weiter.
 
 Die Abläufe stehen in [SPEZIFIKATION.md, Abschnitt 11](SPEZIFIKATION.md#11-vorführung).
 
+## Erfundene Scans neu erzeugen
+
+Die beiden Scans (B19, B21) sind HTML-Seiten, die fotografiert und gealtert werden. Quellen und
+Werkzeuge liegen in `werkzeuge/scans/`; das Ergebnis steht als Base64 in
+`packages/epa-sim/src/scanbild.ts` und `packages/pvs/src/daten/scanbild.ts`. Braucht Chrome und
+Pillow; feste Zufallszahlen, also gleiche Eingabe, gleiches Bild.
+
+```bash
+node werkzeuge/scans/seite-fotografieren.mjs werkzeuge/scans/vorbefund-kardiologie-2019.html 794 1123 /tmp/vorbefund.png
+node werkzeuge/scans/seite-fotografieren.mjs werkzeuge/scans/medikationsuebersicht-2026.html 1123 794 /tmp/uebersicht.png
+python3 werkzeuge/scans/als-scan.py /tmp/vorbefund.png /tmp/uebersicht.png
+```
+
 ## Prüfliste vor jeder Abgabe
 
 `npm run pruefen` und `npm run build` reichen nicht: Einige Fehler zeigen sich nur in der laufenden
