@@ -128,6 +128,17 @@ function kodewert(konzept: unknown): Kodewert | null {
   return k?.code ? { code: k.code, anzeige: k.display ?? k.code } : null;
 }
 
+/**
+ * Dokumentenlisten zeigen das Neueste oben — in jeder Sicht gleich. Die ePA liefert die
+ * Einträge ohne zugesicherte Reihenfolge.
+ */
+export function dokumenteSortieren(verweise: readonly Dokumentverweis[]): Dokumentverweis[] {
+  // Dieselbe Regel wie der Abgleich der Kartei (`dokumenteAbgleichen`): Datum, dann Titel.
+  return [...verweise].sort(
+    (a, b) => b.datum.localeCompare(a.datum) || a.titel.localeCompare(b.titel, 'de'),
+  );
+}
+
 export function dokumentverweisLesen(r: Ressource): Dokumentverweis {
   const inhalt = (
     r['content'] as { attachment?: Record<string, unknown>; format?: unknown }[] | undefined

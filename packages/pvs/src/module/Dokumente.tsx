@@ -33,6 +33,7 @@ import {
 import { Abrufstand } from '../epa/aktenstatus.js';
 import { epaFensterOeffnen } from '../epa/fenster.js';
 import { protokollUmschalten } from '../epa/protokoll.js';
+import { LautInhalt, useBeschriftung } from '../lotse/beschriftung.js';
 
 /**
  * Dokumentenablage des Praxissystems und ihr Abgleich mit der ePA.
@@ -114,6 +115,7 @@ export function Dokumente() {
     [verweise, lokale],
   );
   const zahlen = abgleichZaehlen(zeilen);
+  const beschriftung = useBeschriftung(kvnr);
   const verweisZu = (zeile: Abgleichzeile): Dokumentverweis | undefined =>
     verweise.find((v) => v.id === zeile.epaDokument?.id);
 
@@ -245,6 +247,9 @@ export function Dokumente() {
                     <b>{zeile.titel}</b>
                     {zeile.epaDokument && seit?.neu.has(zeile.epaDokument.id) && (
                       <span className="neu-marke">neu</span>
+                    )}
+                    {zeile.epaDokument && (
+                      <LautInhalt befund={beschriftung.get(zeile.epaDokument.id)} />
                     )}
                     <div style={{ fontSize: '0.82em', color: 'var(--text-sehr-leise)' }}>
                       {zeile.art}

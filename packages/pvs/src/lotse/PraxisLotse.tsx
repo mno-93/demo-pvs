@@ -41,12 +41,10 @@ import {
   EpaFehler,
   dokumentAbrufen,
   dokumenteSuchen,
-  lotseBeschriftung,
   lotseFragen,
   lotseKontext,
   lotseQuelle,
   lotseVorschlaege,
-  type Beschriftungsbefund,
 } from '../epa/klient.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
@@ -59,6 +57,7 @@ import {
   tag,
 } from './bausteine.js';
 import { useLotseVorhanden } from './vorhanden.js';
+import { useBeschriftung } from './beschriftung.js';
 
 const LISTE_BEZEICHNUNG: Record<string, string> = {
   diagnosen: 'Diagnosen',
@@ -100,7 +99,6 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
 
   const [kontext, setzeKontext] = useState<Lotsenkontext | null>(null);
   const [vorschlaege, setzeVorschlaege] = useState<Lotsenvorschlaege | null>(null);
-  const [unklar, setzeUnklar] = useState<Beschriftungsbefund[]>([]);
   const [verweise, setzeVerweise] = useState<Dokumentverweis[]>([]);
   const [antwort, setzeAntwort] = useState<Lotsenantwort | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -109,6 +107,9 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
   const [geoeffnet, setzeGeoeffnet] = useState<Geoeffnet | null>(null);
   const [kontextGanz, setzeKontextGanz] = useState(false);
   const angeboten = useLotseVorhanden();
+  // Dieselbe Quelle wie die Dokumentenlisten (`useBeschriftung`) — eine Aussage je Dokument.
+  const beschriftung = useBeschriftung(kvnr);
+  const unklar = useMemo(() => [...beschriftung.values()], [beschriftung]);
   // Nach jeder Umstellung der Demo-Steuerung — neue Einträge, Widerspruch, Sperre, entzogene
   // Befugnis — liest der Lotse neu, wie jede andere Ansicht der ePA auch.
   const betriebsstand = useBetriebsstand();
@@ -127,9 +128,6 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
         setzeVorschlaege(null);
         setzeFehler(f instanceof Error ? f : new Error('Kontext nicht lesbar'));
       });
-    void lotseBeschriftung(kvnr)
-      .then(setzeUnklar)
-      .catch(() => setzeUnklar([]));
     void lotseVorschlaege(kvnr)
       .then(setzeVorschlaege)
       .catch(() => setzeVorschlaege(null));

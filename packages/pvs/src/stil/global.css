@@ -2209,9 +2209,10 @@ td.split-mitte .marker {
   flex-direction: column;
   gap: 4px;
 }
-.telefon-dok-inhalt {
+.laut-inhalt {
   display: block;
   font-size: 0.85em;
+  font-weight: 400;
   color: var(--lotse);
 }
 

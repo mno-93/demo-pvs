@@ -45,6 +45,7 @@ import {
   type Medikationsplan,
 } from './klient.js';
 import {
+  dokumenteSortieren,
   codeVon,
   datumVon,
   dokumentverweisLesen,
@@ -59,6 +60,7 @@ import {
   type Dokumentverweis,
 } from './epa-bestand.js';
 import { BefugnisMarker, EgkKnopf, useBefugnis, useEinlesungen } from './befugnis.js';
+import { LautInhalt, useBeschriftung } from '../lotse/beschriftung.js';
 import { Abrufstand } from './aktenstatus.js';
 import { listenLaden, type EpaListen, type Listeneintrag } from './listen.js';
 import {
@@ -640,7 +642,8 @@ function DokumenteInEpa({
   const [treffer, setzeTreffer] = useState<Dokumentverweis[] | null>(null);
   const [volltext, setzeVolltext] = useState(false);
   const betriebsstand = useBetriebsstand();
-  const liste = treffer ?? verweise;
+  const liste = dokumenteSortieren(treffer ?? verweise);
+  const beschriftung = useBeschriftung(kvnr);
 
   // Die Volltextsuche gibt es erst ab Weiterentwicklung 1 — das Feld erscheint nur, wenn der
   // Dokumentendienst `_content` in seinem CapabilityStatement führt.
@@ -732,6 +735,7 @@ function DokumenteInEpa({
                     <td>{deutschesDatum(v.datum)}</td>
                     <td>
                       <b>{v.titel}</b>
+                      <LautInhalt befund={beschriftung.get(v.id)} />
                       <div className="leise-klein">{v.autor}</div>
                     </td>
                     <td>

@@ -28,12 +28,12 @@ import {
   EpaFehler,
   dokumentAbrufen,
   dokumenteSuchen,
-  lotseBeschriftung,
   lotseFragen,
   lotseQuelle,
   type Beschriftungsbefund,
 } from '../epa/klient.js';
 import {
+  dokumenteSortieren,
   dokumentverweisLesen,
   fehlerTitel,
   useBetriebsstand,
@@ -53,6 +53,7 @@ import {
   tag,
 } from './bausteine.js';
 import { useLotseVorhanden } from './vorhanden.js';
+import { LautInhalt, useBeschriftung } from './beschriftung.js';
 import {
   BEHANDELNDE_PRAXIS,
   Fragenliste,
@@ -99,8 +100,6 @@ export function Versichertensicht() {
     quelle: Quellentext;
     markieren: string[];
   } | null>(null);
-  /** ✦ Was laut Inhalt in unklar beschrifteten Dokumenten steht, nach Dokumentkennung. */
-  const [beschriftung, setzeBeschriftung] = useState<Map<string, Beschriftungsbefund>>(new Map());
 
   const [verweise, setzeVerweise] = useState<Dokumentverweis[] | null>(null);
   const [offenesDokument, setzeOffenesDokument] = useState<Dokumentverweis | null>(null);
@@ -113,28 +112,13 @@ export function Versichertensicht() {
   // Stellt die Demo-Steuerung den Ausbaustand um, ändert sich der Bestand der Akte.
   const betriebsstand = useBetriebsstand();
 
+  /** ✦ Was laut Inhalt in unklar beschrifteten Dokumenten steht — wie in der Praxis. */
+  const beschriftung = useBeschriftung(kvnr, kvnr, befugt);
+
   const von =
     rolle === 'vertretung'
       ? 'Sabine Hoffmann (Vertretung)'
       : `${person?.vorname ?? ''} ${person?.nachname ?? ''}`.trim();
-
-  useEffect(() => {
-    if (!kvnr || !befugt || !lotseDa) {
-      setzeBeschriftung(new Map());
-      return;
-    }
-    let abgebrochen = false;
-    void lotseBeschriftung(kvnr, kvnr)
-      .then((liste) => {
-        if (!abgebrochen) setzeBeschriftung(new Map(liste.map((b) => [b.quelleId, b])));
-      })
-      .catch(() => {
-        if (!abgebrochen) setzeBeschriftung(new Map());
-      });
-    return () => {
-      abgebrochen = true;
-    };
-  }, [kvnr, befugt, lotseDa, betriebsstand]);
 
   // Fragen gehören der Person, die sie gestellt hat — beim Rollenwechsel verfallen sie.
   useEffect(() => {
@@ -451,11 +435,7 @@ function Dokumentenbereich({
             </button>
           </div>
         </div>
-        {beschriftung.get(offenes.id)?.lautInhalt && (
-          <span className="telefon-dok-inhalt">
-            ✦ laut Inhalt: {beschriftung.get(offenes.id)!.lautInhalt}
-          </span>
-        )}
+        <LautInhalt befund={beschriftung.get(offenes.id)} />
         <span className="herkunft">
           {offenes.autor} · {tag(offenes.datum)}
           {offenes.typ ? ` · ${offenes.typ.anzeige}` : ''}
@@ -478,23 +458,17 @@ function Dokumentenbereich({
 
   return (
     <ul className="telefon-dokumentliste">
-      {[...verweise]
-        .sort((a, b) => b.datum.localeCompare(a.datum))
-        .map((v) => (
-          <li key={v.id}>
-            <button type="button" onClick={() => oeffnen(v)}>
-              <span className="telefon-dok-titel">{v.titel}</span>
-              {beschriftung.get(v.id)?.lautInhalt && (
-                <span className="telefon-dok-inhalt">
-                  ✦ laut Inhalt: {beschriftung.get(v.id)!.lautInhalt}
-                </span>
-              )}
-              <span className="telefon-dok-zeile">
-                {v.autor} · {tag(v.datum)}
-              </span>
-            </button>
-          </li>
-        ))}
+      {dokumenteSortieren(verweise).map((v) => (
+        <li key={v.id}>
+          <button type="button" onClick={() => oeffnen(v)}>
+            <span className="telefon-dok-titel">{v.titel}</span>
+            <LautInhalt befund={beschriftung.get(v.id)} />
+            <span className="telefon-dok-zeile">
+              {v.autor} · {tag(v.datum)}
+            </span>
+          </button>
+        </li>
+      ))}
     </ul>
   );
 }
