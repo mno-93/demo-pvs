@@ -309,10 +309,10 @@ describe('MHD', () => {
       const eintraege = (antwort.json() as { entry?: { resource: unknown }[] }).entry ?? [];
       return eintraege.map((e) => JSON.stringify(e.resource));
     };
-    // „niere" findet „Niereninsuffizienz"; „lass" nicht „Entlassbrief".
+    // „niere“ findet „Niereninsuffizienz"; „lass“ nicht „Entlassbrief".
     expect((await titel('niere')).length).toBeGreaterThan(0);
     expect(await titel('lass')).toEqual([]);
-    // Die handschriftliche Notiz auf dem Scan ist kein Text: „vertragen" findet ihn nicht.
+    // Die handschriftliche Notiz auf dem Scan ist kein Text: „vertragen“ findet ihn nicht.
     expect((await titel('vertragen')).some((r) => r.includes('eingescannt'))).toBe(false);
   });
 });
@@ -749,5 +749,69 @@ describe('✦ Aktenlotse — Rechte und Grenze', () => {
       await app.inject({ method: 'GET', url: `${LOTSE}/kontext?anlass=`, headers: kopf() })
     ).json();
     expect(kontext.abweichungen).toEqual([]);
+  });
+});
+
+describe('✦ Unklare Beschriftung und Kontaktauskunft', () => {
+  const LOTSE = '/epa/vorschlag/aktenlotse/api/v1';
+  const KONTAKT = '/epa/vorschlag/kontakt/api/v1';
+
+  beforeEach(async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { ausbaustand: 'weiterentwicklung-4' },
+    });
+  });
+
+  it('nennt die drei unklar beschrifteten Unterlagen mit ihrem Inhalt', async () => {
+    const antwort = await app.inject({
+      method: 'GET',
+      url: `${LOTSE}/beschriftung`,
+      headers: kopf(),
+    });
+    const liste = antwort.json() as { titel: string; lautInhalt: string; gruende: string[] }[];
+    expect(liste.map((b) => [b.titel, b.lautInhalt])).toEqual([
+      ['Scan_20230914_0007', 'Sonographie des Abdomens vom 14.09.2023'],
+      ['Befund', 'Diabetisches Netzhaut-Screening vom 05.11.2024'],
+      ['Anlage 1', 'Fußuntersuchung bei Diabetes mellitus vom 20.01.2026'],
+    ]);
+    expect(liste[1]!.gruende).toContain('Die Einrichtung steht nur als Abkürzung da („AGP“)');
+  });
+
+  it('ändert an den Antworten des Pitches nichts außer dem Umfang', async () => {
+    const fragen = async (frage: string) =>
+      (
+        await app.inject({
+          method: 'POST',
+          url: `${LOTSE}/frage`,
+          headers: kopf({ 'content-type': 'application/json' }),
+          payload: { frage, lesart: 'alltag' },
+        })
+      ).json();
+    const nieren = await fragen('Wie haben sich die Nierenwerte entwickelt?');
+    expect(nieren.absaetze[0].quellen).toHaveLength(2);
+    expect(JSON.stringify(nieren.absaetze)).not.toContain('10,4');
+    const allergien = await fragen('Was vertrage ich nicht?');
+    expect(allergien.absaetze[0].text).toContain('zwei Unverträglichkeiten');
+    expect(allergien.umfang).toMatchObject({ gelesen: 9, gesamt: 10 });
+  });
+
+  it('gibt Kontakte ohne Aktenbezug heraus und findet Abkürzungen nicht', async () => {
+    const gefunden = await app.inject({
+      method: 'GET',
+      url: `${KONTAKT}/einrichtung?name=${encodeURIComponent('Kardiologische Praxis am Wall')}`,
+    });
+    expect(gefunden.statusCode).toBe(200);
+    expect(gefunden.json()).toEqual({
+      name: 'Kardiologische Praxis am Wall',
+      telefon: '0000 5544-0',
+      tiMessenger: true,
+    });
+    const abkuerzung = await app.inject({
+      method: 'GET',
+      url: `${KONTAKT}/einrichtung?name=${encodeURIComponent('AGP am Markt')}`,
+    });
+    expect(abkuerzung.statusCode).toBe(404);
   });
 });

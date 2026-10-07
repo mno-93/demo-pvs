@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   VORSCHLAGSFRAGEN,
+  beschriftungPruefen,
   istLaborbefund,
   laborwerteAusBefund,
   lotseAntworten,
@@ -266,6 +267,45 @@ export function vorschlaegeBilden(kvnr: string): Lotsenvorschlaege {
   return { vorschlaege, umfang: lotseAntworten('', quellen).umfang };
 }
 
+/* ---------- Beschriftung (✦) ---------- */
+
+export interface Beschriftungsbefund {
+  quelleId: string;
+  titel: string;
+  gruende: string[];
+  lautInhalt: string | null;
+  datumLautInhalt: string | null;
+  beleg: string | null;
+}
+
+export function beschriftungenBilden(kvnr: string): Beschriftungsbefund[] {
+  return bestandFuer(kvnr)
+    .dokumente.filter(sichtbar)
+    .map((d) => {
+      const zeilen = d.textzeilen ?? laborzeilen(d);
+      const b = beschriftungPruefen(
+        {
+          titel: d.titel,
+          autor: d.autor,
+          einrichtung: d.einrichtung,
+          datum: d.erstellt,
+          klasse: d.classCode.anzeige,
+        },
+        zeilen,
+      );
+      return { d, b };
+    })
+    .filter(({ b }) => b.unklar)
+    .map(({ d, b }) => ({
+      quelleId: eintragsUuid(d),
+      titel: d.titel,
+      gruende: b.gruende,
+      lautInhalt: b.lautInhalt,
+      datumLautInhalt: b.datumLautInhalt,
+      beleg: b.beleg,
+    }));
+}
+
 /* ---------- Wege ---------- */
 
 function kvnrAus(anfrage: FastifyRequest): string {
@@ -321,6 +361,14 @@ export function aktenlotseEinhaengen(app: FastifyInstance): void {
 
   app.get(`${AKTENLOTSE_BASIS}/vorschlaege`, async (anfrage) =>
     vorschlaegeBilden(kvnrAus(anfrage)),
+  );
+
+  /*
+   * ✦ Unklar beschriftete Unterlagen: Metadaten, die nicht sagen, worum es geht — und was laut
+   * Inhalt darin steht. Gelesen wird nur, was sichtbar ist; berichtigt wird nichts.
+   */
+  app.get(`${AKTENLOTSE_BASIS}/beschriftung`, async (anfrage) =>
+    beschriftungenBilden(kvnrAus(anfrage)),
   );
 
   /*

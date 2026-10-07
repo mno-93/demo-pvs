@@ -72,6 +72,8 @@ export const GRUNDLAGE = {
   impfliste: '✦ Vorschlag Impfliste · nicht spezifiziert, Einträge nach immunization-eu-core',
   summary: '✦ Vorschlag Patient Summary · $summary nach IPS, Inhalt nach EPS 1.0.0-ballot',
   lotse: '✦ Vorschlag Aktenlotse · nicht spezifiziert, kein FHIR, regelbasiert',
+  kontakt:
+    '✦ Vorschlag Kontaktauskunft · Stellvertreter für den Verzeichnisdienst, nicht spezifiziert',
   aktenstatus: 'getRecordStatus · OpenAPI I_Information_Service 1.5.1',
   widersprueche: 'getConsentDecisionInformation · OpenAPI I_Information_Service 1.5.1',
   erpErstellen: 'Task/$create · gematik api-erp (Demo-Ersatz)',
@@ -1193,6 +1195,56 @@ export async function lotseVorschlaege(kvnr: string): Promise<Lotsenvorschlaege>
     grundlage: GRUNDLAGE.lotse,
   });
   return inhalt;
+}
+
+/** ✦ Ein Dokument, dessen Metadaten nicht sagen, worum es geht — und was laut Inhalt darin steht. */
+export interface Beschriftungsbefund {
+  quelleId: string;
+  titel: string;
+  gruende: string[];
+  lautInhalt: string | null;
+  datumLautInhalt: string | null;
+  beleg: string | null;
+}
+
+/** ✦ Unklar beschriftete Dokumente der Akte. */
+export async function lotseBeschriftung(
+  kvnr: string,
+  alsVersicherte?: string,
+): Promise<Beschriftungsbefund[]> {
+  const { inhalt } = await anfragen<Beschriftungsbefund[]>({
+    pfad: `${AKTENLOTSE}/beschriftung`,
+    kvnr,
+    inhaltstyp: 'application/json',
+    grundlage: alsVersicherte ? `${GRUNDLAGE.lotse} · Versichertenzugang` : GRUNDLAGE.lotse,
+    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
+  });
+  return inhalt;
+}
+
+/** ✦ Kontakt einer Einrichtung für eine Rückfrage. */
+export interface Kontakteintrag {
+  name: string;
+  telefon: string;
+  tiMessenger: boolean;
+}
+
+/**
+ * ✦ Kontaktauskunft zu einer Einrichtung, gesucht über die Bezeichnung aus den Metadaten.
+ * Kein Treffer ist eine Antwort, kein Fehler: `null`.
+ */
+export async function kontaktSuchen(name: string): Promise<Kontakteintrag | null> {
+  try {
+    const { inhalt } = await anfragen<Kontakteintrag>({
+      pfad: `/epa/vorschlag/kontakt/api/v1/einrichtung?name=${encodeURIComponent(name)}`,
+      inhaltstyp: 'application/json',
+      grundlage: GRUNDLAGE.kontakt,
+    });
+    return inhalt;
+  } catch (f) {
+    if (f instanceof EpaFehler && f.status === 404) return null;
+    throw f;
+  }
 }
 
 /** Eine Unterlage öffnen und nachlesen — der Weg, auf den die Quellenangabe einer Antwort zeigt. */

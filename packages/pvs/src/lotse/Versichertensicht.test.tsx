@@ -76,4 +76,91 @@ describe('Versichertensicht des Aktenlotsen', () => {
     expect(await screen.findByText('Die ePA ist vorübergehend gesperrt.')).toBeTruthy();
     expect(screen.queryByText('Keine Dokumente in der Akte.')).toBeNull();
   });
+
+  it('führt vom Dokument zur Rückfrage beim Verfasser und notiert sie für den Termin', async () => {
+    const brief = {
+      resourceType: 'DocumentReference',
+      id: 'eab-1',
+      status: 'current',
+      description: 'Befundbericht Kardiologie',
+      date: '2026-06-03T10:30:00',
+      author: [
+        { type: 'Practitioner', display: 'Dr. med. Jonas Behrens' },
+        { type: 'Organization', display: 'Kardiologische Praxis am Wall' },
+      ],
+      content: [
+        {
+          attachment: {
+            contentType: 'application/pdf',
+            url: '/epa/mhd/retrieve/v1/content/eab-1.pdf',
+          },
+        },
+      ],
+    };
+    const aufrufe = epaAttrappe((a) => {
+      if (a.pfad === `${LOTSE}/metadata`) return { status: 200, inhalt: {} };
+      if (a.pfad === `${LOTSE}/beschriftung`) return { status: 200, inhalt: [] };
+      if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference'))
+        return { status: 200, inhalt: suchergebnis([brief]) };
+      if (a.pfad.startsWith('/epa/vorschlag/kontakt/api/v1/einrichtung'))
+        return {
+          status: 200,
+          inhalt: {
+            name: 'Kardiologische Praxis am Wall',
+            telefon: '0000 5544-0',
+            tiMessenger: true,
+          },
+        };
+      return undefined;
+    });
+    öffne();
+
+    fireEvent.click(await screen.findByText('Befundbericht Kardiologie'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Nachfragen' }));
+    expect(screen.getByText(/Bezug: Befundbericht Kardiologie/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Stimmt das?' }));
+
+    const anrufen = await screen.findByRole('link', { name: /Anrufen · 0000 5544-0/ });
+    expect(anrufen.getAttribute('href')).toBe('tel:00005544-0');
+    // Gesucht wird die Einrichtung aus den Metadaten — nicht die Person.
+    expect(
+      aufrufe.some((a) => a.pfad.includes(encodeURIComponent('Kardiologische Praxis am Wall'))),
+    ).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Ihre Frage'), {
+      target: { value: 'Steht das Metformin richtig im Brief?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Für den Termin notieren' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Meine Fragen/ }));
+    expect(screen.getByText('Steht das Metformin richtig im Brief?')).toBeTruthy();
+    expect(
+      screen.getByText(/an Kardiologische Praxis am Wall · Bezug: Befundbericht Kardiologie/),
+    ).toBeTruthy();
+  });
+
+  it('bietet nach „Keine Bewertung“ den Weg zur Praxis und die Notiz für den Termin an', async () => {
+    epaAttrappe((a) => {
+      if (a.pfad === `${LOTSE}/metadata`) return { status: 200, inhalt: {} };
+      if (a.pfad === `${LOTSE}/beschriftung`) return { status: 200, inhalt: [] };
+      if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference'))
+        return { status: 200, inhalt: suchergebnis([]) };
+      if (a.pfad === `${LOTSE}/frage`) {
+        const { frage } = a.koerper as { frage: string };
+        return { status: 200, inhalt: lotseAntworten(frage, [], 'alltag') };
+      }
+      return undefined;
+    });
+    öffne();
+
+    fireEvent.click(await screen.findByRole('button', { name: /Aktenlotse/ }));
+    fireEvent.change(screen.getByLabelText('Frage an Ihre Unterlagen'), {
+      target: { value: 'Werde ich wieder gesund?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Fragen' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Für den Termin notieren' }));
+    expect(screen.getByRole('button', { name: 'Für den Termin notiert' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Meine Fragen/ }));
+    expect(screen.getByText('Werde ich wieder gesund?')).toBeTruthy();
+  });
 });

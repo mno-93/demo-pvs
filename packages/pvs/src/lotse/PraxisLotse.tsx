@@ -40,10 +40,12 @@ import {
   EpaFehler,
   dokumentAbrufen,
   dokumenteSuchen,
+  lotseBeschriftung,
   lotseFragen,
   lotseKontext,
   lotseQuelle,
   lotseVorschlaege,
+  type Beschriftungsbefund,
 } from '../epa/klient.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
@@ -96,6 +98,7 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
 
   const [kontext, setzeKontext] = useState<Lotsenkontext | null>(null);
   const [vorschlaege, setzeVorschlaege] = useState<Lotsenvorschlaege | null>(null);
+  const [unklar, setzeUnklar] = useState<Beschriftungsbefund[]>([]);
   const [verweise, setzeVerweise] = useState<Dokumentverweis[]>([]);
   const [antwort, setzeAntwort] = useState<Lotsenantwort | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -122,6 +125,9 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
         setzeVorschlaege(null);
         setzeFehler(f instanceof Error ? f : new Error('Kontext nicht lesbar'));
       });
+    void lotseBeschriftung(kvnr)
+      .then(setzeUnklar)
+      .catch(() => setzeUnklar([]));
     void lotseVorschlaege(kvnr)
       .then(setzeVorschlaege)
       .catch(() => setzeVorschlaege(null));
@@ -284,6 +290,43 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
                     : `${kontext.verlauf.length - KONTEXT_KURZ} weitere Angaben`}
                 </button>
               )}
+            </section>
+          )}
+
+          {unklar.length > 0 && (
+            // ✦ Dokumente, deren Metadaten nicht sagen, worum es geht. Der Lotse nennt, was
+            // laut Inhalt darin steht, und markiert beim Öffnen den Betreff.
+            <section className="lotse-block" aria-label="Unklar beschriftet">
+              <h3>
+                Unklar beschriftet <span className="lotse-zahl">{unklar.length}</span>
+              </h3>
+              <ul className="lotse-faktenliste">
+                {unklar.map((u) => (
+                  <li key={u.quelleId}>
+                    <span>
+                      <b>„{u.titel}“</b> — laut Inhalt: {u.lautInhalt ?? 'nicht lesbar'}
+                      <span className="lotse-gruende">{u.gruende.join(' · ')}</span>
+                    </span>
+                    <button
+                      type="button"
+                      className="lotse-quelle-chip"
+                      onClick={() =>
+                        void nachlesen(
+                          {
+                            quelleId: u.quelleId,
+                            titel: u.titel,
+                            datum: u.datumLautInhalt ?? '',
+                            einrichtung: '',
+                          },
+                          u.beleg ? [u.beleg] : [],
+                        )
+                      }
+                    >
+                      öffnen
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
 

@@ -110,6 +110,8 @@ export interface Dokumentverweis {
   titel: string;
   datum: string;
   autor: string;
+  /** Die einstellende Einrichtung laut Metadaten (Autor vom Typ Organization), sonst leer. */
+  einrichtung: string;
   klasse: Kodewert | null;
   typ: Kodewert | null;
   /** formatCode — fehlt, wenn der Dokumenttyp im Release nicht registriert ist. */
@@ -141,6 +143,10 @@ export function dokumentverweisLesen(r: Ressource): Dokumentverweis {
       .map((a) => a.display)
       .filter(Boolean)
       .join(', '),
+    einrichtung:
+      ((r['author'] as { type?: string; display?: string }[] | undefined) ?? []).find(
+        (a) => a.type === 'Organization',
+      )?.display ?? '',
     klasse: kodewert((r['category'] as unknown[] | undefined)?.[0]),
     typ: kodewert(r['type']),
     format: format?.code ? { code: format.code, anzeige: format.display ?? format.code } : null,

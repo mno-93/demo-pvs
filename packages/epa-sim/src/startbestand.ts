@@ -26,6 +26,9 @@ import {
   entlassbriefHoffmannBrief,
   entlassbriefHoffmannFhir,
   entlassbriefSchrittmacherBrief,
+  fussBrief,
+  netzhautBrief,
+  sonographieBrief,
   kardiologieBefundberichtBrief,
   kardiologieKontrolleBrief,
   kardiologieKontrolleFhir,
@@ -795,6 +798,75 @@ export function startbestandAufbauen(): void {
       textzeilen: kardioText,
     }),
   );
+
+  /*
+   * Unklar beschriftete Unterlagen (B22–B24): Die frühere Hausarztpraxis hat sie am 03.02.2025
+   * gesammelt eingestellt. Der Inhalt ist lesbar und in Ordnung — die Metadaten nicht: der
+   * Dateiname des Scanners als Titel, das Hochladedatum als Dokumentdatum, „Befund" mit
+   * falscher Klasse und einer Abkürzung als Einrichtung, „Anlage 1" ohne Verfasser und mit
+   * Platzhalterdatum. ✦ Der Aktenlotse sagt, was laut Inhalt darin steht (`beschriftung.ts`).
+   */
+  const unklar: [
+    string,
+    string,
+    Kodewert,
+    Kodewert,
+    string,
+    string,
+    string,
+    ReturnType<typeof sonographieBrief>,
+  ][] = [
+    [
+      'sono-2023-09-14',
+      'Scan_20230914_0007',
+      kode('BRI', OID_KLASSE, 'Brief'),
+      kode('BERI', OID_TYP, 'Arztberichte'),
+      '2025-02-03T11:12:00',
+      'Dr. med. Petra Lang',
+      'Praxis Dr. Lang',
+      sonographieBrief(),
+    ],
+    [
+      'augen-2024-11-05',
+      'Befund',
+      kode('ADM', OID_KLASSE, 'Administratives Dokument'),
+      kode('BEFU', OID_TYP, 'Ergebnisse Diagnostik'),
+      '2024-11-05T12:00:00',
+      'Dr. Z.',
+      'AGP am Markt',
+      netzhautBrief(),
+    ],
+    [
+      'fuss-2026-01-20',
+      'Anlage 1',
+      kode('BRI', OID_KLASSE, 'Brief'),
+      kode('BERI', OID_TYP, 'Arztberichte'),
+      '2026-01-01T00:00:00',
+      'Anwender 3',
+      'Praxis',
+      fussBrief(),
+    ],
+  ];
+  for (const [id, titel, classCode, typeCode, erstellt, autor, einrichtung, brief] of unklar) {
+    const zeilen = briefTextzeilen(brief);
+    hoffmann.dokumente.push({
+      ...pdfDokument({
+        id,
+        uniqueId: abgeleiteteUniqueId(id),
+        titel,
+        classCode,
+        typeCode,
+        ordner: null,
+        erstellt,
+        autor,
+        einrichtung,
+        datei: briefPdfErzeugen(brief),
+        text: zeilen.join(' '),
+        textzeilen: zeilen,
+      }),
+      eingestellt: '2025-02-03T11:12:00',
+    });
+  }
 
   // Medikation: Verordnungen und Plan vom Klinikum, Abgaben aus der Apotheke.
   const mittel: [string, string, string, string, string][] = [

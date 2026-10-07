@@ -20,6 +20,7 @@ export * from './fachlogik/listenabgleich.js';
 export * from './fachlogik/listenordnung.js';
 export * from './fachlogik/lotse.js';
 export * from './fachlogik/pdf.js';
+export * from './fachlogik/beschriftung.js';
 export * from './fachlogik/briefansicht.js';
 export * from './fhir/typen.js';
 export * from './fhir/abbildung.js';

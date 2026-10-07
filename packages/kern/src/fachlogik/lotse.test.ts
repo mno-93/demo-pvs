@@ -63,7 +63,7 @@ const SCAN: Lotsenquelle = {
   id: 'scan-1',
   titel: 'Eingescanntes Schreiben',
   datum: '2024-02-01',
-  einrichtung: 'Hausarztpraxis Dr. Kolbe',
+  einrichtung: 'Hausarztpraxis Nordstadt',
   zeilen: [],
   nichtLesbar: 'Scan ohne Textebene',
 };

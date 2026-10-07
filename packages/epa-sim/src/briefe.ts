@@ -910,3 +910,138 @@ export function kardiologieKontrolleFhir(
     entry: ressourcen.map((r) => ({ fullUrl: `urn:uuid:${String(r.id)}`, resource: r })),
   };
 }
+
+/* ======================================================================================
+ * Unklar beschriftete Unterlagen, Frau Hoffmann — Inhalt in Ordnung, Metadaten nicht
+ * ==================================================================================== */
+
+/*
+ * Drei Unterlagen aus der Zeit vor dem Umzug, die die frühere Hausarztpraxis gesammelt
+ * eingestellt hat. Der Text ist lesbar und vollständig; die Metadaten sagen nicht, worum es
+ * geht (B22–B24, `startbestand.ts`). In der Liste öffnet sie niemand.
+ *
+ * Messwerte stehen bewusst in Sätzen, nicht als „Bezeichnung: Wert" — sonst zählte der ✦
+ * Aktenlotse die Nierenlänge zu den Nierenwerten.
+ */
+
+const NORDSTADT_KOPF = [
+  'Hausarztpraxis Nordstadt',
+  'Dr. med. Petra Lang · Fachärztin für Allgemeinmedizin',
+  'Nordstraße 18 · 26990 Nordstadt · Tel. 0000 2233-0',
+];
+
+const AN_NORDSTADT = [
+  'Hausarztpraxis Nordstadt',
+  'Frau Dr. med. Petra Lang',
+  'Nordstraße 18',
+  '26990 Nordstadt',
+];
+
+/** Sonographie in der früheren Hausarztpraxis, September 2023 — als Scannerdatei eingestellt. */
+export function sonographieBrief(): Briefvorlage {
+  return {
+    absender: NORDSTADT_KOPF,
+    empfaenger: ['Befunddokumentation', 'Hausarztpraxis Nordstadt'],
+    ortDatum: 'Nordstadt, 14.09.2023',
+    betreff: 'Sonographie des Abdomens vom 14.09.2023 — Frau Renate Hoffmann, geb. 14.03.1958',
+    bausteine: [
+      u('Fragestellung'),
+      a(
+        'Verlaufskontrolle bei Diabetes mellitus Typ 2 und arterieller Hypertonie, zuletzt erhöhte Nierenwerte.',
+      ),
+      leer,
+      u('Befund'),
+      a(
+        'Leber normal groß, Parenchym homogen mit leicht vermehrter Echogenität. Gallenblase ohne Konkremente. Pankreas, soweit einsehbar, unauffällig. Milz normal groß.',
+      ),
+      a(
+        'Rechte Niere 10,4 cm, linke Niere 10,8 cm lang, beidseits mit verschmälertem Parenchymsaum. Kein Harnstau, keine Konkremente. Harnblase wenig gefüllt, unauffällig.',
+      ),
+      leer,
+      u('Beurteilung'),
+      a(
+        'Beidseits verschmälerter Nierenparenchymsaum, vereinbar mit einer chronischen Nierenerkrankung. Leichte Steatosis hepatis.',
+      ),
+      leer,
+      u('Procedere'),
+      a(
+        'Kontrolle der Nierenwerte in vier Wochen, nephrologische Mitbeurteilung bei weiterem Abfall.',
+      ),
+      leer,
+      a('Dr. med. Petra Lang'),
+    ],
+    fusszeile: 'Hausarztpraxis Nordstadt · Befunddokumentation',
+  };
+}
+
+/** Augenärztlicher Bericht, November 2024 — als „Befund" mit falscher Dokumentklasse eingestellt. */
+export function netzhautBrief(): Briefvorlage {
+  return {
+    absender: [
+      'Augenärztliche Gemeinschaftspraxis am Markt',
+      'Dr. med. Ines Zander · Dr. med. Ole Brandes',
+      'Markt 4 · 26990 Nordstadt · Tel. 0000 3344-0',
+    ],
+    empfaenger: AN_NORDSTADT,
+    ortDatum: 'Nordstadt, 05.11.2024',
+    betreff:
+      'Diabetisches Netzhaut-Screening vom 05.11.2024 — Frau Renate Hoffmann, geb. 14.03.1958',
+    bausteine: [
+      a('Sehr geehrte Frau Kollegin Lang,'),
+      leer,
+      a(
+        'wir sahen Ihre Patientin am 05.11.2024 zur augenärztlichen Untersuchung bei Diabetes mellitus Typ 2.',
+      ),
+      leer,
+      u('Befund'),
+      a(
+        'Sehschärfe mit Korrektur rechts 0,8, links 0,9. Vordere Augenabschnitte regelrecht, beginnende Linsentrübung beidseits. Fundus in Mydriasis beidseits ohne Zeichen einer diabetischen Retinopathie, Makula beidseits unauffällig.',
+      ),
+      leer,
+      u('Beurteilung'),
+      a('Keine diabetische Retinopathie. Beginnende Katarakt beidseits ohne Behandlungsbedarf.'),
+      leer,
+      u('Empfehlung'),
+      a('Erneute Untersuchung in zwei Jahren, bei Sehverschlechterung früher.'),
+      leer,
+      a('Mit freundlichen kollegialen Grüßen'),
+      a('Dr. med. Ines Zander'),
+    ],
+    fusszeile: 'Augenärztliche Gemeinschaftspraxis am Markt',
+  };
+}
+
+/** Diabetologische Fußuntersuchung, Januar 2026 — als „Anlage 1" ohne Verfasser eingestellt. */
+export function fussBrief(): Briefvorlage {
+  return {
+    absender: [
+      'Diabetologische Schwerpunktpraxis Nordstadt',
+      'Dr. med. Kerstin Wolff · Diabetologin',
+      'Bahnhofstraße 9 · 26990 Nordstadt · Tel. 0000 5566-0',
+    ],
+    empfaenger: AN_NORDSTADT,
+    ortDatum: 'Nordstadt, 20.01.2026',
+    betreff:
+      'Fußuntersuchung bei Diabetes mellitus vom 20.01.2026 — Frau Renate Hoffmann, geb. 14.03.1958',
+    bausteine: [
+      a('Sehr geehrte Frau Kollegin Lang,'),
+      leer,
+      a('Ihre Patientin stellte sich am 20.01.2026 zur jährlichen Fußuntersuchung vor.'),
+      leer,
+      u('Befund'),
+      a(
+        'Haut beidseits intakt, keine Druckstellen, keine Ulzerationen. Fußpulse beidseits tastbar. Vibrationsempfinden mit der Stimmgabel beidseits leicht vermindert, Monofilament-Test beidseits regelrecht.',
+      ),
+      leer,
+      u('Beurteilung'),
+      a('Kein diabetisches Fußsyndrom. Beginnende sensible Polyneuropathie nicht ausgeschlossen.'),
+      leer,
+      u('Empfehlung'),
+      a('Tägliche Fußkontrolle, geeignetes Schuhwerk, Kontrolle in zwölf Monaten.'),
+      leer,
+      a('Mit freundlichen Grüßen'),
+      a('Dr. med. Kerstin Wolff'),
+    ],
+    fusszeile: 'Diabetologische Schwerpunktpraxis Nordstadt',
+  };
+}

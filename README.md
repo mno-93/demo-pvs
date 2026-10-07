@@ -111,7 +111,7 @@ npm run vorschau:gehostet
    Im Patientenkopf öffnet „Aktenlotse ✦" die ePA auf dem Bereich des Lotsen; er steht auch als
    Reiter der Kartei. In der Navigation erscheint „Versichertensicht ✦".
 9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
-   anklickbar, sie öffnet sich zum Nachlesen. „6 von 7 Unterlagen gelesen", der eingescannte
+   anklickbar, sie öffnet sich zum Nachlesen. „9 von 10 Unterlagen gelesen", der eingescannte
    Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht
    im Plan. Darunter Vorschläge für die Listen.
 10. **Versichertensicht**: aufgebaut wie ein FdV — Einstieg ist die Dokumentenliste, der Aktenlotse
@@ -120,6 +120,10 @@ npm run vorschau:gehostet
     **Vertretung entzogen** umschalten: Akte und Lotse sind gleichermaßen leer — er hat keine
     eigenen Rechte. Zurück zur eigenen Akte und „Werde ich wieder gesund?" fragen: **Keine
     Bewertung** — der Lotse verweist an die Ärztin oder den Arzt.
+11. **Nachfragen**: Versichertensicht → Dokumente → den Scan von 2019 öffnen → „Nachfragen" →
+    „Stimmt das?" → Kardiologische Praxis mit Telefon. Bei „Befund" findet die Kontaktauskunft
+    „AGP am Markt" nicht — die Metadaten sind unklar, der Lotse nennt darunter „✦ laut Inhalt".
+    Fragen für den Termin sammelt „Meine Fragen".
 
 Weitere Abläufe: [SPEZIFIKATION.md, Abschnitt 11](docs/SPEZIFIKATION.md#11-vorführung). Wozu jedes
 Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

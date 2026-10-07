@@ -34,7 +34,7 @@ export const BEFUND_HOFFMANN: Befundangabe = {
   labor: 'Laborgemeinschaft Nordwest',
   freigebendePerson: 'Dr. rer. nat. Kai Petersen',
   // Frau Hoffmann kam erst am 30.08. in die Praxis; den Befund hatte die Vorbehandlung beauftragt.
-  auftraggeber: 'Hausarztpraxis Dr. Kolbe, Oldenburg (Vorbehandlung)',
+  auftraggeber: 'Hausarztpraxis Nordstadt (Vorbehandlung)',
   entnahme: '2026-08-12T08:10:00',
   freigabe: '2026-08-12T11:00:00',
   probenart: 'Serum',
@@ -144,7 +144,7 @@ export const BEFUND_HOFFMANN_MAERZ: Befundangabe = {
   geburtsdatum: '1958-03-14',
   labor: 'MVZ Labor Oldenburg',
   freigebendePerson: 'Dr. med. Hanna Voss',
-  auftraggeber: 'Hausarztpraxis Dr. Kolbe, Oldenburg (Vorbehandlung)',
+  auftraggeber: 'Hausarztpraxis Nordstadt (Vorbehandlung)',
   entnahme: '2026-03-18T07:50:00',
   freigabe: '2026-03-18T14:20:00',
   probenart: 'Serum',

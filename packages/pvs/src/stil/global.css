@@ -2106,6 +2106,115 @@ td.split-mitte .marker {
   border-color: var(--lotse-linie);
 }
 
+.lotse-gruende {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.85em;
+  color: var(--text-leise);
+}
+.lotse-grenze-wege {
+  margin: -4px 0 12px;
+  flex-wrap: wrap;
+}
+
+/* ✦ Rückfrage und Fragenliste (Versichertensicht) */
+.rueckfrage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rueckfrage-kopf {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.rueckfrage-bezug {
+  margin: 0;
+  padding: 6px 8px;
+  background: var(--flaeche2);
+  border: 1px solid var(--linie);
+  border-radius: var(--radius-klein);
+  font-size: 0.9em;
+}
+.rueckfrage-adressat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rueckfrage-wege {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rueckfrage-wege a.knopf {
+  text-decoration: none;
+}
+.rueckfrage-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.9em;
+  color: var(--text-leise);
+}
+.rueckfrage-feld textarea {
+  font: inherit;
+  color: var(--text);
+  padding: 6px 8px;
+  border: 1px solid var(--linie-stark);
+  border-radius: var(--radius-klein);
+  resize: vertical;
+}
+.rueckfrage-nachricht {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--lotse-weich);
+  border: 1px solid var(--lotse-linie);
+  border-radius: var(--radius);
+}
+.rueckfrage-nachricht dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 8px;
+  margin: 0;
+  font-size: 0.9em;
+}
+.rueckfrage-nachricht dt {
+  color: var(--text-leise);
+}
+.rueckfrage-nachricht dd {
+  margin: 0;
+}
+.chip.aktiv {
+  border-color: var(--lotse);
+  color: var(--lotse);
+  background: var(--lotse-weich);
+}
+.fragenliste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.fragenliste li {
+  padding: 8px 10px;
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.telefon-dok-inhalt {
+  display: block;
+  font-size: 0.85em;
+  color: var(--lotse);
+}
+
 .lotse-hinweis {
   margin: 0 0 12px;
   color: var(--text-leise);

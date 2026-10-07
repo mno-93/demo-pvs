@@ -32,6 +32,7 @@ import {
   impflisteEinhaengen,
 } from './diagnosedienst.ts';
 import { AKTENLOTSE_BASIS, aktenlotseEinhaengen } from './aktenlotse.ts';
+import { KONTAKT_BASIS, kontaktEinhaengen } from './kontakt.ts';
 import { ERP_BASIS, erezeptEinhaengen, erezepteLeeren } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
@@ -97,13 +98,14 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     if (!istEpaWeg(anfrage.url)) return;
 
     const pfad = anfrage.url.split('?')[0] ?? '';
-    const noetigeStufe = pfad.startsWith(AKTENLOTSE_BASIS)
-      ? AB_STUFE.aktenlotse
-      : pfad.startsWith(IMPFLISTE_BASIS) || pfad.startsWith(DIAGNOSEDIENST_BASIS)
-        ? AB_STUFE.listen
-        : pfad.startsWith(PATIENT_SUMMARY_BASIS)
-          ? AB_STUFE.patientSummary
-          : 0;
+    const noetigeStufe =
+      pfad.startsWith(AKTENLOTSE_BASIS) || pfad.startsWith(KONTAKT_BASIS)
+        ? AB_STUFE.aktenlotse
+        : pfad.startsWith(IMPFLISTE_BASIS) || pfad.startsWith(DIAGNOSEDIENST_BASIS)
+          ? AB_STUFE.listen
+          : pfad.startsWith(PATIENT_SUMMARY_BASIS)
+            ? AB_STUFE.patientSummary
+            : 0;
     if (!abStufe(noetigeStufe)) {
       return antwort
         .code(404)
@@ -115,8 +117,9 @@ export function wegeEinhaengen(app: FastifyInstance): void {
           ),
         );
     }
-    // Die Fähigkeiten eines Dienstes sind ohne Aktenbezug abfragbar.
-    if (pfad.endsWith('/metadata')) return;
+    // Die Fähigkeiten eines Dienstes sind ohne Aktenbezug abfragbar — ebenso die ✦
+    // Kontaktauskunft: Ein Verzeichnis braucht keine Akte.
+    if (pfad.endsWith('/metadata') || pfad.startsWith(KONTAKT_BASIS)) return;
 
     if (!USER_AGENT.test(String(anfrage.headers['x-useragent'] ?? ''))) {
       return antwort
@@ -223,6 +226,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
   impflisteEinhaengen(app, kvnrAus, sitzungAus);
   patientSummaryEinhaengen(app, kvnrAus);
   aktenlotseEinhaengen(app);
+  kontaktEinhaengen(app);
   informationEinhaengen(app);
   erezeptEinhaengen(app, sitzungAus);
 
