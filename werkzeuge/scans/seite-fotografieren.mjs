@@ -1,3 +1,4 @@
+/* global WebSocket -- in Node ab Version 22 eingebaut */
 // Fotografiert eine HTML-Seite mit Chrome ohne Oberfläche — Ausgangsbild für einen erfundenen Scan.
 // Aufruf: node werkzeuge/scans/seite-fotografieren.mjs <seite.html> <breite> <hoehe> <ausgabe.png>
 import { spawn } from 'node:child_process';
