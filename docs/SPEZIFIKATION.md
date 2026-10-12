@@ -164,6 +164,8 @@ werden hier mit ihrem Zweck eingetragen.
 | B15 | Hoffmann             | Metformin aus der Medikationsliste erneut verordnen, „auch in den Medikationsplan"                                                                                                                                                                                                                                                       | ebenso                                                                                                 | ebenso                                                                      | Die Lücke aus B5 schließt sich mit der Verordnung: Planeintrag und Rezept in einem Schritt                                                                                                                                                                                                                                                                                                    |
 | B16 | Hoffmann             | ✦ Fünf Impfungen in der Impfliste: Td (2019), Pneumokokken (2024), Herpes zoster (2025), Grippe und COVID-19 (Oktober 2025) — von der früheren Hausarztpraxis                                                                                                                                                                            | —                                                                                                      | Weiterentwicklung 2: Impfliste                                              | Block „Impfungen" der Patient Summary füllt sich aus der Liste, ohne Relevanzauswahl; „Weiterentwicklung 1" zeigt denselben Block leer. Die Zoster-Serie hat nur die erste Dosis — sichtbar an der Dosisnummer                                                                                                                                                                                |
 | B17 | Yildiz               | Grippeimpfung der Praxis vom 15.10.2025, noch nicht in der ePA                                                                                                                                                                                                                                                                           | —                                                                                                      | Weiterentwicklung 2: Impfliste                                              | „in die ePA →" mit Lesenachweis; in der Karteikarte steht die Impfung im Besuchsblock vom 15.10.2025 und trägt danach ↑ in der ePA                                                                                                                                                                                                                                                            |
+| B25 | alle                 | ✦ Adressbuch der Praxis mit KIM-Adressen (erfunden, Anbieter `demo-anbieter.kim.telematik`) — zeigt den Versand per KIM; die Kardiologische Praxis Dr. Brinkmann hat **keine KIM-Adresse** und zeigt die Sperre                                                                                                                          |
+| B26 | Hoffmann             | ✦ Arztbrief an die Kardiologische Praxis am Wall: zehn Einträge vorausgewählt (drei Diagnosen, zwei Allergien, Laborbefund aus der ePA, vier Planeinträge) — zeigt, wie wenig zu schreiben bleibt                                                                                                                                        |
 | B18 | jede Person mit Akte | „andere Einrichtung trägt ein" (Demo-Steuerung): eine kardiologische Praxis stellt einen Kontrollbefund ein, verordnet Torasemid und nimmt es in den Plan, ändert die Dosierung von Bisoprolol; ab Weiterentwicklung 1 trägt sie eine Herzinsuffizienz in die Diagnosenliste ein, ab 2 eine Apotheke eine Grippeimpfung in die Impfliste | Dokument, Medikation                                                                                   | ebenso, dazu Listen                                                         | Band „Seit dem letzten Aufruf" und Marken **neu**/**geändert**: in Medikation und Dokumenten über die spezifizierte Abfrage, in Patient Summary und Listen über den Vergleich im Primärsystem; entfallene Planeinträge mit Namen                                                                                                                                                              |
 
 ---
@@ -180,6 +182,7 @@ werden hier mit ihrem Zweck eingetragen.
 | **Medikation**              | beide        | Medikationsplan und Medikationsliste der ePA, mit AMTS-Prüfung (Abschnitt 5.3). „Rezept" am Planeintrag und an Verordnungen der Liste, Karte **E-Rezepte** mit Stand in der ePA (Abschnitt 5.8). Am Planeintrag letzte Verordnung und Abgabe; bei mehreren abgegebenen Arzneimitteln ein Warnband. Was andere Einrichtungen seit dem letzten Aufruf geändert haben, steht als Band über Plan und Liste (7.7).                                                                                                                                                                                                                                            |
 | **Labor**                   | Praxissystem | Übernommene strukturierte Laborbefunde und Kumulativbefund. Werte entstehen nur aus Befunden.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | **Dokumente**               | beide        | Dokumente in der ePA neben der Praxisablage. „Ansehen" lädt aus der ePA ohne lokale Kopie; erst „Übernehmen" legt das Dokument mit Zeitpunkt und Person in der Praxisablage ab. Seit dem letzten Aufruf eingestellte Dokumente anderer Einrichtungen tragen die Marke **neu** (7.7).                                                                                                                                                                                                                                                                                                                                                                     |
+| **Arztbrief ✦**             | beide        | ✦ Ab Weiterentwicklung 3: Arztbrief aus vorausgewählten Daten der Kartei, des Labors und des Medikationsplans der ePA; Vorschau aus dem FHIR-Dokument; nach der Unterschrift „In die ePA einstellen" (ITI-41) und „Per KIM senden" (Abschnitt 7.8)                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Abrechnung**              | Praxissystem | EBM-Auszug mit einfacher Prüfung. Abrechnungsdaten gelangen nicht in die ePA. Die Prüfung bildet wenige Regeln ab und ersetzt keine Abrechnungsprüfung.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | **Stammdaten**              | Praxissystem | Versichertendaten stammen von der Gesundheitskarte, nicht aus der ePA.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
@@ -326,7 +329,8 @@ Ohne Nierenwert meldet die Prüfung das als eigenen Hinweis.
 | `GET /epa/mhd/retrieve/v1/content/{entryUUID}.{Endung}`              | ITI-68: das Dokument im MIME-Typ aus `attachment.contentType`, unverändert. 406 bei unpassendem `Accept`, 404 wenn nicht vorhanden                                                                                                                                                                              |
 
 Kennungen: `identifier` `official` = `urn:uuid:<entryUUID>`, `usual` = uniqueId als `urn:oid:`.
-Einstellen läuft im Release über XDS ITI-41 (SOAP) und ist nicht nachgebildet.
+Eingestellt wird über den XDS Document Service (ITI-41, Abschnitt 5.9); ein dort eingestelltes
+Dokument findet ITI-67 sofort unter der entryUUID, die das Praxissystem vergeben hat.
 
 **Dokumente im Startbestand.**
 
@@ -456,6 +460,79 @@ abgegebenen Arzneimitteln, für die Praxis nicht sichtbar (Widerspruch oder ohne
 gelöscht. Löschen ist bis zur Einlösung möglich.
 
 ---
+
+### 5.9 XDS Document Service — Einstellen (ITI-41)
+
+Grundlage: WSDL `XDSDocumentService.wsdl` und Implementation Guides (`gematik/ePA-XDS-Document`,
+Branch `ePA-3.1.3`, Commit `c88635c`), Konzept 3.1.3 (`ePA-Basic`, Commit `3186ad2`), IHE ITI
+TF-3 Abschnitt 4.2.
+
+| Weg                                                | Wirkung                                                                                                                                                                                                                                             |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /epa/xds-document/api/I_Document_Management` | ITI-41 Provide & Register Document Set-b. SOAP 1.2, `content-type: application/soap+xml; action="urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b"`, WS-Addressing im Kopf. Antwort `RegistryResponse` mit `Success` oder `Failure` und Fehlerliste |
+
+Die Nachricht trägt ein SubmissionSet (`RegistryPackage`) und je Dokument ein `ExtrinsicObject`
+mit den Klassifikationen und Kennungen aus IHE ITI TF-3 (classCode, typeCode, formatCode,
+healthcareFacilityTypeCode, practiceSettingCode, confidentialityCode, author, patientId, uniqueId)
+sowie eine Assoziation `HasMember`. Die entryUUID vergibt das Praxissystem.
+
+| Prüfung                                                                                              | Fehlercode                 |
+| ---------------------------------------------------------------------------------------------------- | -------------------------- |
+| Aktion ist nicht ITI-41                                                                              | `XDSRepositoryError`       |
+| patientId passt nicht zur Akte aus `x-insurantid`                                                    | `XDSPatientIdDoesNotMatch` |
+| Dokument ohne Inhalt                                                                                 | `XDSMissingDocument`       |
+| classCode, typeCode oder formatCode fehlt                                                            | `XDSRegistryMetadataError` |
+| registrierter Dokumenttyp vor `validFromDate` oder ab `clientReadOnlyFromDate`, mimeType passt nicht | `XDSRegistryMetadataError` |
+| formatCode unbekannt; ✦ formatCode der Demo vor Weiterentwicklung 2                                  | `XDSRegistryMetadataError` |
+| uniqueId in der Akte schon vergeben                                                                  | `XDSRegistryMetadataError` |
+
+Ein SubmissionSet wird ganz oder gar nicht registriert. Bekannt sind PDF/A-1 für unstrukturierte
+Dokumente, die registrierten Dokumenttypen (`dokumenttypen`, mit Gültigkeit) und der ✦ formatCode
+des Arztbriefs. **Der CDA-eArztbrief (`ig-eab.json`) ist seit dem 01.04.2026 nur noch lesbar** —
+wer ihn einstellt, bekommt die Ablehnung mit dieser Begründung.
+
+⚠ Vereinfacht: Das Dokument steht inline als base64 statt per MTOM/XOP. Zuweisende Stellen in
+`patientId` (KVNR, OID 1.2.276.0.76.4.8) und `authorInstitution` (Telematik-ID, OID
+1.2.276.0.76.4.188) sind nicht gegen die gematik-Spezifikation geprüft. Die Werte für
+Einrichtungsart, Fachrichtung, Vertraulichkeit und Anlass folgen den Wertelisten von IHE
+Deutschland und sind ebenfalls nicht geprüft. Die Legal Policy je Kategorie und Hash/Größe bildet
+die Demo nicht nach. Fehler der Prüfkette (Befugnis, Akte) kommen wie auf allen Wegen als
+JSON-Fehlercode, nicht als SOAP-Fault.
+
+### 5.10 KIM-Clientmodul (⚠ Demo-Ersatz)
+
+Grundlage: `gemSpec_CM_KOMLE` V1.16.6 (18.03.2025) und die Übersicht der Dienstkennungen im
+Fachportal der gematik (Toolkit, Stand 18.06.2026).
+
+| Weg                               | Wirkung                                                                                                                                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `POST /kim/demo/clientmodul/smtp` | Nimmt die Client-Mail als `message/rfc822` an — Byte für Byte die Nachricht, die per SMTP an das Clientmodul ginge — und antwortet mit dem SMTP-Statuscode als Text. **Keine KIM-Schnittstelle** |
+| `GET /verwaltung/kim/postausgang` | Demo-Steuerung: zugestellte Nachrichten mit Dienstkennung, Sendersystem und Anhängen                                                                                                             |
+
+| Prüfung                                                | Antwort                         |
+| ------------------------------------------------------ | ------------------------------- |
+| angenommen                                             | `250 2.0.0`                     |
+| Absender ist nicht die eigene KIM-Adresse (A_21519-02) | `553 5.7.1`                     |
+| Empfangsadresse nicht im Verzeichnis                   | `550 5.1.1`                     |
+| größer als 15 MiB (A_19357-02, Anhangsdienst)          | `552 5.3.4`, nicht nachgebildet |
+
+Ohne `X-KIM-Dienstkennung` gilt `KIM-Mail;Default;V1.0` (A_19488-02). Der Arztbrief trägt
+`Arztbrief;VHitG-Versand;V1.2` und `X-KIM-Sendersystem: Demo-PVS;V0.4.0`. ⚠ Nicht nachgebildet:
+S/MIME, Verzeichnisdienst (LDAP), Anhangsdienst, Empfangsseite, Eingangsbestätigung
+(`Arztbrief;Eingangsbestaetigung;V1.2`).
+
+### 5.11 Abgleich mit den Spezifikationen (12.10.2026)
+
+Die Wege der Demo wurden gegen die öffentlichen Quellen geprüft (QUELLEN). Befunde und Folgen:
+
+| Befund                                                                                                                                                                      | Folge                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Einstellen fehlte ganz; die Demo las nur                                                                                                                                    | ITI-41 nachgebildet (5.9)                                                       |
+| Der Dokumenttypen-Katalog übernahm `validFromDate` und `clientReadOnlyFromDate` der Implementation Guides nicht                                                             | Katalog führt `gueltigAb`, `nurLesbarAb`; der Simulator lehnt danach ab         |
+| Bundles führten `fullUrl` als `urn:uuid:` mit Kennungen, die keine UUIDs sind, bei relativen Verweisen — nach den Regeln zur Auflösung in Bundles (FHIR R4) nicht auflösbar | Absolute `fullUrl` im Namensraum der Demo (`vollUrl`); Verweise bleiben relativ |
+| `DocumentReference` setzte vor jedes codingScheme `urn:oid:`, auch vor URLs                                                                                                 | nur noch vor OIDs                                                               |
+| Strukturierte Briefe des Startbestands tragen keinen formatCode, obwohl das Profil ihn verlangt                                                                             | ⚠ belassen: Vorgriff ohne registrierten Typ, wie bisher dokumentiert            |
+| Kopfzeilen, Befugnis, MHD, Medication Service, Information Service                                                                                                          | ohne neuen Befund                                                               |
 
 ## 6 ✦ Diagnose-Service für Allergien und Diagnosen
 
@@ -767,6 +844,46 @@ Vorbild des Medication Service):
 belastet das Aktensystem am wenigsten.
 
 ---
+
+### 7.8 ✦ Arztbrief (ADR 0038)
+
+Der strukturierte Brief ist der Zulieferer der Patient Summary. Er erscheint deshalb mit ihr, ab
+Weiterentwicklung 3, als Reiter „Arztbrief ✦" der Kartei.
+
+**Aufbau.** FHIR-Dokument nach dem MIO KH-Entlassbrief 1.0.0 (Entwurf), ambulante Abweichungen ✦:
+
+| Abschnitt                         | LOINC (⚠ ungeprüft) | Einträge                                                                             |
+| --------------------------------- | ------------------- | ------------------------------------------------------------------------------------ |
+| Fragestellung                     | 42349-1             | —                                                                                    |
+| Diagnosen                         | 29548-5             | Condition nach `ti-condition-diagnosis`                                              |
+| Allergien und Unverträglichkeiten | 48765-2             | AllergyIntolerance nach `allergyIntolerance-eu-core`; ohne Eintrag mit `emptyReason` |
+| Befunde                           | 30954-2             | — (Laborwerte strukturiert nur aus dem Laborbefund)                                  |
+| Beurteilung                       | 51848-0             | —                                                                                    |
+| Medikation                        | 10160-0             | MedicationStatement                                                                  |
+| Empfehlungen                      | 18776-5             | —                                                                                    |
+
+Dokumenttyp LOINC 11488-4, Begegnung `AMB`, Empfänger als Extension
+`https://example.org/demo-pvs/fhir/StructureDefinition/letter-recipient`. Leere Freitextabschnitte
+fallen weg; Allergien stehen immer da.
+
+**Bedienung.** Vorausgewählt: Dauerdiagnosen und andere gegenwärtige Diagnosen, aktive Allergien,
+Befunde der Karteikarte aus 90 Tagen, der jüngste Laborbefund (Praxis oder ePA, ohne Dopplung)
+und die aktiven Einträge des Medikationsplans der ePA. Selbst geschrieben werden Fragestellung,
+Beurteilung und Empfehlungen; zwei Marker zählen „übernommen" und „Wörter geschrieben". Die
+Vorschau ist der Brief, wie er gedruckt und versandt wird. Ohne Befugnis fehlen die ePA-Daten mit
+„Keine Befugnis für die ePA dieser Person."; nach „eGK einlesen" kommen sie.
+
+**Unterschrift und Wege.** Nur ärztlich („nur ärztlich" für MFA); ⚠ die QES mit dem eHBA ist
+nicht nachgebildet. Danach liegt der Brief in der Praxisablage (Art „Arztbrief") und geht:
+
+| Weg                   | Inhalt                                                                       | Folge im Praxissystem                                                       |
+| --------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| In die ePA einstellen | ITI-41, FHIR-Dokument, classCode `BRI`, typeCode `BERI`, ✦ formatCode        | Dokument „lokal, in ePA eingestellt"; Aktenlotse und Volltextsuche lesen es |
+| Per KIM senden        | Client-Mail, `Arztbrief;VHitG-Versand;V1.2`, Anhänge PDF und ✦ FHIR-Dokument | Vermerk „per KIM an …" am Dokument; GOP 86900 erfasst                       |
+
+Ohne KIM-Adresse des Empfängers ist „Per KIM senden" gesperrt („keine KIM-Adresse"); ohne
+Befugnis „In die ePA einstellen" („keine ePA-Befugnis"). Eine Ablehnung des Aktensystems steht mit
+Fehlercode am Knopf.
 
 ## 8 ✦ Aktenlotse
 
@@ -1120,6 +1237,9 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 | ✦ Unklar beschriftet                            | Frau Hoffmann nach eGK → „Aktenlotse ✦“: Block „Unklar beschriftet 3“ — „Scan_20230914_0007“ laut Inhalt Sonographie, „Befund“ laut Inhalt Netzhaut-Screening, „Anlage 1“ laut Inhalt Fußuntersuchung, je mit Gründen → „öffnen“ markiert den Betreff. Versichertensicht: dieselben drei mit „✦ laut Inhalt“ in der Liste                                              |
 | ✦ Rückfrage beim Verfasser                      | Versichertensicht → Dokumente → „Vorbefund Kardiologie (eingescannt)“ → „Nachfragen“ → „Stimmt das?“ → Kardiologische Praxis Dr. Brinkmann, „Anrufen · 0000 4711-0“, „kein TI-Messenger“ → Frage → „Für den Termin notieren“ → „Meine Fragen 1“. Dasselbe bei „Befund“: „AGP am Markt — nicht im Verzeichnis“                                                          |
 | ✦ Vom Nein zur Praxis                           | Aktenlotse → „Werde ich wieder gesund?“ → „Keine Bewertung“ → „An die Hausarztpraxis“ → Hausarztpraxis am Stadtgarten, „Nachricht ✦“ → „Nachricht vorbereiten“ → „nicht versendet“                                                                                                                                                                                     |
+| ✦ Arztbrief schreiben und versenden             | Frau Hoffmann nach eGK → „Arztbrief ✦“ → zehn Einträge vorausgewählt → Beurteilung tippen → „Unterschreiben“ → „In die ePA einstellen“ → „in der ePA“ → „Per KIM senden“ → „per KIM zugestellt“; Aufrufprotokoll zeigt SOAP und Client-Mail; Dokumente: „lokal, in ePA eingestellt“; Abrechnung: 86900                                                                 |
+| ✦ Der neue Brief im Lotsen                      | nach dem Einstellen → „Aktenlotse ✦“ → „Was ist mit der Belastungsdyspnoe?“ → Antwort mit Beleg aus dem eigenen Arztbrief                                                                                                                                                                                                                                              |
+| ✦ Ohne KIM-Adresse                              | Arztbrief „An“: Dr. Brinkmann → „keine KIM-Adresse“, Versand gesperrt. Ausbaustand „Release 3.1.3“ → kein Reiter „Arztbrief ✦“                                                                                                                                                                                                                                         |
 | Release 3.1.3                                   | Ausbaustand umschalten → die Listen verschwinden, der Splitscreen zeigt nur die Praxisseite                                                                                                                                                                                                                                                                            |
 | Patient Summary in einem Klick                  | Frau Hoffmann nach dem Einlesen → „Patient Summary" im Kopf → sieben von acht Abschnitten mit Inhalt (ab Weiterentwicklung 3)                                                                                                                                                                                                                                          |
 | Pflege an der Quelle                            | Patient Summary → „Zur Diagnosenübersicht" → Nierenkrankheit „in die ePA →" → Patient Summary zeigt drei Diagnosen                                                                                                                                                                                                                                                     |
@@ -1152,6 +1272,7 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 
 | Datum      | Anlass                                                                                             | Änderungen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12.10.2026 | Arztbrief, Einstellen in die ePA, KIM; Abgleich mit den Spezifikationen                            | ✦ Arztbrief als FHIR-Dokument nach dem Aufbau des MIO KH-E (7.8, ADR 0038); Einstellen über XDS ITI-41 (5.9); Demo-Ersatz des KIM-Clientmoduls mit Client-Mail nach gemSpec_CM_KOMLE (5.10); Abgleich der Wege mit den öffentlichen Quellen und Korrekturen: Gültigkeit der Dokumenttypen, absolute `fullUrl`, codingScheme als URI (5.11); Adressbuch mit KIM-Adressen, GOP 86900/86901 im EBM-Auszug (B25, B26)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 07.10.2026 | Versichertensicht über die Konfiguration                                                           | Kein Eintrag „Versichertensicht ✦“ mehr in der Navigation des Praxissystems; erreichbar über Konfiguration → „Meine ePA öffnen“ (ab Weiterentwicklung 4); eigener Rahmen ohne Praxis, Nutzerwahl und Navigation, mit „Konfiguration“ und „Zum Praxissystem“ (8.5)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | 07.10.2026 | Dokumentenlisten einheitlich                                                                       | „✦ laut Inhalt“ auch im ePA-Fenster und in den Dokumenten der Kartei, aus einer Quelle; ePA-Fenster sortiert wie Kartei und Versichertensicht (Datum, dann Titel) statt in der Reihenfolge der ePA (8.11)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 07.10.2026 | Ohne Vorführmodus                                                                                  | Der Knopf „Vorführmodus“ in der Kopfleiste und der Zustand dahinter entfallen; für Beamer genügt der Browser-Zoom (GESTALTUNG)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |

@@ -9,7 +9,8 @@
  *
  * Zweck: Das Demo-PVS soll bei jedem Dokument sagen können, ob es im freigegebenen Release
  * registriert ist oder einen Vorgriff auf ein späteres Release darstellt — ohne dass
- * formatCodes erfunden werden.
+ * formatCodes erfunden werden. Mit `gueltigAb` und `nurLesbarAb` weiß der Simulator auch, ob
+ * ein registrierter Typ heute noch eingestellt werden darf.
  *
  * Aufruf: node werkzeuge/formatcodes-aus-xds.mjs
  */
@@ -63,6 +64,10 @@ for (const datei of readdirSync(VERZEICHNIS).filter(
       ),
       classCode: wert(m, 'documentEntry.classCode'),
       typeCode: wert(m, 'documentEntry.typeCode'),
+      // Gültigkeit nach README der Implementation Guides: vor `validFromDate` und ab
+      // `clientReadOnlyFromDate` lehnt das Aktensystem das Einstellen ab.
+      gueltigAb: ig.validFromDate ?? null,
+      nurLesbarAb: ig.clientReadOnlyFromDate ?? null,
     });
   }
 }

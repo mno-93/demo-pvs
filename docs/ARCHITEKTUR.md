@@ -10,6 +10,8 @@
    │                          │  E-Rezept   │   Demo-Ersatz)             │
    │  React 19, Vite          │  MHD ITI-67 │  Fastify, Daten im Speicher│
    │  eigener Datenbestand    │  MHD ITI-68 │  Befugnisse, Dokumente,    │
+   │                          │  XDS ITI-41 │  (+ KIM-Clientmodul,       │
+   │                          │  KIM (Mail) │   Demo-Ersatz)             │
    │                          │  Medication │  Medikation                │
    │                          │  ✦ Listen   │  (+ ✦ Diagnose-Service)    │
    │                          │  ✦ Summary  │  (+ ✦ Patient Summary)     │
@@ -82,6 +84,16 @@ Vor jedem Zugriff fragt das PVS den Information Service (`epa-sim/src/informatio
 bei Widerspruch mit 423. Im PVS bildet `pvs/src/epa/aktenstatus.tsx` daraus den Zugangszustand
 im Kopf und stellt `Abrufstand` („Stand hh:mm:ss / ↻ aktualisieren") bereit —
 [0023](entscheidungen/0023-aktenstatus-und-widerspruch.md).
+
+## Einstellen und KIM
+
+Dokumente kommen über den XDS Document Service in die Akte (`epa-sim/src/xds.ts`, ITI-41, SOAP
+1.2). Die Nachricht baut und liest `kern/fachlogik/xds.ts` mit einem kleinen XML-Leser ohne DOM
+(`kern/fachlogik/xml.ts`), damit derselbe Code im Simulator unter Node und im Browser läuft.
+`epa-sim/src/kim.ts` ist ein Demo-Ersatz des KIM-Clientmoduls unter `/kim/`: Er nimmt die
+Client-Mail (`kern/fachlogik/kim.ts`) als `message/rfc822` an statt per SMTP — keine
+KIM-Schnittstelle. Den Brief selbst baut `kern/fachlogik/arztbrief.ts`; die Druckansicht entsteht
+daraus über `briefAusFhir` (ADR 0038).
 
 ## E-Rezept
 

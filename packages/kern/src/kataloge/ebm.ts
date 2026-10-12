@@ -58,5 +58,15 @@ export const ebm: readonly EbmEintrag[] = [
     "ziffer": "01430",
     "bezeichnung": "Verwaltungskomplex",
     "hinweis": "ohne persönlichen Arzt-Patienten-Kontakt"
+  },
+  {
+    "ziffer": "86900",
+    "bezeichnung": "Versand eines eArztbriefs",
+    "hinweis": "Kostenpauschale je Brief über KIM; Höchstwert je Quartal und Arzt (KBV, Praxisinformation eArztbrief, Mai 2026)"
+  },
+  {
+    "ziffer": "86901",
+    "bezeichnung": "Empfang eines eArztbriefs",
+    "hinweis": "Kostenpauschale je empfangenem Brief; Höchstwert je Quartal und Arzt (KBV, Praxisinformation eArztbrief, Mai 2026)"
   }
 ];

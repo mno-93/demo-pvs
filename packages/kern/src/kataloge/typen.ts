@@ -115,6 +115,10 @@ export interface DokumenttypEintrag {
   mimeTypes: string[];
   classCode: DokumentKodewert | null;
   typeCode: DokumentKodewert | null;
+  /** `validFromDate` des Implementation Guide: ab hier darf eingestellt werden. */
+  gueltigAb: string | null;
+  /** `clientReadOnlyFromDate`: ab hier nur noch lesbar, Einstellen wird abgelehnt. */
+  nurLesbarAb: string | null;
 }
 
 /** Impfstoff mit den Krankheiten, gegen die er schützt (SNOMED CT). */

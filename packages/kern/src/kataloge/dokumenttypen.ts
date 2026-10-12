@@ -36,7 +36,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2021-06-15",
+    "nurLesbarAb": "2024-01-01"
   },
   {
     "datei": "ig-eau_V_1_1-1.json",
@@ -57,7 +59,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2025-07-15",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-eau_V_1_1.json",
@@ -79,7 +83,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2023-07-01",
+    "nurLesbarAb": "2025-07-15"
   },
   {
     "datei": "ig-eau_V_1_2.json",
@@ -100,7 +106,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2025-10-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-eab.json",
@@ -121,7 +129,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BERI",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
-    }
+    },
+    "gueltigAb": "2021-06-15",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-dpe.json",
@@ -142,7 +152,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "PATD",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
-    }
+    },
+    "gueltigAb": "2021-06-15",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-diga_V_1_1.json",
@@ -164,7 +176,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "PATD",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
-    }
+    },
+    "gueltigAb": "2023-07-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_asthma_V_4.json",
@@ -185,7 +199,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_brk_V_4.json",
@@ -206,7 +222,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_copd_V_4.json",
@@ -227,7 +245,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_depression_V_1.json",
@@ -248,7 +268,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_dm1_V_5.json",
@@ -269,7 +291,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_dm2_V_6.json",
@@ -290,7 +314,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_hi_V_1.json",
@@ -311,7 +337,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_khk_V_4.json",
@@ -332,7 +360,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_ost_V_1.json",
@@ -353,7 +383,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_rheuma_V_1.json",
@@ -374,7 +406,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-04-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dmp_cr_V_1.json",
@@ -395,7 +429,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "FPRO",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
-    }
+    },
+    "gueltigAb": "2023-01-01",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-vaccination.json",
@@ -417,7 +453,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "MEDI",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Medikamentöse Therapien"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-childsrecord.json",
@@ -438,7 +476,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "PATD",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-childsrecord_V1_0_1.json",
@@ -459,7 +499,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "PATD",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
-    }
+    },
+    "gueltigAb": "2022-03-31",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-childsrecord.json",
@@ -481,7 +523,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-childsrecord_V1_0_1.json",
@@ -503,7 +547,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BESC",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
-    }
+    },
+    "gueltigAb": "2022-03-31",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-childsrecord.json",
@@ -525,7 +571,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BERI",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-childsrecord_V1_0_1.json",
@@ -547,7 +595,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BERI",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
-    }
+    },
+    "gueltigAb": "2022-03-31",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-emp.json",
@@ -568,7 +618,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "MEDI",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Medikamentöse Therapien"
-    }
+    },
+    "gueltigAb": "2021-06-15",
+    "nurLesbarAb": "2026-10-31"
   },
   {
     "datei": "ig-mothersrecord.json",
@@ -590,7 +642,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "GEBU",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Schwangerschafts- und Geburtsdokumentation"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": "2026-04-01"
   },
   {
     "datei": "ig-mothersrecord_V_1_1_0.json",
@@ -612,7 +666,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "GEBU",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Schwangerschafts- und Geburtsdokumentation"
-    }
+    },
+    "gueltigAb": "2022-03-31",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-nfd.json",
@@ -629,7 +685,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
       "anzeige": "Medizinischer Ausweis"
     },
-    "typeCode": null
+    "typeCode": null,
+    "gueltigAb": "2021-06-15",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-epka_V_1_0.json",
@@ -650,7 +708,9 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "BEFU",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ergebnisse Diagnostik"
-    }
+    },
+    "gueltigAb": "2025-07-15",
+    "nurLesbarAb": null
   },
   {
     "datei": "ig-dentalrecord.json",
@@ -672,6 +732,8 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "code": "PATD",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
-    }
+    },
+    "gueltigAb": "2021-05-05",
+    "nurLesbarAb": null
   }
 ];

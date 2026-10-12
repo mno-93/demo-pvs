@@ -9,6 +9,7 @@ import {
   PS_QUELLE_SYSTEM,
   PS_WEITERE_EXTENSION,
   istPsRelevant,
+  vollUrl,
   type PsAbschnittSchluessel,
   type PsQuelle,
   type Ressource,
@@ -391,7 +392,7 @@ export function patientSummaryBilden(kvnr: string): Ressource {
     type: 'document',
     timestamp: zeit,
     entry: ressourcen.map((r) => ({
-      fullUrl: `urn:uuid:${String(r.id)}`,
+      fullUrl: vollUrl(r),
       resource: r,
     })),
   };

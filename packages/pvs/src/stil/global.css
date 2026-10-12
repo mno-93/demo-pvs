@@ -2849,3 +2849,58 @@ td.split-mitte .marker {
   margin-top: 6px;
   text-decoration: none;
 }
+
+/* ---------- ✦ Arztbrief ---------- */
+
+.arztbrief-formular {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.arztbrief-formular:disabled {
+  opacity: 0.75;
+}
+.arztbrief-kim {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.arztbrief-kim code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  word-break: break-all;
+}
+.brief-auswahl {
+  border: 1px solid var(--linie);
+  border-radius: var(--radius);
+  padding: 6px 10px 8px;
+  margin: 0 0 12px;
+  min-width: 0;
+}
+.brief-auswahl legend {
+  font-size: 0.8em;
+  font-weight: 650;
+  color: var(--text-leise);
+  padding: 0 4px;
+}
+.brief-eintrag {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  cursor: pointer;
+}
+.brief-eintrag + .brief-eintrag {
+  border-top: 1px solid var(--linie);
+}
+.arztbrief-handlungen {
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.arztbrief .seitenansicht {
+  max-height: 78vh;
+}

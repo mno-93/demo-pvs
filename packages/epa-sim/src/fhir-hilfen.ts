@@ -1,4 +1,4 @@
-import { DEMO_HEUTE, type Ressource } from '@demo-pvs/kern';
+import { DEMO_HEUTE, vollUrl, type Ressource } from '@demo-pvs/kern';
 
 /** Hilfen für FHIR-Antworten und `Parameters`-Ressourcen. */
 
@@ -46,12 +46,12 @@ export function suchergebnis(ressourcen: Ressource[], zusatz: Ressource[] = []) 
     total: ressourcen.length,
     entry: [
       ...ressourcen.map((r) => ({
-        fullUrl: `urn:uuid:${r.id}`,
+        fullUrl: vollUrl(r),
         resource: r,
         search: { mode: 'match' },
       })),
       ...zusatz.map((r) => ({
-        fullUrl: `urn:uuid:${r.id}`,
+        fullUrl: vollUrl(r),
         resource: r,
         search: { mode: 'include' },
       })),

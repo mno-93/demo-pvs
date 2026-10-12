@@ -20,4 +20,4 @@ export function abrufen(pfad: string, init: RequestInit): Promise<Response> {
 }
 
 /** Wege, die der Simulator beantwortet. */
-export const SIMULATORWEGE = /^\/(epa|information|erp|verwaltung)\//;
+export const SIMULATORWEGE = /^\/(epa|information|erp|kim|verwaltung)\//;

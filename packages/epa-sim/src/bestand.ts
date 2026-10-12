@@ -21,6 +21,11 @@ export interface Kodewert {
 export interface Dokument {
   id: string;
   /**
+   * entryUUID, wie sie das einstellende Primärsystem über ITI-41 vergeben hat. Fehlt sie, leitet
+   * der Simulator sie aus der Kennung ab (Startbestand).
+   */
+  entryUuid?: string;
+  /**
    * XDS-uniqueId als OID, vom einstellenden System vergeben. Bei Laborbefunden bildet die
    * Demo sie aus der UUID des Befunds (⚠ Annahme, siehe kern/dokumentkennungLokal).
    */

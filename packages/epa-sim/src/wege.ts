@@ -39,12 +39,18 @@ import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summa
 import { operationOutcome } from './fhir-hilfen.ts';
 import { MEDIKATION_BASIS, medikationEinhaengen } from './medikation.ts';
 import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
+import { xdsEinhaengen } from './xds.ts';
+import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen, postausgangLeeren } from './kim.ts';
+import { XDS_DOKUMENTENDIENST } from '@demo-pvs/kern';
 import { fremdeEintraegeAnlegen, startbestandAufbauen } from './startbestand.ts';
 
 const istEpaWeg = (url: string) => url.startsWith('/epa/');
 /** Wege des Aktensystems und des Fachdienstes, deren Antworten nicht zwischengespeichert werden. */
 const istFernweg = (url: string) =>
-  istEpaWeg(url) || url.startsWith('/information/') || url.startsWith('/erp/');
+  istEpaWeg(url) ||
+  url.startsWith('/information/') ||
+  url.startsWith('/erp/') ||
+  url.startsWith('/kim/');
 
 /** Adressierung der Akte über `x-insurantid` — Pflicht auf allen ePA-Wegen (OpenAPI ePA-Basic 3.1.3). */
 function kvnrAus(anfrage: { headers: Record<string, unknown> }): string {
@@ -221,6 +227,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
 
   befugnisEinhaengen(app, kvnrAus, sitzungAus);
   mhdEinhaengen(app, kvnrAus);
+  xdsEinhaengen(app, kvnrAus);
   medikationEinhaengen(app, kvnrAus, sitzungAus);
   diagnosedienstEinhaengen(app, kvnrAus, sitzungAus);
   impflisteEinhaengen(app, kvnrAus, sitzungAus);
@@ -229,6 +236,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
   kontaktEinhaengen(app);
   informationEinhaengen(app);
   erezeptEinhaengen(app, sitzungAus);
+  kimEinhaengen(app);
 
   /* ---------- Demo-Steuerung — keine ePA-Schnittstelle ---------- */
 
@@ -282,6 +290,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
   app.post('/verwaltung/zuruecksetzen', async () => {
     startbestandAufbauen();
     erezepteLeeren();
+    postausgangLeeren();
     Object.assign(betriebslage, STANDARD_BETRIEBSLAGE);
     return { zurueckgesetzt: true, bestaende: alleBestaende().length };
   });
@@ -334,6 +343,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       'Implementation Guide de.gematik.epa 1.3.2 (generelle Prinzipien, Provenance)',
       'Implementation Guide de.gematik.epa.medication 1.3.5',
       'Implementation Guide de.gematik.epa.mhd 1.1.3',
+      'WSDL XDS Document Service (ITI-41) und XDS-Implementation-Guides, ePA-XDS-Document 3.1.3',
       'OpenAPI I_Information_Service 1.5.1 (Aktenstatus, Widersprüche)',
       'gematik api-erp (E-Rezept-Fachdienst) — als Demo-Ersatz',
       'Vorschau: Fachkonzept dgLP Stufe 1 (ePA 3.2), Content-IG de.gematik.epa.laboratory 1.0.0-ballot.1',
@@ -364,6 +374,14 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       weg: `POST ${BEFUGNIS_WEG}`,
       grundlage: 'setEntitlementPs, OpenAPI I_Entitlement_Management 1.8.0',
       ohneBefugnis: '403 notEntitled',
+    },
+    xds: [
+      `POST ${XDS_DOKUMENTENDIENST} — ITI-41 Provide & Register Document Set-b, SOAP 1.2; Dokument inline statt MTOM (Demo)`,
+    ],
+    kim: {
+      hinweis:
+        'Demo-Ersatz für das KIM-Clientmodul — keine KIM-Schnittstelle. Die Client-Mail kommt als message/rfc822 statt per SMTP; Antwort mit SMTP-Statuscode.',
+      wege: [`POST ${KIM_WEG}`, `GET ${KIM_POSTAUSGANG}`],
     },
     mhd: [
       `GET ${MHD_BASIS}/DocumentReference — ITI-67; _content (Volltext) ab Weiterentwicklung 1`,

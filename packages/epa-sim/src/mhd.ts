@@ -14,8 +14,8 @@ import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen
  * - **Retrieve Document [ITI-68]** — `GET /epa/mhd/retrieve/v1/content/<entryUUID>.<Endung>`,
  *   das Dokument im MIME-Typ aus `content.attachment.contentType`, unverändert.
  *
- * Einstellen läuft im Release über den XDS Document Service (ITI-41, SOAP) und ist nicht
- * nachgebildet. Welche Dokumente sichtbar sind, hängt vom Ausbaustand ab: Im Release 3.1.3
+ * Einstellen läuft über den XDS Document Service (ITI-41, SOAP, `xds.ts`); was dort eingestellt
+ * wird, findet dieser Dienst unter der vergebenen entryUUID. Welche Dokumente sichtbar sind, hängt vom Ausbaustand ab: Im Release 3.1.3
  * liegen Laborbefunde als PDF vor, in der Vorschau auf ePA 3.2 als strukturierter
  * FHIR-Laborbefund (Fachkonzept dgLP, Stufe 1).
  */
@@ -32,8 +32,14 @@ const ENDUNG: Record<string, string> = {
 
 /** entryUUID eines Dokuments — aus seiner Kennung abgeleitet, damit sie stabil bleibt. */
 export function eintragsUuid(d: Dokument): string {
+  if (d.entryUuid) return d.entryUuid;
   const h = sha256Hex(`entry:${d.id}`);
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/** codingScheme der XDS-Metadaten als URI: eine OID mit `urn:oid:`, eine URL unverändert. */
+function alsUri(system: string): string {
+  return /^\d+(\.\d+)+$/.test(system) ? `urn:oid:${system}` : system;
 }
 
 export function sichtbar(d: Dokument): boolean {
@@ -45,7 +51,7 @@ export function sichtbar(d: Dokument): boolean {
 
 function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
   const kodierung = (k: { code: string; system: string; anzeige: string }) => ({
-    coding: [{ system: `urn:oid:${k.system}`, code: k.code, display: k.anzeige }],
+    coding: [{ system: alsUri(k.system), code: k.code, display: k.anzeige }],
   });
   const uuid = eintragsUuid(d);
   return {
@@ -88,7 +94,7 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
         ...(d.formatCode
           ? {
               format: {
-                system: `urn:oid:${d.formatCode.system}`,
+                system: alsUri(d.formatCode.system),
                 code: d.formatCode.code,
                 display: d.formatCode.anzeige,
               },

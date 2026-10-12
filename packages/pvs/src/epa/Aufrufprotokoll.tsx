@@ -419,7 +419,9 @@ function Zeile({
           {a.koerper !== null && (
             <div>
               <b>Körper</b>
-              <pre className="code-block">{JSON.stringify(a.koerper, null, 2)}</pre>
+              <pre className="code-block">
+                {typeof a.koerper === 'string' ? a.koerper : JSON.stringify(a.koerper, null, 2)}
+              </pre>
             </div>
           )}
           {a.fehler && (

@@ -1,5 +1,6 @@
 import type { Ressource } from '../fhir/typen.js';
 import { istLaborbefund } from './laborbefund.js';
+import { EMPFAENGER_EXTENSION } from './arztbrief.js';
 import { briefPdfErzeugen, type Briefbaustein, type Briefvorlage } from './pdf.js';
 
 /**
@@ -19,9 +20,14 @@ interface Abschnitt {
   entry?: unknown[];
 }
 
+function eintraegeMitUrl(bundle: unknown): { fullUrl?: string; resource?: Ressource }[] {
+  return (bundle as { entry?: { fullUrl?: string; resource?: Ressource }[] } | null)?.entry ?? [];
+}
+
 function ressourcen(bundle: unknown): Ressource[] {
-  const e = (bundle as { entry?: { resource?: Ressource }[] } | null)?.entry ?? [];
-  return e.map((x) => x.resource).filter((r): r is Ressource => !!r);
+  return eintraegeMitUrl(bundle)
+    .map((x) => x.resource)
+    .filter((r): r is Ressource => !!r);
 }
 
 /** Absätze aus dem XHTML-Erzähltext — ohne DOM, damit es auch im Simulator läuft. */
@@ -53,9 +59,16 @@ export function briefAusFhir(bundle: unknown): Briefvorlage | null {
   const abschnitte = (komposition?.['section'] as Abschnitt[] | undefined) ?? [];
   if (!komposition || abschnitte.length === 0) return null;
 
+  // Verweise im Dokument zeigen auf `fullUrl` (urn:uuid:…) oder, in älteren Beispielen, auf
+  // Typ und Kennung.
+  const eintraege = eintraegeMitUrl(bundle);
   const nachVerweis = (verweis: unknown) => {
     const ref = (verweis as { reference?: string } | undefined)?.reference ?? '';
-    return r.find((x) => `${x.resourceType}/${String(x.id)}` === ref);
+    if (!ref) return undefined;
+    return (
+      eintraege.find((e) => e.fullUrl === ref)?.resource ??
+      r.find((x) => `${x.resourceType}/${String(x.id)}` === ref)
+    );
   };
   const autoren = (komposition['author'] as { reference?: string; display?: string }[]) ?? [];
   const organisation =
@@ -72,6 +85,17 @@ export function briefAusFhir(bundle: unknown): Briefvorlage | null {
   const titel = String(komposition['title'] ?? 'Dokument');
   const datum = String(komposition['date'] ?? '');
   const einrichtung = String(organisation?.['name'] ?? person?.display ?? '');
+  const anschrift = (organisation?.['address'] as { text?: string }[] | undefined)?.[0]?.text;
+  const telefon = (
+    organisation?.['telecom'] as { system?: string; value?: string }[] | undefined
+  )?.find((t) => t.system === 'phone')?.value;
+  const kopfzeile = [anschrift, telefon ? `Tel. ${telefon}` : ''].filter(Boolean).join(' · ');
+  // ✦ Empfänger eines Arztbriefs (Extension der Demo, siehe arztbrief.ts).
+  const empfaenger = nachVerweis(
+    (komposition['extension'] as { url?: string; valueReference?: unknown }[] | undefined)?.find(
+      (e) => e.url === EMPFAENGER_EXTENSION,
+    )?.valueReference,
+  );
 
   const bausteine: Briefbaustein[] = [];
   for (const a of abschnitte) {
@@ -84,6 +108,28 @@ export function briefAusFhir(bundle: unknown): Briefvorlage | null {
     bausteine.push({ art: 'leer' });
   }
   if (person?.display) bausteine.push({ art: 'absatz', text: person.display });
+
+  const patientin = name
+    ? `${(name.given ?? []).join(' ')} ${name.family ?? ''}`.trim() +
+      (geburt ? `, geb. ${deutsch(geburt)}` : '')
+    : '';
+  if (empfaenger) {
+    const kontakt = (empfaenger['contact'] as { name?: { text?: string } }[] | undefined)?.[0]?.name
+      ?.text;
+    const zeilen = (empfaenger['address'] as { line?: string[] }[] | undefined)?.[0]?.line ?? [];
+    return {
+      absender: [
+        einrichtung || titel,
+        ...(person?.display ? [person.display] : []),
+        ...(kopfzeile ? [kopfzeile] : []),
+      ],
+      empfaenger: [String(empfaenger['name'] ?? ''), ...(kontakt ? [kontakt] : []), ...zeilen],
+      ortDatum: datum ? deutsch(datum) : '',
+      betreff: patientin ? `${titel} — ${patientin}` : titel,
+      bausteine,
+      fusszeile: 'Ansicht, erzeugt aus dem strukturierten Dokument',
+    };
+  }
 
   return {
     absender: [einrichtung || titel],

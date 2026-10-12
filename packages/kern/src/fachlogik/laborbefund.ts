@@ -1,3 +1,4 @@
+import { vollUrl } from '../fhir/vollurl.js';
 import type { LokalesDokument } from '../typen/dokument.js';
 import type { Herkunft } from '../typen/herkunft.js';
 import type { Bewertung, Laborwert } from '../typen/labor.js';
@@ -405,7 +406,7 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${a.uuid}` },
     type: 'document',
     timestamp: a.freigabe,
-    entry: alle.map((r) => ({ fullUrl: `urn:uuid:${r.id}`, resource: r })),
+    entry: alle.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
   };
 }
 

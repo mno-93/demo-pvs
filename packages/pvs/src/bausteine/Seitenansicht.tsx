@@ -45,7 +45,11 @@ export function Seitenansicht({ seiten, markieren }: { seiten: Seite[]; markiere
 
   let ersteGesetzt = false;
   return (
-    <div ref={rahmen} className="seitenansicht" aria-label="Dokument, Stellen zur Antwort markiert">
+    <div
+      ref={rahmen}
+      className="seitenansicht"
+      aria-label={markieren.length > 0 ? 'Dokument, Stellen zur Antwort markiert' : 'Dokument'}
+    >
       {seiten.map((s, i) => (
         <svg
           key={i}

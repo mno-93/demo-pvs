@@ -30,7 +30,7 @@ export function epaAttrappe(
         methode: init.method ?? 'GET',
         pfad: String(pfad),
         kopf: (init.headers ?? {}) as Record<string, string>,
-        koerper: init.body ? JSON.parse(String(init.body)) : null,
+        koerper: init.body ? lesen(String(init.body)) : null,
       };
       aufrufe.push(a);
       const antwort = antworten(a) ??
@@ -43,13 +43,29 @@ export function epaAttrappe(
             ],
           },
         };
-      return new Response(antwort.inhalt === undefined ? null : JSON.stringify(antwort.inhalt), {
+      // Text bleibt Text — SOAP-Antworten und SMTP-Statuszeilen sind kein JSON.
+      const text =
+        antwort.inhalt === undefined
+          ? null
+          : typeof antwort.inhalt === 'string'
+            ? antwort.inhalt
+            : JSON.stringify(antwort.inhalt);
+      return new Response(text, {
         status: antwort.status,
         headers: { 'content-type': 'application/json', ...(antwort.kopf ?? {}) },
       });
     }),
   );
   return aufrufe;
+}
+
+/** JSON-Körper als Objekt, alles andere (SOAP, Mail) als Text. */
+function lesen(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 /**

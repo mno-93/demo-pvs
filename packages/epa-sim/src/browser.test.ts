@@ -3,6 +3,16 @@ import { describe, expect, it } from 'vitest';
 import { befugnisErteilen } from './befugnis.ts';
 import { simulatorImBrowser } from './browser.ts';
 import { base64ZuText, sha256Hex, utf8AlsBytezeichen } from './plattform.ts';
+import {
+  ARZTBRIEF_XDS,
+  ITI41_INHALTSTYP,
+  KIM_DIENSTKENNUNG,
+  KIM_PRAXIS,
+  kimNachrichtErzeugen,
+  provideAndRegisterErzeugen,
+  registryResponseLesen,
+} from '@demo-pvs/kern';
+import { betriebslage } from './betrieb.ts';
 
 /**
  * Der Browser-Adapter der gehosteten Demo (ADR 0025): dieselben Wege, dieselben Antworten wie
@@ -95,5 +105,67 @@ describe('Simulator im Browser', () => {
     const text = new TextDecoder('latin1').decode(bytes);
     expect(text.startsWith('%PDF')).toBe(true);
     expect(text).toContain('Echokardiographie');
+  });
+
+  it('nimmt SOAP am XDS Document Service und eine Client-Mail als Text an', async () => {
+    const sim = simulatorImBrowser();
+    befugnisErteilen('A123456780', 'DEMO-PRAXIS-STADTGARTEN', new Date(), 'eGK');
+    betriebslage.ausbaustand = 'weiterentwicklung-3';
+    const xml = provideAndRegisterErzeugen(
+      {
+        kvnr: 'A123456780',
+        uniqueId: '2.25.20',
+        quelle: '2.25.21',
+        zeitpunkt: '2026-09-09T11:00:00Z',
+        autor: {
+          person: 'Dr. med. Anna Brandt',
+          einrichtung: 'Hausarztpraxis am Stadtgarten',
+          telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+        },
+        dokumente: [
+          {
+            entryUuid: '0a1b2c3d-0000-4000-8000-000000000020',
+            uniqueId: '2.25.22',
+            titel: 'Arztbrief',
+            mimeType: 'application/fhir+json',
+            erstellt: '2026-09-09T11:00:00Z',
+            ...ARZTBRIEF_XDS,
+            inhaltBase64: Buffer.from('{"resourceType":"Bundle","type":"document"}').toString(
+              'base64',
+            ),
+          },
+        ],
+      },
+      'n-1',
+    );
+    const soap = await sim.abrufen(
+      new Request('http://x/epa/xds-document/api/I_Document_Management', {
+        method: 'POST',
+        headers: { ...KOPF, 'content-type': ITI41_INHALTSTYP },
+        body: xml,
+      }),
+    );
+    expect(soap.headers.get('content-type')).toContain('application/soap+xml');
+    expect(registryResponseLesen(await soap.text()).erfolg).toBe(true);
+
+    const mail = await sim.abrufen(
+      new Request('http://x/kim/demo/clientmodul/smtp', {
+        method: 'POST',
+        headers: { 'content-type': 'message/rfc822' },
+        body: kimNachrichtErzeugen({
+          von: KIM_PRAXIS,
+          an: ['kardiologie.am-wall@demo-anbieter.kim.telematik'],
+          betreff: 'Arztbrief',
+          datum: '2026-09-09T11:00:00Z',
+          nachrichtId: 'b@demo',
+          dienstkennung: KIM_DIENSTKENNUNG.arztbrief,
+          sendersystem: 'Demo-PVS;V0.4.0',
+          text: 'Anbei.',
+          anhaenge: [],
+        }),
+      }),
+    );
+    expect(await mail.text()).toMatch(/^250 /);
+    betriebslage.ausbaustand = 'release-3.1.3';
   });
 });

@@ -8,8 +8,9 @@ Dokumentation, die ohnehin stattfindet. Dazu gehört ein ePA-Simulator nach den 
 Spezifikationen der gematik (Release ePA 3.1.3) mit vier zuschaltbaren, aufeinander aufbauenden
 Ausbaustufen. „Weiterentwicklung 1": strukturierte Laborbefunde (Vorschau ePA 3.2) und
 Volltextsuche. „Weiterentwicklung 2": ✦ Arzt- und Entlassbriefe als FHIR-Dokument nach
-europäischem Vorbild. „Weiterentwicklung 3": ✦ Allergien-, Diagnosen- und Impfliste und ✦ die
-Patient Summary als Sicht auf diese Quellen. „Weiterentwicklung 4" schaltet ✦ den
+europäischem Vorbild. „Weiterentwicklung 3": ✦ Allergien-, Diagnosen- und Impfliste, ✦ die
+Patient Summary als Sicht auf diese Quellen und ✦ der **Arztbrief** als FHIR-Dokument, der aus
+vorhandenen Daten entsteht und über XDS ITI-41 in die ePA sowie per KIM an die Mitbehandelnden geht. „Weiterentwicklung 4" schaltet ✦ den
 **Aktenlotsen** frei: einen Auskunftsdienst, der Fragen an den Aktenbestand in
 zusammenhängenden Sätzen beantwortet — mit der Unterlage, in der es nachzulesen ist, mit der Angabe,
 wie viele Unterlagen gelesen wurden und welche nicht, und ohne zu bewerten. Die Demo startet im
@@ -99,29 +100,32 @@ npm run vorschau:gehostet
 4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
    wo er gepflegt wird. Welche Einträge der Listen sie zeigt, bestimmt die Markierung ★ im
    Splitscreen — die Listen bleiben vollständig.
-5. **Medikation**: Ramipril „Rezept" → „Signieren und senden". Nach wenigen Sekunden steht die
+5. **Arztbrief ✦**: Diagnosen, Allergien, Laborbefund und Medikationsplan sind vorausgewählt —
+   Beurteilung tippen, „Unterschreiben", dann „In die ePA einstellen" und „Per KIM senden". Das
+   Aufrufprotokoll zeigt die SOAP-Nachricht und die Client-Mail.
+6. **Medikation**: Ramipril „Rezept" → „Signieren und senden". Nach wenigen Sekunden steht die
    Verordnung in der Medikationsliste, verknüpft mit dem Planeintrag.
-6. **Konfiguration** (oben rechts): die Demo-Steuerung und jeder Aufruf an die ePA mit Grundlage. Daneben führt **Dokumentation ↗** zur Spezifikation auf GitHub. Demo-Steuerung:
+7. **Konfiguration** (oben rechts): die Demo-Steuerung und jeder Aufruf an die ePA mit Grundlage. Daneben führt **Dokumentation ↗** zur Spezifikation auf GitHub. Demo-Steuerung:
    (Ausbaustand, Konflikt, Befugnis entziehen, Patient Summary geführt oder automatisch,
    Übertragungszeit des E-Rezepts, Akten sperren oder Widerspruch setzen, andere Einrichtung
    trägt ein, Apotheke gibt ab).
-7. **Konfiguration → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
+8. **Konfiguration → Akten → „andere Einrichtung trägt ein"**, dann erneut **Patient Summary**:
    Band „Seit dem letzten Aufruf …" und Marken **neu** an den fremden Einträgen.
-8. **Konfiguration → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
+9. **Konfiguration → Ausbaustand → „Weiterentwicklung 4"**: Erst damit gibt es den ✦ Aktenlotsen.
    Im Patientenkopf öffnet „Aktenlotse ✦" die ePA auf dem Bereich des Lotsen; er steht auch als
    Reiter der Kartei. In der Konfiguration erscheint „Versichertensicht ✦ → Meine ePA öffnen" — die
    App der Versicherten, in eigenem Rahmen und nicht Teil des Praxissystems.
-9. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
-   anklickbar, sie öffnet sich zum Nachlesen. „9 von 10 Unterlagen gelesen", der eingescannte
-   Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht
-   im Plan. Darunter Vorschläge für die Listen.
-10. **Versichertensicht**: aufgebaut wie ein FdV — Einstieg ist die Dokumentenliste, der Aktenlotse
+10. **Aktenlotse**: Kontext zum Krankenhausaufenthalt in ganzen Sätzen, mit der Unterlage darunter —
+    anklickbar, sie öffnet sich zum Nachlesen. „9 von 10 Unterlagen gelesen", der eingescannte
+    Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht
+    im Plan. Darunter Vorschläge für die Listen.
+11. **Versichertensicht**: aufgebaut wie ein FdV — Einstieg ist die Dokumentenliste, der Aktenlotse
     ist ein Bereich daneben. Dort „Welche Medikamente nehme ich und wofür?" fragen; die
     Quellenangabe unter der Antwort öffnet das Dokument im Bereich „Dokumente". Rolle auf
     **Vertretung entzogen** umschalten: Akte und Lotse sind gleichermaßen leer — er hat keine
     eigenen Rechte. Zurück zur eigenen Akte und „Werde ich wieder gesund?" fragen: **Keine
     Bewertung** — der Lotse verweist an die Ärztin oder den Arzt.
-11. **Nachfragen**: Versichertensicht → Dokumente → den Scan von 2019 öffnen → „Nachfragen" →
+12. **Nachfragen**: Versichertensicht → Dokumente → den Scan von 2019 öffnen → „Nachfragen" →
     „Stimmt das?" → Kardiologische Praxis mit Telefon. Bei „Befund" findet die Kontaktauskunft
     „AGP am Markt" nicht — die Metadaten sind unklar, der Lotse nennt darunter „✦ laut Inhalt".
     Fragen für den Termin sammelt „Meine Fragen".
@@ -173,6 +177,7 @@ Mit ✦ gekennzeichnete Teile sind Vorschläge und nicht spezifiziert.
 | M4h     | „Neu seit dem letzten Aufruf" für Medikation und Dokumente über die spezifizierten Abfragen (`_lastUpdated`, Chronologie nach `recorded`, früherer Planstand, `$medication-list` mit `date`)                                        | erledigt     |
 | M4i     | ✦ Patient Summary: Prozeduren und Implantate automatisch aus strukturierten Dokumenten, mit Quelldokument                                                                                                                           | erledigt     |
 | **M4c** | Patient Summary: Aufwandszähler, Quelle für persönliche Erklärungen, gespeicherte Fassung                                                                                                                                           | als Nächstes |
+| M4j     | ✦ Arztbrief aus vorhandenen Daten; Einstellen über XDS ITI-41; Versand per KIM (Demo-Ersatz des Clientmoduls); Abgleich der Wege mit den öffentlichen Spezifikationen                                                               | erledigt     |
 | M4e     | Hochladen mit Metadaten, Widerspruch gegen einzelne Dokumente, Tagesübersicht „neu seit dem letzten Besuch" (Ausblick in SPEZIFIKATION 9.1)                                                                                         | geplant      |
 | M5      | Zulauf aus dem Entlassbrief, Notfallzugriff, EU-Abruf                                                                                                                                                                               | offen        |
 | M6      | Zweites Primärsystem (Krankenhaus)                                                                                                                                                                                                  | offen        |

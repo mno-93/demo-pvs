@@ -1,4 +1,4 @@
-import type { Briefbaustein, Briefvorlage, Ressource } from '@demo-pvs/kern';
+import { vollUrl, type Briefbaustein, type Briefvorlage, type Ressource } from '@demo-pvs/kern';
 
 /**
  * Arzt- und Entlassbriefe des Startbestands. Alle Personen, Einrichtungen, Anschriften und
@@ -597,7 +597,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     },
     type: 'document',
     timestamp: '2026-07-17T14:00:00',
-    entry: ressourcen.map((r) => ({ fullUrl: `urn:uuid:${String(r.id)}`, resource: r })),
+    entry: ressourcen.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
   };
 }
 
@@ -907,7 +907,7 @@ export function kardiologieKontrolleFhir(
     resourceType: 'Bundle',
     type: 'document',
     timestamp: `${datum}T12:00:00`,
-    entry: ressourcen.map((r) => ({ fullUrl: `urn:uuid:${String(r.id)}`, resource: r })),
+    entry: ressourcen.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
   };
 }
 

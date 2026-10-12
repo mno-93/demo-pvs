@@ -61,6 +61,7 @@ export function Patientenkartei() {
   const allergien = useZustand((z) => z.allergien);
   const aktenstatus = useAktenstatus(patient);
   const lotseDa = useLotseVorhanden() === true;
+  const briefDa = useArztbriefVorhanden();
   const ohneAkte = aktenstatus.daten?.akte === 'keine';
   const nutzbar = aktenstatus.daten?.akte === 'aktiv';
 
@@ -76,7 +77,17 @@ export function Patientenkartei() {
   );
   const quartal = quartalsBezeichnung(quartalVon(heute));
   // ✦ Der Aktenlotse ist ein Vorschlag und erscheint erst im Ausbaustand, der ihn anbietet.
-  const reiter = lotseDa ? [...REITER, { pfad: 'lotse', beschriftung: 'Aktenlotse ✦' }] : REITER;
+  // ✦ Der strukturierte Arztbrief gehört zur Weiterentwicklung mit der Patient Summary.
+  const mitBrief = briefDa
+    ? [
+        ...REITER.slice(0, 6),
+        { pfad: 'arztbrief', beschriftung: 'Arztbrief ✦' },
+        ...REITER.slice(6),
+      ]
+    : REITER;
+  const reiter = lotseDa
+    ? [...mitBrief, { pfad: 'lotse', beschriftung: 'Aktenlotse ✦' }]
+    : mitBrief;
 
   return (
     <>
@@ -143,6 +154,17 @@ export function Patientenkartei() {
       <Outlet />
     </>
   );
+}
+
+/**
+ * Gibt es den ✦ Arztbrief? Er erscheint mit der Patient Summary (Ausbaustand „Weiterentwicklung
+ * 3"): Das Aktensystem nimmt den strukturierten Brief ab „Weiterentwicklung 2" an, das Modul
+ * gehört zum Ausbaupfad der Patient Summary.
+ */
+function useArztbriefVorhanden(): boolean {
+  const betriebsstand = useBetriebsstand();
+  const dienst = useEpaAbfrage(() => patientSummaryVerfuegbar(), [betriebsstand]);
+  return dienst.daten === true;
 }
 
 /** Öffnet die ePA auf der Patient Summary — nur, wenn das Aktensystem sie anbietet. */

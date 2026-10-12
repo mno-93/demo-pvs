@@ -1,3 +1,12 @@
+import {
+  ITI41_INHALTSTYP,
+  XDS_DOKUMENTENDIENST,
+  kimNachrichtErzeugen,
+  provideAndRegisterErzeugen,
+  registryResponseLesen,
+  type KimNachricht,
+  type XdsEinreichung,
+} from '@demo-pvs/kern';
 import type {
   Lesart,
   Lotsenantwort,
@@ -17,6 +26,8 @@ import { abrufen } from './transport.js';
  * jeder Aufruf nennt seine Grundlage, das Aufrufprotokoll zeigt sie.
  *
  * - MHD Service (`de.gematik.epa.mhd` 1.1.3): ITI-67 suchen, auch im Volltext; ITI-68 abrufen.
+ * - XDS Document Service (WSDL ePA 3.1.3): ITI-41 einstellen, SOAP 1.2 — der einzige Weg, auf
+ *   dem ein Dokument in die Akte kommt.
  * - Medication Service (`de.gematik.epa.medication` 1.3.5): eML, eMP samt Chronologie,
  *   eMP-Einträge anlegen und ändern, eML-Einträge mit dem eMP verknüpfen. Schreibend immer mit
  *   Lesenachweis `acknowledgedChronologyId` und dem Header `X-Requesting-Organization`.
@@ -57,6 +68,8 @@ const ERP = '/erp';
 export const GRUNDLAGE = {
   iti67: 'MHD ITI-67 · IG epa-mhd 1.1.3',
   iti68: 'MHD ITI-68 · IG epa-mhd 1.1.3',
+  iti41: 'XDS ITI-41 Provide & Register · WSDL XDSDocumentService, ePA 3.1.3',
+  kim: 'KIM Client-Mail · gemSpec_CM_KOMLE 1.16.6 — Demo-Ersatz für SMTP ans Clientmodul',
   eml: '$medication-list · IG epa-medication 1.3.5',
   emp: '$medication-plan · IG epa-medication 1.3.5',
   empLog: '$medication-plan-log · IG epa-medication 1.3.5',
@@ -143,6 +156,8 @@ interface Anfrage {
    * Versichertenzugang `x-demo-versicherte`.
    */
   zusatz?: Record<string, string>;
+  /** Ein Körper, der kein JSON ist — SOAP oder eine Mail —, mit seinem Inhaltstyp. */
+  roh?: { inhaltstyp: string; text: string };
 }
 
 interface Antwort<T> {
@@ -186,7 +201,9 @@ async function senden<T>({
   inhaltstyp = 'application/fhir+json',
   datei = false,
   zusatz = {},
+  roh,
 }: Anfrage): Promise<Antwort<T>> {
+  if (roh) return rohSenden<T>({ methode, pfad, kvnr, grundlage, zusatz, roh });
   const beginn = performance.now();
   const fachlich = pfad.startsWith('/epa/') || pfad.startsWith(`${INFORMATION}`);
   const fachdienst = pfad.startsWith(`${ERP}/`);
@@ -279,6 +296,84 @@ async function senden<T>({
           : 'ok';
   notieren(antwort.status, ergebnis, null);
   return { inhalt: inhalt as T, kopf: antwort.headers };
+}
+
+/**
+ * Senden mit einem Körper, der kein JSON ist, und einer Antwort als Text: SOAP am XDS Document
+ * Service, die Client-Mail am KIM-Clientmodul. Dieselben Kopfzeilen und dasselbe Protokoll wie
+ * jeder andere Weg; Fehler der Prüfkette kommen wie überall als JSON-Fehlercode.
+ */
+async function rohSenden<T>({
+  methode = 'POST',
+  pfad,
+  kvnr,
+  grundlage,
+  zusatz = {},
+  roh,
+}: Anfrage & { roh: { inhaltstyp: string; text: string } }): Promise<Antwort<T>> {
+  const beginn = performance.now();
+  const fachlich = pfad.startsWith('/epa/');
+  const kopfzeilen: Record<string, string> = {
+    'content-type': roh.inhaltstyp,
+    ...(fachlich
+      ? {
+          accept: 'application/soap+xml',
+          'x-useragent': USER_AGENT,
+          'X-Request-ID': anfragekennung(),
+          [SITZUNG_KOPFZEILE]: EINRICHTUNG.telematikId,
+          ...(kvnr ? { 'x-insurantid': kvnr } : {}),
+        }
+      : {}),
+    ...zusatz,
+  };
+  const notieren = (status: number | null, ergebnis: string, fehler: string | null) =>
+    aufrufNotieren({
+      methode,
+      pfad,
+      status,
+      dauerMs: Math.round(performance.now() - beginn),
+      ergebnis,
+      fehler,
+      grundlage,
+      kopfzeilen,
+      koerper: roh.text,
+    });
+  let antwort: Response;
+  try {
+    antwort = await abrufen(pfad, {
+      method: methode,
+      headers: kopfzeilen,
+      cache: 'no-store',
+      body: roh.text,
+    });
+  } catch (fehler) {
+    const text = fehler instanceof Error ? fehler.message : 'Unbekannter Fehler';
+    notieren(null, 'keine Antwort', text);
+    throw new EpaFehler(0, `Keine Antwort (${text}).`);
+  }
+  const text = await antwort.text();
+  if (!antwort.ok) {
+    let code: string | null = null;
+    let diagnose = text.slice(0, 200) || `Antwort ${antwort.status}.`;
+    try {
+      const json = JSON.parse(text) as { errorCode?: string; errorDetail?: string };
+      code = json.errorCode ?? null;
+      diagnose = code ? `${code}: ${json.errorDetail ?? ''}` : diagnose;
+    } catch {
+      /* Text, etwa ein SMTP-Statuscode */
+    }
+    notieren(antwort.status, diagnose.slice(0, 90), diagnose);
+    const f = new EpaFehler(antwort.status, diagnose, code);
+    if (f.ohneBefugnis && kvnr) befugnisFehlt(kvnr);
+    throw f;
+  }
+  const kurz = text.includes('RegistryResponse')
+    ? registryResponseLesen(text).erfolg
+      ? 'RegistryResponse Success'
+      : `RegistryResponse Failure: ${registryResponseLesen(text).fehler[0]?.code ?? ''}`
+    : text.slice(0, 90);
+  notieren(antwort.status, kurz, kurz.includes('Failure') ? kurz : null);
+  return { inhalt: text as T, kopf: antwort.headers };
 }
 
 interface Bundle {
@@ -1122,6 +1217,47 @@ export function listeneintragAendern(
   ressource: Ressource,
 ) {
   return listenoperation(kvnr, art, 'aendern', lesenachweis, ressource);
+}
+
+/* ---------- Einstellen (ITI-41) und KIM ---------- */
+
+/**
+ * Stellt Dokumente über ITI-41 in die Akte. Wirft bei einer RegistryResponse mit Fehlern; der
+ * Fehlercode ist der des XDS-Dienstes, etwa `XDSRegistryMetadataError`.
+ */
+export async function dokumenteEinstellen(einreichung: XdsEinreichung): Promise<void> {
+  const xml = provideAndRegisterErzeugen(einreichung, anfragekennung());
+  const { inhalt } = await anfragen<string>({
+    methode: 'POST',
+    pfad: XDS_DOKUMENTENDIENST,
+    kvnr: einreichung.kvnr,
+    grundlage: GRUNDLAGE.iti41,
+    roh: { inhaltstyp: ITI41_INHALTSTYP, text: xml },
+  });
+  const antwort = registryResponseLesen(inhalt);
+  if (!antwort.erfolg) {
+    const erster = antwort.fehler[0];
+    throw new EpaFehler(
+      200,
+      erster ? `${erster.code}: ${erster.text}` : 'Abgelehnt.',
+      erster?.code ?? null,
+    );
+  }
+  betriebsstandErhoehen();
+}
+
+/** ✦ Demo-Ersatz für SMTP an das KIM-Clientmodul — siehe `epa-sim/src/kim.ts`. */
+export const KIM_CLIENTMODUL = '/kim/demo/clientmodul/smtp';
+
+/** Übergibt eine Client-Mail an das Clientmodul. Antwort: die SMTP-Statuszeile. */
+export async function kimSenden(nachricht: KimNachricht): Promise<string> {
+  const { inhalt } = await anfragen<string>({
+    methode: 'POST',
+    pfad: KIM_CLIENTMODUL,
+    grundlage: GRUNDLAGE.kim,
+    roh: { inhaltstyp: 'message/rfc822', text: kimNachrichtErzeugen(nachricht) },
+  });
+  return inhalt;
 }
 
 /* ---------- ✦ Patient Summary ---------- */

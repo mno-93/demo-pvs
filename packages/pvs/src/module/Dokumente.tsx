@@ -44,7 +44,8 @@ import { LautInhalt, useBeschriftung } from '../lotse/beschriftung.js';
  * Ablage nicht anwachsen lassen.
  *
  * Die ePA wird über den MHD Service gelesen: ITI-67 für die Liste, ITI-68 für den Inhalt.
- * Einstellen ginge nur über XDS ITI-41 (SOAP) und ist nicht nachgebildet.
+ * Eingestellt wird über XDS ITI-41 (SOAP) — in der Demo aus dem ✦ Arztbrief; ein so
+ * eingestelltes Dokument steht hier als „lokal, in ePA eingestellt".
  *
  * Was seit dem letzten Aufruf eingestellt wurde, fragt die Ansicht mit `_lastUpdated` ab — dem
  * Suchparameter, den der IG verbindlich vorsieht (ADR 0030).

@@ -11,6 +11,7 @@ import { Diagnosen } from './module/Diagnosen.js';
 import { Medikation } from './module/Medikation.js';
 import { Impfungen } from './module/Impfungen.js';
 import { Dokumente } from './module/Dokumente.js';
+import { Arztbrief } from './module/Arztbrief.js';
 import { Labor } from './module/Labor.js';
 import { Abrechnung } from './module/Abrechnung.js';
 import { Stammdaten } from './module/Stammdaten.js';
@@ -77,6 +78,7 @@ export function App() {
             <Route path="impfungen" element={<Impfungen />} />
             <Route path="labor" element={<Labor />} />
             <Route path="dokumente" element={<Dokumente />} />
+            <Route path="arztbrief" element={<Arztbrief />} />
             <Route path="lotse" element={<PraxisLotse />} />
             <Route path="epa" element={<EpaUmleitung />} />
             <Route path="abrechnung" element={<Abrechnung />} />

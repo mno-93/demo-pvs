@@ -19,6 +19,8 @@ export default defineConfig({
       // Information Service des Aktensystems und der Demo-Ersatz des E-Rezept-Fachdienstes.
       '/information': { target: SIMULATOR, changeOrigin: true },
       '/erp': { target: SIMULATOR, changeOrigin: true },
+      // Demo-Ersatz des KIM-Clientmoduls (im Wirkbetrieb SMTP, nicht HTTP).
+      '/kim': { target: SIMULATOR, changeOrigin: true },
     },
   },
   build: {

@@ -513,6 +513,57 @@ export const vorgaenge = {
     };
   },
 
+  /**
+   * Legt einen unterschriebenen Arztbrief in der Praxisablage ab — als FHIR-Dokument, so wie er
+   * in die ePA und per KIM geht. Die Kennung vergibt der Aufrufer, damit er das Dokument danach
+   * wiederfindet.
+   */
+  arztbriefAblegen(
+    patientId: string,
+    angabe: { id: string; titel: string; datum: string; inhalt: unknown; einrichtung: string },
+  ): Vorgang {
+    return {
+      name: 'arztbriefAblegen',
+      beschreibung: `Arztbrief „${angabe.titel}" unterschrieben und abgelegt`,
+      anwenden: (z) => {
+        const text = JSON.stringify(angabe.inhalt);
+        const neu: LokalesDokument = {
+          id: angabe.id,
+          patientId,
+          titel: angabe.titel,
+          art: 'Arztbrief',
+          ursprung: 'praxis',
+          datum: angabe.datum,
+          epaId: null,
+          einrichtung: angabe.einrichtung,
+          autor: z.nutzer.name,
+          dateiname: `arztbrief_${angabe.datum.slice(0, 10)}.json`,
+          inhaltstyp: 'application/fhir+json',
+          groesseBytes: new TextEncoder().encode(text).length,
+          gespeichertAm: jetzt(z),
+          gespeichertVon: z.nutzer.name,
+          inhalt: angabe.inhalt,
+          notiz: null,
+        };
+        return { ...z, dokumente: [neu, ...z.dokumente] };
+      },
+    };
+  },
+
+  /** Vermerkt einen Versand am Dokument, etwa „per KIM an …". */
+  dokumentVersandt(dokumentId: string, vermerk: string): Vorgang {
+    return {
+      name: 'dokumentVersandt',
+      beschreibung: `Dokument versandt: ${vermerk}`,
+      anwenden: (z) => ({
+        ...z,
+        dokumente: z.dokumente.map((d) =>
+          d.id === dokumentId ? { ...d, notiz: d.notiz ? `${d.notiz} · ${vermerk}` : vermerk } : d,
+        ),
+      }),
+    };
+  },
+
   /** Vermerkt, dass ein lokales Dokument in die ePA eingestellt wurde. */
   dokumentEingestellt(dokumentId: string, epaId: string): Vorgang {
     return {

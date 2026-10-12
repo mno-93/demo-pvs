@@ -192,3 +192,64 @@ export const BEFUND_HOFFMANN_MAERZ: Befundangabe = {
     },
   ],
 };
+
+/** Ein Eintrag im Adressbuch der Praxis — so, wie er aus dem Verzeichnisdienst übernommen wurde. */
+export interface Adressbucheintrag {
+  id: string;
+  einrichtung: string;
+  /** Ansprechperson mit Anrede, etwa „Herrn Dr. med. Jonas Behrens". */
+  person: string | null;
+  anschrift: string[];
+  /** KIM-Adresse, oder `null`, wenn die Einrichtung keinen KIM-Dienst hat. */
+  kim: string | null;
+}
+
+/**
+ * Die eigene KIM-Adresse der Praxis. Erfunden; die Domäne steht für einen fiktiven
+ * KIM-Anbieter. Echte KIM-Adressen enden auf `.kim.telematik`.
+ */
+export const KIM_PRAXIS = 'praxis.stadtgarten@demo-anbieter.kim.telematik';
+
+/**
+ * Adressbuch der Praxis — Einrichtungen, mit denen sie Briefe austauscht. Dieselben Einträge
+ * kennt der Simulator als Verzeichnis: Eine Client-Mail an eine Adresse, die es dort nicht gibt,
+ * wird abgewiesen. Die Kardiologie in Oldenburg hat keinen KIM-Dienst — dorthin geht ein Brief
+ * auf Papier.
+ */
+export const ADRESSBUCH: readonly Adressbucheintrag[] = [
+  {
+    id: 'adr-wall',
+    einrichtung: 'Kardiologische Praxis am Wall',
+    person: 'Herrn Dr. med. Jonas Behrens',
+    anschrift: ['Am Wall 7', '26000 Beispielstadt'],
+    kim: 'kardiologie.am-wall@demo-anbieter.kim.telematik',
+  },
+  {
+    id: 'adr-diabetologie',
+    einrichtung: 'Diabetologische Schwerpunktpraxis Nordstadt',
+    person: 'Frau Dr. med. Kerstin Wolff',
+    anschrift: ['Bahnhofstraße 9', '26990 Nordstadt'],
+    kim: 'diabetologie.nordstadt@demo-anbieter.kim.telematik',
+  },
+  {
+    id: 'adr-augen',
+    einrichtung: 'Augenärztliche Gemeinschaftspraxis am Markt',
+    person: null,
+    anschrift: ['Markt 4', '26990 Nordstadt'],
+    kim: 'augen.am-markt@demo-anbieter.kim.telematik',
+  },
+  {
+    id: 'adr-klinikum',
+    einrichtung: 'Klinikum Sonnenschein',
+    person: 'Klinik für Innere Medizin und Kardiologie',
+    anschrift: ['Am Sonnenhang 1', '26000 Beispielstadt'],
+    kim: 'innere.sonnenschein@demo-anbieter.kim.telematik',
+  },
+  {
+    id: 'adr-brinkmann',
+    einrichtung: 'Kardiologische Praxis Dr. Brinkmann, Oldenburg',
+    person: 'Dr. med. U. Brinkmann',
+    anschrift: ['Lindenallee 3', '26100 Oldenburg'],
+    kim: null,
+  },
+];

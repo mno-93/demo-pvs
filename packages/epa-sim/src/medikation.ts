@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import type { Ressource } from '@demo-pvs/kern';
+import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import {
   aktuelleChronologie,
@@ -319,7 +319,7 @@ export function medikationEinhaengen(
       timestamp: jetzt(),
       entry: [patientFuer(kvnr), ...(chronologie ? [chronologie] : []), ...eintraege, ...dazu].map(
         (r) => ({
-          fullUrl: `urn:uuid:${String(r.id)}`,
+          fullUrl: vollUrl(r),
           resource: r,
         }),
       ),

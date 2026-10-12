@@ -43,6 +43,14 @@ export async function simulatorBauen(): Promise<FastifyInstance> {
     },
   );
 
+  // ITI-41 spricht SOAP 1.2; der Demo-Ersatz des KIM-Clientmoduls nimmt eine Mail entgegen.
+  // Beide bleiben Text — gelesen wird im Weg.
+  for (const typ of ['application/soap+xml', 'message/rfc822']) {
+    app.addContentTypeParser(typ, { parseAs: 'string' }, (_a, koerper, fertig) =>
+      fertig(null, koerper),
+    );
+  }
+
   wegeEinhaengen(app);
   return app;
 }
