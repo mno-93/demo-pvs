@@ -126,4 +126,49 @@ describe('Arztbrief als FHIR-Dokument', () => {
     expect(zeilen).toContain('Ramipril 5 mg — 1-0-0-0 — Grund: Hypertonie');
     expect(zeilen).toContain('Echokardiographie erbeten.');
   });
+
+  it('führt Anamnese und Impfungen als eigene Abschnitte, Impfungen als Immunization', () => {
+    const b = arztbriefBauen(
+      angabe({
+        anamnese: ['30.08.2026: Erstvorstellung nach Umzug.'],
+        impfungen: [
+          {
+            id: 'i1',
+            patientId: 'p1',
+            impfstoff: {
+              bezeichnung: 'Influenza-Impfstoff',
+              atc: 'J07BB02',
+              atcVersion: '2026',
+              pzn: null,
+            },
+            zielkrankheiten: [],
+            datum: '2025-10-14',
+            dosis: null,
+            charge: null,
+            geimpftVon: 'Hausarztpraxis Nordstadt',
+            status: 'erfolgt',
+            herkunft: {
+              bestand: 'lokal',
+              quelle: 'Praxis',
+              zeitpunkt: '2025-10-14T09:00:00',
+              verantwortlich: 'x',
+              dokumentId: null,
+            },
+            epaId: null,
+            notiz: null,
+          },
+        ],
+      }),
+      fest,
+    );
+    const titel = (ressourcen(b)[0]!.resource['section'] as { title: string }[]).map(
+      (x) => x.title,
+    );
+    expect(titel).toContain('Anamnese');
+    expect(titel.at(-1)).toBe('Impfungen');
+    expect(ressourcen(b).some((x) => x.resource['resourceType'] === 'Immunization')).toBe(true);
+    expect(briefTextzeilen(briefAusFhir(b)!).map((z) => z.trim())).toContain(
+      '14.10.2025 Influenza-Impfstoff — Hausarztpraxis Nordstadt',
+    );
+  });
 });

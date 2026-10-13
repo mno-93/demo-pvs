@@ -15,6 +15,7 @@ import { EgkKnopf } from '../epa/befugnis.js';
 import { EpaZugang, useAktenstatus } from '../epa/aktenstatus.js';
 import { patientSummaryVerfuegbar } from '../epa/klient.js';
 import { useBetriebsstand, useEpaAbfrage } from '../epa/epa-bestand.js';
+import { useEntwurfsstand } from './arztbrief/entwurf.js';
 
 /**
  * Rahmen einer Patientenkartei: Kopfzeile mit den Angaben, die in der Praxis ständig
@@ -62,6 +63,8 @@ export function Patientenkartei() {
   const aktenstatus = useAktenstatus(patient);
   const lotseDa = useLotseVorhanden() === true;
   const briefDa = useArztbriefVorhanden();
+  // Ein offener Entwurf bleibt sichtbar, während man in den Quellen ergänzt.
+  const briefstand = useEntwurfsstand(patientId ?? '');
   const ohneAkte = aktenstatus.daten?.akte === 'keine';
   const nutzbar = aktenstatus.daten?.akte === 'aktiv';
 
@@ -81,7 +84,15 @@ export function Patientenkartei() {
   const mitBrief = briefDa
     ? [
         ...REITER.slice(0, 6),
-        { pfad: 'arztbrief', beschriftung: 'Arztbrief ✦' },
+        {
+          pfad: 'arztbrief',
+          beschriftung:
+            briefstand === 'entwurf'
+              ? 'Arztbrief ✦ · Entwurf'
+              : briefstand === 'unterschrieben'
+                ? 'Arztbrief ✦ · unterschrieben'
+                : 'Arztbrief ✦',
+        },
         ...REITER.slice(6),
       ]
     : REITER;

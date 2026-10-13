@@ -1,17 +1,20 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ITI41_AKTION,
+  diagnoseNachFhir,
   kimNachrichtLesen,
   provideAndRegisterLesen,
   registryResponseErzeugen,
 } from '@demo-pvs/kern';
 import { App } from '../App.js';
-import { startzustand } from '../daten/startdaten.js';
-import { lesen, speicherStarten } from '../speicher/speicher.js';
+import { diagnosen, startzustand } from '../daten/startdaten.js';
+import { ausfuehren, lesen, speicherStarten } from '../speicher/speicher.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { epaFensterSchliessen } from '../epa/fenster.js';
 import { klientZuruecksetzen } from '../epa/klient.js';
+import { entwuerfeLeeren } from './arztbrief/entwurf.js';
 import {
   dauerhafteBefugnis,
   epaAttrappe,
@@ -20,12 +23,14 @@ import {
 } from '../testhilfe/epa-attrappe.js';
 
 /**
- * ✦ Arztbrief: Was dokumentiert ist, steht zur Auswahl; nach der Unterschrift geht derselbe Brief
- * über ITI-41 in die ePA und als Client-Mail an das KIM-Clientmodul.
+ * ✦ Arztbrief: Alles Strukturierte aus Praxis und ePA steht je Abschnitt im Menü; Neues kommt
+ * über seine Quelle. Nach der Unterschrift geht derselbe Brief über ITI-41 in die ePA und als
+ * Client-Mail an das KIM-Clientmodul.
  */
 
 const XDS = '/epa/xds-document/api/I_Document_Management';
 const KIM = '/kim/demo/clientmodul/smtp';
+const DIENST = '/epa/vorschlag/diagnosis/api/v1/fhir';
 
 const PLAN = {
   resourceType: 'Bundle',
@@ -52,11 +57,29 @@ const PLAN = {
   ],
 };
 
+/** Ein Eintrag, der nur in der Diagnosenliste der ePA steht. */
+const VORHOFFLIMMERN = diagnoseNachFhir(
+  {
+    ...diagnosen[0]!,
+    id: 'cond-vhf',
+    code: 'I48.1',
+    bezeichnung: 'Vorhofflimmern, persistierend',
+    snomed: null,
+  },
+  'A123456780',
+);
+
 function attrappe(xds: 'erfolg' | 'fehler' = 'erfolg') {
   return epaAttrappe((a: Aufzeichnung) => {
     if (a.pfad.endsWith('/patient-summary/api/v1/fhir/metadata'))
       return { status: 200, inhalt: { resourceType: 'CapabilityStatement' } };
+    if (a.pfad === `${DIENST}/metadata`)
+      return { status: 200, inhalt: { resourceType: 'CapabilityStatement' } };
+    if (a.pfad === `${DIENST}/$condition-list`)
+      return { status: 200, inhalt: suchergebnis([VORHOFFLIMMERN]) };
+    if (a.pfad === `${DIENST}/$allergy-list`) return { status: 200, inhalt: suchergebnis([]) };
     if (a.pfad.includes('$medication-plan')) return { status: 200, inhalt: PLAN };
+    if (a.pfad.includes('$medication-list')) return { status: 200, inhalt: suchergebnis([]) };
     if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference'))
       return { status: 200, inhalt: suchergebnis([]) };
     if (a.pfad === XDS)
@@ -88,49 +111,88 @@ function öffne() {
   );
 }
 
+const imBrief = (titel: string) => screen.getByRole('list', { name: `${titel} im Brief` });
+
 describe('Arztbrief', () => {
   beforeEach(() => {
     klientZuruecksetzen();
     epaFensterSchliessen();
+    entwuerfeLeeren();
     speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
   });
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('wählt Dauerdiagnosen, aktive Allergien und den Medikationsplan vor — Behobenes nicht', async () => {
+  it('wählt das Aktuelle der Praxis und den Medikationsplan vor — Behobenes und Nur-ePA nicht', async () => {
     attrappe();
     öffne();
-    const diagnosen = await screen.findByRole('group', { name: 'Diagnosen' });
+    await within(await screen.findByRole('list', { name: 'Medikation im Brief' })).findByText(
+      /Apixaban 5 mg Filmtabletten — 1-0-1-0/,
+    );
+    const dx = imBrief('Diagnosen');
+    expect(within(dx).getByText(/I10\.90 G Essentielle Hypertonie/)).toBeTruthy();
+    expect(within(dx).queryByText(/J20\.9/)).toBeNull();
+    expect(within(dx).queryByText(/Vorhofflimmern/)).toBeNull();
+  });
+
+  it('bietet im Menü Praxis und ePA nach Quelle an; ein ePA-Eintrag lässt sich übernehmen', async () => {
+    attrappe();
+    öffne();
+    fireEvent.click(await screen.findByRole('button', { name: 'Diagnosen auswählen' }));
+    const menue = screen.getByRole('dialog', { name: 'Diagnosen auswählen' });
+    const epa = await within(menue).findByRole('group', { name: /Diagnosenliste/ });
+    const vhf = within(epa).getByLabelText(/I48\.1 G Vorhofflimmern/) as HTMLInputElement;
+    expect(vhf.checked).toBe(false);
     expect(
-      (within(diagnosen).getByLabelText(/I10\.90 G Essentielle Hypertonie/) as HTMLInputElement)
-        .checked,
-    ).toBe(true);
-    expect(
-      (within(diagnosen).getByLabelText(/J20\.9 G Akute Bronchitis/) as HTMLInputElement).checked,
-    ).toBe(false);
-    const medikation = screen.getByRole('group', { name: /Medikation/ });
-    expect(
-      (
-        (await within(medikation).findByLabelText(
-          'Apixaban 5 mg Filmtabletten — 1-0-1-0 — Grund: Vorhofflimmern',
-          { exact: false },
-        )) as HTMLInputElement
-      ).checked,
-    ).toBe(true);
+      (within(menue).getByRole('group', { name: /Praxis\s+Diagnosen/ }) as HTMLElement).textContent,
+    ).toContain('J20.9');
+    fireEvent.click(vhf);
+    expect(within(imBrief('Diagnosen')).getByText(/Vorhofflimmern/)).toBeTruthy();
+
+    // Escape schließt das Menü und gibt den Fokus an den Knopf zurück.
+    fireEvent.keyDown(menue, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Diagnosen auswählen' })).toBeNull();
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Diagnosen auswählen');
+  });
+
+  it('führt Neues über die Quelle und behält den Entwurf — Neues ist bei der Rückkehr gewählt', async () => {
+    attrappe();
+    const erst = öffne();
+    fireEvent.click(await screen.findByRole('button', { name: 'Befunde auswählen' }));
+    const verweis = screen.getByRole('link', { name: /Befund in der Karteikarte notieren/ });
+    expect(verweis.getAttribute('href')).toBe('/patient/p-hoffmann/karteikarte');
+    fireEvent.change(screen.getByLabelText('Beurteilung'), { target: { value: 'Echo erbeten.' } });
+    erst.unmount();
+
+    // In der Karteikarte notiert, dann zurück.
+    act(() =>
+      ausfuehren(vorgaenge.karteneintragAnlegen('p-hoffmann', 'B', 'Beinödeme beidseits.')),
+    );
+    öffne();
+    const befunde = await screen.findByRole('list', { name: 'Befunde im Brief' });
+    expect(within(befunde).getByText(/Beinödeme beidseits/)).toBeTruthy();
+    expect(within(befunde).getByText('neu')).toBeTruthy();
+    expect((screen.getByLabelText('Beurteilung') as HTMLTextAreaElement).value).toBe(
+      'Echo erbeten.',
+    );
+    expect(screen.getByRole('link', { name: 'Arztbrief ✦ · Entwurf' })).toBeTruthy();
   });
 
   it('stellt den unterschriebenen Brief über ITI-41 ein und sendet ihn per KIM', async () => {
     const aufrufe = attrappe();
     öffne();
-    await screen.findByRole('group', { name: 'Diagnosen' });
+    await within(await screen.findByRole('list', { name: 'Medikation im Brief' })).findByText(
+      /Apixaban 5 mg Filmtabletten — 1-0-1-0/,
+    );
     fireEvent.change(screen.getByLabelText('Beurteilung'), {
       target: { value: 'Echokardiographie erbeten.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Unterschreiben' }));
     expect(screen.getByText('unterschrieben')).toBeTruthy();
+    // Unterschrieben ist unterschrieben: keine Auswahl mehr.
+    expect(screen.queryByRole('button', { name: 'Diagnosen auswählen' })).toBeNull();
 
-    // Abgelegt in der Praxis, bevor es irgendwohin geht.
     const brief = lesen().dokumente.find((d) => d.art === 'Arztbrief');
     expect(brief?.titel).toBe('Arztbrief an Kardiologische Praxis am Wall');
     expect(brief?.epaId).toBeNull();
@@ -145,7 +207,6 @@ describe('Arztbrief', () => {
     const dokument = einreichung.dokumente[0]!;
     expect(dokument.classCode.code).toBe('BRI');
     expect(dokument.mimeType).toBe('application/fhir+json');
-    // Die Praxisablage kennt jetzt die entryUUID — „lokal, in ePA eingestellt".
     expect(lesen().dokumente.find((d) => d.id === brief!.id)?.epaId).toBe(dokument.entryUuid);
 
     fireEvent.click(screen.getByRole('button', { name: 'Per KIM senden' }));
@@ -165,8 +226,7 @@ describe('Arztbrief', () => {
   it('zeigt eine Ablehnung des Aktensystems am Knopf, nicht als Erfolg', async () => {
     attrappe('fehler');
     öffne();
-    await screen.findByRole('group', { name: 'Diagnosen' });
-    fireEvent.click(screen.getByRole('button', { name: 'Unterschreiben' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Unterschreiben' }));
     fireEvent.click(screen.getByRole('button', { name: 'In die ePA einstellen' }));
     expect(await screen.findByText(/XDSRegistryMetadataError/)).toBeTruthy();
     expect(screen.queryByText('in der ePA')).toBeNull();

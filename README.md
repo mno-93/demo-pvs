@@ -100,8 +100,9 @@ npm run vorschau:gehostet
 4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
    wo er gepflegt wird. Welche Einträge der Listen sie zeigt, bestimmt die Markierung ★ im
    Splitscreen — die Listen bleiben vollständig.
-5. **Arztbrief ✦**: Diagnosen, Allergien, Laborbefund und Medikationsplan sind vorausgewählt —
-   Beurteilung tippen, „Unterschreiben", dann „In die ePA einstellen" und „Per KIM senden". Das
+5. **Arztbrief ✦**: Das Aktuelle ist vorausgewählt; „Auswählen ▾" je Abschnitt zeigt alles aus
+   Praxis und ePA, nach Quelle. Fehlt etwas, führt der Verweis im Menü in die Quelle — der
+   Entwurf bleibt. Beurteilung tippen, „Unterschreiben", dann „In die ePA einstellen" und „Per KIM senden". Das
    Aufrufprotokoll zeigt die SOAP-Nachricht und die Client-Mail.
 6. **Medikation**: Ramipril „Rezept" → „Signieren und senden". Nach wenigen Sekunden steht die
    Verordnung in der Medikationsliste, verknüpft mit dem Planeintrag.

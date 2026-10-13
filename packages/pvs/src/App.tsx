@@ -12,6 +12,7 @@ import { Medikation } from './module/Medikation.js';
 import { Impfungen } from './module/Impfungen.js';
 import { Dokumente } from './module/Dokumente.js';
 import { Arztbrief } from './module/Arztbrief.js';
+import { entwuerfeLeeren } from './module/arztbrief/entwurf.js';
 import { Labor } from './module/Labor.js';
 import { Abrechnung } from './module/Abrechnung.js';
 import { Stammdaten } from './module/Stammdaten.js';
@@ -156,6 +157,7 @@ function Kopf() {
               // Praxis nicht mehr kennt, und umgekehrt.
               zuruecksetzen();
               klientZuruecksetzen();
+              entwuerfeLeeren();
               void aktensystemZuruecksetzen().catch(() => undefined);
             }}
           >

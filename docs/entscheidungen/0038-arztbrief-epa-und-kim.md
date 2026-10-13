@@ -38,10 +38,13 @@ Drei Fragen standen offen:
    FHIR-Dokument.
 6. **Das Modul erscheint mit der Patient Summary** („Weiterentwicklung 3") als Reiter
    „Arztbrief ✦".
-7. **Wenig schreiben:** Dauerdiagnosen, aktive Allergien, Befunde der letzten 90 Tage, der
-   jüngste Laborbefund (lokal oder aus der ePA) und der Medikationsplan der ePA sind
-   vorausgewählt. Selbst geschrieben werden Fragestellung, Beurteilung und Empfehlungen. Zwei
-   Marker zählen beides.
+7. **Wenig schreiben:** Das Aktuelle ist vorausgewählt — Dauerdiagnosen, aktive Allergien,
+   Befunde der letzten 90 Tage, der jüngste Laborbefund und der Medikationsplan der ePA. Selbst
+   geschrieben werden Fragestellung, Beurteilung und Empfehlungen. Zwei Marker zählen beides.
+8. **Zusammenstellen statt abtippen (ergänzt 13.10.2026).** Je Abschnitt öffnet ein Menü alle
+   strukturierten Einträge aus Praxis und ePA, nach Quelle gegliedert. Neues wird nicht im Brief
+   erfasst, sondern in seiner Quelle; der Entwurf liegt dafür außerhalb des Bildschirms
+   (`arztbrief/entwurf.ts`), und was seit Beginn angelegt wurde, ist bei der Rückkehr gewählt.
 
 ## Begründung
 
@@ -67,6 +70,12 @@ bauen muss, und wo die Lücke liegt — beim formatCode, nicht beim Transport.
   Sie ist nicht öffentlich.
 
 ## Verworfen
+
+**Freie Eingabe im Brief** (Diagnose oder Mittel nur für den Brief tippen) — entstünde eine
+zweite Fassung neben der Liste, die beim ersten Ändern veraltet (U9).
+
+**Brief als eigener Bildschirm ohne gehaltenen Entwurf** — wer eine fehlende Diagnose in der Liste
+nachträgt, verlöre alles bisher Gewählte.
 
 **Nur PDF in die ePA** — entspricht dem heutigen Stand. Dann bleibt der Brief für Patient Summary
 und Listen stumm, und genau das soll die Weiterentwicklung ändern.

@@ -1,8 +1,14 @@
 import type { Adressbucheintrag } from '../beispiele.js';
-import { allergieNachFhir, diagnoseNachFhir, patientNachFhir } from '../fhir/abbildung.js';
+import {
+  allergieNachFhir,
+  diagnoseNachFhir,
+  impfungNachFhir,
+  patientNachFhir,
+} from '../fhir/abbildung.js';
 import type { Ressource } from '../fhir/typen.js';
 import { reaktionenAlsText, type Allergie } from '../typen/allergie.js';
 import type { Diagnose } from '../typen/diagnose.js';
+import type { Impfung } from '../typen/impfung.js';
 import type { Patient } from '../typen/person.js';
 import type { XdsCode } from './xds.js';
 
@@ -40,6 +46,7 @@ export const EMPFAENGER_EXTENSION =
 /** Abschnitte des ambulanten Briefs: Überschrift und LOINC-Code (⚠ ungeprüft). */
 export const ARZTBRIEF_ABSCHNITT = {
   anlass: { titel: 'Fragestellung', loinc: '42349-1', anzeige: 'Reason for referral (narrative)' },
+  anamnese: { titel: 'Anamnese', loinc: '11329-0', anzeige: 'History general Narrative' },
   diagnosen: { titel: 'Diagnosen', loinc: '29548-5', anzeige: 'Diagnosis Narrative' },
   allergien: {
     titel: 'Allergien und Unverträglichkeiten',
@@ -56,6 +63,11 @@ export const ARZTBRIEF_ABSCHNITT = {
     titel: 'Medikation',
     loinc: '10160-0',
     anzeige: 'History of Medication use Narrative',
+  },
+  impfungen: {
+    titel: 'Impfungen',
+    loinc: '11369-6',
+    anzeige: 'History of Immunization Narrative',
   },
   empfehlungen: { titel: 'Empfehlungen', loinc: '18776-5', anzeige: 'Plan of care note' },
 } as const;
@@ -99,12 +111,15 @@ export interface Arztbriefangabe {
   };
   empfaenger: Adressbucheintrag | null;
   anlass: string;
+  /** Anamnese aus der Karteikarte, je Notiz eine Zeile. */
+  anamnese?: readonly string[];
   diagnosen: readonly Diagnose[];
   allergien: readonly Allergie[];
   befunde: readonly string[];
   beurteilung: string;
   medikation: readonly Briefmittel[];
   empfehlungen: string;
+  impfungen?: readonly Impfung[];
 }
 
 /** Diagnose als Zeile — ICD-10-GM mit Zusatzkennzeichen, wie im Brief üblich. */
@@ -116,6 +131,12 @@ export function diagnosezeile(d: Diagnose): string {
 export function allergiezeile(a: Allergie): string {
   const reaktion = reaktionenAlsText(a.reaktionen);
   return `${a.substanz} (${a.typ}, ${a.gewissheit})${reaktion ? ` — ${reaktion}` : ''}`;
+}
+
+const tagDeutsch = (iso: string) => iso.slice(0, 10).split('-').reverse().join('.');
+
+export function impfzeile(i: Impfung): string {
+  return `${tagDeutsch(i.datum)} ${i.impfstoff.bezeichnung}${i.dosis ? `, Dosis ${i.dosis}` : ''} — ${i.geimpftVon}`;
 }
 
 export function mittelzeile(m: Briefmittel): string {
@@ -186,6 +207,14 @@ export function arztbriefBauen(
     _url: verweis(`mittel:${i}`),
   }));
 
+  const impfungen = (a.impfungen ?? []).map((x) => ({
+    ...impfungNachFhir(x, kvnr),
+    id: undefined,
+    patient: { ...pat, identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: kvnr } },
+    _url: verweis(`impfung:${x.id}`),
+  }));
+  const anamnese = a.anamnese ?? [];
+
   const S = ARZTBRIEF_ABSCHNITT;
   const abschnitt = (
     s: (typeof S)[keyof typeof S],
@@ -212,6 +241,7 @@ export function arztbriefBauen(
   });
   const abschnitte = [
     absaetzeAus(a.anlass).length > 0 && abschnitt(S.anlass, absaetzeAus(a.anlass)),
+    anamnese.length > 0 && abschnitt(S.anamnese, anamnese),
     a.diagnosen.length > 0 && abschnitt(S.diagnosen, a.diagnosen.map(diagnosezeile), diagnosen),
     // Allergien stehen immer im Brief — ein fehlender Abschnitt hieße nicht „keine".
     abschnitt(
@@ -223,6 +253,7 @@ export function arztbriefBauen(
     a.befunde.length > 0 && abschnitt(S.befunde, a.befunde),
     absaetzeAus(a.beurteilung).length > 0 && abschnitt(S.beurteilung, absaetzeAus(a.beurteilung)),
     a.medikation.length > 0 && abschnitt(S.medikation, a.medikation.map(mittelzeile), medikation),
+    impfungen.length > 0 && abschnitt(S.impfungen, (a.impfungen ?? []).map(impfzeile), impfungen),
     absaetzeAus(a.empfehlungen).length > 0 &&
       abschnitt(S.empfehlungen, absaetzeAus(a.empfehlungen)),
   ].filter(Boolean);
@@ -311,6 +342,7 @@ export function arztbriefBauen(
     ...diagnosen,
     ...allergien,
     ...medikation,
+    ...impfungen,
   ];
   return {
     resourceType: 'Bundle',
