@@ -10,8 +10,8 @@ import { befugnisErteilen } from './befugnis.ts';
  * (Medication 1.3.5).
  */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
-const KARDIOLOGIE = 'DEMO-KARDIOLOGIE-AM-WALL';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
+const KARDIOLOGIE = '1-DEMO-KARDIOLOGIE-AM-WALL';
 const HOFFMANN = 'A123456780';
 const MHD = '/epa/mhd/api/v1/fhir';
 const MS = '/epa/medication/api/v1/fhir';

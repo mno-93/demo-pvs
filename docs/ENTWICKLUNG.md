@@ -101,27 +101,52 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
 
 **Voraussetzungen:**
 
-- Java ab Version 17.
-- `validator_cli.jar` von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
-  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`.
+- Java ab Version 17 — aus `JAVA_HOME`, sonst `java` im Pfad. Mit Homebrew ohne Eingriff in die
+  Shell: `brew install openjdk@21`, dann `JAVA_HOME="$(brew --prefix openjdk@21)" npm run fhir:validieren`.
+- `validator_cli.jar` **7.0.1** von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
+  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`. Die CI lädt dieselbe Fassung.
 
 Das Skript lädt nichts selbst herunter. Der Validator holt die Pakete beim ersten Lauf aus der
 Registry.
 
 **In der CI:** Job „FHIR-Validator“ in `.github/workflows/demo.yml`, mit Bericht als Artefakt.
+Seit der Kalibrierung am 15.10.2026 lässt jeder Fehler ohne begründete Ausnahme den Lauf
+scheitern.
 
-- **Informativ** (`continue-on-error`), bis die Ausnahmen am ersten Lauf kalibriert sind. Danach
-  die Zeile entfernen und die Validator-Version festschreiben.
-- Ausnahmen nur mit Grund. Erlaubt sind das vereinfachte E-Rezept (KBV-Pakete nicht geladen) und
-  die ✦ Vorschläge im Namensraum der Demo.
+**Stand nach der Kalibrierung (15.10.2026):** 75 Dateien, **keine Fehler**, rund 980 Warnungen —
+überwiegend „ohne Terminologieserver nicht prüfbar“ und Hinweise zur Best Practice. Der erste Lauf
+fand 965 Fehler. Behoben sind:
 
-⚠ Noch nicht gelaufen. Lokal fehlte Java, die CI läuft erst nach dem nächsten Push.
+| Befund des Validators                                                                                                          | Behebung                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Deutsche Anzeigen an HL7-Codes (klinischer Status, Verifikationsstatus, Kategorie); dadurch auch die required-Bindung verfehlt | offizielle Anzeigen der Terminologie (DATENMODELL, R5)                                                         |
+| Fiktive Telematik-IDs ohne Präfix (`telematik-id-1` der Basisprofile)                                                          | Präfix nach Art der Einrichtung: 1 Praxis, 3 Apotheke, 5 Krankenhaus (⚠ nicht gegen die Vergaberegeln geprüft) |
+| Patient im Simulator ohne `name.use` (Slice `Name` in `EPAPatient`)                                                            | `use` = `official`                                                                                             |
+| MHD-Suche: relative `fullUrl`, `search.score` fehlt                                                                            | absolute `fullUrl`, Score 1                                                                                    |
+| Patient Summary: `Composition.identifier` fehlt (`composition-eu-eps`), Bundle-Kennung keine gültige UUID                      | Kennungen als UUID                                                                                             |
+| Diagnose mit Zusatzkennzeichen „A“ und klinischem Status (`icd-4`)                                                             | Status entfällt                                                                                                |
+| Testbeispiel mit erfundenem Codesystem galt als gültig; `con-4` las den Code ohne System                                       | Beispiel berichtigt; die Invarianten lesen nur das HL7-Codesystem                                              |
+
+**Ausnahmen** (`werkzeuge/fhir-validator.json`, jede mit Grund):
+
+| Ausnahme                                                       | Fehler | Grund                                                                                                    |
+| -------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| Laborbefund nach dgLP, auch seine Werte in der Patient Summary | 611    | ⚠ noch nicht an `de.gematik.epa.laboratory` 1.0.0-ballot.1 angeglichen — offene Aufgabe                  |
+| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3    | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig |
+| `content.format` an ✦ strukturierten Briefen                   | 6      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                  |
+| Provenance früherer Fassungen in der Patient Summary           | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                     |
+| Composition-Slice der EPS                                      | 4      | Folgefehler der Laborwerte                                                                               |
+| E-Rezept                                                       | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                      |
+
+Ausnahmen greifen über den Meldungstext (`muster`) oder über das Profil der geprüften Datei
+(`profil`). Eine neue Ausnahme nur mit Grund und nur so eng wie möglich.
 
 **Nicht abgedeckt — auch nicht durch den Validator in dieser Einstellung:**
 
 - **Terminologie-Bindungen.** Dafür braucht es einen Terminologieserver mit ICD-10-GM, Alpha-ID,
   den KBV-Codesystemen und SNOMED CT der deutschen Edition.
 - **E-Rezept gegen die KBV-Profile.**
+- **Warnungen.** Sie lassen den Lauf nicht scheitern. Zu beachten: `DosageWarnungViererschemaInText` (Dosierung als Text statt strukturiert) und `icd-5` bei einer behobenen Diagnose mit Zusatzkennzeichen „G“ (DATENMODELL, Abschnitt 7).
 
 ## Prüfliste vor jeder Abgabe
 

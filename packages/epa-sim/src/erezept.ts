@@ -53,7 +53,7 @@ const FLOWTYPEN: Record<string, string> = {
 };
 
 export const APOTHEKE: Handelnde = {
-  telematikId: 'DEMO-APOTHEKE-STADTGARTEN',
+  telematikId: '3-DEMO-APOTHEKE-STADTGARTEN',
   anzeige: 'Stadtgarten-Apotheke',
 };
 

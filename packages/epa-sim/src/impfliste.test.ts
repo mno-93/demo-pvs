@@ -5,7 +5,7 @@ import { befugnisErteilen } from './befugnis.ts';
 
 /** ✦ Impfliste (ADR 0026): Mechanik wie Diagnose-Service, Einträge nach immunization-eu-core. */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const HOFFMANN = 'A123456780';
 const B = '/epa/vorschlag/immunization/api/v1/fhir';
 const ORG = Buffer.from(

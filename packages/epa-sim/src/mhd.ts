@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { bytesAus, sha256Hex } from './plattform.ts';
-import type { Ressource } from '@demo-pvs/kern';
+import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { AB_STUFE, abStufe, STUFE } from './betrieb.ts';
 import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen.ts';
@@ -198,9 +198,11 @@ export function mhdEinhaengen(
       entry: treffer.map((d) => {
         const r = alsDocumentReference(d, kvnr);
         return {
-          fullUrl: `${MHD_BASIS}/DocumentReference/${String(r.id)}`,
+          // Absolut, wie FHIR es für `fullUrl` verlangt; der Abruf läuft über `attachment.url`.
+          fullUrl: vollUrl(r),
           resource: r,
-          search: { mode: 'match' },
+          // Das Profil verlangt einen Score (1..1); ohne Rangfolge gilt jeder Treffer gleich.
+          search: { mode: 'match', score: 1 },
         };
       }),
     };

@@ -15,6 +15,12 @@ const K = new Uint32Array([
 ]);
 
 /** SHA-256 eines Textes (UTF-8) als Hex — synchron, anders als Web Crypto. */
+/** Stabile UUID (Form der Version 4) aus einem Text — für Dokumentkennungen ohne Zufall. */
+export function uuidAus(text: string): string {
+  const h = sha256Hex(text);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
 export function sha256Hex(text: string): string {
   const daten = new TextEncoder().encode(text);
   const bitlaenge = daten.length * 8;

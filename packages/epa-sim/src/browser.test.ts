@@ -21,7 +21,7 @@ import { betriebslage } from './betrieb.ts';
 
 const KOPF = {
   'x-useragent': 'DEMOPVSFIKTIV0000001/0.4.0',
-  'x-demo-sitzung': 'DEMO-PRAXIS-STADTGARTEN',
+  'x-demo-sitzung': '1-DEMO-PRAXIS-STADTGARTEN',
   'x-insurantid': 'A123456780',
 };
 
@@ -64,7 +64,7 @@ describe('Simulator im Browser', () => {
       new Request('http://x/erp/Task/$create', {
         method: 'POST',
         headers: {
-          'x-demo-sitzung': 'DEMO-PRAXIS-STADTGARTEN',
+          'x-demo-sitzung': '1-DEMO-PRAXIS-STADTGARTEN',
           'content-type': 'application/fhir+json',
         },
         body: JSON.stringify({
@@ -79,7 +79,7 @@ describe('Simulator im Browser', () => {
     const unbekannt = await sim.abrufen(new Request('http://x/verwaltung/gibt-es-nicht'));
     expect(unbekannt.status).toBe(404);
 
-    befugnisErteilen('A123456780', 'DEMO-PRAXIS-STADTGARTEN', new Date(), 'eGK');
+    befugnisErteilen('A123456780', '1-DEMO-PRAXIS-STADTGARTEN', new Date(), 'eGK');
     const suche = await sim.abrufen(
       new Request('http://x/epa/mhd/api/v1/fhir/DocumentReference?status=current', {
         headers: KOPF,
@@ -109,7 +109,7 @@ describe('Simulator im Browser', () => {
 
   it('nimmt SOAP am XDS Document Service und eine Client-Mail als Text an', async () => {
     const sim = simulatorImBrowser();
-    befugnisErteilen('A123456780', 'DEMO-PRAXIS-STADTGARTEN', new Date(), 'eGK');
+    befugnisErteilen('A123456780', '1-DEMO-PRAXIS-STADTGARTEN', new Date(), 'eGK');
     betriebslage.ausbaustand = 'weiterentwicklung-3';
     const xml = provideAndRegisterErzeugen(
       {
@@ -120,7 +120,7 @@ describe('Simulator im Browser', () => {
         autor: {
           person: 'Dr. med. Anna Brandt',
           einrichtung: 'Hausarztpraxis am Stadtgarten',
-          telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+          telematikId: '1-DEMO-PRAXIS-STADTGARTEN',
         },
         dokumente: [
           {

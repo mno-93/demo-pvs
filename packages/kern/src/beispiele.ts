@@ -227,7 +227,7 @@ export interface Praxisstammdaten {
 
 export const PRAXIS_STAMMDATEN: Praxisstammdaten = {
   name: 'Hausarztpraxis am Stadtgarten',
-  telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+  telematikId: '1-DEMO-PRAXIS-STADTGARTEN',
   bsnr: '999999900',
   anschrift: { strasse: 'Am Stadtgarten', hausnummer: '4', plz: '26000', ort: 'Beispielstadt' },
   telefon: '0000 3030-0',

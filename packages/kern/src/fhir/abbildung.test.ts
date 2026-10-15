@@ -102,6 +102,22 @@ describe('Abbildung nach FHIR', () => {
     expect(nachUrl[ICD_EXTENSION.seitenlokalisation]).toBe('L');
   });
 
+  it('lässt bei Zusatzkennzeichen „A“ den klinischen Status weg (icd-4) und mit ihm das Ende', () => {
+    const r = diagnoseNachFhir(
+      {
+        ...diagnose,
+        zusatzkennzeichen: 'A',
+        diagnosesicherheit: 'ausgeschlossen',
+        klinischerStatus: 'behoben',
+        ende: '2026-08-01',
+      },
+      KVNR,
+    );
+    expect(r['clinicalStatus']).toBeUndefined();
+    expect(r['abatementDateTime']).toBeUndefined();
+    expect(JSON.stringify(r['verificationStatus'])).toContain('"refuted"');
+  });
+
   it('bildet die sechs klinischen Status des Modells ab', () => {
     const r = diagnoseNachFhir({ ...diagnose, klinischerStatus: 'rezidiv' }, KVNR);
     expect(JSON.stringify(r['clinicalStatus'])).toContain('"relapse"');

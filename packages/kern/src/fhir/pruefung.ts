@@ -76,6 +76,14 @@ export const PFLICHT_PROFIL: Record<string, readonly string[]> = {
 
 const DAR = 'http://hl7.org/fhir/StructureDefinition/data-absent-reason';
 const ICD10GM = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm';
+const THO = 'http://terminology.hl7.org/CodeSystem/';
+const STATUS_SYSTEM: Record<string, readonly [string, string]> = {
+  Condition: [`${THO}condition-clinical`, `${THO}condition-ver-status`],
+  AllergyIntolerance: [
+    `${THO}allergyintolerance-clinical`,
+    `${THO}allergyintolerance-verification`,
+  ],
+};
 const ALPHA_ID = 'http://fhir.de/CodeSystem/bfarm/alpha-id';
 const SNOMED = 'http://snomed.info/sct';
 
@@ -103,9 +111,11 @@ function pfadVorhanden(o: Objekt, pfad: string): boolean {
   return teile.length > 0 && teile.every((t) => pfadVorhanden(t, rest.join('.')));
 }
 
-function codeVon(c: Wert): string | undefined {
+/** Code der ersten Kodierung — mit `system` nur aus diesem Codesystem, wie die Invarianten es lesen. */
+function codeVon(c: Wert, system?: string): string | undefined {
   return liste(istObjekt(c) ? c['coding'] : undefined)
     .filter(istObjekt)
+    .filter((x) => system === undefined || x['system'] === system)
     .map((x) => x['code'])
     .find((x): x is string => typeof x === 'string');
 }
@@ -206,10 +216,12 @@ export function ressourcePruefen(r: Ressource): Pruefbefund[] {
   };
   kodierungen(o, '');
 
-  const verifikation = codeVon(o['verificationStatus']);
-  const klinisch = codeVon(o['clinicalStatus']);
+  // Die Invarianten lesen den Status nur aus dem jeweiligen HL7-Codesystem.
+  const [klinischesSystem, verifikationsSystem] = STATUS_SYSTEM[r.resourceType] ?? [];
+  const verifikation = codeVon(o['verificationStatus'], verifikationsSystem);
+  const klinisch = codeVon(o['clinicalStatus'], klinischesSystem);
   if (r.resourceType === 'Condition') {
-    const kategorien = liste(o['category']).map(codeVon);
+    const kategorien = liste(o['category']).map((k) => codeVon(k));
     if (
       verifikation !== 'entered-in-error' &&
       kategorien.includes('problem-list-item') &&
@@ -239,7 +251,7 @@ export function ressourcePruefen(r: Ressource): Pruefbefund[] {
       );
   }
   if (r.resourceType === 'AllergyIntolerance') {
-    if (verifikation !== 'entered-in-error' && !klinisch)
+    if (verifikation !== 'entered-in-error' && o['clinicalStatus'] === undefined)
       fehler(
         'ait-1',
         'clinicalStatus',

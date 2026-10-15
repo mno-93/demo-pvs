@@ -40,9 +40,8 @@ jobs:
     name: FHIR-Validator
     needs: pruefen
     runs-on: ubuntu-latest
-    # Informativ, bis die Ausnahmen am ersten Lauf kalibriert sind (docs/ENTWICKLUNG.md,
-    # „FHIR-Validator“). Danach die Zeile entfernen, damit Fehler den Lauf scheitern lassen.
-    continue-on-error: true
+    # Kalibriert am 15.10.2026: Jeder Fehler, der nicht unter eine begründete Ausnahme in
+    # werkzeuge/fhir-validator.json fällt, lässt den Lauf scheitern (docs/ENTWICKLUNG.md).
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -59,11 +58,11 @@ jobs:
           path: ~/.fhir/packages
           key: fhir-pakete-${{ hashFiles('werkzeuge/fhir-validator.json') }}
       - name: HL7 FHIR Validator holen
-        # Neueste Fassung; nach der Kalibrierung auf eine feste Version setzen.
+        # Dieselbe Fassung wie lokal (docs/ENTWICKLUNG.md, „FHIR-Validator“).
         run: |
           mkdir -p ~/.fhir
           curl -fsSL -o ~/.fhir/validator_cli.jar \
-            https://github.com/hapifhir/org.hl7.fhir.core/releases/latest/download/validator_cli.jar
+            https://github.com/hapifhir/org.hl7.fhir.core/releases/download/7.0.1/validator_cli.jar
       - run: npm ci
       - run: npm run build --workspace @demo-pvs/kern
       - run: npm run fhir:validieren

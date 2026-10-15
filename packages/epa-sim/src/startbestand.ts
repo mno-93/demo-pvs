@@ -66,7 +66,7 @@ import {
 const KVNR = { hoffmann: 'A123456780', krueger: 'K876543217', yildiz: 'M555123402' } as const;
 
 export const KLINIKUM: Handelnde = {
-  telematikId: 'DEMO-KLINIKUM-SONNENSCHEIN',
+  telematikId: '5-DEMO-KLINIKUM-SONNENSCHEIN',
   anzeige: 'Klinikum Sonnenschein',
 };
 /** Die Praxis des Praxissystems — aus denselben Stammdaten (beispiele.ts im Kern). */
@@ -384,7 +384,7 @@ function allergieEintrag(
 /* ---------- Impfliste (✦ Vorschlag, ADR 0026) ---------- */
 
 const VORPRAXIS: Handelnde = {
-  telematikId: 'DEMO-PRAXIS-NORDSTADT',
+  telematikId: '1-DEMO-PRAXIS-NORDSTADT',
   anzeige: 'Hausarztpraxis Nordstadt',
 };
 
@@ -432,7 +432,7 @@ function impfEintrag(
 }
 
 const KARDIOLOGIE: Handelnde = {
-  telematikId: 'DEMO-KARDIOLOGIE-AM-WALL',
+  telematikId: '1-DEMO-KARDIOLOGIE-AM-WALL',
   anzeige: 'Kardiologische Praxis am Wall',
 };
 
@@ -445,7 +445,7 @@ const KARDIOLOGIE: Handelnde = {
  */
 export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
   const apotheke: Handelnde = {
-    telematikId: 'DEMO-APOTHEKE-STADTGARTEN',
+    telematikId: '3-DEMO-APOTHEKE-STADTGARTEN',
     anzeige: 'Stadtgarten-Apotheke',
   };
   const heute = jetzt();

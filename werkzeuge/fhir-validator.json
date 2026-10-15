@@ -1,5 +1,5 @@
 {
-  "$kommentar": "Konfiguration für npm run fhir:validieren (werkzeuge/fhir-validieren.mjs). Paketversionen sind beim Ausbau gegen den jeweiligen Stand zu prüfen; Ausnahmen nur mit Grund. Siehe docs/ENTWICKLUNG.md.",
+  "$kommentar": "Konfiguration für npm run fhir:validieren (werkzeuge/fhir-validieren.mjs). Paketversionen beim Ausbau gegen den jeweiligen Stand prüfen. Ausnahmen nur mit Grund: `muster` greift auf den Meldungstext, `profil` auf das Profil der geprüften Datei. Siehe docs/ENTWICKLUNG.md.",
   "fhirVersion": "4.0.1",
   "pakete": [
     "hl7.fhir.uv.extensions.r4#5.3.0",
@@ -9,7 +9,8 @@
     "de.gematik.epa#1.3.2",
     "de.gematik.epa.medication#1.3.5",
     "de.gematik.epa.mhd#1.1.3",
-    "de.gematik.epa.laboratory#1.0.0-ballot.1"
+    "de.gematik.epa.laboratory#1.0.0-ballot.1",
+    "hl7.fhir.eu.eps#1.0.0-ballot"
   ],
   "terminologie": "n/a",
   "erweiterungenErlaubt": ["https://example.org/"],
@@ -20,12 +21,36 @@
   ],
   "ausnahmen": [
     {
-      "muster": "fhir\\.kbv\\.de/StructureDefinition/KBV_PR_(ERP|FOR)_",
+      "profil": "^https://fhir\\.kbv\\.de/StructureDefinition/KBV_PR_ERP_Bundle",
       "grund": "E-Rezept ist ein vereinfachter Demo-Ersatz (SPEZIFIKATION 5.8); die KBV-Pakete sind nicht geladen."
     },
     {
-      "muster": "example\\.org/demo-pvs/",
-      "grund": "✦ Vorschläge der Demo im eigenen Namensraum, ohne veröffentlichtes Profil."
+      "profil": "^https://gematik\\.de/fhir/epa-laboratory/StructureDefinition/bundle-dglp",
+      "grund": "⚠ Laborbefund noch nicht an de.gematik.epa.laboratory 1.0.0-ballot.1 angeglichen (ENTWICKLUNG, „FHIR-Validator“)."
+    },
+    {
+      "muster": "gematik\\.de/fhir/epa-laboratory/StructureDefinition/|medicalTestResult-eu-core",
+      "grund": "⚠ Laborwerte aus dem Laborbefund, auch in der Patient Summary — dieselbe offene Angleichung an de.gematik.epa.laboratory 1.0.0-ballot.1."
+    },
+    {
+      "muster": "https://example\\.org/demo-pvs/fhir/StructureDefinition/",
+      "grund": "✦ Profile und Extensions der Demo im eigenen Namensraum, ohne veröffentlichte Definition."
+    },
+    {
+      "muster": "matches more than one slice - entryUUID, uniqueId|IHE\\.MHD\\.EntryUUID\\.Identifier|mhd-startswithuuid|DocumentReference\\.identifier:uniqueId",
+      "grund": "Profilfehler in epa-mhd-document-reference 1.1.3: Slicing der Identifier nach `use`, dessen Werte nur in den Typprofilen stehen — nicht auswertbar. Die Instanz trägt entryUUID (official) und uniqueId (usual) wie verlangt."
+    },
+    {
+      "muster": "DocumentReference\\.content\\.format: minimum required",
+      "grund": "✦ Strukturierte Briefe ohne registrierten formatCode — bewusst ohne erfundenen Code (SPEZIFIKATION 5.11)."
+    },
+    {
+      "muster": "Provenance/[^']*' isn't reachable|Can't find '[A-Za-z]+/[^']+/_history/",
+      "grund": "Patient Summary trägt die Änderungseinträge früherer Fassungen für die Herkunftszeile; im Dokument nicht auflösbar — Abbildung offen (DATENMODELL, Abschnitt 7)."
+    },
+    {
+      "muster": "Slice 'Bundle\\.entry:composition': a matching slice is required",
+      "grund": "Folgefehler: Der Composition-Slice passt erst, wenn alle Einträge passen — die Ursache wird gesondert gemeldet oder ausgenommen."
     }
   ]
 }

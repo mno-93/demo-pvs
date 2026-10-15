@@ -21,6 +21,7 @@ import { KEINE_BEKANNTE_ALLERGIE, LISTE } from './diagnosedienst.ts';
 import { jetzt, neueId } from './fhir-hilfen.ts';
 import { EMP, istEmpEintrag } from './medikation.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
+import { uuidAus } from './plattform.ts';
 import { patientFuer } from './schreibwege.ts';
 
 /**
@@ -335,10 +336,13 @@ export function patientSummaryBilden(kvnr: string): Ressource {
   const patient = { ...patientFuer(kvnr), meta: { profile: [EPS.patient] } };
   const alle = Object.values(teile).flatMap((t) => [...t.eintraege, ...t.dazu]);
   const zeit = jetzt();
+  const kennung = neueId('ps');
   const komposition: Ressource = {
     resourceType: 'Composition',
-    id: neueId('ps'),
+    id: kennung,
     meta: { profile: [EPS.composition] },
+    // composition-eu-eps: Kennung 1..1, als UUID.
+    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${uuidAus(`ps:${kennung}`)}` },
     status: 'final',
     type: {
       coding: [{ system: CODESYSTEM.loinc, code: '60591-5', display: 'Patient summary Document' }],
@@ -388,7 +392,8 @@ export function patientSummaryBilden(kvnr: string): Ressource {
     resourceType: 'Bundle',
     id: neueId('psb'),
     meta: { profile: [EPS.bundle] },
-    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${String(komposition.id)}` },
+    // bdl-9: Kennung des Dokuments, als gültige UUID (die Ressourcen-IDs der Demo sind keine).
+    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${uuidAus(`psb:${kennung}`)}` },
     type: 'document',
     timestamp: zeit,
     entry: ressourcen.map((r) => ({

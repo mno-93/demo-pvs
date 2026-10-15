@@ -14,7 +14,7 @@ import { befugnisErteilen } from './befugnis.ts';
  * E-Rezept-Fachdienstes mit der Zulieferung in den Medication Service.
  */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const HOFFMANN = 'A123456780';
 const KRUEGER = 'K876543217';
 const WEBER = 'W246813578';

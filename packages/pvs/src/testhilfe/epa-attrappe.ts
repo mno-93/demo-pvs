@@ -130,11 +130,11 @@ export function provenance(
 }
 
 export const PRAXIS = {
-  telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+  telematikId: '1-DEMO-PRAXIS-STADTGARTEN',
   anzeige: 'Hausarztpraxis am Stadtgarten',
 };
 export const KLINIKUM = {
-  telematikId: 'DEMO-KLINIKUM-SONNENSCHEIN',
+  telematikId: '5-DEMO-KLINIKUM-SONNENSCHEIN',
   anzeige: 'Klinikum Sonnenschein',
 };
 

@@ -21,7 +21,7 @@ import { KIM_POSTAUSGANG, KIM_WEG } from './kim.ts';
  * `inject`.
  */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const HOFFMANN = 'A123456780';
 const ENTRY = '6a1f0c3e-1111-4222-8333-444455556666';
 
@@ -199,7 +199,7 @@ describe('ITI-41 am XDS Document Service', () => {
     const antwort = await app.inject({
       method: 'POST',
       url: XDS_DOKUMENTENDIENST,
-      headers: { ...kopf, 'x-demo-sitzung': 'DEMO-ANDERE-PRAXIS' },
+      headers: { ...kopf, 'x-demo-sitzung': '1-DEMO-ANDERE-PRAXIS' },
       payload: einreichung(),
     });
     expect(antwort.statusCode).toBe(403);

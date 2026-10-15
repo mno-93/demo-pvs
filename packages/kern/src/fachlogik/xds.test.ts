@@ -19,7 +19,7 @@ const EINREICHUNG: XdsEinreichung = {
   autor: {
     person: 'Dr. med. Anna Brandt',
     einrichtung: 'Hausarztpraxis am Stadtgarten',
-    telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+    telematikId: '1-DEMO-PRAXIS-STADTGARTEN',
   },
   dokumente: [
     {
@@ -58,7 +58,7 @@ describe('ITI-41 Provide & Register Document Set-b', () => {
     expect(d.erstellt).toBe('2026-09-09T11:00:00Z');
     expect(d.autorPerson).toBe('Dr. med. Anna Brandt');
     expect(d.autorEinrichtung).toBe('Hausarztpraxis am Stadtgarten');
-    expect(d.autorTelematikId).toBe('DEMO-PRAXIS-STADTGARTEN');
+    expect(d.autorTelematikId).toBe('1-DEMO-PRAXIS-STADTGARTEN');
     expect(atob(d.inhaltBase64!)).toBe('{"resourceType":"Bundle"}');
   });
 

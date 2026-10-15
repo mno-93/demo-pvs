@@ -9,7 +9,7 @@ import { patientSummaryLesen } from '@demo-pvs/kern';
  * (`de.gematik.epa` 1.3.2), MHD 1.1.3, Medication Service 1.3.5 und ✦ Diagnose-Service.
  */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const HOFFMANN = 'A123456780';
 const MEDIKATION = '/epa/medication/api/v1/fhir';
 const MHD = '/epa/mhd/api/v1/fhir';
