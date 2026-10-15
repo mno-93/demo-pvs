@@ -226,8 +226,13 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
 `npm run fhir:validieren` legt ihm alle Ausgaben vor, die `fhirPruefen` in den Tests ohne Fehler
 prüft; in der CI läuft dasselbe im Job „FHIR-Validator“. **Stand 15.10.2026: keine Fehler.** Der
 erste Lauf fand 965; was er fand und welche Ausnahmen mit welchem Grund gelten, steht in
-ENTWICKLUNG, Abschnitt „FHIR-Validator“. Die größte offene Ausnahme ist der Laborbefund: ⚠ Er
-ist noch nicht an `de.gematik.epa.laboratory` 1.0.0-ballot.1 angeglichen.
+ENTWICKLUNG, Abschnitt „FHIR-Validator“. Seit der Angleichung an `de.gematik.epa.laboratory`
+1.0.0-ballot.1 ist auch der Laborbefund geprüft; offen sind dort nur zwei Meldungen, die keine
+Instanz beheben kann (SPEZIFIKATION 5.5).
+
+Was der Validator ohne Terminologieserver nicht leistet, prüfen Tests: den Abschnitt des
+Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund
+(`fachlogik/laborbefund.test.ts`).
 
 ## 7 Offene Punkte der Architektur
 
@@ -254,6 +259,15 @@ ist noch nicht an `de.gematik.epa.laboratory` 1.0.0-ballot.1 angeglichen.
    aller Fassungen, damit die Herkunftszeile „angelegt von“ zeigen kann. Im Dokument liegt aber nur
    die aktuelle Fassung; die Provenance früherer Fassungen ist dort nicht auflösbar (HL7-Validator).
    ✦ Zu klären: nur die Provenance der enthaltenen Fassung und die Herkunft am Eintrag selbst.
-8. **Laborbefund nach dgLP.** ⚠ Der HL7-Validator findet 611 Abweichungen vom veröffentlichten
-   Ballot `de.gematik.epa.laboratory` 1.0.0-ballot.1 — Hierarchie der Beobachtungen, Pflichtangaben an
-   Probe, Auftrag und Composition, Referenzbereiche. Angleichung offen.
+8. **Laborbefund nach dgLP.** Angeglichen an den Ballot `de.gematik.epa.laboratory`
+   1.0.0-ballot.1 (15.10.2026): Hierarchie Gruppe → Einzelwert, Einsender als Organisation,
+   Pflichtangaben an Probe, Auftrag und Composition (SPEZIFIKATION 5.5). Offen bleiben Punkte im
+   Ballot selbst:
+   - ▸ `dr-comp-identifier` ist mit den dgLP-Profilen nicht erfüllbar (Ausnahme im Validator).
+   - ▸ `obs-range-2` schließt einseitige Referenzbereiche aus; die Demo setzt die fehlende Grenze
+     mit `data-absent-reason` — ⚠ ob das dgLP das so vorsieht, ist offen.
+   - ⚠ Die gematik-Codesysteme `laboratory-identificator` und `laboratory-study-group` liegen in
+     keinem veröffentlichten Paket; die verlangte Version 1.1.0 an `laboratory-identificator` ist
+     nur über die Beispiele des Pakets belegt.
+   - Die Laborbefunde tragen keinen Laborbereich an der Gruppe und keine optionalen Angaben
+     (Akkreditierung, kritisches Ergebnis, alternative Ergebnisse).

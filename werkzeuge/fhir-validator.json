@@ -25,14 +25,6 @@
       "grund": "E-Rezept ist ein vereinfachter Demo-Ersatz (SPEZIFIKATION 5.8); die KBV-Pakete sind nicht geladen."
     },
     {
-      "profil": "^https://gematik\\.de/fhir/epa-laboratory/StructureDefinition/bundle-dglp",
-      "grund": "⚠ Laborbefund noch nicht an de.gematik.epa.laboratory 1.0.0-ballot.1 angeglichen (ENTWICKLUNG, „FHIR-Validator“)."
-    },
-    {
-      "muster": "gematik\\.de/fhir/epa-laboratory/StructureDefinition/|medicalTestResult-eu-core",
-      "grund": "⚠ Laborwerte aus dem Laborbefund, auch in der Patient Summary — dieselbe offene Angleichung an de.gematik.epa.laboratory 1.0.0-ballot.1."
-    },
-    {
       "muster": "https://example\\.org/demo-pvs/fhir/StructureDefinition/",
       "grund": "✦ Profile und Extensions der Demo im eigenen Namensraum, ohne veröffentlichte Definition."
     },
@@ -49,8 +41,12 @@
       "grund": "Patient Summary trägt die Änderungseinträge früherer Fassungen für die Herkunftszeile; im Dokument nicht auflösbar — Abbildung offen (DATENMODELL, Abschnitt 7)."
     },
     {
-      "muster": "Slice 'Bundle\\.entry:composition': a matching slice is required",
-      "grund": "Folgefehler: Der Composition-Slice passt erst, wenn alle Einträge passen — die Ursache wird gesondert gemeldet oder ausgenommen."
+      "muster": "Constraint failed: dr-comp-identifier:",
+      "grund": "Profilkonflikt im Laborbefund (de.gematik.epa.laboratory 1.0.0-ballot.1): dr-comp-identifier aus Bundle-eu-lab verlangt eine DiagnosticReport-Kennung, die der Composition.identifier gleicht; composition-dglp verbietet identifier.type, diagnostic-report-dglp verlangt ihn bei geschlossenem Slicing — mit keiner Instanz erfüllbar. Beide tragen dieselbe UUID."
+    },
+    {
+      "muster": "Slice 'Composition\\.section:result': a matching slice is required|Unable to find a profile match for Composition/comp-[0-9a-f]{8} among choices",
+      "grund": "Ohne Terminologieserver nicht auswertbar: composition-dglp ordnet den Abschnitt des Laborbefunds über memberOf auf lab-studyType-eu-lab (LOINC) zu, das der Validator ohne Server verneint; dazu der Folgefehler am Verweis des DiagnosticReport auf die Composition. Den Abschnitt prüft laborbefund.test.ts."
     }
   ]
 }

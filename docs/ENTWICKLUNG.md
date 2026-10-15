@@ -113,38 +113,45 @@ Registry.
 Seit der Kalibrierung am 15.10.2026 lässt jeder Fehler ohne begründete Ausnahme den Lauf
 scheitern.
 
-**Stand nach der Kalibrierung (15.10.2026):** 75 Dateien, **keine Fehler**, rund 980 Warnungen —
-überwiegend „ohne Terminologieserver nicht prüfbar“ und Hinweise zur Best Practice. Der erste Lauf
-fand 965 Fehler. Behoben sind:
+**Stand nach der Angleichung des Laborbefunds (15.10.2026):** 75 Dateien, **keine Fehler**, rund
+890 Warnungen — überwiegend „ohne Terminologieserver nicht prüfbar“, nicht veröffentlichte
+gematik-ValueSets und Hinweise zur Best Practice. Der erste Lauf fand 965 Fehler. Behoben sind:
 
-| Befund des Validators                                                                                                          | Behebung                                                                                                       |
-| ------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| Deutsche Anzeigen an HL7-Codes (klinischer Status, Verifikationsstatus, Kategorie); dadurch auch die required-Bindung verfehlt | offizielle Anzeigen der Terminologie (DATENMODELL, R5)                                                         |
-| Fiktive Telematik-IDs ohne Präfix (`telematik-id-1` der Basisprofile)                                                          | Präfix nach Art der Einrichtung: 1 Praxis, 3 Apotheke, 5 Krankenhaus (⚠ nicht gegen die Vergaberegeln geprüft) |
-| Patient im Simulator ohne `name.use` (Slice `Name` in `EPAPatient`)                                                            | `use` = `official`                                                                                             |
-| MHD-Suche: relative `fullUrl`, `search.score` fehlt                                                                            | absolute `fullUrl`, Score 1                                                                                    |
-| Patient Summary: `Composition.identifier` fehlt (`composition-eu-eps`), Bundle-Kennung keine gültige UUID                      | Kennungen als UUID                                                                                             |
-| Diagnose mit Zusatzkennzeichen „A“ und klinischem Status (`icd-4`)                                                             | Status entfällt                                                                                                |
-| Testbeispiel mit erfundenem Codesystem galt als gültig; `con-4` las den Code ohne System                                       | Beispiel berichtigt; die Invarianten lesen nur das HL7-Codesystem                                              |
+| Befund des Validators                                                                                                          | Behebung                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Deutsche Anzeigen an HL7-Codes (klinischer Status, Verifikationsstatus, Kategorie); dadurch auch die required-Bindung verfehlt | offizielle Anzeigen der Terminologie (DATENMODELL, R5)                                                             |
+| Fiktive Telematik-IDs ohne Präfix (`telematik-id-1` der Basisprofile)                                                          | Präfix nach Art der Einrichtung: 1 Praxis, 3 Apotheke, 5 Krankenhaus (⚠ nicht gegen die Vergaberegeln geprüft)     |
+| Patient im Simulator ohne `name.use` (Slice `Name` in `EPAPatient`)                                                            | `use` = `official`                                                                                                 |
+| MHD-Suche: relative `fullUrl`, `search.score` fehlt                                                                            | absolute `fullUrl`, Score 1                                                                                        |
+| Patient Summary: `Composition.identifier` fehlt (`composition-eu-eps`), Bundle-Kennung keine gültige UUID                      | Kennungen als UUID                                                                                                 |
+| Diagnose mit Zusatzkennzeichen „A“ und klinischem Status (`icd-4`)                                                             | Status entfällt                                                                                                    |
+| Testbeispiel mit erfundenem Codesystem galt als gültig; `con-4` las den Code ohne System                                       | Beispiel berichtigt; die Invarianten lesen nur das HL7-Codesystem                                                  |
+| Laborbefund (611, mit seinen Werten in der Patient Summary): Beobachtungen passten keinem dgLP-Profil                          | Gruppe → Einzelwert, Bezeichnung als Test-Profil, Labor als `performer`, Anzeige der Kategorie (SPEZIFIKATION 5.5) |
+| Laborbefund: Pflichtangaben an Probe, Auftrag, Composition und Kennung des DiagnosticReport                                    | Probennummer, Status, Eingang; Einsender als Organisation, Auftragscode; Abschnitt mit Code und Erzähltext         |
+| Laborbefund: `obs-range-2` bei einseitigem Referenzbereich                                                                     | fehlende Grenze mit Einheit und `data-absent-reason` (Befund am Ballot, SPEZIFIKATION 5.5)                         |
+| Patient Summary: Laborwerte passten nicht zu `medicalTestResult-eu-core`                                                       | Profil EU Core, Labor im Dokument, ohne Verweis auf die Probe                                                      |
 
 **Ausnahmen** (`werkzeuge/fhir-validator.json`, jede mit Grund):
 
-| Ausnahme                                                       | Fehler | Grund                                                                                                    |
-| -------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------- |
-| Laborbefund nach dgLP, auch seine Werte in der Patient Summary | 611    | ⚠ noch nicht an `de.gematik.epa.laboratory` 1.0.0-ballot.1 angeglichen — offene Aufgabe                  |
-| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3    | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig |
-| `content.format` an ✦ strukturierten Briefen                   | 6      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                  |
-| Provenance früherer Fassungen in der Patient Summary           | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                     |
-| Composition-Slice der EPS                                      | 4      | Folgefehler der Laborwerte                                                                               |
-| E-Rezept                                                       | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                      |
+| Ausnahme                                                      | Fehler | Grund                                                                                                                                          |
+| ------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3   | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig                                       |
+| Abschnitt des Laborbefunds (`section:result`) und Folgefehler | 9      | ohne Terminologieserver nicht auswertbar: Zuordnung über `memberOf` auf ein LOINC-ValueSet; der Abschnitt ist in `laborbefund.test.ts` geprüft |
+| `content.format` an ✦ strukturierten Briefen                  | 6      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                                                        |
+| Provenance früherer Fassungen in der Patient Summary          | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                                                           |
+| `dr-comp-identifier` im Laborbefund                           | 3      | Profilkonflikt im Ballot: `composition-dglp` verbietet `identifier.type`, `diagnostic-report-dglp` verlangt ihn — nicht erfüllbar              |
+| E-Rezept                                                      | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                                                            |
 
 Ausnahmen greifen über den Meldungstext (`muster`) oder über das Profil der geprüften Datei
-(`profil`). Eine neue Ausnahme nur mit Grund und nur so eng wie möglich.
+(`profil`). Eine neue Ausnahme nur mit Grund und nur so eng wie möglich; lässt sich ein Profilfehler
+an der Instanz FHIR-gerecht abfangen, geht das vor (ADR 0040).
 
 **Nicht abgedeckt — auch nicht durch den Validator in dieser Einstellung:**
 
 - **Terminologie-Bindungen.** Dafür braucht es einen Terminologieserver mit ICD-10-GM, Alpha-ID,
-  den KBV-Codesystemen und SNOMED CT der deutschen Edition.
+  den KBV-Codesystemen und SNOMED CT der deutschen Edition. Dasselbe gilt für Slices, die über eine
+  Bindung an LOINC oder SNOMED CT zugeordnet werden (`memberOf`): Der Validator verneint sie ohne
+  Server — etwa den Abschnitt des Laborbefunds.
 - **E-Rezept gegen die KBV-Profile.**
 - **Warnungen.** Sie lassen den Lauf nicht scheitern. Zu beachten: `DosageWarnungViererschemaInText` (Dosierung als Text statt strukturiert) und `icd-5` bei einer behobenen Diagnose mit Zusatzkennzeichen „G“ (DATENMODELL, Abschnitt 7).
 

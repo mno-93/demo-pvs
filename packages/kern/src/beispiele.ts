@@ -28,6 +28,7 @@ export function demoJetzt(): Date {
 export const BEFUND_HOFFMANN: Befundangabe = {
   uuid: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6',
   auftragsnummer: 'L-2026-08-12-0047',
+  auftragsnummerEinsender: 'NS-2026-0812-07',
   kvnr: 'A123456780',
   patientName: { vorname: 'Renate', nachname: 'Hoffmann' },
   geburtsdatum: '1958-03-14',
@@ -36,6 +37,7 @@ export const BEFUND_HOFFMANN: Befundangabe = {
   // Frau Hoffmann kam erst am 30.08. in die Praxis; den Befund hatte die Vorbehandlung beauftragt.
   auftraggeber: 'Hausarztpraxis Nordstadt (Vorbehandlung)',
   entnahme: '2026-08-12T08:10:00',
+  eingang: '2026-08-12T09:05:00',
   freigabe: '2026-08-12T11:00:00',
   probenart: 'Serum',
   beurteilung: 'Eingeschränkte Nierenfunktion (eGFR 38). Diabeteseinstellung nicht im Zielbereich.',
@@ -102,6 +104,7 @@ export const BEFUND_HOFFMANN: Befundangabe = {
 export const BEFUND_YILDIZ: Befundangabe = {
   uuid: '3b1c9a52-5c4e-4f0b-9d47-2e8f61a0c7d3',
   auftragsnummer: 'L-2026-07-02-0112',
+  auftragsnummerEinsender: 'SG-2026-0702-03',
   kvnr: 'M555123402',
   patientName: { vorname: 'Meral', nachname: 'Yildiz' },
   geburtsdatum: '1969-06-25',
@@ -109,6 +112,7 @@ export const BEFUND_YILDIZ: Befundangabe = {
   freigebendePerson: 'Dr. rer. nat. Kai Petersen',
   auftraggeber: 'Hausarztpraxis am Stadtgarten',
   entnahme: '2026-07-02T08:30:00',
+  eingang: '2026-07-02T10:15:00',
   freigabe: '2026-07-02T13:40:00',
   probenart: 'Serum',
   beurteilung: null,
@@ -139,6 +143,7 @@ export const BEFUND_YILDIZ: Befundangabe = {
 export const BEFUND_HOFFMANN_MAERZ: Befundangabe = {
   uuid: '9a3e6c10-2b7d-4e8f-a1c5-6d0f2b9e4a71',
   auftragsnummer: 'K-2026-03-18-0213',
+  auftragsnummerEinsender: 'NS-2026-0318-02',
   kvnr: 'A123456780',
   patientName: { vorname: 'Renate', nachname: 'Hoffmann' },
   geburtsdatum: '1958-03-14',
@@ -146,6 +151,7 @@ export const BEFUND_HOFFMANN_MAERZ: Befundangabe = {
   freigebendePerson: 'Dr. med. Hanna Voss',
   auftraggeber: 'Hausarztpraxis Nordstadt (Vorbehandlung)',
   entnahme: '2026-03-18T07:50:00',
+  eingang: '2026-03-18T09:20:00',
   freigabe: '2026-03-18T14:20:00',
   probenart: 'Serum',
   beurteilung: 'Nierenfunktion leicht eingeschränkt (eGFR 46).',

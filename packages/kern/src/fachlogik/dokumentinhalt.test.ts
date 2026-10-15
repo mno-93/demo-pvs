@@ -45,6 +45,7 @@ describe('Inhalte strukturierter Dokumente', () => {
     const bundle = laborbefundBauen({
       uuid: '3b1c9a52-5c4e-4f0b-9d47-2e8f61a0c7d3',
       auftragsnummer: 'L-1',
+      auftragsnummerEinsender: 'E-1',
       kvnr: 'M555123402',
       patientName: { vorname: 'Meral', nachname: 'Yildiz' },
       geburtsdatum: '1969-06-25',
@@ -52,6 +53,7 @@ describe('Inhalte strukturierter Dokumente', () => {
       freigebendePerson: 'Dr. X',
       auftraggeber: 'Praxis',
       entnahme: '2026-07-02T08:30:00',
+      eingang: '2026-07-02T10:00:00',
       freigabe: '2026-07-02T13:40:00',
       probenart: 'Serum',
       beurteilung: null,

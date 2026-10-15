@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
-import { patientSummaryLesen } from '@demo-pvs/kern';
+import { EPS, patientSummaryLesen } from '@demo-pvs/kern';
 
 /**
  * Der Simulator von außen, über `inject`: Kopfzeilen der generellen Prinzipien
@@ -496,6 +496,15 @@ describe('✦ Patient Summary', () => {
       JSON.stringify(o['code']).includes('62238-1'),
     )!;
     expect((egfr['valueQuantity'] as { value: number }).value).toBe(38);
+    // Im Ergebnisabschnitt nach EU Core; das Labor kommt mit ins Dokument, die Probe bleibt im Befund.
+    expect(egfr.meta?.profile).toEqual([EPS.ergebnis]);
+    expect(egfr['specimen']).toBeUndefined();
+    const labor = ps.ressourcen.find(
+      (r) =>
+        `Organization/${String(r.id)}` ===
+        (egfr['performer'] as { reference: string }[])[0]?.reference,
+    );
+    expect(labor?.['name']).toBe('Laborgemeinschaft Nordwest');
     // ✦ Stufe 2: Impfungen aus der Impfliste, die jüngste zuerst.
     expect(abschnitt('impfungen').quelle).toBe('immunization-list');
     expect(abschnitt('impfungen').eintraege).toHaveLength(5);
