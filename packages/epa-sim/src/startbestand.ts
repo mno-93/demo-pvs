@@ -6,6 +6,7 @@ import {
   BEFUND_HOFFMANN_MAERZ,
   BEFUND_YILDIZ,
   CODESYSTEM,
+  PRAXIS_STAMMDATEN,
   diagnoseNachFhir,
   impfstoffe,
   impfungNachFhir,
@@ -68,9 +69,10 @@ export const KLINIKUM: Handelnde = {
   telematikId: 'DEMO-KLINIKUM-SONNENSCHEIN',
   anzeige: 'Klinikum Sonnenschein',
 };
+/** Die Praxis des Praxissystems — aus denselben Stammdaten (beispiele.ts im Kern). */
 export const PRAXIS: Handelnde = {
-  telematikId: 'DEMO-PRAXIS-STADTGARTEN',
-  anzeige: 'Hausarztpraxis am Stadtgarten',
+  telematikId: PRAXIS_STAMMDATEN.telematikId,
+  anzeige: PRAXIS_STAMMDATEN.name,
 };
 const APOTHEKE = 'Stadtgarten-Apotheke';
 

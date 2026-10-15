@@ -1,4 +1,12 @@
-import { vollUrl, type Briefbaustein, type Briefvorlage, type Ressource } from '@demo-pvs/kern';
+import {
+  SNOMED_VERSION,
+  vollUrl,
+  zeitzonenErgaenzen,
+  type Briefbaustein,
+  type Briefvorlage,
+  type Ressource,
+} from '@demo-pvs/kern';
+import { sha256Hex } from './plattform.ts';
 
 /**
  * Arzt- und Entlassbriefe des Startbestands. Alle Personen, Einrichtungen, Anschriften und
@@ -345,7 +353,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     code: {
       coding: [
         { system: ICD, version: '2026', code: d.icd, display: d.text },
-        ...(d.sct ? [{ system: SCT, code: d.sct }] : []),
+        ...(d.sct ? [{ system: SCT, version: SNOMED_VERSION, code: d.sct }] : []),
       ],
       text: d.text,
     },
@@ -383,7 +391,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     criticality: krit,
     code: {
       coding: [
-        { system: SCT, code: sct, display: text },
+        { system: SCT, version: SNOMED_VERSION, code: sct, display: text },
         { system: ATC, code: atc },
       ],
       text,
@@ -394,10 +402,22 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     recorder: aerztin,
     reaction: [
       {
-        manifestation: [{ coding: [{ system: SCT, code: man[0], display: man[1] }], text: man[1] }],
+        manifestation: [
+          {
+            coding: [{ system: SCT, version: SNOMED_VERSION, code: man[0], display: man[1] }],
+            text: man[1],
+          },
+        ],
         onset: beginn,
         exposureRoute: {
-          coding: [{ system: SCT, code: '47625008', display: 'Intravenous route' }],
+          coding: [
+            {
+              system: SCT,
+              version: SNOMED_VERSION,
+              code: '47625008',
+              display: 'Intravenous route',
+            },
+          ],
         },
       },
     ],
@@ -446,7 +466,12 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     id: 'kh-device-1',
     type: {
       coding: [
-        { system: SCT, code: '14106009', display: 'Cardiac pacemaker, device (physical object)' },
+        {
+          system: SCT,
+          version: SNOMED_VERSION,
+          code: '14106009',
+          display: 'Cardiac pacemaker, device (physical object)',
+        },
       ],
       text: 'Herzschrittmacher (Zweikammer)',
     },
@@ -485,7 +510,12 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     type: {
       coding: [
         { system: LOINC, code: '34105-7', display: 'Hospital Discharge summary' },
-        { system: SCT, code: '373942005', display: 'Discharge summary (record artifact)' },
+        {
+          system: SCT,
+          version: SNOMED_VERSION,
+          code: '373942005',
+          display: 'Discharge summary (record artifact)',
+        },
       ],
     },
     subject: pat,
@@ -589,7 +619,8 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     nutzung,
     ...medikation,
   ];
-  return {
+  // Das Klinikum schreibt Zeitpunkte mit Zone (zeit.ts im Kern).
+  return zeitzonenErgaenzen({
     resourceType: 'Bundle',
     identifier: {
       system: 'urn:ietf:rfc:3986',
@@ -598,7 +629,7 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
     type: 'document',
     timestamp: '2026-07-17T14:00:00',
     entry: ressourcen.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
-  };
+  });
 }
 
 /* ======================================================================================
@@ -838,7 +869,7 @@ export function kardiologieKontrolleFhir(
           code: 'I50.12',
           display: 'Linksherzinsuffizienz: Mit Beschwerden bei stärkerer Belastung',
         },
-        { system: SCT, code: '84114007' },
+        { system: SCT, version: SNOMED_VERSION, code: '84114007' },
       ],
       text: 'Linksherzinsuffizienz: Mit Beschwerden bei stärkerer Belastung',
     },
@@ -852,7 +883,14 @@ export function kardiologieKontrolleFhir(
     id: `${id}-proc-1`,
     status: 'completed',
     code: {
-      coding: [{ system: SCT, code: '40701008', display: 'Echocardiography (procedure)' }],
+      coding: [
+        {
+          system: SCT,
+          version: SNOMED_VERSION,
+          code: '40701008',
+          display: 'Echocardiography (procedure)',
+        },
+      ],
       text: 'Transthorakale Echokardiographie',
     },
     subject: pat,
@@ -903,12 +941,18 @@ export function kardiologieKontrolleFhir(
     diagnose,
     echo,
   ];
-  return {
+  // bdl-9: Ein Dokument trägt eine Kennung — hier aus der Dokumentkennung abgeleitet.
+  const h = sha256Hex(`dokument:${id}`);
+  return zeitzonenErgaenzen({
     resourceType: 'Bundle',
+    identifier: {
+      system: 'urn:ietf:rfc:3986',
+      value: `urn:uuid:${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`,
+    },
     type: 'document',
     timestamp: `${datum}T12:00:00`,
     entry: ressourcen.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
-  };
+  });
 }
 
 /* ======================================================================================

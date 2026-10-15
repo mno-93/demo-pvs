@@ -16,6 +16,7 @@ Node ab Version 20. Prüfen mit `node -v`.
 | `npm run typecheck`           | Typprüfung über alle Pakete                                                                                               |
 | `npm run pruefen`             | Format, Lint, Typen, Tests — vor jedem Commit                                                                             |
 | `npm run pruefen:vertraulich` | Sucht nach vertraulichen Inhalten; Projektmuster aus `.vertraulich-muster` oder `VERTRAULICH_MUSTER` (Teil von `pruefen`) |
+| `npm run fhir:validieren`     | Legt die FHIR-Ausgaben der Tests dem HL7 FHIR Validator vor (Java ab 17, `validator_cli.jar`; Abschnitt „FHIR-Validator“) |
 | `npm run build:gehostet`      | Baut die gehostete Fassung mit Simulator im Browser; Unterpfad über `BASIS`, etwa `BASIS=/demo-pvs/`                      |
 | `npm run vorschau:gehostet`   | Zeigt das Gebaute lokal an (Port 4173)                                                                                    |
 
@@ -82,6 +83,45 @@ node werkzeuge/scans/seite-fotografieren.mjs werkzeuge/scans/vorbefund-kardiolog
 node werkzeuge/scans/seite-fotografieren.mjs werkzeuge/scans/medikationsuebersicht-2026.html 1123 794 /tmp/uebersicht.png
 python3 werkzeuge/scans/als-scan.py /tmp/vorbefund.png /tmp/uebersicht.png
 ```
+
+## FHIR-Validator
+
+`fhirPruefen` läuft in jedem Testlauf, kennt aber nur ausgewählte Regeln (DATENMODELL, Abschnitt 6).
+Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlichten Pakete.
+
+1. **Aufruf:** `npm run fhir:validieren`. Die Tests aus `werkzeuge/fhir-validator.json` laufen mit
+   `FHIR_AUSGABE`. Jede Ressource, die `fhirPruefen` ohne Fehler prüft, landet in
+   `ausgabe/fhir-validierung/ressourcen` (`werkzeuge/fhir-ausgabe-sichern.ts`). Die absichtlich
+   fehlerhaften Beispiele der Prüfregeln bleiben draußen.
+2. **Validator:** Er prüft den Ordner gegen die Pakete der Konfiguration, ohne Terminologieserver
+   (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt.
+3. **Auswertung:** Das Skript liest `bericht.json`, nimmt die begründeten Ausnahmen der
+   Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Die Zusammenfassung steht in
+   `zusammenfassung.json`.
+
+**Voraussetzungen:**
+
+- Java ab Version 17.
+- `validator_cli.jar` von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
+  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`.
+
+Das Skript lädt nichts selbst herunter. Der Validator holt die Pakete beim ersten Lauf aus der
+Registry.
+
+**In der CI:** Job „FHIR-Validator“ in `.github/workflows/demo.yml`, mit Bericht als Artefakt.
+
+- **Informativ** (`continue-on-error`), bis die Ausnahmen am ersten Lauf kalibriert sind. Danach
+  die Zeile entfernen und die Validator-Version festschreiben.
+- Ausnahmen nur mit Grund. Erlaubt sind das vereinfachte E-Rezept (KBV-Pakete nicht geladen) und
+  die ✦ Vorschläge im Namensraum der Demo.
+
+⚠ Noch nicht gelaufen. Lokal fehlte Java, die CI läuft erst nach dem nächsten Push.
+
+**Nicht abgedeckt — auch nicht durch den Validator in dieser Einstellung:**
+
+- **Terminologie-Bindungen.** Dafür braucht es einen Terminologieserver mit ICD-10-GM, Alpha-ID,
+  den KBV-Codesystemen und SNOMED CT der deutschen Edition.
+- **E-Rezept gegen die KBV-Profile.**
 
 ## Prüfliste vor jeder Abgabe
 
@@ -154,6 +194,8 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P62 | „An“: Dr. Brinkmann; Rolle „MFA“; Ausbaustand „Release 3.1.3“                                                                                                                                                                                         | „keine KIM-Adresse“, Versand gesperrt; „Unterschreiben“ gesperrt mit „nur ärztlich“; kein Reiter „Arztbrief ✦“                                                                                                                                                                                                 |
 | P63 | Nach dem Einstellen: „Aktenlotse ✦“ → „Was ist mit der Belastungsdyspnoe?“                                                                                                                                                                            | Antwort mit Beleg aus „Arztbrief an Kardiologische Praxis am Wall“; der Brief steht nicht unter „Unklar beschriftet“                                                                                                                                                                                           |
 | P64 | Arztbrief nach eGK → je Abschnitt „Auswählen ▾“; Diagnosen: Vorhofflimmern ☑; Escape; Befunde → „Befund in der Karteikarte notieren →“ → Notiz B speichern → zurück                                                                                   | Menü mit Gruppen Praxis und ePA, Filterfeld fokussiert; ePA-Eintrag mit Marker „ePA“ im Brief; Escape schließt, Fokus am Knopf; Reiter „Arztbrief ✦ · Entwurf“; neuer Befund gewählt mit „neu“, Beurteilung erhalten; Konsole ohne Fehler                                                                      |
+| P65 | Diagnose erfassen: Klinischer Status „Rezidiv“, dann „Behoben“                                                                                                                                                                                        | Bei „Rezidiv“ ist „Zeitraum bis“ gesperrt („nur Beginn, solange gegenwärtig“) und leer; bei „Behoben“ frei. Die FHIR-Vorschau zeigt `abatementDateTime` nur bei „Behoben“                                                                                                                                      |
+| P66 | Allergie erfassen: Klinischer Status „Aktiv“, dann „Behoben“ mit „Zeitraum bis“                                                                                                                                                                       | Bei „Aktiv“ ist „Zeitraum bis“ gesperrt; nach dem Speichern trägt der Eintrag der Allergienliste das Ende als Extension `allergyintolerance-abatement`, nicht als `onsetPeriod`                                                                                                                                |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

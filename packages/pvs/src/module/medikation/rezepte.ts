@@ -1,4 +1,5 @@
 import {
+  PRAXIS_STAMMDATEN,
   deutschesDatum,
   verordnungsdatensatzBauen,
   type Rezept,
@@ -7,7 +8,6 @@ import {
 import { ausfuehren, lesen } from '../../speicher/speicher.js';
 import { vorgaenge } from '../../speicher/vorgaenge.js';
 import {
-  EINRICHTUNG,
   EpaFehler,
   erezeptAktivieren,
   erezeptErstellen,
@@ -33,15 +33,11 @@ export async function rezeptSenden(rezept: Rezept): Promise<void> {
     throw new EpaFehler(0, 'Signieren kann nur eine Ärztin oder ein Arzt.');
   }
   const aufgabe = await erezeptErstellen('160');
+  // Dieselben Angaben wie in ePA, Arztbrief und KIM — Patientin, Ärztin, Praxisstammdaten.
   const datensatz = verordnungsdatensatzBauen(rezept, {
-    kvnr: patient.versicherung.kvnr,
-    vorname: patient.vorname,
-    nachname: patient.nachname,
-    geburtsdatum: patient.geburtsdatum,
-    kostentraeger: patient.versicherung.kostentraeger,
-    kostentraegerkennung: patient.versicherung.kostentraegerkennung,
+    patient,
     arzt: { name: z.nutzer.name, lanr: z.nutzer.lanr ?? '' },
-    praxis: { name: EINRICHTUNG.anzeige, telematikId: EINRICHTUNG.telematikId },
+    praxis: PRAXIS_STAMMDATEN,
     rezeptId: aufgabe.rezeptId,
     authoredOn: z.heute,
   });

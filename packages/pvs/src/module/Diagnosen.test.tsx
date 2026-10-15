@@ -274,7 +274,7 @@ describe('Erfassung mit der Diagnosenliste', () => {
     vi.unstubAllGlobals();
   });
 
-  it('belegt das Kästchen für Dauerdiagnosen vor und erlaubt bei „Aktiv" nur einen Beginn', async () => {
+  it('belegt das Kästchen für Dauerdiagnosen vor und erlaubt nur einen Beginn, solange die Diagnose gegenwärtig ist', async () => {
     const aufrufe = dienst({ diagnosen: [], allergien: [], provenance: [] }, (a) =>
       a.pfad === `${DIENST}/$add-condition-entry`
         ? geschrieben(
@@ -309,6 +309,9 @@ describe('Erfassung mit der Diagnosenliste', () => {
     expect((screen.getByLabelText('Zeitraum bis') as HTMLInputElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Klinischer Status'), { target: { value: 'behoben' } });
     expect((screen.getByLabelText('Zeitraum bis') as HTMLInputElement).disabled).toBe(false);
+    // Ein Rezidiv ist gegenwärtig: kein Ende (FHIR con-4).
+    fireEvent.change(screen.getByLabelText('Klinischer Status'), { target: { value: 'rezidiv' } });
+    expect((screen.getByLabelText('Zeitraum bis') as HTMLInputElement).disabled).toBe(true);
     fireEvent.change(screen.getByLabelText('Klinischer Status'), { target: { value: 'aktiv' } });
 
     // Speichern mit Kästchen: eine Handlung, zwei Wirkungen — Praxis und Liste.

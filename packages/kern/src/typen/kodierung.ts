@@ -18,9 +18,9 @@ export const CODESYSTEM = {
 /**
  * Version für SNOMED-CT-Kodierungen: deutsche Edition, Stand 15.05.2026.
  *
- * Das TI-Common-Profil `ti-condition-diagnosis` 1.5.0 (Paket `de.gematik.ti` 1.5.0-ballot.1)
- * verlangt an der SNOMED-CT-Kodierung eine Versionsangabe (min 1). Diese Kennung führen die
- * veröffentlichten Pakete `de.gematik.ti` 1.5.0-ballot.1 und `de.gematik.epa.laboratory`
+ * Das TI-Common-Profil `ti-condition-diagnosis` 1.5.0 verlangt an der SNOMED-CT-Kodierung eine
+ * Versionsangabe (min 1; geprüft am Paket `de.gematik.ti` 1.5.0-ballot.2). Diese Kennung führten
+ * die veröffentlichten Pakete `de.gematik.ti` 1.5.0-ballot.1 und `de.gematik.epa.laboratory`
  * 1.0.0-ballot.1 durchgängig.
  */
 export const SNOMED_VERSION = 'http://snomed.info/sct/11000274103/version/20260515';

@@ -175,6 +175,21 @@ Laborwerte werden nicht erfasst, sondern aus Laborbefunden nach dgLP gelesen —
 [0016](entscheidungen/0016-laborwerte-nur-aus-befunden.md). Im Release 3.1.3 liegen Befunde als
 PDF vor (`kern/fachlogik/pdf.ts` erzeugt sie); das PVS zeigt sie an, liest aber keine Werte daraus.
 
+## Datenhaltung und FHIR
+
+Einmal dokumentieren, überall verwenden ([0039](entscheidungen/0039-einmal-dokumentieren.md)):
+
+- **Datenhaltung:** Die fachlichen Typen in `packages/kern/src/typen` sind die einzige
+  Datenhaltung.
+- **FHIR:** entsteht nur an den Übergängen und nur im Kern — `fhir/abbildung.ts`,
+  `fhir/medikation.ts`, `fachlogik/arztbrief.ts`, `fhir/erezept.ts`. Je Inhalt gibt es eine
+  Abbildung, das Profil wählt das Ziel.
+- **Prüfung:**
+  - `fhirPruefen` prüft in jedem Testlauf Pflichtangaben und Invarianten aller Ausgaben;
+  - `npm run fhir:validieren` legt dieselben Ausgaben dem HL7 FHIR Validator vor.
+
+Bestände, Abbildungsregeln und Feldtabellen: [DATENMODELL.md](DATENMODELL.md).
+
 ## Zustand im PVS
 
 Ein kleiner Speicher auf `useSyncExternalStore` statt einer Bibliothek — siehe

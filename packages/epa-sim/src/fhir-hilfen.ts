@@ -1,4 +1,4 @@
-import { DEMO_HEUTE, vollUrl, type Ressource } from '@demo-pvs/kern';
+import { DEMO_HEUTE, ohneZeitzone, vollUrl, type Ressource } from '@demo-pvs/kern';
 
 /** Hilfen für FHIR-Antworten und `Parameters`-Ressourcen. */
 
@@ -123,9 +123,9 @@ let zuletzt = 0;
 
 /**
  * Prüft einen Zeitpunkt gegen FHIR-Datumsparameter (`gt`, `ge`, `lt`, `le`, `eq`; ohne Präfix
- * `eq`). Mehrere Werte gelten zusammen, etwa `date=ge…&date=le…`. Die Zeitpunkte der Demo
- * tragen keine Zone; verglichen wird als Zeichenkette — ausreichend, weil alle aus derselben
- * Uhr stammen (`jetzt()`).
+ * `eq`). Mehrere Werte gelten zusammen, etwa `date=ge…&date=le…`. Der Bestand führt Zeitpunkte
+ * ohne Zone, Antworten tragen sie (zeit.ts im Kern) — und so kommen sie als Lesezeichen zurück.
+ * Verglichen wird deshalb ohne Zone, als Zeichenkette: Alle stammen aus derselben Uhr.
  */
 export function imZeitraum(
   zeitpunkt: string | undefined,
@@ -134,15 +134,16 @@ export function imZeitraum(
   const bedingungen = ([] as string[]).concat(werte ?? []);
   if (bedingungen.length === 0) return true;
   if (!zeitpunkt) return false;
+  const lokal = ohneZeitzone(zeitpunkt);
   return bedingungen.every((b) => {
     const praefix = /^(gt|ge|lt|le|eq)/.exec(b)?.[1] ?? 'eq';
-    const wert = b.replace(/^(gt|ge|lt|le|eq)/, '');
-    const t = zeitpunkt.slice(0, Math.max(wert.length, 10));
+    const wert = ohneZeitzone(b.replace(/^(gt|ge|lt|le|eq)/, ''));
+    const t = lokal.slice(0, Math.max(wert.length, 10));
     if (praefix === 'gt') return t > wert;
     if (praefix === 'ge') return t >= wert;
     if (praefix === 'lt') return t < wert;
     if (praefix === 'le') return t <= wert;
-    return zeitpunkt.startsWith(wert);
+    return lokal.startsWith(wert);
   });
 }
 

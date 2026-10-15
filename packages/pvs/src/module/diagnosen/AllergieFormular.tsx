@@ -305,7 +305,13 @@ export function AllergieFormular({
               beschriftung="Klinischer Status"
               wert={e.klinischerStatus}
               optionen={Object.entries(ALLERGIESTATUS_BEZEICHNUNG)}
-              aendern={(w) => setze('klinischerStatus', w as AllergieStatus)}
+              aendern={(w) =>
+                setzeE((alt) => ({
+                  ...alt,
+                  klinischerStatus: w as AllergieStatus,
+                  ende: w === 'aktiv' ? null : alt.ende,
+                }))
+              }
             />
           </div>
 
@@ -361,6 +367,8 @@ export function AllergieFormular({
               beschriftung="Zeitraum bis"
               wert={e.ende ?? ''}
               aendern={(w) => setze('ende', w || null)}
+              gesperrt={e.klinischerStatus === 'aktiv'}
+              hinweis={e.klinischerStatus === 'aktiv' ? 'nur Beginn, solange aktiv' : undefined}
             />
           </div>
 

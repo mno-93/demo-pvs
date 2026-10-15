@@ -1,6 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { patientSummaryLesen, verordnungsdatensatzBauen, type Rezept } from '@demo-pvs/kern';
+import {
+  PRAXIS_STAMMDATEN,
+  patientSummaryLesen,
+  verordnungsdatensatzBauen,
+  type Rezept,
+} from '@demo-pvs/kern';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
 
@@ -119,14 +124,28 @@ async function verordnen(r: Rezept, kvnr = HOFFMANN): Promise<{ id: string; acce
   const task = erstellt.json() as { id: string; identifier: { system: string; value: string }[] };
   const accessCode = task.identifier.find((i) => i.system.endsWith('AccessCode'))!.value;
   const datensatz = verordnungsdatensatzBauen(r, {
-    kvnr,
-    vorname: 'Renate',
-    nachname: 'Hoffmann',
-    geburtsdatum: '1958-03-14',
-    kostentraeger: 'Beispielkasse Nordwest',
-    kostentraegerkennung: '109999901',
+    patient: {
+      id: 'p-test',
+      nachname: 'Hoffmann',
+      vorname: 'Renate',
+      geburtsdatum: '1958-03-14',
+      geschlecht: 'weiblich',
+      anschrift: { strasse: 'Lindenweg', hausnummer: '3', plz: '26000', ort: 'Beispielstadt' },
+      telefon: '0000 1',
+      versicherung: {
+        kvnr,
+        kostentraeger: 'Beispielkasse Nordwest',
+        kostentraegerkennung: '109999901',
+        versichertenart: 'Rentner:in',
+        zuzahlungsbefreit: false,
+        gueltigBis: '2030-12-31',
+        zuletztEingelesen: null,
+      },
+      angelegtAm: '2026-08-30T08:30:00',
+      hinweis: null,
+    },
     arzt: { name: 'Dr. med. Anna Brandt', lanr: '999999901' },
-    praxis: { name: 'Hausarztpraxis am Stadtgarten', telematikId: PRAXIS },
+    praxis: { ...PRAXIS_STAMMDATEN, telematikId: PRAXIS },
     rezeptId: task.id,
     authoredOn: '2026-09-29',
   });

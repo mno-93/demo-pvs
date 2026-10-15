@@ -10,6 +10,7 @@ export default defineConfig({
     // bewusst ohne sie geprüft.
     environmentMatchGlobs: [['packages/pvs/**', 'jsdom']],
     globals: false,
-    setupFiles: ['./werkzeuge/test-aufraeumen.ts'],
+    // Die zweite Datei tut nur etwas mit FHIR_AUSGABE (npm run fhir:validieren).
+    setupFiles: ['./werkzeuge/test-aufraeumen.ts', './werkzeuge/fhir-ausgabe-sichern.ts'],
   },
 });

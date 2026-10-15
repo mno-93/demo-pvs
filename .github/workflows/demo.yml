@@ -36,6 +36,44 @@ jobs:
           VERTRAULICH_MUSTER: ${{ vars.VERTRAULICH_MUSTER }}
         run: npm run pruefen
 
+  fhir-validator:
+    name: FHIR-Validator
+    needs: pruefen
+    runs-on: ubuntu-latest
+    # Informativ, bis die Ausnahmen am ersten Lauf kalibriert sind (docs/ENTWICKLUNG.md,
+    # „FHIR-Validator“). Danach die Zeile entfernen, damit Fehler den Lauf scheitern lassen.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Paket-Cache des Validators
+        uses: actions/cache@v4
+        with:
+          path: ~/.fhir/packages
+          key: fhir-pakete-${{ hashFiles('werkzeuge/fhir-validator.json') }}
+      - name: HL7 FHIR Validator holen
+        # Neueste Fassung; nach der Kalibrierung auf eine feste Version setzen.
+        run: |
+          mkdir -p ~/.fhir
+          curl -fsSL -o ~/.fhir/validator_cli.jar \
+            https://github.com/hapifhir/org.hl7.fhir.core/releases/latest/download/validator_cli.jar
+      - run: npm ci
+      - run: npm run build --workspace @demo-pvs/kern
+      - run: npm run fhir:validieren
+      - name: Bericht sichern
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fhir-validierung
+          path: ausgabe/fhir-validierung
+
   bauen:
     name: Gehostete Fassung bauen
     needs: pruefen

@@ -26,7 +26,7 @@ import {
 import type { Herkunft } from '../typen/herkunft.js';
 import type { Impfung } from '../typen/impfung.js';
 import { CODESYSTEM, type Kodierung } from '../typen/kodierung.js';
-import { HERKUNFT_EXTENSION, ICD_EXTENSION } from './abbildung.js';
+import { ALLERGIE_ENDE_EXTENSION, HERKUNFT_EXTENSION, ICD_EXTENSION } from './abbildung.js';
 import type { Ressource } from './typen.js';
 
 /**
@@ -117,7 +117,10 @@ export function allergieAusFhirRessource(
 ): Allergie {
   const konzept = (r['code'] as Konzept | undefined) ?? {};
   const sct = konzept.coding?.find((k) => k.system === CODESYSTEM.snomed);
-  const periode = r['onsetPeriod'] as { start?: string; end?: string } | undefined;
+  // Ein Beginnzeitraum zählt mit seinem Anfang; sein Ende ist nicht das Ende der Allergie.
+  const periode = r['onsetPeriod'] as { start?: string } | undefined;
+  const abklingen = (r.extension ?? []).find((e) => e.url === ALLERGIE_ENDE_EXTENSION) as
+    { valueDateTime?: string } | undefined;
   const reaktionen: Reaktion[] = (
     (r['reaction'] as Record<string, unknown>[] | undefined) ?? []
   ).map((re) => ({
@@ -143,7 +146,7 @@ export function allergieAusFhirRessource(
     reaktionen,
     klinischerStatus: ALLERGIESTATUS_AUS_CODE[statuscode(r, 'clinicalStatus')] ?? 'aktiv',
     beginn: datum(r['onsetDateTime']) ?? datum(periode?.start),
-    ende: datum(periode?.end),
+    ende: datum(abklingen?.valueDateTime),
     dokumentiertAm: datum(r['recordedDate']) ?? '',
     feststellendePerson: (r['asserter'] as { display?: string } | undefined)?.display ?? null,
     notiz: (r['note'] as { text?: string }[] | undefined)?.[0]?.text ?? null,

@@ -10,6 +10,7 @@ import {
   deutschesDatum,
   diagnoseNachFhir,
   icd10gm,
+  istGegenwaertig,
   kodierservice,
   schweregrade,
   sicherheitAusZusatzkennzeichen,
@@ -36,7 +37,8 @@ import { Listenwahl, OHNE_LISTE, type Listenoption } from './Listenwahl.js';
  * ICD-10-GM und SNOMED CT in einem Schritt — nach dem Vorbild des zentralen Kodierservice in
  * Österreich. Die Ärztin wählt einen Begriff, nicht zwei Codes.
  *
- * Bei klinischem Status „Aktiv" gibt es nur einen Beginn, kein Ende. Und ob die Diagnose in der Diagnosenliste der
+ * Solange die Erkrankung gegenwärtig ist (Aktiv, Wiederauftreten, Rezidiv), gibt es nur einen
+ * Beginn, kein Ende (FHIR con-4). Und ob die Diagnose in der Diagnosenliste der
  * ePA geführt wird, ist ein Kästchen in derselben Maske — kein zweiter Schritt.
  */
 
@@ -170,14 +172,14 @@ export function DiagnoseFormular({
         zusatzkennzeichen: z,
         diagnosesicherheit: sicherheitAusZusatzkennzeichen(z),
         klinischerStatus,
-        ende: klinischerStatus === 'aktiv' ? null : alt.ende,
+        ende: istGegenwaertig(klinischerStatus) ? null : alt.ende,
       };
     });
     setzeVorbelegt(true);
   }
 
-  /** Bei klinischem Status „Aktiv" gibt es nur einen Beginn, kein Ende. */
-  const nurBeginn = e.klinischerStatus === 'aktiv';
+  /** Solange die Erkrankung gegenwärtig ist, gibt es nur einen Beginn, kein Ende. */
+  const nurBeginn = istGegenwaertig(e.klinischerStatus);
 
   const dienst = kodierservice.find((k) => k.icd10gm === e.code && k.snomed === e.snomed?.code);
   const vorschau = diagnoseNachFhir(
@@ -340,7 +342,7 @@ export function DiagnoseFormular({
                 setzeE((alt) => ({
                   ...alt,
                   klinischerStatus: w as KlinischerStatus,
-                  ende: w === 'aktiv' ? null : alt.ende,
+                  ende: istGegenwaertig(w as KlinischerStatus) ? null : alt.ende,
                 }))
               }
             />
@@ -387,7 +389,7 @@ export function DiagnoseFormular({
               wert={e.ende ?? ''}
               aendern={(w) => setze('ende', w || null)}
               gesperrt={nurBeginn}
-              hinweis={nurBeginn ? 'bei Status „Aktiv" nur Beginn' : undefined}
+              hinweis={nurBeginn ? 'nur Beginn, solange gegenwärtig' : undefined}
             />
             <Datum
               id="d-festgestellt"
@@ -460,7 +462,7 @@ export function DiagnoseFormular({
 
           <details className="aufklapper">
             <summary>
-              FHIR-Vorschau — Condition nach ti-condition-diagnosis (TI 1.5.0-ballot.1)
+              FHIR-Vorschau — Condition nach ti-condition-diagnosis (TI 1.5.0-ballot.2)
             </summary>
             <pre className="code-block">{JSON.stringify(vorschau, null, 2)}</pre>
           </details>

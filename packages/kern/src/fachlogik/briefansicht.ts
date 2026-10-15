@@ -85,7 +85,17 @@ export function briefAusFhir(bundle: unknown): Briefvorlage | null {
   const titel = String(komposition['title'] ?? 'Dokument');
   const datum = String(komposition['date'] ?? '');
   const einrichtung = String(organisation?.['name'] ?? person?.display ?? '');
-  const anschrift = (organisation?.['address'] as { text?: string }[] | undefined)?.[0]?.text;
+  const adresse = (
+    organisation?.['address'] as
+      { text?: string; line?: string[]; postalCode?: string; city?: string }[] | undefined
+  )?.[0];
+  // Strukturiert oder als Text — beides erlaubt FHIR; der Briefkopf braucht eine Zeile.
+  const anschrift =
+    adresse?.text ??
+    ([adresse?.line?.join(', '), [adresse?.postalCode, adresse?.city].filter(Boolean).join(' ')]
+      .filter(Boolean)
+      .join(', ') ||
+      undefined);
   const telefon = (
     organisation?.['telecom'] as { system?: string; value?: string }[] | undefined
   )?.find((t) => t.system === 'phone')?.value;

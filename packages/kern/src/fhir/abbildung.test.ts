@@ -13,6 +13,8 @@ import type { Allergie } from '../typen/allergie.js';
 import type { Patient } from '../typen/person.js';
 import { allergieMuster, diagnoseMuster } from '../testhilfe.js';
 
+const KVNR = 'A123456780';
+
 const patient: Patient = {
   id: 'p1',
   nachname: 'Hoffmann',
@@ -60,7 +62,7 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('bildet die Dauerdiagnose als problem-list-item ab', () => {
-    const r = diagnoseNachFhir(diagnose);
+    const r = diagnoseNachFhir(diagnose, KVNR);
     expect(r.resourceType).toBe('Condition');
     expect(JSON.stringify(r['category'])).toContain('problem-list-item');
     expect(JSON.stringify(r['clinicalStatus'])).toContain('active');
@@ -68,22 +70,28 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('bildet die Akutdiagnose als encounter-diagnosis ab', () => {
-    const r = diagnoseNachFhir({ ...diagnose, art: 'akut' });
+    const r = diagnoseNachFhir({ ...diagnose, art: 'akut' }, KVNR);
     expect(JSON.stringify(r['category'])).toContain('encounter-diagnosis');
   });
 
   it('bildet die Diagnosesicherheit des Modells ab, nicht das Zusatzkennzeichen', () => {
     // Das Zusatzkennzeichen ist Abrechnungsangabe; maßgeblich ist das Modellfeld.
-    const r = diagnoseNachFhir({
-      ...diagnose,
-      zusatzkennzeichen: 'G',
-      diagnosesicherheit: 'differential',
-    });
+    const r = diagnoseNachFhir(
+      {
+        ...diagnose,
+        zusatzkennzeichen: 'G',
+        diagnosesicherheit: 'differential',
+      },
+      KVNR,
+    );
     expect(JSON.stringify(r['verificationStatus'])).toContain('differential');
   });
 
   it('führt das Zusatzkennzeichen als Extension an der ICD-10-GM-Kodierung', () => {
-    const r = diagnoseNachFhir({ ...diagnose, zusatzkennzeichen: 'V', seitenlokalisation: 'L' });
+    const r = diagnoseNachFhir(
+      { ...diagnose, zusatzkennzeichen: 'V', seitenlokalisation: 'L' },
+      KVNR,
+    );
     const icd = (
       r['code'] as { coding: { extension?: { url: string; valueCoding: { code: string } }[] }[] }
     ).coding[0];
@@ -95,9 +103,9 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('bildet die sechs klinischen Status des Modells ab', () => {
-    const r = diagnoseNachFhir({ ...diagnose, klinischerStatus: 'rezidiv' });
+    const r = diagnoseNachFhir({ ...diagnose, klinischerStatus: 'rezidiv' }, KVNR);
     expect(JSON.stringify(r['clinicalStatus'])).toContain('"relapse"');
-    const w = diagnoseNachFhir({ ...diagnose, klinischerStatus: 'wiederauftreten' });
+    const w = diagnoseNachFhir({ ...diagnose, klinischerStatus: 'wiederauftreten' }, KVNR);
     expect(JSON.stringify(w['clinicalStatus'])).toContain('"recurrence"');
   });
 
@@ -109,14 +117,17 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('hinterlegt ICD-10-GM und SNOMED CT nebeneinander', () => {
-    const r = diagnoseNachFhir({
-      ...diagnose,
-      snomed: {
-        system: 'http://snomed.info/sct',
-        code: '440028005',
-        anzeige: 'Vorhofflimmern, persistierend',
+    const r = diagnoseNachFhir(
+      {
+        ...diagnose,
+        snomed: {
+          system: 'http://snomed.info/sct',
+          code: '440028005',
+          anzeige: 'Vorhofflimmern, persistierend',
+        },
       },
-    });
+      KVNR,
+    );
     const kodierungen = (r['code'] as { coding: { system: string; version?: string }[] }).coding;
     expect(kodierungen.map((k) => k.system)).toEqual([
       'http://fhir.de/CodeSystem/bfarm/icd-10-gm',
@@ -127,29 +138,32 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('bildet den Schweregrad als SNOMED-CT-Konzept ab', () => {
-    const r = diagnoseNachFhir({
-      ...diagnose,
-      schweregrad: { system: 'http://snomed.info/sct', code: '24484000', anzeige: 'schwer' },
-    });
+    const r = diagnoseNachFhir(
+      {
+        ...diagnose,
+        schweregrad: { system: 'http://snomed.info/sct', code: '24484000', anzeige: 'schwer' },
+      },
+      KVNR,
+    );
     expect(JSON.stringify(r['severity'])).toContain('24484000');
   });
 
   it('setzt die Herkunfts-Extension nur bei einem Quelldokument', () => {
-    expect(diagnoseNachFhir({ ...diagnose, festgestelltAm: null }).extension?.[0]?.url).toBe(
+    expect(diagnoseNachFhir({ ...diagnose, festgestelltAm: null }, KVNR).extension?.[0]?.url).toBe(
       HERKUNFT_EXTENSION,
     );
-    expect(allergieNachFhir(allergie).extension).toBeUndefined();
+    expect(allergieNachFhir(allergie, KVNR).extension).toBeUndefined();
   });
 
   it('bildet Typ, Kategorie und Kritikalität der Allergie ab', () => {
-    const r = allergieNachFhir(allergie);
+    const r = allergieNachFhir(allergie, KVNR);
     expect(r['type']).toBe('allergy');
     expect(r['category']).toEqual(['medication']);
     expect(r['criticality']).toBe('high');
   });
 
   it('bildet Reaktionen mit kodierter Manifestation und Schweregrad ab', () => {
-    const r = allergieNachFhir(allergie);
+    const r = allergieNachFhir(allergie, KVNR);
     const reaktion = (
       r['reaction'] as { manifestation: { coding: { code: string }[] }[]; severity: string }[]
     )[0];
@@ -158,40 +172,51 @@ describe('Abbildung nach FHIR', () => {
   });
 
   it('kodiert die Substanz nur mit SNOMED CT — die AMTS-Zuordnung bleibt draußen', () => {
-    const r = allergieNachFhir(allergie);
+    const r = allergieNachFhir(allergie, KVNR);
     const kodierungen = (r['code'] as { coding: { system: string }[] }).coding;
     expect(kodierungen.map((k) => k.system)).toEqual(['http://snomed.info/sct']);
   });
 
   it('führt die Bezeichnung auch ohne Code', () => {
-    const r = allergieNachFhir({ ...allergie, snomed: null, substanz: 'Nickel' });
+    const r = allergieNachFhir({ ...allergie, snomed: null, substanz: 'Nickel' }, KVNR);
     expect((r['code'] as { coding?: unknown[] }).coding).toBeUndefined();
     expect((r['code'] as { text?: string }).text).toBe('Nickel');
   });
 
-  it('bildet den klinisch relevanten Zeitraum als onsetPeriod ab', () => {
-    const r = allergieNachFhir({ ...allergie, beginn: '2019-04-01', ende: '2024-01-01' });
-    expect(r['onsetPeriod']).toEqual({ start: '2019-04-01', end: '2024-01-01' });
+  it('bildet das Ende als Abklingen ab, nicht als Ende des Beginnzeitraums', () => {
+    const r = allergieNachFhir(
+      { ...allergie, klinischerStatus: 'behoben', beginn: '2019-04-01', ende: '2024-01-01' },
+      KVNR,
+    );
+    expect(r['onsetDateTime']).toBe('2019-04-01');
+    expect(r['onsetPeriod']).toBeUndefined();
+    expect(r.extension).toContainEqual({
+      url: 'http://hl7.org/fhir/StructureDefinition/allergyintolerance-abatement',
+      valueDateTime: '2024-01-01',
+    });
   });
 
   it('bildet den Expositionsweg als SNOMED-CT-Konzept ab', () => {
-    const r = allergieNachFhir({
-      ...allergie,
-      reaktionen: [
-        {
-          manifestationen: [
-            { system: 'http://snomed.info/sct', code: '126485001', anzeige: 'Urtikaria' },
-          ],
-          schweregrad: 'leicht',
-          datum: '2019-04-08',
-          expositionsweg: {
-            system: 'http://snomed.info/sct',
-            code: '26643006',
-            anzeige: 'Oraler Verabreichungsweg',
+    const r = allergieNachFhir(
+      {
+        ...allergie,
+        reaktionen: [
+          {
+            manifestationen: [
+              { system: 'http://snomed.info/sct', code: '126485001', anzeige: 'Urtikaria' },
+            ],
+            schweregrad: 'leicht',
+            datum: '2019-04-08',
+            expositionsweg: {
+              system: 'http://snomed.info/sct',
+              code: '26643006',
+              anzeige: 'Oraler Verabreichungsweg',
+            },
           },
-        },
-      ],
-    });
+        ],
+      },
+      KVNR,
+    );
     expect(JSON.stringify(r['reaction'])).toContain('26643006');
   });
 });

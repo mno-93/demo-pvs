@@ -10,7 +10,7 @@ describe('Rückabbildung aus FHIR', () => {
       zusatzkennzeichen: 'V',
       seitenlokalisation: 'L',
       diagnosesicherheit: 'vorläufig',
-      klinischerStatus: 'rezidiv',
+      klinischerStatus: 'remission',
       schweregrad: { system: CODESYSTEM.snomed, code: '24484000', anzeige: 'Schwer' },
       koerperstelle: 'linkes Knie',
       ende: '2026-08-01',
@@ -28,12 +28,17 @@ describe('Rückabbildung aus FHIR', () => {
   it('liest eine Allergie mit Reaktionen verlustfrei zurück', () => {
     const a = allergieMuster({
       snomed: { system: CODESYSTEM.snomed, code: '764146007', anzeige: 'Penicillin' },
+      klinischerStatus: 'behoben',
       beginn: '2019-04-01',
       ende: '2024-01-01',
       feststellendePerson: 'Dr. X',
       notiz: 'Hinweis',
     });
-    const zurueck = allergieAusFhirRessource(allergieNachFhir(a), a.patientId, a.herkunft);
+    const zurueck = allergieAusFhirRessource(
+      allergieNachFhir(a, 'A123456780'),
+      a.patientId,
+      a.herkunft,
+    );
     expect(zurueck).toEqual({ ...a, epaId: a.id, epaFassung: '1' });
   });
 

@@ -211,6 +211,35 @@ export interface Adressbucheintrag {
 export const KIM_PRAXIS = 'praxis.stadtgarten@demo-anbieter.kim.telematik';
 
 /**
+ * Stammdaten der Praxis — an einer Stelle. Daraus entstehen die Organisation in den Kopfzeilen
+ * der ePA (`X-Requesting-Organization`), der Autor der XDS-Metadaten, der Absender des
+ * Arztbriefs, die Organisation im E-Rezept und der Absender der KIM-Nachricht. Erfunden.
+ */
+export interface Praxisstammdaten {
+  name: string;
+  telematikId: string;
+  /** Betriebsstättennummer, erfunden. */
+  bsnr: string;
+  anschrift: { strasse: string; hausnummer: string; plz: string; ort: string };
+  telefon: string;
+  kim: string;
+}
+
+export const PRAXIS_STAMMDATEN: Praxisstammdaten = {
+  name: 'Hausarztpraxis am Stadtgarten',
+  telematikId: 'DEMO-PRAXIS-STADTGARTEN',
+  bsnr: '999999900',
+  anschrift: { strasse: 'Am Stadtgarten', hausnummer: '4', plz: '26000', ort: 'Beispielstadt' },
+  telefon: '0000 3030-0',
+  kim: KIM_PRAXIS,
+};
+
+/** Anschrift in Zeilen, wie sie ein Briefkopf führt. */
+export function anschriftZeilen(a: Praxisstammdaten['anschrift']): string[] {
+  return [`${a.strasse} ${a.hausnummer}`, `${a.plz} ${a.ort}`];
+}
+
+/**
  * Adressbuch der Praxis — Einrichtungen, mit denen sie Briefe austauscht. Dieselben Einträge
  * kennt der Simulator als Verzeichnis: Eine Client-Mail an eine Adresse, die es dort nicht gibt,
  * wird abgewiesen. Die Kardiologie in Oldenburg hat keinen KIM-Dienst — dorthin geht ein Brief

@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import { PRAXIS_STAMMDATEN } from '@demo-pvs/kern';
 
 /**
  * ✦ VORSCHLAG — Kontaktauskunft für Rückfragen von Versicherten. Keine ePA-Schnittstelle.
@@ -26,7 +27,7 @@ export interface Kontakteintrag {
 }
 
 const VERZEICHNIS: Kontakteintrag[] = [
-  { name: 'Hausarztpraxis am Stadtgarten', telefon: '0000 3030-0', tiMessenger: true },
+  { name: PRAXIS_STAMMDATEN.name, telefon: PRAXIS_STAMMDATEN.telefon, tiMessenger: true },
   { name: 'Hausarztpraxis Nordstadt', telefon: '0000 2233-0', tiMessenger: true },
   { name: 'Klinikum Sonnenschein', telefon: '0000 1234-200', tiMessenger: false },
   { name: 'Kreisklinikum Weserbogen', telefon: '0000 9876-0', tiMessenger: false },

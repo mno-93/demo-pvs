@@ -1,5 +1,8 @@
 import {
   ITI41_INHALTSTYP,
+  PRAXIS_STAMMDATEN,
+  PROFIL,
+  praxisNachFhir,
   XDS_DOKUMENTENDIENST,
   kimNachrichtErzeugen,
   provideAndRegisterErzeugen,
@@ -41,10 +44,10 @@ import { abrufen } from './transport.js';
  *   `$abort` (ADR 0024). Er ist kein Teil der ePA; die Verschreibung erreicht die ePA über ihn.
  */
 
-/** Die zugreifende Einrichtung. */
+/** Die zugreifende Einrichtung — aus den Stammdaten der Praxis. */
 export const EINRICHTUNG = {
-  telematikId: 'DEMO-PRAXIS-STADTGARTEN',
-  anzeige: 'Hausarztpraxis am Stadtgarten',
+  telematikId: PRAXIS_STAMMDATEN.telematikId,
+  anzeige: PRAXIS_STAMMDATEN.name,
 } as const;
 
 /**
@@ -53,7 +56,6 @@ export const EINRICHTUNG = {
  */
 export const USER_AGENT = 'DEMOPVSFIKTIV0000001/0.4.0';
 
-const TELEMATIK_ID = 'https://gematik.de/fhir/sid/telematik-id';
 const MHD = '/epa/mhd/api/v1/fhir';
 const MEDIKATION = '/epa/medication/api/v1/fhir';
 const BEFUGNIS = '/epa/basic/api/v1/ps/entitlements';
@@ -101,13 +103,11 @@ export const GRUNDLAGE = {
  */
 export const SITZUNG_KOPFZEILE = 'x-demo-sitzung';
 
-/** Die Organisation der Praxis nach `TIOrganization`, wie sie `X-Requesting-Organization` trägt. */
-export const ORGANISATION: Ressource = {
-  resourceType: 'Organization',
-  meta: { profile: ['https://gematik.de/fhir/ti/StructureDefinition/ti-organization'] },
-  identifier: [{ system: TELEMATIK_ID, value: EINRICHTUNG.telematikId }],
-  name: EINRICHTUNG.anzeige,
-};
+/**
+ * Die Organisation der Praxis nach `TIOrganization`, wie sie `X-Requesting-Organization` trägt —
+ * dieselbe Abbildung der Stammdaten wie im Arztbrief und im E-Rezept.
+ */
+export const ORGANISATION: Ressource = praxisNachFhir(PRAXIS_STAMMDATEN, PROFIL.organisation);
 
 function base64(text: string): string {
   return btoa(unescape(encodeURIComponent(text)));

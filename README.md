@@ -33,6 +33,7 @@ jeweils mit Begründung und der Stelle, an der sie in der Demo zu sehen sind
 | [docs/SPEZIFIKATION.md](docs/SPEZIFIKATION.md)   | Was die Demo zeigt, Ansicht für Ansicht; ePA-Wege; Vorführung       |
 | [docs/QUELLEN.md](docs/QUELLEN.md)               | Veröffentlichte Spezifikationen mit Version                         |
 | [docs/ARCHITEKTUR.md](docs/ARCHITEKTUR.md)       | Aufbau, Systemgrenze, Regeln beim Weiterbauen                       |
+| [docs/DATENMODELL.md](docs/DATENMODELL.md)       | Bestände, Abbildung nach FHIR mit Pflicht und Kodierung, Prüfung    |
 | [docs/GESTALTUNG.md](docs/GESTALTUNG.md)         | Gestaltungsvariablen, Bausteine, Muster; von Figma in den Code      |
 | [docs/ZUSAMMENARBEIT.md](docs/ZUSAMMENARBEIT.md) | Rollen, Arbeitsablauf mit Issues und Pull Requests, Vertraulichkeit |
 | [CLAUDE.md](CLAUDE.md)                           | Regeln für Claude-Sitzungen im Team                                 |

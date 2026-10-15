@@ -1,13 +1,11 @@
 import {
-  CODESYSTEM,
-  KEINE_BEKANNTE_ALLERGIE,
-  SNOMED_VERSION,
   allergieAusFhirRessource,
   allergieNachFhir,
   chronikLesen,
   diagnoseAusFhir,
   diagnoseNachFhir,
   istPsRelevant,
+  keineBekannteAllergieNachFhir,
   psRelevanzSetzen,
   type Allergie,
   type Chronik,
@@ -245,7 +243,9 @@ export function inDerListeBerichtigen(
     ...epa,
     verificationStatus: { coding: [{ system: VERIFIKATION[art], code: 'entered-in-error' }] },
   };
+  // con-5 und ait-2: kein klinischer Status. con-4: ohne Status auch kein Ende der Diagnose.
   delete ressource['clinicalStatus'];
+  delete ressource['abatementDateTime'];
   return listeneintragAendern(kvnr, art, lesenachweis, ressource);
 }
 
@@ -259,32 +259,10 @@ export function keineBekannteAllergieEintragen(
   person: string,
   heute: string,
 ) {
-  return listeneintragAnlegen(kvnr, 'AllergyIntolerance', lesenachweis, {
-    resourceType: 'AllergyIntolerance',
-    clinicalStatus: {
-      coding: [
-        {
-          system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
-          code: 'active',
-        },
-      ],
-    },
-    verificationStatus: {
-      coding: [{ system: VERIFIKATION.AllergyIntolerance, code: 'confirmed' }],
-    },
-    code: {
-      coding: [
-        {
-          system: CODESYSTEM.snomed,
-          version: SNOMED_VERSION,
-          code: KEINE_BEKANNTE_ALLERGIE,
-          display: 'No known allergy',
-        },
-      ],
-      text: 'Keine bekannte Allergie',
-    },
-    recordedDate: heute,
-    recorder: { display: person },
-    asserter: { display: person },
-  });
+  return listeneintragAnlegen(
+    kvnr,
+    'AllergyIntolerance',
+    lesenachweis,
+    keineBekannteAllergieNachFhir(kvnr, person, heute),
+  );
 }

@@ -1,14 +1,19 @@
-import type { Adressbucheintrag } from '../beispiele.js';
+import type { Adressbucheintrag, Praxisstammdaten } from '../beispiele.js';
 import {
   allergieNachFhir,
   diagnoseNachFhir,
   impfungNachFhir,
   patientNachFhir,
+  personNachFhir,
+  praxisNachFhir,
 } from '../fhir/abbildung.js';
+import { medikationsaussageNachFhir } from '../fhir/medikation.js';
+import { zeitzonenErgaenzen } from '../fhir/zeit.js';
 import type { Ressource } from '../fhir/typen.js';
 import { reaktionenAlsText, type Allergie } from '../typen/allergie.js';
 import type { Diagnose } from '../typen/diagnose.js';
 import type { Impfung } from '../typen/impfung.js';
+import type { Medikationsangabe } from '../typen/medikation.js';
 import type { Patient } from '../typen/person.js';
 import type { XdsCode } from './xds.js';
 
@@ -39,7 +44,6 @@ import type { XdsCode } from './xds.js';
  */
 
 const LOINC = 'http://loinc.org';
-const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
 export const EMPFAENGER_EXTENSION =
   'https://example.org/demo-pvs/fhir/StructureDefinition/letter-recipient';
 
@@ -89,12 +93,8 @@ export const ARZTBRIEF_XDS = {
   },
 } as const satisfies Record<string, XdsCode>;
 
-export interface Briefmittel {
-  bezeichnung: string;
-  dosierung: string;
-  grund: string | null;
-  atc: string | null;
-}
+/** Ein Mittel im Brief — dieselbe Angabe wie im Plan und in der Patient Summary. */
+export type Briefmittel = Medikationsangabe;
 
 export interface Arztbriefangabe {
   /** UUID des Dokuments — `Bundle.identifier`. */
@@ -103,12 +103,8 @@ export interface Arztbriefangabe {
   zeitpunkt: string;
   patient: Patient;
   verfasser: { name: string; lanr: string | null };
-  einrichtung: {
-    name: string;
-    telematikId: string;
-    anschrift: string[];
-    telefon: string;
-  };
+  /** Stammdaten der Praxis — dieselben wie in ePA-Kopfzeilen, E-Rezept und KIM. */
+  einrichtung: Praxisstammdaten;
   empfaenger: Adressbucheintrag | null;
   anlass: string;
   /** Anamnese aus der Karteikarte, je Notiz eine Zeile. */
@@ -193,17 +189,11 @@ export function arztbriefBauen(
     _url: verweis(`allergie:${x.id}`),
   }));
   const medikation = a.medikation.map((m, i) => ({
-    resourceType: 'MedicationStatement',
-    status: 'active',
-    medicationCodeableConcept: {
-      ...(m.atc ? { coding: [{ system: ATC, code: m.atc }] } : {}),
-      text: m.bezeichnung,
-    },
-    subject: pat,
-    dateAsserted: a.zeitpunkt.slice(0, 10),
-    informationSource: aerztin,
-    ...(m.grund ? { reasonCode: [{ text: m.grund }] } : {}),
-    dosage: [{ text: m.dosierung }],
+    ...medikationsaussageNachFhir(m, {
+      subject: pat,
+      informationSource: aerztin,
+      datum: a.zeitpunkt.slice(0, 10),
+    }),
     _url: verweis(`mittel:${i}`),
   }));
 
@@ -287,29 +277,10 @@ export function arztbriefBauen(
 
   const patient = { ...patientNachFhir(a.patient), id: undefined, _url: pat.reference };
   const verfasser = {
-    resourceType: 'Practitioner',
-    ...(a.verfasser.lanr
-      ? {
-          identifier: [
-            { system: 'https://fhir.kbv.de/NamingSystem/KBV_NS_Base_ANR', value: a.verfasser.lanr },
-          ],
-        }
-      : {}),
-    name: [{ text: a.verfasser.name }],
+    ...personNachFhir(a.verfasser.name, a.verfasser.lanr),
     _url: aerztin.reference,
   };
-  const organisation = {
-    resourceType: 'Organization',
-    identifier: [
-      { system: 'https://gematik.de/fhir/sid/telematik-id', value: a.einrichtung.telematikId },
-    ],
-    name: a.einrichtung.name,
-    telecom: [{ system: 'phone', value: a.einrichtung.telefon }],
-    address: [
-      { text: a.einrichtung.anschrift.join(', '), line: a.einrichtung.anschrift.slice(0, 1) },
-    ],
-    _url: praxis.reference,
-  };
+  const organisation = { ...praxisNachFhir(a.einrichtung), _url: praxis.reference };
   const begegnungRessource = {
     resourceType: 'Encounter',
     status: 'finished',
@@ -344,8 +315,10 @@ export function arztbriefBauen(
     ...medikation,
     ...impfungen,
   ];
-  return {
+  // Intern ohne Zeitzone, im Dokument mit (zeit.ts).
+  return zeitzonenErgaenzen({
     resourceType: 'Bundle',
+    meta: { lastUpdated: a.zeitpunkt },
     identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${a.dokumentId}` },
     type: 'document',
     timestamp: a.zeitpunkt,
@@ -355,5 +328,5 @@ export function arztbriefBauen(
       ) as Ressource;
       return { fullUrl: _url, resource };
     }),
-  };
+  });
 }

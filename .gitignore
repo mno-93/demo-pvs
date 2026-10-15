@@ -13,6 +13,9 @@ playwright-report/
 # Laufzeitdaten des Simulators
 daten/laufzeit/
 
+# Ausgaben und Berichte des HL7-Validators (npm run fhir:validieren)
+ausgabe/
+
 # Umgebung und Geheimnisse — nie committen
 .env
 .env.*

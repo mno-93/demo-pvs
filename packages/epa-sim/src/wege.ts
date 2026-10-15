@@ -41,7 +41,7 @@ import { MEDIKATION_BASIS, medikationEinhaengen } from './medikation.ts';
 import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
 import { xdsEinhaengen } from './xds.ts';
 import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen, postausgangLeeren } from './kim.ts';
-import { XDS_DOKUMENTENDIENST } from '@demo-pvs/kern';
+import { XDS_DOKUMENTENDIENST, zeitzonenErgaenzen } from '@demo-pvs/kern';
 import { fremdeEintraegeAnlegen, startbestandAufbauen } from './startbestand.ts';
 
 const istEpaWeg = (url: string) => url.startsWith('/epa/');
@@ -214,13 +214,17 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     // bediente der Browser eine Planabfrage nach einer Änderung aus seinem Speicher.
     if (istFernweg(anfrage.url)) void antwort.header('Cache-Control', 'no-store');
     // FHIR-Antworten im FHIR-Inhaltstyp; Fehlercodes der Basisdienste bleiben application/json.
-    if (
+    const fhir =
       istFernweg(anfrage.url) &&
       typeof koerper === 'string' &&
-      koerper.startsWith('{"resourceType"') &&
-      String(antwort.getHeader('content-type') ?? '').startsWith('application/json')
-    ) {
+      koerper.startsWith('{"resourceType"');
+    if (fhir && String(antwort.getHeader('content-type') ?? '').startsWith('application/json')) {
       void antwort.header('content-type', 'application/fhir+json; charset=utf-8');
+    }
+    // Der Bestand führt Zeitpunkte ohne Zone; FHIR verlangt sie (zeit.ts im Kern). Ein
+    // abgerufenes Dokument (ITI-68) geht unverändert hinaus — es trägt die Zone schon selbst.
+    if (fhir && !anfrage.url.startsWith(MHD_ABRUF)) {
+      return JSON.stringify(zeitzonenErgaenzen(JSON.parse(koerper as string)));
     }
     return koerper;
   });

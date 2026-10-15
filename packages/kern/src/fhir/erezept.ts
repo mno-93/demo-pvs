@@ -1,6 +1,10 @@
+import type { Praxisstammdaten } from '../beispiele.js';
 import { CODESYSTEM } from '../typen/kodierung.js';
+import type { Patient } from '../typen/person.js';
 import { NORMGROESSE_STUECK, type Normgroesse, type Rezept } from '../typen/rezept.js';
+import { patientNachFhir, personNachFhir, praxisNachFhir } from './abbildung.js';
 import type { Ressource } from './typen.js';
+import { zeitzonenErgaenzen } from './zeit.js';
 
 /**
  * Verordnungsdatensatz für das E-Rezept — vereinfacht nach den KBV-Profilen `kbv.ita.erp`
@@ -19,8 +23,8 @@ export const REZEPT_ID_SYSTEM =
   'https://gematik.de/fhir/erp/NamingSystem/GEM_ERP_NS_PrescriptionId';
 export const EMP_IDENTIFIER_SYSTEM = 'https://gematik.de/fhir/sid/emp-identifier';
 const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
-const KVID = 'http://fhir.de/sid/gkv/kvid-10';
-const TELEMATIK_ID = 'https://gematik.de/fhir/sid/telematik-id';
+/** Abschnittsarten der Verordnung (KBV). ⚠ Codesystem nicht gegen das Paket geprüft. */
+const SECTION_TYPE = 'https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type';
 
 const VIERERSCHEMA = /^(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)$/;
 const TAGESZEIT = ['MORN', 'NOON', 'EVE', 'NIGHT'] as const;
@@ -65,15 +69,14 @@ export function reichweiteTage(
   return Math.floor((NORMGROESSE_STUECK[normgroesse] * packungen) / menge);
 }
 
+/**
+ * Was der Verordnungsdatensatz außer dem Rezept braucht — die Person, die Ärztin, die Praxis.
+ * Dieselben Angaben, aus denen auch ePA-Einträge und Arztbrief entstehen (DATENMODELL.md).
+ */
 export interface Verordnungskontext {
-  kvnr: string;
-  vorname: string;
-  nachname: string;
-  geburtsdatum: string;
-  kostentraeger: string;
-  kostentraegerkennung: string;
+  patient: Patient;
   arzt: { name: string; lanr: string };
-  praxis: { name: string; telematikId: string };
+  praxis: Praxisstammdaten;
   rezeptId: string;
   authoredOn: string;
 }
@@ -82,28 +85,16 @@ export interface Verordnungskontext {
 export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext): Ressource {
   const id = (teil: string) => `${teil}-${k.rezeptId.replace(/\./g, '')}`;
   const patient: Ressource = {
-    resourceType: 'Patient',
+    ...patientNachFhir(k.patient, `${KBV_ERP}KBV_PR_FOR_Patient|1.2`),
     id: id('patient'),
-    meta: { profile: [`${KBV_ERP}KBV_PR_FOR_Patient|1.2`] },
-    identifier: [{ system: KVID, value: k.kvnr }],
-    name: [{ use: 'official', family: k.nachname, given: [k.vorname] }],
-    birthDate: k.geburtsdatum,
   };
   const arzt: Ressource = {
-    resourceType: 'Practitioner',
+    ...personNachFhir(k.arzt.name, k.arzt.lanr, `${KBV_ERP}KBV_PR_FOR_Practitioner|1.2`),
     id: id('arzt'),
-    meta: { profile: [`${KBV_ERP}KBV_PR_FOR_Practitioner|1.2`] },
-    identifier: [
-      { system: 'https://fhir.kbv.de/NamingSystem/KBV_NS_Base_ANR', value: k.arzt.lanr },
-    ],
-    name: [{ use: 'official', text: k.arzt.name }],
   };
   const praxis: Ressource = {
-    resourceType: 'Organization',
+    ...praxisNachFhir(k.praxis, `${KBV_ERP}KBV_PR_FOR_Organization|1.2`),
     id: id('praxis'),
-    meta: { profile: [`${KBV_ERP}KBV_PR_FOR_Organization|1.2`] },
-    identifier: [{ system: TELEMATIK_ID, value: k.praxis.telematikId }],
-    name: k.praxis.name,
   };
   const versicherung: Ressource = {
     resourceType: 'Coverage',
@@ -113,8 +104,11 @@ export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext)
     beneficiary: { reference: `Patient/${String(patient.id)}` },
     payor: [
       {
-        identifier: { system: 'http://fhir.de/sid/arge-ik/iknr', value: k.kostentraegerkennung },
-        display: k.kostentraeger,
+        identifier: {
+          system: 'http://fhir.de/sid/arge-ik/iknr',
+          value: k.patient.versicherung.kostentraegerkennung,
+        },
+        display: k.patient.versicherung.kostentraeger,
       },
     ],
   };
@@ -189,16 +183,17 @@ export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext)
     title: 'elektronische Arzneimittelverordnung',
     section: [
       {
-        code: { coding: [{ code: 'Prescription' }] },
+        code: { coding: [{ system: SECTION_TYPE, code: 'Prescription' }] },
         entry: [{ reference: `MedicationRequest/${String(verordnung.id)}` }],
       },
       {
-        code: { coding: [{ code: 'Coverage' }] },
+        code: { coding: [{ system: SECTION_TYPE, code: 'Coverage' }] },
         entry: [{ reference: `Coverage/${String(versicherung.id)}` }],
       },
     ],
   };
-  return {
+  // Intern ohne Zeitzone, im Datensatz mit (zeit.ts).
+  return zeitzonenErgaenzen({
     resourceType: 'Bundle',
     id: id('bundle'),
     meta: { profile: [`${KBV_ERP}KBV_PR_ERP_Bundle|1.4`] },
@@ -209,5 +204,5 @@ export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext)
       fullUrl: `https://e-rezept.demo/${r.resourceType}/${String(r.id)}`,
       resource: r,
     })),
-  } as Ressource;
+  } as Ressource);
 }

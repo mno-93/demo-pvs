@@ -3,7 +3,7 @@ import {
   ADRESSBUCH,
   ARZTBRIEF_XDS,
   KIM_DIENSTKENNUNG,
-  KIM_PRAXIS,
+  PRAXIS_STAMMDATEN,
   arztbriefBauen,
   base64AusBytes,
   briefAusFhir,
@@ -147,12 +147,7 @@ export function Arztbrief() {
           zeitpunkt,
           patient,
           verfasser: { name: nutzer.name, lanr: nutzer.lanr },
-          einrichtung: {
-            name: EINRICHTUNG.anzeige,
-            telematikId: EINRICHTUNG.telematikId,
-            anschrift: ['Am Stadtgarten 4', '26000 Beispielstadt'],
-            telefon: '0000 3030-0',
-          },
+          einrichtung: PRAXIS_STAMMDATEN,
           empfaenger,
           anlass,
           anamnese: auswahl('anamnese').map((a) => a.text),
@@ -255,7 +250,7 @@ export function Arztbrief() {
     const name = `${patient.vorname} ${patient.nachname}`;
     try {
       const antwort = await kimSenden({
-        von: KIM_PRAXIS,
+        von: PRAXIS_STAMMDATEN.kim,
         an: [empfaenger.kim],
         betreff: `Arztbrief — ${name}, geb. ${deutschesDatum(patient.geburtsdatum)}`,
         datum: new Date().toISOString(),

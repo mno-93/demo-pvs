@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ADRESSBUCH } from '../beispiele.js';
+import { ADRESSBUCH, PRAXIS_STAMMDATEN } from '../beispiele.js';
 import { allergieMuster, diagnoseMuster } from '../testhilfe.js';
 import type { Patient } from '../typen/person.js';
 import { arztbriefBauen, ARZTBRIEF_ABSCHNITT, type Arztbriefangabe } from './arztbrief.js';
@@ -33,12 +33,7 @@ function angabe(teil: Partial<Arztbriefangabe> = {}): Arztbriefangabe {
     zeitpunkt: '2026-09-09T11:00:00',
     patient: PATIENTIN,
     verfasser: { name: 'Dr. med. Anna Brandt', lanr: '999999901' },
-    einrichtung: {
-      name: 'Hausarztpraxis am Stadtgarten',
-      telematikId: 'DEMO-PRAXIS-STADTGARTEN',
-      anschrift: ['Am Stadtgarten 4', '26000 Beispielstadt'],
-      telefon: '0000 3030-0',
-    },
+    einrichtung: PRAXIS_STAMMDATEN,
     empfaenger: ADRESSBUCH[0]!,
     anlass: 'Bitte um Mitbeurteilung bei Belastungsdyspnoe.',
     diagnosen: [diagnoseMuster({ patientId: 'p1' })],

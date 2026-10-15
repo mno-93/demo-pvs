@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { PRAXIS_STAMMDATEN } from '../beispiele.js';
+import type { Patient } from '../typen/person.js';
 import type { Rezept } from '../typen/rezept.js';
 import {
   EMP_IDENTIFIER_SYSTEM,
@@ -7,6 +9,27 @@ import {
   reichweiteTage,
   verordnungsdatensatzBauen,
 } from './erezept.js';
+
+const PATIENTIN: Patient = {
+  id: 'p1',
+  nachname: 'Hoffmann',
+  vorname: 'Renate',
+  geburtsdatum: '1958-03-14',
+  geschlecht: 'weiblich',
+  anschrift: { strasse: 'Lindenweg', hausnummer: '3', plz: '26000', ort: 'Beispielstadt' },
+  telefon: '0000 1',
+  versicherung: {
+    kvnr: 'A123456780',
+    kostentraeger: 'Beispielkasse Nordwest',
+    kostentraegerkennung: '109999901',
+    versichertenart: 'Rentner:in',
+    zuzahlungsbefreit: false,
+    gueltigBis: '2030-12-31',
+    zuletztEingelesen: null,
+  },
+  angelegtAm: '2026-08-30T08:30:00',
+  hinweis: null,
+};
 
 const REZEPT: Rezept = {
   id: 'r1',
@@ -51,14 +74,9 @@ describe('E-Rezept', () => {
 
   it('trägt Rezept-ID und eMP-Identifier im Datensatz', () => {
     const bundle = verordnungsdatensatzBauen(REZEPT, {
-      kvnr: 'A123456780',
-      vorname: 'Renate',
-      nachname: 'Hoffmann',
-      geburtsdatum: '1958-03-14',
-      kostentraeger: 'Beispielkasse Nordwest',
-      kostentraegerkennung: '109999901',
+      patient: PATIENTIN,
       arzt: { name: 'Dr. med. Anna Brandt', lanr: '999999901' },
-      praxis: { name: 'Hausarztpraxis am Stadtgarten', telematikId: 'DEMO-PRAXIS' },
+      praxis: PRAXIS_STAMMDATEN,
       rezeptId: '160.000.000.000.001.53',
       authoredOn: '2026-09-29',
     });

@@ -524,9 +524,11 @@ function listenwegeEinhaengen(
       if (feld in eingang!) vorhanden[feld] = eingang![feld];
       else if (feld !== 'extension') delete vorhanden[feld];
     }
-    // FHIR: Bei entered-in-error steht kein klinischer Status (con-5, ait-2).
+    // FHIR: Bei entered-in-error steht kein klinischer Status (con-5, ait-2) — und ohne Status
+    // kein Ende der Diagnose (con-4).
     if (art !== 'Immunization' && berichtigt(vorhanden)) {
       delete vorhanden['clinicalStatus'];
+      delete vorhanden['abatementDateTime'];
     }
     const zeit = jetzt();
     fortschreiben(vorhanden, zeit);

@@ -16,12 +16,14 @@ import {
   KLINISCHER_STATUS_CODE,
   SEITENLOKALISATION_BEZEICHNUNG,
   ZUSATZKENNZEICHEN_BEZEICHNUNG,
+  istGegenwaertig,
   type Diagnose,
 } from '../typen/diagnose.js';
 import type { Herkunft } from '../typen/herkunft.js';
 import { CODESYSTEM, ICD10GM_VERSION, SNOMED_VERSION, type Kodierung } from '../typen/kodierung.js';
 import type { Impfung } from '../typen/impfung.js';
 import type { Patient } from '../typen/person.js';
+import type { Praxisstammdaten } from '../beispiele.js';
 import type { Coding, Extension, Ressource } from './typen.js';
 
 /**
@@ -32,18 +34,31 @@ import type { Coding, Extension, Ressource } from './typen.js';
  * Profile vor; verwendet wird deshalb die nächsthöhere Ebene, die es gibt:
  *
  * - Condition: TI Common `ti-condition-diagnosis` 1.5.0 (Paket `de.gematik.ti`
- *   1.5.0-ballot.1) — abgeleitet von `condition-eu-core`;
+ *   1.5.0-ballot.2) — abgeleitet von `condition-eu-core`;
  * - AllergyIntolerance: `allergyIntolerance-eu-core` — TI Common bietet kein Allergieprofil;
  * - Patient: `ti-patient`, wie im Informationsmodell referenziert.
  *
- * ⚠ Die Ressourcen sind nach diesen Profilen gebaut, aber nicht gegen sie validiert.
+ * Pflichtangaben der Profile sind Pflichtparameter der Funktionen: Ohne KVNR entsteht keine
+ * Condition, AllergyIntolerance oder Immunization (`patient` 1..1; `subject.identifier` ist in
+ * `ti-condition-diagnosis` Must Support und in der `EMPReasonCondition` des Ballots 1.4.0 1..1).
+ * Geprüft werden die Ausgaben mit `fhirPruefen` (pruefung.ts) in jedem Testlauf; das ersetzt
+ * keine Validierung gegen die Profile (DATENMODELL.md).
  */
 export const PROFIL = {
   patient: 'https://gematik.de/fhir/ti/StructureDefinition/ti-patient',
   diagnose: 'https://gematik.de/fhir/ti/StructureDefinition/ti-condition-diagnosis',
   allergie: 'http://hl7.eu/fhir/base/StructureDefinition/allergyIntolerance-eu-core',
   impfung: 'http://hl7.eu/fhir/base/StructureDefinition/immunization-eu-core',
+  organisation: 'https://gematik.de/fhir/ti/StructureDefinition/ti-organization',
 } as const;
+
+/** Extension für eine Pflichtangabe, deren Wert unbekannt ist (FHIR R4, `data-absent-reason`). */
+export const DATA_ABSENT_REASON = 'http://hl7.org/fhir/StructureDefinition/data-absent-reason';
+
+/** Ein Pflichtelement ohne Wert: nur die Extension mit dem Grund, etwa `unknown`. */
+export function wertFehlt(grund: 'unknown' | 'asked-unknown' | 'not-applicable' = 'unknown') {
+  return { extension: [{ url: DATA_ABSENT_REASON, valueCode: grund }] };
+}
 
 /**
  * ✦ Verweis von einer Ressource auf ihr Quelldokument — Vorschlag der Demo für die
@@ -57,6 +72,14 @@ export const ICD_EXTENSION = {
   diagnosesicherheit: 'http://fhir.de/StructureDefinition/icd-10-gm-diagnosesicherheit',
   seitenlokalisation: 'http://fhir.de/StructureDefinition/seitenlokalisation',
 } as const;
+
+/**
+ * Ende einer Allergie: „The date or estimated date that the allergy or intolerance resolved"
+ * (HL7 FHIR Extensions Pack). AllergyIntolerance hat in R4 kein `abatement[x]`; `onsetPeriod.end`
+ * wäre das Ende des Zeitraums, in dem sie begann — nicht ihr Ende.
+ */
+export const ALLERGIE_ENDE_EXTENSION =
+  'http://hl7.org/fhir/StructureDefinition/allergyintolerance-abatement';
 
 const SYSTEM = {
   kvid10: 'http://fhir.de/sid/gkv/kvid-10',
@@ -90,19 +113,23 @@ function herkunftExtension(herkunft: Herkunft): Extension[] {
   ];
 }
 
-/** Verweis auf die Patientin oder den Patienten; mit KVNR, wenn sie bekannt ist. */
-function patientVerweis(patientId: string, kvnr?: string) {
+/**
+ * Verweis auf die Patientin oder den Patienten — mit KVNR. In der ePA ist sie die Kennung der
+ * Akte; `ti-condition-diagnosis` führt sie als `subject.identifier` (Must Support).
+ */
+function patientVerweis(patientId: string, kvnr: string) {
   return {
     reference: `Patient/${patientId}`,
-    ...(kvnr ? { identifier: { system: SYSTEM.kvid10, value: kvnr } } : {}),
+    identifier: { system: SYSTEM.kvid10, value: kvnr },
   };
 }
 
-export function patientNachFhir(patient: Patient): Ressource {
+/** Die Person als Patient — für jedes Ziel dieselben Angaben; das Profil gibt der Aufrufer an. */
+export function patientNachFhir(patient: Patient, profil: string = PROFIL.patient): Ressource {
   return {
     resourceType: 'Patient',
     id: patient.id,
-    meta: { profile: [PROFIL.patient] },
+    meta: { profile: [profil] },
     identifier: [{ system: SYSTEM.kvid10, value: patient.versicherung.kvnr }],
     name: [{ use: 'official', family: patient.nachname, given: [patient.vorname] }],
     gender:
@@ -129,7 +156,7 @@ export function patientNachFhir(patient: Patient): Ressource {
  * Condition nach `ti-condition-diagnosis`. Die ICD-10-GM trägt Diagnosesicherheit und
  * Seitenlokalisation als Extension; SNOMED CT steht als zweite Kodierung daneben.
  */
-export function diagnoseNachFhir(diagnose: Diagnose, kvnr?: string): Ressource {
+export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
   const icd: Coding = {
     system: CODESYSTEM.icd10gm,
     version: ICD10GM_VERSION,
@@ -159,19 +186,29 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr?: string): Ressource {
     ],
   };
 
+  // Alpha-ID-SE als weitere Kodierung, wenn erfasst (Must Support in ti-condition-diagnosis).
+  const alphaId: Coding[] = diagnose.alphaId
+    ? [{ system: CODESYSTEM.alphaId, version: ICD10GM_VERSION, code: diagnose.alphaId }]
+    : [];
+  // con-5: Eine irrtümliche Eingabe trägt keinen klinischen Status.
+  const irrtum = diagnose.diagnosesicherheit === 'irrtümlich';
   const ressource: Ressource = {
     resourceType: 'Condition',
     id: diagnose.id,
     meta: { profile: [PROFIL.diagnose] },
-    clinicalStatus: {
-      coding: [
-        {
-          system: SYSTEM.conditionClinical,
-          code: KLINISCHER_STATUS_CODE[diagnose.klinischerStatus],
-          display: KLINISCHER_STATUS_BEZEICHNUNG[diagnose.klinischerStatus],
-        },
-      ],
-    },
+    ...(irrtum
+      ? {}
+      : {
+          clinicalStatus: {
+            coding: [
+              {
+                system: SYSTEM.conditionClinical,
+                code: KLINISCHER_STATUS_CODE[diagnose.klinischerStatus],
+                display: KLINISCHER_STATUS_BEZEICHNUNG[diagnose.klinischerStatus],
+              },
+            ],
+          },
+        }),
     verificationStatus: {
       coding: [
         {
@@ -194,7 +231,7 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr?: string): Ressource {
     ],
     // Mehrfachkodierung nach dem Informationsmodell: ICD-10-GM und, sofern vorhanden, SNOMED CT.
     code: {
-      coding: [icd, ...(diagnose.snomed ? [kodierungNachFhir(diagnose.snomed)] : [])],
+      coding: [icd, ...alphaId, ...(diagnose.snomed ? [kodierungNachFhir(diagnose.snomed)] : [])],
       text: diagnose.bezeichnung,
     },
     subject: patientVerweis(diagnose.patientId, kvnr),
@@ -202,7 +239,9 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr?: string): Ressource {
     recordedDate: diagnose.dokumentiertAm,
     recorder: { display: diagnose.herkunft.verantwortlich },
   };
-  if (diagnose.ende) ressource['abatementDateTime'] = diagnose.ende;
+  // con-4: Ein Ende nur mit Status inaktiv, behoben oder Remission — „irrtümlich" hat keinen (con-5).
+  if (diagnose.ende && !irrtum && !istGegenwaertig(diagnose.klinischerStatus))
+    ressource['abatementDateTime'] = diagnose.ende;
   if (diagnose.feststellendePerson)
     ressource['asserter'] = { display: diagnose.feststellendePerson };
   if (diagnose.schweregrad)
@@ -225,21 +264,32 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr?: string): Ressource {
  * SNOMED CT; eine ATC-Zuordnung für die AMTS-Prüfung gehört nicht hierher — sie ist keine
  * Übersetzung des Konzepts.
  */
-export function allergieNachFhir(allergie: Allergie, kvnr?: string): Ressource {
+export function allergieNachFhir(allergie: Allergie, kvnr: string): Ressource {
+  // ait-2: Eine irrtümliche Eingabe trägt keinen klinischen Status.
+  const irrtum = allergie.gewissheit === 'irrtümlich';
   const ressource: Ressource = {
     resourceType: 'AllergyIntolerance',
     id: allergie.id,
     meta: { profile: [PROFIL.allergie] },
-    clinicalStatus: {
-      coding: [
-        { system: SYSTEM.allergyClinical, code: ALLERGIESTATUS_CODE[allergie.klinischerStatus] },
-      ],
-    },
+    ...(irrtum
+      ? {}
+      : {
+          clinicalStatus: {
+            coding: [
+              {
+                system: SYSTEM.allergyClinical,
+                code: ALLERGIESTATUS_CODE[allergie.klinischerStatus],
+              },
+            ],
+          },
+        }),
     verificationStatus: {
       coding: [{ system: SYSTEM.allergyVer, code: GEWISSHEIT_CODE[allergie.gewissheit] }],
     },
     type: ALLERGIETYP_CODE[allergie.typ],
-    category: allergie.kategorien.map((k) => WIRKSTOFFKATEGORIE_CODE[k]),
+    ...(allergie.kategorien.length > 0
+      ? { category: allergie.kategorien.map((k) => WIRKSTOFFKATEGORIE_CODE[k]) }
+      : {}),
     criticality: KRITIKALITAET_CODE[allergie.kritikalitaet],
     code: {
       ...(allergie.snomed ? { coding: [kodierungNachFhir(allergie.snomed)] } : {}),
@@ -249,15 +299,14 @@ export function allergieNachFhir(allergie: Allergie, kvnr?: string): Ressource {
     recordedDate: allergie.dokumentiertAm,
     recorder: { display: allergie.herkunft.verantwortlich },
   };
-  if (allergie.beginn) {
-    if (allergie.ende) ressource['onsetPeriod'] = { start: allergie.beginn, end: allergie.ende };
-    else ressource['onsetDateTime'] = allergie.beginn;
-  }
+  if (allergie.beginn) ressource['onsetDateTime'] = allergie.beginn;
   if (allergie.feststellendePerson)
     ressource['asserter'] = { display: allergie.feststellendePerson };
   if (allergie.notiz) ressource['note'] = [{ text: allergie.notiz }];
-  if (allergie.reaktionen.length > 0) {
-    ressource['reaction'] = allergie.reaktionen.map((r) => ({
+  // `reaction.manifestation` ist 1..*: Eine Reaktion ohne Manifestation entsteht nicht.
+  const reaktionen = allergie.reaktionen.filter((r) => r.manifestationen.length > 0);
+  if (reaktionen.length > 0) {
+    ressource['reaction'] = reaktionen.map((r) => ({
       // Manifestationen ohne Code sind zulässig (Code 0..*, Bezeichnung 0..1) und stehen nur als Text.
       manifestation: r.manifestationen.map((m) =>
         m.code ? { coding: [kodierungNachFhir(m)], text: m.anzeige } : { text: m.anzeige },
@@ -269,7 +318,12 @@ export function allergieNachFhir(allergie: Allergie, kvnr?: string): Ressource {
         : {}),
     }));
   }
-  const ext = herkunftExtension(allergie.herkunft);
+  // Ein Ende hat nur eine Allergie, die nicht mehr aktiv ist.
+  const ende = allergie.ende && allergie.klinischerStatus !== 'aktiv' ? allergie.ende : null;
+  const ext: Extension[] = [
+    ...(ende ? [{ url: ALLERGIE_ENDE_EXTENSION, valueDateTime: ende }] : []),
+    ...herkunftExtension(allergie.herkunft),
+  ];
   if (ext.length > 0) ressource.extension = ext;
   return ressource;
 }
@@ -279,7 +333,7 @@ export function allergieNachFhir(allergie: Allergie, kvnr?: string): Ressource {
  * Zielkrankheiten und Dosis in `protocolApplied`, Charge, impfende Person. Die Herkunft steht
  * wie bei Diagnosen am Eintrag.
  */
-export function impfungNachFhir(impfung: Impfung, kvnr?: string): Ressource {
+export function impfungNachFhir(impfung: Impfung, kvnr: string): Ressource {
   return {
     resourceType: 'Immunization',
     id: impfung.id,
@@ -307,12 +361,97 @@ export function impfungNachFhir(impfung: Impfung, kvnr?: string): Ressource {
     recorded: impfung.herkunft.zeitpunkt.slice(0, 10),
     ...(impfung.charge ? { lotNumber: impfung.charge } : {}),
     performer: [{ actor: { display: impfung.geimpftVon } }],
+    // `protocolApplied.doseNumber[x]` ist 1..1: Ist die Dosis unbekannt, steht der Grund da.
     protocolApplied: [
       {
-        targetDisease: impfung.zielkrankheiten.map((k) => ({ coding: [kodierungNachFhir(k)] })),
-        ...(impfung.dosis ? { doseNumberPositiveInt: impfung.dosis } : {}),
+        ...(impfung.zielkrankheiten.length > 0
+          ? {
+              targetDisease: impfung.zielkrankheiten.map((k) => ({
+                coding: [kodierungNachFhir(k)],
+              })),
+            }
+          : {}),
+        ...(impfung.dosis
+          ? { doseNumberPositiveInt: impfung.dosis }
+          : { _doseNumberPositiveInt: wertFehlt('unknown') }),
       },
     ],
     ...(impfung.notiz ? { note: [{ text: impfung.notiz }] } : {}),
+  };
+}
+
+/**
+ * „Keine bekannte Allergie" als ausdrückliche Angabe — SNOMED CT 716186003, nach
+ * `allergyIntolerance-eu-core`. Eine später eingetragene Allergie widerlegt sie.
+ */
+export function keineBekannteAllergieNachFhir(
+  kvnr: string,
+  person: string,
+  datum: string,
+): Ressource {
+  return {
+    resourceType: 'AllergyIntolerance',
+    meta: { profile: [PROFIL.allergie] },
+    clinicalStatus: { coding: [{ system: SYSTEM.allergyClinical, code: 'active' }] },
+    verificationStatus: { coding: [{ system: SYSTEM.allergyVer, code: 'confirmed' }] },
+    code: {
+      coding: [
+        {
+          system: CODESYSTEM.snomed,
+          version: SNOMED_VERSION,
+          code: '716186003',
+          display: 'No known allergy',
+        },
+      ],
+      text: 'Keine bekannte Allergie',
+    },
+    patient: { identifier: { system: SYSTEM.kvid10, value: kvnr } },
+    recordedDate: datum,
+    recorder: { display: person },
+    asserter: { display: person },
+  };
+}
+
+/**
+ * Die Praxis als Organization — aus den Stammdaten, für jeden Zweck dieselbe: Kopfzeile der ePA
+ * (`TIOrganization`), Absender im Arztbrief, Organisation im E-Rezept. Das Profil gibt der
+ * Aufrufer an; die Angaben bleiben gleich.
+ */
+export function praxisNachFhir(p: Praxisstammdaten, profil?: string): Ressource {
+  return {
+    resourceType: 'Organization',
+    ...(profil ? { meta: { profile: [profil] } } : {}),
+    identifier: [
+      { system: 'https://gematik.de/fhir/sid/telematik-id', value: p.telematikId },
+      { system: 'https://fhir.kbv.de/NamingSystem/KBV_NS_Base_BSNR', value: p.bsnr },
+    ],
+    name: p.name,
+    telecom: [
+      { system: 'phone', value: p.telefon },
+      { system: 'email', value: p.kim },
+    ],
+    address: [
+      {
+        type: 'both',
+        line: [`${p.anschrift.strasse} ${p.anschrift.hausnummer}`],
+        city: p.anschrift.ort,
+        postalCode: p.anschrift.plz,
+        country: 'DE',
+      },
+    ],
+  };
+}
+
+/** Eine Ärztin oder ein Arzt als Practitioner — mit lebenslanger Arztnummer, wenn vorhanden. */
+export function personNachFhir(name: string, lanr: string | null, profil?: string): Ressource {
+  return {
+    resourceType: 'Practitioner',
+    ...(profil ? { meta: { profile: [profil] } } : {}),
+    ...(lanr
+      ? {
+          identifier: [{ system: 'https://fhir.kbv.de/NamingSystem/KBV_NS_Base_ANR', value: lanr }],
+        }
+      : {}),
+    name: [{ use: 'official', text: name }],
   };
 }

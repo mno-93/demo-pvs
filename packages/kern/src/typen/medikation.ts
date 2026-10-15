@@ -1,5 +1,3 @@
-import type { Herkunft } from './herkunft.js';
-
 /**
  * Medikation nach dem digital gestützten Medikationsprozess.
  *
@@ -17,47 +15,20 @@ import type { Herkunft } from './herkunft.js';
  * diesen Weg bereits gegangen und deshalb das belastbarste Vorbild.
  */
 
-/** Einnahmeschema morgens–mittags–abends–zur Nacht. */
-export interface Dosierung {
-  morgens: string;
-  mittags: string;
-  abends: string;
-  zurNacht: string;
-  einheit: string;
-  hinweis: string | null;
-}
-
-export function dosierungAlsText(d: Dosierung): string {
-  return `${d.morgens}-${d.mittags}-${d.abends}-${d.zurNacht}`;
-}
-
-/** Angabe zum Arzneimittel, wie sie der Medication Service verlangt. */
-export interface Arzneimittelangabe {
-  /** Pharmazentralnummer, sofern das Fertigarzneimittel bekannt ist. */
-  pzn: string | null;
-  atc: string;
-  /** Verpflichtend: ohne Version ist eine ATC-de-Kodierung nicht eindeutig. */
-  atcVersion: string;
+/**
+ * Eine Medikationsangabe, wie sie Brief, Patient Summary und Plan teilen: Arzneimittel mit
+ * Kodierung, Dosierung als Text und Grund. ATC und PZN sind optional — kodiert wird, was
+ * bekannt ist; die Bezeichnung steht immer da.
+ */
+export interface Medikationsangabe {
   bezeichnung: string;
-  wirkstoff: string;
-  staerke: string;
-  darreichung: string;
-}
-
-/** Eintrag der elektronischen Medikationsliste: eine Verordnung oder eine Abgabe. */
-export interface EmlEintrag {
-  id: string;
-  art: 'Verordnung' | 'Abgabe';
-  arzneimittel: Arzneimittelangabe;
-  /** ISO-Datum. */
-  datum: string;
-  /** Verordnende Praxis oder abgebende Apotheke. */
-  einrichtung: string;
-  person: string;
-  /** Dosierungsangabe der Verordnung, bei Abgaben meist nicht belegt. */
-  dosierung: string | null;
-  /** Verweis der Abgabe auf die zugehörige Verordnung. */
-  basiertAuf: string | null;
+  /** ATC-de; ohne `atcVersion` nicht eindeutig. */
+  atc: string | null;
+  atcVersion?: string | null;
+  pzn?: string | null;
+  /** Viererschema oder Freitext, wie im Plan. */
+  dosierung: string;
+  grund: string | null;
 }
 
 /**
@@ -81,47 +52,6 @@ export const EMP_STATUS_CODE: Record<EmpStatus, string> = {
   abgesetzt: 'stopped',
   'entered-in-error': 'entered-in-error',
 };
-
-/**
- * Eintrag des elektronischen Medikationsplans — ärztlich verantwortet.
- *
- * Es gibt keine physische Löschung. Ein Eintrag wird auf `entered-in-error` gesetzt;
- * er bleibt über die Historie abrufbar (IG Medication Service 1.3.5).
- */
-export interface EmpEintrag {
-  id: string;
-  /** Kennung des Plans, zu dem der Eintrag gehört. */
-  planId: string;
-  arzneimittel: Arzneimittelangabe;
-  dosierung: Dosierung;
-  behandlungsgrund: string | null;
-  hinweis: string | null;
-  status: EmpStatus;
-  /** Wer den Eintrag verantwortet. */
-  verantwortlich: string;
-  einrichtung: string;
-  /** ISO-Zeitpunkt der letzten Änderung. */
-  zeitpunkt: string;
-  /** Fortlaufende Version; jede Änderung erhöht sie. */
-  version: number;
-  /** Verweis auf den eML-Eintrag, aus dem der Planeintrag übernommen wurde. */
-  ausEml: string | null;
-}
-
-/** Lokale Verordnung im Praxissystem, vor dem Einstellen in die Akte. */
-export interface Verordnung {
-  id: string;
-  patientId: string;
-  fallId: string | null;
-  arzneimittel: Arzneimittelangabe;
-  dosierung: Dosierung;
-  /** ISO-Datum. */
-  verordnetAm: string;
-  verordnetVon: string;
-  behandlungsgrund: string | null;
-  dauermedikation: boolean;
-  herkunft: Herkunft;
-}
 
 /**
  * Lokaler Spiegel des Medikationsplans.

@@ -10,6 +10,8 @@ import {
   chronikLesen,
   deutscherZeitpunkt,
   deutschesDatum,
+  planeintragNachFhir,
+  planmittelNachFhir,
   dokumentinhaltLesen,
   istKeineBekannteAllergie,
   jetztAlsIsoOrtszeit,
@@ -76,7 +78,6 @@ import { Aenderungsband } from '../epa/gesehen.js';
 
 const ATC = CODESYSTEM.atc;
 const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
-const EMP = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
 
 const STATUS_AUS_CODE: Record<string, EmpStatus> = Object.fromEntries(
   Object.entries(EMP_STATUS_CODE).map(([k, v]) => [v, k as EmpStatus]),
@@ -291,24 +292,9 @@ function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[]
     .sort((x, y) => y.datum.localeCompare(x.datum));
 }
 
-/** eMP-Eintrag nach `EMPMedicationRequest`. */
-function planeintrag(
-  kvnr: string,
-  heute: string,
-  dosierung: string,
-  grund: string | null,
-): Ressource {
-  return {
-    resourceType: 'MedicationRequest',
-    meta: { profile: [`${EMP}emp-medication-request`] },
-    extension: [{ url: `${EMP}context-extension`, valueCode: 'EMP' }],
-    status: 'active',
-    intent: 'plan',
-    subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: kvnr } },
-    authoredOn: heute,
-    dosageInstruction: [{ text: dosierung }],
-    ...(grund ? { reasonCode: [{ text: grund }] } : {}),
-  };
+/** Planeintrag für `$add-emp-entry` — Abbildung im Kern (fhir/medikation.ts). */
+function planeintrag(kvnr: string, datum: string, dosierung: string, grund: string | null) {
+  return planeintragNachFhir({ kvnr, datum, dosierung, grund });
 }
 
 export function Medikation() {
@@ -525,7 +511,7 @@ export function Medikation() {
             const neu = await empEintragAnlegen(
               kvnr,
               lesenachweis,
-              { resource: empMittel(v.arzneimittel) },
+              { resource: planmittelNachFhir(v.arzneimittel) },
               planeintrag(kvnr, heute, a.dosierung, a.grund),
             );
             empId = String(neu.eintrag.id);
@@ -904,24 +890,13 @@ export function Medikation() {
                   kvnr,
                   lesenachweis,
                   {
-                    resource: {
-                      resourceType: 'Medication',
-                      meta: { profile: [`${EMP}emp-medication`] },
-                      extension: [{ url: `${EMP}context-extension`, valueCode: 'EMP' }],
-                      status: 'active',
-                      code: {
-                        coding: [
-                          {
-                            system: ATC,
-                            version: mittel.atcVersion,
-                            code: mittel.atc,
-                            display: mittel.wirkstoff,
-                          },
-                          { system: PZN, code: mittel.pzn },
-                        ],
-                        text: mittel.bezeichnung,
-                      },
-                    },
+                    resource: planmittelNachFhir({
+                      bezeichnung: mittel.bezeichnung,
+                      atc: mittel.atc,
+                      atcVersion: mittel.atcVersion,
+                      pzn: mittel.pzn,
+                      wirkstoff: mittel.wirkstoff,
+                    }),
                   },
                   planeintrag(kvnr, heute, dosierung, grund),
                 ),
@@ -932,23 +907,6 @@ export function Medikation() {
       )}
     </>
   );
-}
-
-/** Arzneimittel eines neuen Planeintrags nach `EMPMedication`. */
-function empMittel(m: Rezept['arzneimittel']): Ressource {
-  return {
-    resourceType: 'Medication',
-    meta: { profile: [`${EMP}emp-medication`] },
-    extension: [{ url: `${EMP}context-extension`, valueCode: 'EMP' }],
-    status: 'active',
-    code: {
-      coding: [
-        { system: ATC, version: m.atcVersion, code: m.atc },
-        ...(m.pzn ? [{ system: PZN, code: m.pzn }] : []),
-      ],
-      text: m.bezeichnung,
-    },
-  };
 }
 
 /** Letzte Verschreibung und Abgabe am Planeintrag. */

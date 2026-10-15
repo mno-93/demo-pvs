@@ -1,4 +1,5 @@
 import { vollUrl } from '../fhir/vollurl.js';
+import { zeitzonenErgaenzen } from '../fhir/zeit.js';
 import type { LokalesDokument } from '../typen/dokument.js';
 import type { Herkunft } from '../typen/herkunft.js';
 import type { Bewertung, Laborwert } from '../typen/labor.js';
@@ -399,7 +400,8 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     ...gruppen,
     ...einzel,
   ];
-  return {
+  // Intern ohne Zeitzone, im Befund mit (zeit.ts).
+  return zeitzonenErgaenzen({
     resourceType: 'Bundle',
     id: `bundle-${a.uuid.slice(0, 8)}`,
     meta: { profile: [`${DGLP}bundle-dglp`] },
@@ -407,7 +409,7 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     type: 'document',
     timestamp: a.freigabe,
     entry: alle.map((r) => ({ fullUrl: vollUrl(r), resource: r })),
-  };
+  });
 }
 
 /* ---------- Lesen ---------- */
