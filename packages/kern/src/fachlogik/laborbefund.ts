@@ -1,39 +1,100 @@
-import { vollUrl } from '../fhir/vollurl.js';
+import { DEMO_FHIR_BASIS, vollUrl } from '../fhir/vollurl.js';
 import { zeitzonenErgaenzen } from '../fhir/zeit.js';
 import type { LokalesDokument } from '../typen/dokument.js';
 import type { Herkunft } from '../typen/herkunft.js';
+import { CODESYSTEM, SNOMED_VERSION } from '../typen/kodierung.js';
 import type { Bewertung, Laborwert } from '../typen/labor.js';
 import { base64AusBytes, pdfErzeugen } from './pdf.js';
+import { xmlMaskieren } from './xml.js';
 
 /**
  * Laborbefund nach dem digital gestützten Laborprozess (dgLP).
  *
  * Grundlage ist der Content-IG `de.gematik.epa.laboratory` 1.0.0-ballot.1 (Canonical
  * `https://gematik.de/fhir/epa-laboratory`), fachlich das Fachkonzept dgLP Stufe 1 für
- * ePA 3.2. Nachgebildet sind:
+ * ePA 3.2. Geprüft mit dem HL7 FHIR Validator gegen das Paket (`npm run fhir:validieren`).
+ * Nachgebildet sind:
  *
  * - Bundle `bundle-dglp` mit Composition, DiagnosticReport, Patient, ServiceRequest (1..1),
- *   Observations (1..*), Specimen, Organization, Practitioner und PractitionerRole;
+ *   Observations (1..*), Specimen, zwei Organisationen (Labor, Einsender), Practitioner und
+ *   PractitionerRole — jeder Verweis zeigt auf einen Eintrag des Bundles;
  * - Composition `composition-dglp`: Typ SNOMED CT 4241000179101 und LOINC 11502-2 mit
- *   Versionen, Titel „Laboratory Report", Extensions für Version, Empfänger:in, Verweis auf
- *   DiagnosticReport und Auftrag, Freigabe über `attester` (legal);
+ *   Versionen, Titel „Laboratory Report", Extensions für Version, Empfänger:in (Einsender),
+ *   Verweis auf DiagnosticReport und Auftrag, Freigabe über `attester` (legal, nur Verweis);
+ *   ein Abschnitt je Laborbereich mit Code aus `lab-studyType-eu-lab`, Erzähltext und den
+ *   Untersuchungsgruppen als Einträgen;
  * - DiagnosticReport `diagnostic-report-dglp`: LOINC 11502-2, Kennungen „Auftragsnummer des
- *   Labors" und „Laborgesamtbefund" (UUID), Ergebnisse mit Sortiernummer, `presentedForm` als
- *   PDF mit Daten;
- * - Observations `observation-laboratory-study-group-dglp` (Untersuchungsgruppe) und
- *   `observation-laboratory-study-dglp` (Einzeluntersuchung) mit LOINC samt Version, UCUM,
- *   Referenzbereich mit Typ.
+ *   Labors" und „Laborgesamtbefund" (UUID), auftragnehmendes Labor, Ergebnisse mit
+ *   Sortiernummer, `presentedForm` als PDF mit Daten;
+ * - ServiceRequest `service-request-dglp`: „Auftragsnummer des Einsenders", SNOMED CT
+ *   721965002, Einsender als Verweis;
+ * - Specimen `specimen-dglp`: Probennummer, Status, Probenart SNOMED CT, Eingang im Labor;
+ * - Observations: Hierarchie Untersuchungsgruppe (`observation-laboratory-study-group-dglp`,
+ *   Code „Laboruntersuchungsgruppe", Bezeichnung als Test-Profil, ohne eigenen Zeitpunkt) →
+ *   Einzeluntersuchung (`observation-laboratory-study-dglp`, LOINC samt Version, UCUM,
+ *   Referenzbereich mit Typ).
  *
- * ⚠ Nicht gegen die Profile validiert. Optionale Extensions (Akkreditierung, kritisches
- * Ergebnis, Testprofil, alternative Ergebnisse) fehlen.
+ * Codes und Versionen stammen aus den Profilen und Beispielen des Pakets und seiner
+ * Abhängigkeiten (HL7 Europe Laboratory 2.0.0, TI Common 1.5.0). Optionale Angaben
+ * (Akkreditierung, kritisches Ergebnis, alternative Ergebnisse, Laborbereich an der Gruppe)
+ * fehlen.
+ *
+ * Was der HL7-Validator trotzdem meldet, steht mit Grund in ENTWICKLUNG, „FHIR-Validator“:
+ * `dr-comp-identifier` ist mit keiner Instanz erfüllbar, der Abschnitt ist ohne
+ * Terminologieserver nicht zuzuordnen.
  */
 
 export const DGLP = 'https://gematik.de/fhir/epa-laboratory/StructureDefinition/';
 
 /** Versionen der Terminologien, wie sie der Content-IG in Mustern und Beispielen führt. */
 export const LOINC_VERSION = '2.82';
-const SNOMED_DE_20260515 = 'http://snomed.info/sct/11000274103/version/20260515';
-const SORTIERUNG = 'https://gematik.de/fhir/ti/StructureDefinition/sorting-number-extension';
+/**
+ * Version des gematik-Codesystems `laboratory-identificator`, die die Profile an der Kennungsart
+ * verlangen (1..1): 1.1.0 im Terminologiepaket `de.gematik.terminology` 1.1.0-ballot.2. Das Paket
+ * ist keine Abhängigkeit des Laborpakets; der Validator lädt es eigens (SPEZIFIKATION 5.5).
+ */
+const LABOR_CS_VERSION = '1.1.0';
+const LABOR_KENNUNG = 'https://gematik.de/fhir/terminology/CodeSystem/laboratory-identificator';
+const V2_0203 = 'http://terminology.hl7.org/CodeSystem/v2-0203';
+const TI = 'https://gematik.de/fhir/ti/StructureDefinition/';
+const SORTIERUNG = `${TI}sorting-number-extension`;
+const TESTPROFIL = `${TI}test-profile-laboratory-extension`;
+const DATA_ABSENT_REASON = 'http://hl7.org/fhir/StructureDefinition/data-absent-reason';
+
+const LABOR_KATEGORIE = {
+  coding: [
+    {
+      system: 'http://terminology.hl7.org/CodeSystem/observation-category',
+      code: 'laboratory',
+      display: 'Laboratory',
+    },
+  ],
+};
+
+/**
+ * Laborbereich der Beispielbefunde: Klinische Chemie, LOINC 18719-5 aus dem ValueSet
+ * `lab-studyType-eu-lab` (HL7 Europe Laboratory 2.0.0, Anzeige von dort) — Code und Titel des
+ * Composition-Abschnitts. Ein Befund mit weiteren Bereichen bekäme je Bereich einen Abschnitt.
+ *
+ * An den Untersuchungsgruppen wäre er als Kategorie möglich (0..1). Die Demo lässt ihn dort weg:
+ * Das geschlossene Slicing ordnet die Kategorie über `memberOf` zu, und das kann der Validator
+ * ohne Terminologieserver für LOINC nicht prüfen.
+ */
+const KLINISCHE_CHEMIE = {
+  coding: [{ system: CODESYSTEM.loinc, code: '18719-5', display: 'Chemistry studies (set)' }],
+  text: 'Klinische Chemie',
+};
+
+/**
+ * Probenart in SNOMED CT — Codes aus dem ValueSet `lab-specimenType-eu-lab` (HL7 Europe
+ * Laboratory 2.0.0). Unbekannte Probenarten stehen nur als Text.
+ */
+const PROBENART: Record<string, { code: string; display: string }> = {
+  Serum: { code: '119364003', display: 'Serum specimen' },
+};
+
+/** Eigene Kennungssysteme der Demo — für Auftrags- und Probennummern, die ein System verlangen. */
+const SID = `${DEMO_FHIR_BASIS}/sid/`;
 
 export interface Messwert {
   loinc: string;
@@ -56,15 +117,21 @@ export interface Untersuchungsgruppe {
 export interface Befundangabe {
   /** Versionsunabhängige Kennung des Laborgesamtbefunds (UUID ohne Präfix). */
   uuid: string;
+  /** Auftragsnummer des Labors. */
   auftragsnummer: string;
+  /** Auftragsnummer des Einsenders — vergibt die beauftragende Einrichtung. */
+  auftragsnummerEinsender: string;
   kvnr: string;
   patientName: { vorname: string; nachname: string };
   geburtsdatum: string;
   labor: string;
   freigebendePerson: string;
+  /** Einsender: beauftragt den Befund und empfängt ihn. */
   auftraggeber: string;
   /** ISO-Zeitpunkt der Probenentnahme. */
   entnahme: string;
+  /** ISO-Zeitpunkt des Probeneingangs im Labor. */
+  eingang: string;
   /** ISO-Zeitpunkt der Freigabe. */
   freigabe: string;
   probenart: string;
@@ -88,25 +155,66 @@ const INTERPRETATION: Record<Bewertung, { code: string; display: string }> = {
 
 type Ressource = Record<string, unknown> & { resourceType: string; id: string };
 
+const mitKomma = (n: number) => String(n).replace('.', ',');
+
+/**
+ * Grenze eines Referenzbereichs. Bei einseitigen Bereichen („> 90", „< 5,7 %") steht die fehlende
+ * Grenze mit Einheit und `data-absent-reason` „not-applicable" statt Wert: Die Invariante
+ * `obs-range-2` des Pakets vergleicht die Einheiten beider Grenzen ohne Prüfung, ob es beide gibt,
+ * und schlüge sonst fehl — obwohl dasselbe Profil einseitige Bereiche an anderer Stelle erlaubt
+ * (`obs-range-1`). ▸ Profilfehler; die Abbildung macht die fehlende Grenze ausdrücklich.
+ */
+function grenze(wert: number | null, w: Pick<Messwert, 'einheit' | 'ucum'>) {
+  return {
+    ...(wert !== null
+      ? { value: wert }
+      : { _value: { extension: [{ url: DATA_ABSENT_REASON, valueCode: 'not-applicable' }] } }),
+    unit: w.einheit,
+    system: 'http://unitsofmeasure.org',
+    code: w.ucum,
+  };
+}
+
+/** Erzähltext des Abschnitts: je Untersuchungsgruppe die Werte mit Referenzbereich. */
+function abschnittstext(gruppen: readonly Untersuchungsgruppe[]): { status: string; div: string } {
+  const zeile = (w: Messwert) => {
+    const bewertung = bewertungFuer(w);
+    const marke = bewertung === 'normal' ? '' : ` (${bewertung})`;
+    return `<li>${xmlMaskieren(`${w.bezeichnung}: ${mitKomma(w.wert)} ${w.einheit}${marke} · Referenz ${w.referenzText}`)}</li>`;
+  };
+  return {
+    status: 'generated',
+    div: `<div xmlns="http://www.w3.org/1999/xhtml">${gruppen
+      .map(
+        (g) =>
+          `<p><b>${xmlMaskieren(g.bezeichnung)}</b></p><ul>${g.werte.map(zeile).join('')}</ul>`,
+      )
+      .join('')}</div>`,
+  };
+}
+
 export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
+  const k = a.uuid.slice(0, 8);
   const pid = `pat-${a.kvnr}`;
-  const lid = `org-${a.uuid.slice(0, 8)}`;
-  const aid = `sr-${a.uuid.slice(0, 8)}`;
-  const spid = `sp-${a.uuid.slice(0, 8)}`;
-  const drid = `dr-${a.uuid.slice(0, 8)}`;
-  const cid = `comp-${a.uuid.slice(0, 8)}`;
-  const arzt = `prac-${a.uuid.slice(0, 8)}`;
-  const rolle = `role-${a.uuid.slice(0, 8)}`;
+  const lid = `org-${k}`;
+  const eid = `org-einsender-${k}`;
+  const aid = `sr-${k}`;
+  const spid = `sp-${k}`;
+  const drid = `dr-${k}`;
+  const cid = `comp-${k}`;
+  const arzt = `prac-${k}`;
+  const rolle = `role-${k}`;
   const subjekt = {
     reference: `Patient/${pid}`,
     identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: a.kvnr },
   };
   const loinc = (code: string, display: string) => ({
-    system: 'http://loinc.org',
+    system: CODESYSTEM.loinc,
     version: LOINC_VERSION,
     code,
     display,
   });
+  const labor = { reference: `Organization/${lid}` };
 
   const patient: Ressource = {
     resourceType: 'Patient',
@@ -115,7 +223,8 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     name: [{ family: a.patientName.nachname, given: [a.patientName.vorname] }],
     birthDate: a.geburtsdatum,
   };
-  const labor: Ressource = { resourceType: 'Organization', id: lid, name: a.labor };
+  const laborOrganisation: Ressource = { resourceType: 'Organization', id: lid, name: a.labor };
+  const einsender: Ressource = { resourceType: 'Organization', id: eid, name: a.auftraggeber };
   const freigebende: Ressource = {
     resourceType: 'Practitioner',
     id: arzt,
@@ -130,18 +239,62 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
   const auftrag: Ressource = {
     resourceType: 'ServiceRequest',
     id: aid,
+    meta: { profile: [`${DGLP}service-request-dglp`] },
+    // Geschlossenes Slicing: nur die Kennungen des Einsenders, keine Auftragsnummer des Labors.
+    identifier: [
+      {
+        type: {
+          coding: [
+            {
+              system: LABOR_KENNUNG,
+              version: LABOR_CS_VERSION,
+              code: 'AE',
+              display: 'Auftragsnummer des Einsenders',
+            },
+          ],
+        },
+        system: `${SID}auftragsnummer-einsender`,
+        value: a.auftragsnummerEinsender,
+      },
+    ],
     status: 'completed',
     intent: 'order',
+    code: {
+      coding: [
+        {
+          system: CODESYSTEM.snomed,
+          version: SNOMED_VERSION,
+          code: '721965002',
+          display: 'Laboratory order',
+        },
+      ],
+    },
     subject: subjekt,
-    requester: { display: a.auftraggeber },
-    identifier: [{ value: a.auftragsnummer }],
+    requester: { reference: `Organization/${eid}` },
   };
+  const probenart = PROBENART[a.probenart];
   const probe: Ressource = {
     resourceType: 'Specimen',
     id: spid,
     meta: { profile: [`${DGLP}specimen-dglp`] },
-    type: { text: a.probenart },
+    identifier: [
+      {
+        type: {
+          coding: [{ system: V2_0203, version: '5.0.0', code: 'SID', display: 'Specimen ID' }],
+        },
+        system: `${SID}probennummer`,
+        value: `${a.auftragsnummer}-1`,
+      },
+    ],
+    status: 'available',
+    type: {
+      ...(probenart
+        ? { coding: [{ system: CODESYSTEM.snomed, version: SNOMED_VERSION, ...probenart }] }
+        : {}),
+      text: a.probenart,
+    },
     subject: subjekt,
+    receivedTime: a.eingang,
     collection: { collectedDateTime: a.entnahme },
   };
 
@@ -151,24 +304,15 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
       const bewertung = bewertungFuer(w);
       const obs: Ressource = {
         resourceType: 'Observation',
-        id: `obs-${a.uuid.slice(0, 8)}-${gi}-${wi}`,
+        id: `obs-${k}-${gi}-${wi}`,
         meta: { profile: [`${DGLP}observation-laboratory-study-dglp`] },
         status: 'final',
-        category: [
-          {
-            coding: [
-              {
-                system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-                code: 'laboratory',
-              },
-            ],
-          },
-        ],
+        category: [LABOR_KATEGORIE],
         code: { coding: [loinc(w.loinc, w.bezeichnung)], text: w.bezeichnung },
         subject: subjekt,
         effectiveDateTime: a.entnahme,
         issued: a.freigabe,
-        performer: [{ reference: `Organization/${lid}` }],
+        performer: [labor],
         valueQuantity: {
           value: w.wert,
           unit: w.einheit,
@@ -187,26 +331,8 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
         ],
         referenceRange: [
           {
-            ...(w.referenzNiedrig !== null
-              ? {
-                  low: {
-                    value: w.referenzNiedrig,
-                    unit: w.einheit,
-                    system: 'http://unitsofmeasure.org',
-                    code: w.ucum,
-                  },
-                }
-              : {}),
-            ...(w.referenzHoch !== null
-              ? {
-                  high: {
-                    value: w.referenzHoch,
-                    unit: w.einheit,
-                    system: 'http://unitsofmeasure.org',
-                    code: w.ucum,
-                  },
-                }
-              : {}),
+            low: grenze(w.referenzNiedrig, w),
+            high: grenze(w.referenzHoch, w),
             type: {
               coding: [
                 {
@@ -229,19 +355,12 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     });
     return {
       resourceType: 'Observation',
-      id: `grp-${a.uuid.slice(0, 8)}-${gi}`,
+      id: `grp-${k}-${gi}`,
       meta: { profile: [`${DGLP}observation-laboratory-study-group-dglp`] },
+      // Die Bezeichnung der Gruppe ist ihr Test-Profil, als Freitext; `code.text` ist verboten.
+      extension: [{ url: TESTPROFIL, valueCodeableConcept: { text: g.bezeichnung } }],
       status: 'final',
-      category: [
-        {
-          coding: [
-            {
-              system: 'http://terminology.hl7.org/CodeSystem/observation-category',
-              code: 'laboratory',
-            },
-          ],
-        },
-      ],
+      category: [LABOR_KATEGORIE],
       code: {
         coding: [
           {
@@ -250,18 +369,13 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
             display: 'Laboruntersuchungsgruppe',
           },
         ],
-        text: g.bezeichnung,
       },
       subject: subjekt,
       // Die Gruppe trägt keinen eigenen Zeitpunkt (data-absent-reason not-permitted).
       _effectiveDateTime: {
-        extension: [
-          {
-            url: 'http://hl7.org/fhir/StructureDefinition/data-absent-reason',
-            valueCode: 'not-permitted',
-          },
-        ],
+        extension: [{ url: DATA_ABSENT_REASON, valueCode: 'not-permitted' }],
       },
+      performer: [labor],
       hasMember: mitglieder,
     };
   });
@@ -281,23 +395,20 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
         type: {
           coding: [
             {
-              system: 'https://gematik.de/fhir/terminology/CodeSystem/laboratory-identificator',
+              system: LABOR_KENNUNG,
+              version: LABOR_CS_VERSION,
               code: 'AL',
               display: 'Auftragsnummer des Labors',
             },
           ],
         },
+        system: `${SID}auftragsnummer-labor`,
         value: a.auftragsnummer,
       },
       {
         type: {
           coding: [
-            {
-              system: 'http://terminology.hl7.org/CodeSystem/v2-0203',
-              version: '5.0.0',
-              code: 'RI',
-              display: 'Resource Identifier',
-            },
+            { system: V2_0203, version: '5.0.0', code: 'RI', display: 'Resource Identifier' },
           ],
         },
         system: 'urn:ietf:rfc:3986',
@@ -309,7 +420,8 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     code: { coding: [loinc('11502-2', 'Laboratory report')] },
     subject: subjekt,
     issued: a.freigabe,
-    performer: [{ reference: `PractitionerRole/${rolle}` }],
+    // „Auftragnehmendes Labor"
+    performer: [labor],
     specimen: [{ reference: `Specimen/${spid}` }],
     result: gruppen.map((g, i) => ({
       extension: [{ url: SORTIERUNG, valuePositiveInt: i + 1 }],
@@ -324,9 +436,7 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
           pdfErzeugen(`Laborbefund ${a.labor}`, [
             `Auftrag ${a.auftragsnummer}`,
             ...a.gruppen.flatMap((g) =>
-              g.werte.map(
-                (w) => `${w.bezeichnung}: ${String(w.wert).replace('.', ',')} ${w.einheit}`,
-              ),
+              g.werte.map((w) => `${w.bezeichnung}: ${mitKomma(w.wert)} ${w.einheit}`),
             ),
           ]),
         ),
@@ -355,16 +465,18 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
       },
       {
         url: 'http://hl7.eu/fhir/StructureDefinition/information-recipient',
-        valueReference: { display: a.auftraggeber },
+        valueReference: { reference: `Organization/${eid}` },
       },
     ],
+    // Dieselbe UUID wie die Kennung „Laborgesamtbefund" des DiagnosticReport — gleich im Sinn von
+    // dr-comp-identifier ist sie trotzdem nicht: Hier ist `type` verboten, dort Pflicht.
     identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${a.uuid}` },
     status: 'final',
     type: {
       coding: [
         {
-          system: 'http://snomed.info/sct',
-          version: SNOMED_DE_20260515,
+          system: CODESYSTEM.snomed,
+          version: SNOMED_VERSION,
           code: '4241000179101',
           display: 'Laboratory report',
         },
@@ -373,19 +485,20 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     },
     subject: subjekt,
     date: a.freigabe,
-    author: [{ reference: `Organization/${lid}` }],
+    author: [labor],
     title: 'Laboratory Report',
+    // Freigabe nur als Verweis (`party.display` ist verboten); der Name steht am Practitioner.
     attester: [
+      { mode: 'legal', time: a.freigabe, party: { reference: `PractitionerRole/${rolle}` } },
+    ],
+    section: [
       {
-        mode: 'legal',
-        time: a.freigabe,
-        party: { reference: `PractitionerRole/${rolle}`, display: a.freigebendePerson },
+        title: KLINISCHE_CHEMIE.text,
+        code: { coding: KLINISCHE_CHEMIE.coding },
+        text: abschnittstext(a.gruppen),
+        entry: gruppen.map((g) => ({ reference: `Observation/${g.id}` })),
       },
     ],
-    section: gruppen.map((g) => ({
-      title: String((g['code'] as { text: string }).text),
-      entry: [{ reference: `Observation/${g.id}` }],
-    })),
   };
 
   const alle = [
@@ -393,7 +506,8 @@ export function laborbefundBauen(a: Befundangabe): Record<string, unknown> {
     bericht,
     patient,
     auftrag,
-    labor,
+    laborOrganisation,
+    einsender,
     freigebende,
     freigaberolle,
     probe,
@@ -438,12 +552,34 @@ export function istLaborbefund(bundle: unknown): boolean {
   return kodierungen.some((k) => k.code === '4241000179101' || k.code === '11502-2');
 }
 
+type Verweis = { reference?: string; display?: string } | undefined;
+
+/** Der Eintrag des Bundles, auf den ein relativer Verweis wie `Organization/x` zeigt. */
+function aufloesen(r: readonly Ressource[], verweis: Verweis): Ressource | undefined {
+  return r.find((x) => `${x.resourceType}/${x.id}` === verweis?.reference);
+}
+
+/** Name der freigebenden Person: Freigabe → PractitionerRole (oder Practitioner) → Name. */
+function freigebendeLesen(r: readonly Ressource[], komposition: Ressource | undefined): string {
+  const partei = (komposition?.['attester'] as { party?: Verweis }[] | undefined)?.[0]?.party;
+  const rolle = aufloesen(r, partei);
+  const person =
+    rolle?.resourceType === 'Practitioner'
+      ? rolle
+      : aufloesen(r, rolle?.['practitioner'] as Verweis);
+  const name = (person?.['name'] as { text?: string }[] | undefined)?.[0]?.text;
+  return name ?? (rolle?.['practitioner'] as Verweis)?.display ?? '';
+}
+
 export function befundkopfLesen(bundle: unknown): Befundkopf | null {
   if (!istLaborbefund(bundle)) return null;
   const r = eintraege(bundle);
   const bericht = r.find((x) => x.resourceType === 'DiagnosticReport');
   const komposition = r.find((x) => x.resourceType === 'Composition');
-  const labor = r.find((x) => x.resourceType === 'Organization');
+  // Das Labor ist Verfasser des Befunds; im Bundle steht auch der Einsender als Organisation.
+  const labor =
+    aufloesen(r, (komposition?.['author'] as Verweis[] | undefined)?.[0]) ??
+    r.find((x) => x.resourceType === 'Organization');
   const probe = r.find((x) => x.resourceType === 'Specimen');
   const kennungen =
     (bericht?.['identifier'] as { value?: string; type?: { coding?: { code?: string }[] } }[]) ??
@@ -452,14 +588,11 @@ export function befundkopfLesen(bundle: unknown): Befundkopf | null {
     kennungen.find((k) => k.type?.coding?.[0]?.code === 'RI')?.value?.replace('urn:uuid:', '') ??
     '';
   const auftragsnummer = kennungen.find((k) => k.type?.coding?.[0]?.code === 'AL')?.value ?? '';
-  const attester = (
-    komposition?.['attester'] as { party?: { display?: string } }[] | undefined
-  )?.[0];
   return {
     uuid,
     auftragsnummer,
     labor: String(labor?.['name'] ?? ''),
-    freigebendePerson: attester?.party?.display ?? '',
+    freigebendePerson: freigebendeLesen(r, komposition),
     freigabe: String(bericht?.['issued'] ?? ''),
     entnahme: String(
       (probe?.['collection'] as { collectedDateTime?: string } | undefined)?.collectedDateTime ??
@@ -583,8 +716,21 @@ function gruppenLesen(bundle: unknown, werte: Laborwert[]): Laborbefund['gruppen
         String(m.reference ?? '').replace('Observation/', ''),
       );
       return {
-        bezeichnung: String((g['code'] as { text?: string } | undefined)?.text ?? 'Untersuchungen'),
+        bezeichnung: gruppenbezeichnung(g),
         werte: werte.filter((w) => mitglieder.some((m) => w.id.endsWith(`-${m}`))),
       };
     });
+}
+
+/**
+ * Überschrift einer Untersuchungsgruppe: das Test-Profil, sonst der Laborbereich, als Text
+ * (dgLP: „Laborbereich" oder „Laborbereich mit Test-Profil").
+ */
+function gruppenbezeichnung(g: Ressource): string {
+  type Konzept = { text?: string; coding?: { display?: string }[] };
+  const profil = (
+    (g['extension'] ?? []) as { url?: string; valueCodeableConcept?: Konzept }[]
+  ).find((e) => e.url === TESTPROFIL)?.valueCodeableConcept;
+  const bereich = ((g['category'] as Konzept[] | undefined) ?? []).find((c) => c.text)?.text;
+  return profil?.text ?? profil?.coding?.[0]?.display ?? bereich ?? 'Untersuchungen';
 }

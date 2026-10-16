@@ -40,17 +40,17 @@ export interface Befugnis {
  * Rolle im ID-Token der Sitzung; die Demo hat keine Anmeldung und schlägt hier nach.
  */
 export const EINRICHTUNGEN: Record<string, { anzeige: string; rolle: string; tage: number }> = {
-  'DEMO-PRAXIS-STADTGARTEN': {
+  '1-DEMO-PRAXIS-STADTGARTEN': {
     anzeige: 'Hausarztpraxis am Stadtgarten',
     rolle: 'Arztpraxis',
     tage: 90,
   },
-  'DEMO-KLINIKUM-SONNENSCHEIN': {
+  '5-DEMO-KLINIKUM-SONNENSCHEIN': {
     anzeige: 'Klinikum Sonnenschein',
     rolle: 'Krankenhaus',
     tage: 90,
   },
-  'DEMO-APOTHEKE-STADTGARTEN': { anzeige: 'Stadtgarten-Apotheke', rolle: 'Apotheke', tage: 3 },
+  '3-DEMO-APOTHEKE-STADTGARTEN': { anzeige: 'Stadtgarten-Apotheke', rolle: 'Apotheke', tage: 3 },
 };
 
 const befugnisse = new Map<string, Map<string, Befugnis>>();

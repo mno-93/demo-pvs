@@ -6,7 +6,7 @@ import {
   type Briefvorlage,
   type Ressource,
 } from '@demo-pvs/kern';
-import { sha256Hex } from './plattform.ts';
+import { uuidAus } from './plattform.ts';
 
 /**
  * Arzt- und Entlassbriefe des Startbestands. Alle Personen, Einrichtungen, Anschriften und
@@ -608,7 +608,10 @@ export function entlassbriefHoffmannFhir(kvnr: string): Record<string, unknown> 
       resourceType: 'Organization',
       id: 'kh-klinikum',
       identifier: [
-        { system: 'https://gematik.de/fhir/sid/telematik-id', value: 'DEMO-KLINIKUM-SONNENSCHEIN' },
+        {
+          system: 'https://gematik.de/fhir/sid/telematik-id',
+          value: '5-DEMO-KLINIKUM-SONNENSCHEIN',
+        },
       ],
       name: 'Klinikum Sonnenschein',
     },
@@ -942,12 +945,11 @@ export function kardiologieKontrolleFhir(
     echo,
   ];
   // bdl-9: Ein Dokument trägt eine Kennung — hier aus der Dokumentkennung abgeleitet.
-  const h = sha256Hex(`dokument:${id}`);
   return zeitzonenErgaenzen({
     resourceType: 'Bundle',
     identifier: {
       system: 'urn:ietf:rfc:3986',
-      value: `urn:uuid:${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`,
+      value: `urn:uuid:${uuidAus(`dokument:${id}`)}`,
     },
     type: 'document',
     timestamp: `${datum}T12:00:00`,

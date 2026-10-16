@@ -194,7 +194,13 @@ export function patientFuer(kvnr: string): Ressource {
     id: `pat-${kvnr}`,
     meta: { profile: ['https://gematik.de/fhir/epa/StructureDefinition/epa-patient'] },
     identifier: [{ system: 'http://fhir.de/sid/gkv/kvid-10', value: kvnr }],
-    ...(d ? { name: [{ family: d.nachname, given: [d.vorname] }], birthDate: d.geburtsdatum } : {}),
+    // EPAPatient verlangt im Slice `Name` die Verwendung (`use` 1..1).
+    ...(d
+      ? {
+          name: [{ use: 'official', family: d.nachname, given: [d.vorname] }],
+          birthDate: d.geburtsdatum,
+        }
+      : {}),
   };
 }
 

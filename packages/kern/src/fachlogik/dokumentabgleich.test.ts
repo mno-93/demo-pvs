@@ -101,6 +101,7 @@ describe('Dokumentenabgleich', () => {
     const befund = laborbefundBauen({
       uuid,
       auftragsnummer: 'L-1',
+      auftragsnummerEinsender: 'E-1',
       kvnr: 'M555123402',
       patientName: { vorname: 'Meral', nachname: 'Yildiz' },
       geburtsdatum: '1969-06-25',
@@ -108,6 +109,7 @@ describe('Dokumentenabgleich', () => {
       freigebendePerson: 'Dr. X',
       auftraggeber: 'Praxis',
       entnahme: '2026-07-02T08:30:00',
+      eingang: '2026-07-02T10:00:00',
       freigabe: '2026-07-02T13:40:00',
       probenart: 'Serum',
       beurteilung: null,

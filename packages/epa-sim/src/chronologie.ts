@@ -103,7 +103,7 @@ export function chronologieAnlegen(
 
 /** Eine andere Einrichtung, die in der Demo „zwischendurch" ändert. */
 export const ANDERE_EINRICHTUNG: Handelnde = {
-  telematikId: 'DEMO-KLINIKUM-SONNENSCHEIN',
+  telematikId: '5-DEMO-KLINIKUM-SONNENSCHEIN',
   anzeige: 'Klinikum Sonnenschein',
 };
 

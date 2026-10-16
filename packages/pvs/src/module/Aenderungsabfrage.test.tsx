@@ -25,7 +25,7 @@ const MS = '/epa/medication/api/v1/fhir';
 const MHD = '/epa/mhd/api/v1/fhir';
 const EMP = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
 const KARDIOLOGIE = {
-  telematikId: 'DEMO-KARDIOLOGIE-AM-WALL',
+  telematikId: '1-DEMO-KARDIOLOGIE-AM-WALL',
   anzeige: 'Kardiologische Praxis am Wall',
 };
 const LESEZEICHEN = '2026-09-09T08:00:00.000';

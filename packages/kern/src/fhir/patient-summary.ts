@@ -17,6 +17,8 @@ export const EPS = {
   bundle: 'http://hl7.eu/fhir/eps/StructureDefinition/bundle-eu-eps',
   composition: 'http://hl7.eu/fhir/eps/StructureDefinition/composition-eu-eps',
   patient: 'http://hl7.eu/fhir/eps/StructureDefinition/patient-eu-eps',
+  /** Einträge des Ergebnisabschnitts (Slice `results-medicalTestResult`): EU Core 2.0.0. */
+  ergebnis: 'http://hl7.eu/fhir/base/StructureDefinition/medicalTestResult-eu-core',
 } as const;
 
 export const LISTE_LEER = 'http://terminology.hl7.org/CodeSystem/list-empty-reason';

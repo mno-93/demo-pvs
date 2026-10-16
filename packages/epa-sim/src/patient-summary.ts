@@ -21,6 +21,7 @@ import { KEINE_BEKANNTE_ALLERGIE, LISTE } from './diagnosedienst.ts';
 import { jetzt, neueId } from './fhir-hilfen.ts';
 import { EMP, istEmpEintrag } from './medikation.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
+import { uuidAus } from './plattform.ts';
 import { patientFuer } from './schreibwege.ts';
 
 /**
@@ -173,9 +174,17 @@ function medikation(kvnr: string, mitListen: boolean): Teil {
   };
 }
 
-/** Je Untersuchung der jüngste Wert aus den sichtbaren strukturierten Laborbefunden. */
+/**
+ * Je Untersuchung der jüngste Wert aus den sichtbaren strukturierten Laborbefunden.
+ *
+ * Im Befund ist der Wert eine Einzeluntersuchung nach dgLP; in der Patient Summary steht er als
+ * Ergebnis nach EU Core (`medicalTestResult-eu-core`, wie ihn der Ergebnisabschnitt der EPS
+ * verlangt) — mit dem Labor als Durchführendem, das deshalb mit ins Dokument kommt. Probe,
+ * Gruppe und Freigabe bleiben im Befund; der Verweis auf das Quelldokument führt dorthin.
+ */
 function laborwerte(kvnr: string): Teil {
   const juengste = new Map<string, Ressource>();
+  const labore = new Map<string, Ressource>();
   for (const d of bestandFuer(kvnr).dokumente.filter((x) => sichtbar(x) && x.inhalt)) {
     const eintraege = ((d.inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
       (e) => e.resource,
@@ -190,9 +199,18 @@ function laborwerte(kvnr: string): Teil {
       const zeit = String(o['effectiveDateTime'] ?? '');
       const bisher = juengste.get(loinc);
       if (bisher && String(bisher['effectiveDateTime'] ?? '') >= zeit) continue;
+      const laborVerweis = (o['performer'] as { reference?: string }[] | undefined)?.[0]?.reference;
+      const labor = eintraege.find((r) => `${r.resourceType}/${String(r.id)}` === laborVerweis);
+      const laborId = labor ? `${String(labor.id)}-${d.id}` : null;
+      if (labor && laborId) labore.set(laborId, { ...labor, id: laborId });
+      const ohneBefundbezug = Object.fromEntries(
+        Object.entries(o).filter(([k]) => k !== 'specimen' && k !== 'performer'),
+      ) as Ressource;
       juengste.set(loinc, {
-        ...o,
+        ...ohneBefundbezug,
         id: `${String(o.id)}-${d.id}`,
+        meta: { profile: [EPS.ergebnis] },
+        ...(laborId ? { performer: [{ reference: `Organization/${laborId}` }] } : {}),
         extension: [
           ...(o.extension ?? []),
           {
@@ -206,7 +224,16 @@ function laborwerte(kvnr: string): Teil {
       });
     }
   }
-  return { quelle: 'lab-documents', eintraege: [...juengste.values()], dazu: [] };
+  const werte = [...juengste.values()];
+  // Nur die Labore, deren Werte in der Übersicht stehen.
+  const genutzt = new Set(
+    werte.map((w) => (w['performer'] as { reference: string }[] | undefined)?.[0]?.reference),
+  );
+  return {
+    quelle: 'lab-documents',
+    eintraege: werte,
+    dazu: [...labore.values()].filter((l) => genutzt.has(`Organization/${String(l.id)}`)),
+  };
 }
 
 /** ✦ Impfungen aus der Impfliste — jede erfolgte Impfung, die jüngste zuerst (ab Stufe 2). */
@@ -335,10 +362,13 @@ export function patientSummaryBilden(kvnr: string): Ressource {
   const patient = { ...patientFuer(kvnr), meta: { profile: [EPS.patient] } };
   const alle = Object.values(teile).flatMap((t) => [...t.eintraege, ...t.dazu]);
   const zeit = jetzt();
+  const kennung = neueId('ps');
   const komposition: Ressource = {
     resourceType: 'Composition',
-    id: neueId('ps'),
+    id: kennung,
     meta: { profile: [EPS.composition] },
+    // composition-eu-eps: Kennung 1..1, als UUID.
+    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${uuidAus(`ps:${kennung}`)}` },
     status: 'final',
     type: {
       coding: [{ system: CODESYSTEM.loinc, code: '60591-5', display: 'Patient summary Document' }],
@@ -388,7 +418,8 @@ export function patientSummaryBilden(kvnr: string): Ressource {
     resourceType: 'Bundle',
     id: neueId('psb'),
     meta: { profile: [EPS.bundle] },
-    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${String(komposition.id)}` },
+    // bdl-9: Kennung des Dokuments, als gültige UUID (die Ressourcen-IDs der Demo sind keine).
+    identifier: { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${uuidAus(`psb:${kennung}`)}` },
     type: 'document',
     timestamp: zeit,
     entry: ressourcen.map((r) => ({

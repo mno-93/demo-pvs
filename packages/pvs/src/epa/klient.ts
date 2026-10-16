@@ -1069,7 +1069,7 @@ export async function befugnisRegistrieren(
     methode: 'POST',
     pfad: BEFUGNIS,
     kvnr,
-    koerper: { jwt: `${kopf}.${nutzlast}.${base64url('DEMO-OHNE-SIGNATUR')}` },
+    koerper: { jwt: `${kopf}.${nutzlast}.${base64url('1-DEMO-OHNE-SIGNATUR')}` },
     grundlage: GRUNDLAGE.befugnis,
     inhaltstyp: 'application/json',
   });

@@ -39,6 +39,7 @@ import type { Ressource } from './typen.js';
 
 const KVNR = 'A123456780';
 const TI_DIAGNOSE = 'https://gematik.de/fhir/ti/StructureDefinition/ti-condition-diagnosis';
+const THO = 'http://terminology.hl7.org/CodeSystem/';
 
 const PATIENTIN: Patient = {
   id: 'p1',
@@ -95,40 +96,51 @@ const regeln = (r: unknown) => fehler(r).map((b) => b.regel);
 
 describe('Strukturprüfung erkennt Verstöße', () => {
   it('con-5 und ait-2: kein klinischer Status bei irrtümlicher Eingabe', () => {
-    const status = { coding: [{ system: 'x', code: 'active' }] };
-    const irrtum = { coding: [{ system: 'x', code: 'entered-in-error' }] };
+    const kodiert = (system: string, code: string) => ({
+      coding: [{ system: THO + system, code }],
+    });
     expect(
       regeln({
         resourceType: 'Condition',
         subject: { reference: 'P' },
-        clinicalStatus: status,
-        verificationStatus: irrtum,
+        clinicalStatus: kodiert('condition-clinical', 'active'),
+        verificationStatus: kodiert('condition-ver-status', 'entered-in-error'),
       }),
     ).toContain('con-5');
     expect(
       regeln({
         resourceType: 'AllergyIntolerance',
         patient: { reference: 'P' },
-        clinicalStatus: status,
-        verificationStatus: irrtum,
+        clinicalStatus: kodiert('allergyintolerance-clinical', 'active'),
+        verificationStatus: kodiert('allergyintolerance-verification', 'entered-in-error'),
       }),
     ).toContain('ait-2');
   });
 
   it('con-4: ein Ende nur mit inaktivem, behobenem oder remittiertem Status', () => {
-    const zustand = (code: string) => ({ coding: [{ system: 'x', code }] });
+    const zustand = (system: string, code: string) => ({
+      coding: [{ system: THO + system, code }],
+    });
     const diagnose = (teil: object) => ({
       resourceType: 'Condition',
       subject: { reference: 'P' },
       abatementDateTime: '2026-08-01',
       ...teil,
     });
-    expect(regeln(diagnose({ clinicalStatus: zustand('relapse') }))).toContain('con-4');
+    expect(
+      regeln(diagnose({ clinicalStatus: zustand('condition-clinical', 'relapse') })),
+    ).toContain('con-4');
     // Ohne Status — bei „entered-in-error" (con-5) — gilt die Regel ebenso.
-    expect(regeln(diagnose({ verificationStatus: zustand('entered-in-error') }))).toContain(
-      'con-4',
-    );
-    expect(regeln(diagnose({ clinicalStatus: zustand('resolved') }))).not.toContain('con-4');
+    expect(
+      regeln(diagnose({ verificationStatus: zustand('condition-ver-status', 'entered-in-error') })),
+    ).toContain('con-4');
+    expect(
+      regeln(diagnose({ clinicalStatus: zustand('condition-clinical', 'resolved') })),
+    ).not.toContain('con-4');
+    // Der Ausdruck liest nur das HL7-Codesystem: ein „resolved“ aus einem anderen System zählt nicht.
+    expect(
+      regeln(diagnose({ clinicalStatus: { coding: [{ system: 'x', code: 'resolved' }] } })),
+    ).toContain('con-4');
   });
 
   it('Pflicht der Basis und des Profils', () => {

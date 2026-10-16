@@ -8,11 +8,8 @@ import {
   type Allergie,
 } from '../typen/allergie.js';
 import {
-  DIAGNOSEART_BEZEICHNUNG,
   DIAGNOSEART_CODE,
-  DIAGNOSESICHERHEIT_BEZEICHNUNG,
   DIAGNOSESICHERHEIT_CODE,
-  KLINISCHER_STATUS_BEZEICHNUNG,
   KLINISCHER_STATUS_CODE,
   SEITENLOKALISATION_BEZEICHNUNG,
   ZUSATZKENNZEICHEN_BEZEICHNUNG,
@@ -92,6 +89,38 @@ const SYSTEM = {
   allergyVer: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-verification',
   assertedDate: 'http://hl7.org/fhir/StructureDefinition/condition-assertedDate',
 } as const;
+
+/**
+ * Anzeigen der HL7-Codesysteme, wie die Terminologie sie führt (FHIR R4). Deutsche Bezeichnungen
+ * gehören in die Oberfläche: Der HL7-Validator prüft `display` gegen die Terminologie, und der
+ * ePA-Ballot 1.4.0 lässt den Dienst ihn beim Speichern ohnehin aus der Terminologie setzen.
+ */
+const ANZEIGE = {
+  klinisch: {
+    active: 'Active',
+    recurrence: 'Recurrence',
+    relapse: 'Relapse',
+    inactive: 'Inactive',
+    remission: 'Remission',
+    resolved: 'Resolved',
+  },
+  verifikation: {
+    unconfirmed: 'Unconfirmed',
+    provisional: 'Provisional',
+    differential: 'Differential',
+    confirmed: 'Confirmed',
+    refuted: 'Refuted',
+    'entered-in-error': 'Entered in Error',
+  },
+  kategorie: {
+    'problem-list-item': 'Problem List Item',
+    'encounter-diagnosis': 'Encounter Diagnosis',
+  },
+} as const satisfies Record<string, Record<string, string>>;
+
+function anzeige(art: keyof typeof ANZEIGE, code: string): string {
+  return (ANZEIGE[art] as Record<string, string>)[code] ?? code;
+}
 
 /** SNOMED-CT-Kodierung mit Versionsangabe; andere Codesysteme unverändert. */
 export function kodierungNachFhir(k: Kodierung): Coding {
@@ -190,13 +219,16 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
   const alphaId: Coding[] = diagnose.alphaId
     ? [{ system: CODESYSTEM.alphaId, version: ICD10GM_VERSION, code: diagnose.alphaId }]
     : [];
-  // con-5: Eine irrtümliche Eingabe trägt keinen klinischen Status.
-  const irrtum = diagnose.diagnosesicherheit === 'irrtümlich';
+  // Kein klinischer Status bei einer irrtümlichen Eingabe (con-5) und bei einer ausgeschlossenen
+  // Diagnose: Zusatzkennzeichen „A“ verlangt einen leeren Status (icd-4 der Deutschen Basisprofile,
+  // dort Warnung; in der `EMPReasonCondition` des ePA-Ballots 1.4.0 Fehler).
+  const ohneStatus =
+    diagnose.diagnosesicherheit === 'irrtümlich' || diagnose.zusatzkennzeichen === 'A';
   const ressource: Ressource = {
     resourceType: 'Condition',
     id: diagnose.id,
     meta: { profile: [PROFIL.diagnose] },
-    ...(irrtum
+    ...(ohneStatus
       ? {}
       : {
           clinicalStatus: {
@@ -204,7 +236,7 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
               {
                 system: SYSTEM.conditionClinical,
                 code: KLINISCHER_STATUS_CODE[diagnose.klinischerStatus],
-                display: KLINISCHER_STATUS_BEZEICHNUNG[diagnose.klinischerStatus],
+                display: anzeige('klinisch', KLINISCHER_STATUS_CODE[diagnose.klinischerStatus]),
               },
             ],
           },
@@ -214,7 +246,7 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
         {
           system: SYSTEM.conditionVer,
           code: DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit],
-          display: DIAGNOSESICHERHEIT_BEZEICHNUNG[diagnose.diagnosesicherheit],
+          display: anzeige('verifikation', DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit]),
         },
       ],
     },
@@ -224,7 +256,7 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
           {
             system: SYSTEM.conditionCategory,
             code: DIAGNOSEART_CODE[diagnose.art],
-            display: DIAGNOSEART_BEZEICHNUNG[diagnose.art],
+            display: anzeige('kategorie', DIAGNOSEART_CODE[diagnose.art]),
           },
         ],
       },
@@ -239,8 +271,8 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
     recordedDate: diagnose.dokumentiertAm,
     recorder: { display: diagnose.herkunft.verantwortlich },
   };
-  // con-4: Ein Ende nur mit Status inaktiv, behoben oder Remission — „irrtümlich" hat keinen (con-5).
-  if (diagnose.ende && !irrtum && !istGegenwaertig(diagnose.klinischerStatus))
+  // con-4: Ein Ende nur mit Status inaktiv, behoben oder Remission — ohne Status also keins.
+  if (diagnose.ende && !ohneStatus && !istGegenwaertig(diagnose.klinischerStatus))
     ressource['abatementDateTime'] = diagnose.ende;
   if (diagnose.feststellendePerson)
     ressource['asserter'] = { display: diagnose.feststellendePerson };

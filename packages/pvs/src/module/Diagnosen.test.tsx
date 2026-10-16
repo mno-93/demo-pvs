@@ -204,7 +204,7 @@ describe('Splitscreen Diagnosen und Allergien', () => {
     );
     // Die Einrichtung steht im Header, als Base64-kodierte TIOrganization.
     const org = JSON.parse(atob(aufruf.kopf['X-Requesting-Organization']!)) as Ressource;
-    expect(JSON.stringify(org['identifier'])).toContain('DEMO-PRAXIS-STADTGARTEN');
+    expect(JSON.stringify(org['identifier'])).toContain('1-DEMO-PRAXIS-STADTGARTEN');
     const eingang = parameter.find((p) => p['name'] === 'conditionEntry') as {
       resource: Ressource;
     };

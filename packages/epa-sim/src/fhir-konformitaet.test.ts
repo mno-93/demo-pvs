@@ -10,7 +10,7 @@ import { befugnisErteilen } from './befugnis.ts';
  * er Zeitpunkte ohne Zone, die Antworten tragen sie (zeit.ts im Kern).
  */
 
-const PRAXIS = 'DEMO-PRAXIS-STADTGARTEN';
+const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const AKTEN = ['A123456780', 'M555123402'];
 const WEGE = [
   '/epa/mhd/api/v1/fhir/DocumentReference?status=current',

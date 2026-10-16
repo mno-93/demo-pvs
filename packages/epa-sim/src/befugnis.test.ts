@@ -23,13 +23,13 @@ describe('Erteilen', () => {
   it('behält eine bestehende Befugnis mit späterem Ende', () => {
     const lang = befugnisErteilen(
       'X1',
-      'DEMO-PRAXIS-STADTGARTEN',
+      '1-DEMO-PRAXIS-STADTGARTEN',
       new Date('2099-01-10T10:00:00Z'),
       'eGK',
     );
     const kurz = befugnisErteilen(
       'X1',
-      'DEMO-PRAXIS-STADTGARTEN',
+      '1-DEMO-PRAXIS-STADTGARTEN',
       new Date('2099-01-01T10:00:00Z'),
       'eGK',
     );
@@ -39,7 +39,7 @@ describe('Erteilen', () => {
   it('gibt der Apotheke nur drei Tage', () => {
     const b = befugnisErteilen(
       'X1',
-      'DEMO-APOTHEKE-STADTGARTEN',
+      '3-DEMO-APOTHEKE-STADTGARTEN',
       new Date('2099-03-01T10:00:00Z'),
       'eGK',
     );
@@ -49,10 +49,10 @@ describe('Erteilen', () => {
   it('kennt abgelaufene Befugnisse nicht mehr', () => {
     befugnisErteilen(
       'X1',
-      'DEMO-PRAXIS-STADTGARTEN',
+      '1-DEMO-PRAXIS-STADTGARTEN',
       new Date('2020-01-01T10:00:00Z'),
       'Startbestand',
     );
-    expect(gueltigeBefugnis('X1', 'DEMO-PRAXIS-STADTGARTEN')).toBeNull();
+    expect(gueltigeBefugnis('X1', '1-DEMO-PRAXIS-STADTGARTEN')).toBeNull();
   });
 });

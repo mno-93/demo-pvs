@@ -22,10 +22,12 @@ Node ab Version 20. Prüfen mit `node -v`.
 
 ## Gehostete Fassung und Workflow
 
-`.github/workflows/demo.yml` läuft bei jedem Push und Pull Request: `npm ci`, Kern bauen,
-`npm run pruefen`, dann `npm run build:gehostet` mit `BASIS=/<repository>/`. Auf `main`
-veröffentlicht er auf GitHub Pages, wenn die Repository-Variable `PAGES_FREIGEGEBEN` den Wert
-`ja` hat (ADR 0025). Ohne diese Variable bleibt es bei Prüfen und Bauen.
+`.github/workflows/demo.yml` läuft bei jedem Push auf einen Branch und bei Pull Requests aus
+Forks; Pull Requests aus dem Repository sind über den Push geprüft (ADR 0041). Ablauf: `npm ci`,
+Kern bauen, `npm run pruefen`, danach parallel der FHIR-Validator und `npm run build:gehostet` mit
+`BASIS=/<repository>/`. Auf `main` veröffentlicht er auf GitHub Pages, wenn der Validator
+bestanden hat und die Repository-Variable `PAGES_FREIGEGEBEN` den Wert `ja` hat (ADR 0025). Ohne
+diese Variable bleibt es bei Prüfen und Bauen.
 
 Im Hosting-Build leitet `pvs/src/epa/transport.ts` die Wege `/epa`, `/information`, `/erp` und
 `/verwaltung` an `simulatorImBrowser()` aus `@demo-pvs/epa-sim/browser`. Wer im Simulator etwas
@@ -96,32 +98,79 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
 2. **Validator:** Er prüft den Ordner gegen die Pakete der Konfiguration, ohne Terminologieserver
    (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt.
 3. **Auswertung:** Das Skript liest `bericht.json`, nimmt die begründeten Ausnahmen der
-   Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Die Zusammenfassung steht in
-   `zusammenfassung.json`.
+   Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Eine Ausnahme ohne Treffer
+   meldet es als Warnung — sie kann entfallen. Die Zusammenfassung steht in `zusammenfassung.json`
+   und `zusammenfassung.md`.
 
 **Voraussetzungen:**
 
-- Java ab Version 17.
-- `validator_cli.jar` von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
-  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`.
+- Java ab Version 17 — aus `JAVA_HOME`, sonst `java` im Pfad. Mit Homebrew ohne Eingriff in die
+  Shell: `brew install openjdk@21`, dann `JAVA_HOME="$(brew --prefix openjdk@21)" npm run fhir:validieren`.
+- `validator_cli.jar` **7.0.1** von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
+  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`. Die CI lädt dieselbe Fassung
+  und prüft ihre SHA-256-Prüfsumme (`VALIDATOR_SHA256` im Workflow).
 
 Das Skript lädt nichts selbst herunter. Der Validator holt die Pakete beim ersten Lauf aus der
-Registry.
+Registry. Darunter ist `de.gematik.terminology`: Kein Paket führt es als Abhängigkeit, ohne es
+prüft der Validator die gematik-Codesysteme des Laborbefunds nicht (SPEZIFIKATION 5.5, Befund 4).
 
-**In der CI:** Job „FHIR-Validator“ in `.github/workflows/demo.yml`, mit Bericht als Artefakt.
+**In der CI** (Job „FHIR-Validator“ in `.github/workflows/demo.yml`, ADR 0041):
 
-- **Informativ** (`continue-on-error`), bis die Ausnahmen am ersten Lauf kalibriert sind. Danach
-  die Zeile entfernen und die Validator-Version festschreiben.
-- Ausnahmen nur mit Grund. Erlaubt sind das vereinfachte E-Rezept (KBV-Pakete nicht geladen) und
-  die ✦ Vorschläge im Namensraum der Demo.
+- läuft bei jedem Push auf jeden Branch, nach „Format, Lint, Typen, Tests“;
+- Validator und Pakete kommen aus dem Cache, der Validator nur mit passender Prüfsumme;
+- die Zusammenfassung steht auf der Seite des Laufs, jeder verbleibende Fehler als Anmerkung,
+  Ausnahmen ohne Treffer als Warnung; der vollständige Bericht ist das Artefakt
+  „fhir-validierung“;
+- seit der Kalibrierung am 15.10.2026 lässt jeder Fehler ohne begründete Ausnahme den Lauf
+  scheitern — und ohne bestandenen Validator wird nicht veröffentlicht.
 
-⚠ Noch nicht gelaufen. Lokal fehlte Java, die CI läuft erst nach dem nächsten Push.
+Neue Fassung des Validators: `VALIDATOR_VERSION` und `VALIDATOR_SHA256` im Workflow ändern (die
+Prüfsumme steht am Release-Eintrag auf GitHub), dazu die Version oben.
+
+**Stand nach der Angleichung des Laborbefunds (15.10.2026):** 75 Dateien, **keine Fehler**, rund
+890 Warnungen — überwiegend „ohne Terminologieserver nicht prüfbar“, nicht veröffentlichte
+gematik-ValueSets und Hinweise zur Best Practice. Seit dem Terminologiepaket (16.10.2026) sind es
+779 Warnungen: Die Meldungen zu den unbekannten gematik-Codesystemen entfallen. Weiter unbekannt
+bleiben ATC, PZN, OPS und die Codesysteme von IHE Deutschland für Klasse und Typ der Dokumente
+(`urn:oid:1.3.6.1.4.1.19376.3.276.1.5.8` und `….5.9`). Der erste Lauf fand 965 Fehler. Behoben sind:
+
+| Befund des Validators                                                                                                          | Behebung                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |
+| Deutsche Anzeigen an HL7-Codes (klinischer Status, Verifikationsstatus, Kategorie); dadurch auch die required-Bindung verfehlt | offizielle Anzeigen der Terminologie (DATENMODELL, R5)                                                             |
+| Fiktive Telematik-IDs ohne Präfix (`telematik-id-1` der Basisprofile)                                                          | Präfix nach Art der Einrichtung: 1 Praxis, 3 Apotheke, 5 Krankenhaus (⚠ nicht gegen die Vergaberegeln geprüft)     |
+| Patient im Simulator ohne `name.use` (Slice `Name` in `EPAPatient`)                                                            | `use` = `official`                                                                                                 |
+| MHD-Suche: relative `fullUrl`, `search.score` fehlt                                                                            | absolute `fullUrl`, Score 1                                                                                        |
+| Patient Summary: `Composition.identifier` fehlt (`composition-eu-eps`), Bundle-Kennung keine gültige UUID                      | Kennungen als UUID                                                                                                 |
+| Diagnose mit Zusatzkennzeichen „A“ und klinischem Status (`icd-4`)                                                             | Status entfällt                                                                                                    |
+| Testbeispiel mit erfundenem Codesystem galt als gültig; `con-4` las den Code ohne System                                       | Beispiel berichtigt; die Invarianten lesen nur das HL7-Codesystem                                                  |
+| Laborbefund (611, mit seinen Werten in der Patient Summary): Beobachtungen passten keinem dgLP-Profil                          | Gruppe → Einzelwert, Bezeichnung als Test-Profil, Labor als `performer`, Anzeige der Kategorie (SPEZIFIKATION 5.5) |
+| Laborbefund: Pflichtangaben an Probe, Auftrag, Composition und Kennung des DiagnosticReport                                    | Probennummer, Status, Eingang; Einsender als Organisation, Auftragscode; Abschnitt mit Code und Erzähltext         |
+| Laborbefund: `obs-range-2` bei einseitigem Referenzbereich                                                                     | fehlende Grenze mit Einheit und `data-absent-reason` (Befund am Ballot, SPEZIFIKATION 5.5)                         |
+| Patient Summary: Laborwerte passten nicht zu `medicalTestResult-eu-core`                                                       | Profil EU Core, Labor im Dokument, ohne Verweis auf die Probe                                                      |
+
+**Ausnahmen** (`werkzeuge/fhir-validator.json`, jede mit Grund):
+
+| Ausnahme                                                      | Fehler | Grund                                                                                                                                          |
+| ------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3   | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig                                       |
+| Abschnitt des Laborbefunds (`section:result`) und Folgefehler | 9      | ohne Terminologieserver nicht auswertbar: Zuordnung über `memberOf` auf ein LOINC-ValueSet; der Abschnitt ist in `laborbefund.test.ts` geprüft |
+| `content.format` an ✦ strukturierten Briefen                  | 6      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                                                        |
+| Provenance früherer Fassungen in der Patient Summary          | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                                                           |
+| `dr-comp-identifier` im Laborbefund                           | 3      | Profilkonflikt im Ballot: `composition-dglp` verbietet `identifier.type`, `diagnostic-report-dglp` verlangt ihn — nicht erfüllbar              |
+| E-Rezept                                                      | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                                                            |
+
+Ausnahmen greifen über den Meldungstext (`muster`) oder über das Profil der geprüften Datei
+(`profil`). Eine neue Ausnahme nur mit Grund und nur so eng wie möglich; lässt sich ein Profilfehler
+an der Instanz FHIR-gerecht abfangen, geht das vor (ADR 0040).
 
 **Nicht abgedeckt — auch nicht durch den Validator in dieser Einstellung:**
 
 - **Terminologie-Bindungen.** Dafür braucht es einen Terminologieserver mit ICD-10-GM, Alpha-ID,
-  den KBV-Codesystemen und SNOMED CT der deutschen Edition.
+  den KBV-Codesystemen und SNOMED CT der deutschen Edition. Dasselbe gilt für Slices, die über eine
+  Bindung an LOINC oder SNOMED CT zugeordnet werden (`memberOf`): Der Validator verneint sie ohne
+  Server — etwa den Abschnitt des Laborbefunds.
 - **E-Rezept gegen die KBV-Profile.**
+- **Warnungen.** Sie lassen den Lauf nicht scheitern. Zu beachten: `DosageWarnungViererschemaInText` (Dosierung als Text statt strukturiert) und `icd-5` bei einer behobenen Diagnose mit Zusatzkennzeichen „G“ (DATENMODELL, Abschnitt 7).
 
 ## Prüfliste vor jeder Abgabe
 
