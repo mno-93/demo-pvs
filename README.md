@@ -6,8 +6,8 @@ Eine Demonstrationsanwendung, die den Alltag einer hausärztlichen Praxis so wei
 sich prüfen lässt, was eine ärztlich verantwortete Patient Summary kostet — gemessen an der
 Dokumentation, die ohnehin stattfindet. Dazu gehört ein ePA-Simulator nach den veröffentlichten
 Spezifikationen der gematik (Release ePA 3.1.3) mit vier zuschaltbaren, aufeinander aufbauenden
-Ausbaustufen. „Weiterentwicklung 1": strukturierte Laborbefunde (Vorschau ePA 3.2) und
-Volltextsuche. „Weiterentwicklung 2": ✦ Arzt- und Entlassbriefe als FHIR-Dokument nach
+Ausbaustufen. „Weiterentwicklung 1": Vorschau ePA 3.2 — strukturierte Laborbefunde,
+Volltextsuche und die leere ePA European Patient Summary des Aktensystems über MHD. „Weiterentwicklung 2": ✦ Arzt- und Entlassbriefe als FHIR-Dokument nach
 europäischem Vorbild. „Weiterentwicklung 3": ✦ Allergien-, Diagnosen- und Impfliste, ✦ die
 Patient Summary als Sicht auf diese Quellen und ✦ der **Arztbrief** als FHIR-Dokument, der aus
 vorhandenen Daten entsteht und über XDS ITI-41 in die ePA sowie per KIM an die Mitbehandelnden geht. „Weiterentwicklung 4" schaltet ✦ den

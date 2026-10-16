@@ -198,8 +198,17 @@ function verweisAuf(ressourcen: readonly Ressource[], verweis: string): Ressourc
   return ressourcen.find((r) => r.resourceType === typ && r.id === id);
 }
 
-/** Liest eine Patient Summary (Bundle nach EPS) in Abschnitte nach `PS_ABSCHNITTE`. */
-export function patientSummaryLesen(bundle: unknown): PatientSummaryInhalt | null {
+/**
+ * Liest eine Patient Summary (Bundle nach EPS) in Abschnitte nach `PS_ABSCHNITTE`.
+ *
+ * `nurVorhandene`: nur die Abschnitte, die das Dokument führt — für eine Patient Summary, die
+ * nicht die Demo bildet, etwa die ePS des Aktensystems mit ihren fünf Pflicht-Sections. Ohne die
+ * Angabe stehen alle Blöcke da, fehlende als „Information nicht verfügbar".
+ */
+export function patientSummaryLesen(
+  bundle: unknown,
+  optionen: { nurVorhandene?: boolean } = {},
+): PatientSummaryInhalt | null {
   const b = bundle as { resourceType?: string; entry?: { resource: Ressource }[] } | null;
   if (b?.resourceType !== 'Bundle') return null;
   const ressourcen = (b.entry ?? []).map((e) => e.resource);
@@ -218,7 +227,11 @@ export function patientSummaryLesen(bundle: unknown): PatientSummaryInhalt | nul
     erstellt: String(komposition['date'] ?? ''),
     autor,
     ressourcen,
-    abschnitte: PS_ABSCHNITTE.map((d) => {
+    abschnitte: PS_ABSCHNITTE.filter(
+      (d) =>
+        !optionen.nurVorhandene ||
+        sections.some((x) => x.code?.coding?.some((c) => c.code === d.loinc)),
+    ).map((d) => {
       const s = sections.find((x) => x.code?.coding?.some((c) => c.code === d.loinc));
       const quelle = (s?.extension?.find((e) => e.url === PS_QUELLE_EXTENSION)?.valueCoding?.code ??
         'none') as PsQuelle;

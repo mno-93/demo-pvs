@@ -215,6 +215,77 @@ describe('Patient Summary', () => {
     expect(screen.queryByRole('button', { name: 'Patient Summary' })).toBeNull();
   });
 
+  it('zeigt in der Vorschau auf ePA 3.2 die leere ePS des Aktensystems, abgerufen über MHD', async () => {
+    // Ballots gemIG_ePA_ePS 1.0.0-ballot.1 und epa-mhd 1.2.0-ballot.1 (ADR 0042): Ohne den ✦ Dienst
+    // sucht das Praxissystem die ePS; sie führt nur die fünf Pflicht-Sections, alle leer.
+    const ABRUF = '/epa/mhd/retrieve/v1/content/0190e1a2-7b3c-7d4e-8f00-123456789abc.json';
+    const verweis: Ressource = {
+      resourceType: 'DocumentReference',
+      id: '0190e1a2-7b3c-7d4e-8f00-123456789abc',
+      status: 'current',
+      content: [{ attachment: { contentType: 'application/fhir+json', url: ABRUF } }],
+    };
+    const leer = { emptyReason: { coding: [{ system: LISTE_LEER, code: 'unavailable' }] } };
+    const eps = {
+      resourceType: 'Bundle',
+      type: 'document',
+      entry: [
+        {
+          resource: {
+            resourceType: 'Composition',
+            status: 'preliminary',
+            date: '2026-10-16T10:00:00+02:00',
+            author: [{ display: 'ePA-Aktensystem' }],
+            section: ['10160-0', '48765-2', '11450-4', '47519-4', '46264-8'].map((loinc) => ({
+              code: { coding: [{ system: 'http://loinc.org', code: loinc }] },
+              ...leer,
+            })),
+          },
+        },
+      ],
+    };
+    const aufrufe = epaAttrappe((a): Attrappenantwort | undefined => {
+      if (a.pfad === `${PS}/metadata`) return undefined;
+      if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference')) {
+        return {
+          status: 200,
+          inhalt: suchergebnis(a.pfad.includes('60591-5') ? [verweis] : []),
+        };
+      }
+      if (a.pfad === ABRUF) return { status: 200, inhalt: eps };
+      return undefined;
+    });
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-krueger')] });
+    öffne('/patient/p-krueger/karteikarte');
+
+    fireEvent.click(await screen.findByRole('button', { name: /ePA öffnen/ }));
+    const dialog = screen.getByRole('dialog', { name: 'Elektronische Patientenakte' });
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Patient Summary' }));
+
+    expect(
+      await within(dialog).findByText('vom Aktensystem erzeugt · Ballot ePA 3.2'),
+    ).toBeDefined();
+    expect(within(dialog).getByText(/0 von 5 Abschnitten mit Inhalt/)).toBeDefined();
+    for (const block of [
+      'Allergien und Unverträglichkeiten',
+      'Diagnosen',
+      'Medikation',
+      'Prozeduren',
+      'Implantate und Medizinprodukte',
+    ]) {
+      const region = within(dialog).getByRole('region', { name: block });
+      expect(within(region).getByText('Information nicht verfügbar')).toBeDefined();
+    }
+    // Was die ePS nicht führt, steht nicht da — keine Laborwerte, keine Impfungen.
+    expect(within(dialog).queryByRole('region', { name: 'Laborwerte' })).toBeNull();
+    expect(within(dialog).queryByRole('region', { name: 'Impfungen' })).toBeNull();
+    // Gesucht wird mit den Parametern des Ballots, abgerufen über die Adresse aus dem Verweis.
+    const suche = aufrufe.find((a) => a.pfad.includes('60591-5'))!;
+    expect(decodeURIComponent(suche.pfad)).toContain('type=http://loinc.org|60591-5');
+    expect(suche.pfad).toContain('status=current');
+    expect(aufrufe.some((a) => a.pfad === ABRUF)).toBe(true);
+  });
+
   it('übernimmt Prozeduren und Implantate automatisch aus strukturierten Dokumenten', async () => {
     aktensystem(true, true);
     speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-krueger')] });

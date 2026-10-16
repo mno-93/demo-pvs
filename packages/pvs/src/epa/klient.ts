@@ -70,6 +70,9 @@ const ERP = '/erp';
 export const GRUNDLAGE = {
   iti67: 'MHD ITI-67 · IG epa-mhd 1.1.3',
   iti68: 'MHD ITI-68 · IG epa-mhd 1.1.3',
+  iti67Eps:
+    'MHD ITI-67 type=60591-5 · Ballot epa-mhd 1.2.0, ePS nach gemIG_ePA_ePS 1.0.0-ballot.1 (Vorschau ePA 3.2)',
+  iti68Eps: 'MHD ITI-68 · erzeugte ePS, Ballot epa-mhd 1.2.0 (Vorschau ePA 3.2)',
   iti41: 'XDS ITI-41 Provide & Register · WSDL XDSDocumentService, ePA 3.1.3',
   kim: 'KIM Client-Mail · gemSpec_CM_KOMLE 1.16.6 — Demo-Ersatz für SMTP ans Clientmodul',
   eml: '$medication-list · IG epa-medication 1.3.5',
@@ -1273,6 +1276,39 @@ export async function patientSummaryVerfuegbar(): Promise<boolean> {
     summaryAngeboten = false;
   }
   return summaryAngeboten;
+}
+
+/**
+ * Die ePA European Patient Summary des Aktensystems (Vorschau ePA 3.2, Ballots): ITI-67 nach
+ * `type=http://loinc.org|60591-5` und `status=current` — die Suche erzeugt sie —, dann ITI-68 über
+ * die Abrufadresse (IG-MHD35244MFP, SOLL). `null`, wenn das Aktensystem keine liefert, wie im
+ * Release 3.1.3.
+ */
+export async function epaPatientSummarySuchen(
+  kvnr: string,
+): Promise<{ verweis: Ressource; inhalt: unknown } | null> {
+  const suche = new URLSearchParams({
+    'patient.identifier': `http://fhir.de/sid/gkv/kvid-10|${kvnr}`,
+    type: 'http://loinc.org|60591-5',
+    status: 'current',
+  });
+  const { inhalt } = await anfragen<Bundle>({
+    pfad: `${MHD}/DocumentReference?${suche.toString()}`,
+    kvnr,
+    grundlage: GRUNDLAGE.iti67Eps,
+  });
+  const verweis = treffer(inhalt)[0];
+  if (!verweis) return null;
+  const url = (verweis['content'] as { attachment?: { url?: string } }[] | undefined)?.[0]
+    ?.attachment?.url;
+  if (!url) throw new EpaFehler(0, 'Der Dokumentverweis nennt keine Abrufadresse.');
+  const abruf = await anfragen<unknown>({
+    pfad: url,
+    kvnr,
+    grundlage: GRUNDLAGE.iti68Eps,
+    datei: true,
+  });
+  return { verweis, inhalt: abruf.inhalt };
 }
 
 /** Die Patient Summary — bei jeder Abfrage aus den Diensten der ePA gebildet. */

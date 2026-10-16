@@ -85,6 +85,21 @@ const kode = (code: string, system: string, anzeige: string): Kodewert => ({
 });
 
 /**
+ * Vorschau ePA 3.2: Metadaten des strukturierten Laborbefunds, wie sie der MHD Service nach
+ * `de.gematik.epa.mhd` 1.2.0-ballot.1 erzeugt (IG-MHD65730EEV, `fhir-dgLP-metadata-generation`):
+ * Klasse `LAB` und formatCode `urn:gematik:ig:laboratory:v1.0`, registriert in TI Terminology
+ * 1.1.0-ballot.2. ⚠ Vereinfacht: `type` nur `BEFU`, ohne LOINC 11502-2; ohne KDL-Ereigniscode.
+ */
+const LABOR_STRUKTURIERT = {
+  classCode: kode('LAB', OID_KLASSE, 'Laborergebnisse'),
+  formatCode: kode(
+    'urn:gematik:ig:laboratory:v1.0',
+    '1.3.6.1.4.1.19376.3.276.1.5.6',
+    'Laborbefund (gematik) v1.0',
+  ),
+};
+
+/**
  * uniqueId eines Dokuments ohne eigene Kennung: aus der Dokumentkennung wird eine UUID
  * gebildet und nach ITU-T X.667 unter dem Bogen 2.25 geführt.
  */
@@ -710,7 +725,7 @@ export function startbestandAufbauen(): void {
       ...laborkopf,
       id: 'labor-2026-08-12',
       uniqueId: uuidAlsOid(BEFUND_HOFFMANN.uuid),
-      formatCode: null,
+      ...LABOR_STRUKTURIERT,
       mimeType: 'application/fhir+json',
       groesseBytes: JSON.stringify(labor).length,
       inhalt: labor,
@@ -769,7 +784,7 @@ export function startbestandAufbauen(): void {
       ...laborMaerzKopf,
       id: 'labor-2026-03-18',
       uniqueId: uuidAlsOid(BEFUND_HOFFMANN_MAERZ.uuid),
-      formatCode: null,
+      ...LABOR_STRUKTURIERT,
       mimeType: 'application/fhir+json',
       groesseBytes: JSON.stringify(laborMaerz).length,
       inhalt: laborMaerz,
@@ -1094,7 +1109,7 @@ export function startbestandAufbauen(): void {
       ...laborkopfY,
       id: 'labor-2026-07-02',
       uniqueId: uuidAlsOid(BEFUND_YILDIZ.uuid),
-      formatCode: null,
+      ...LABOR_STRUKTURIERT,
       mimeType: 'application/fhir+json',
       groesseBytes: JSON.stringify(laborY).length,
       inhalt: laborY,

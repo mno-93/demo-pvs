@@ -1,8 +1,16 @@
 import type { FastifyInstance } from 'fastify';
-import { bytesAus, sha256Hex } from './plattform.ts';
+import { bytesAus, sha256Hex, uuidV7 } from './plattform.ts';
 import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { AB_STUFE, abStufe, STUFE } from './betrieb.ts';
+import {
+  EPS_TYP,
+  MHD_VORSCHAU,
+  epaEpsBilden,
+  epsAblegen,
+  epsAbrufen,
+  epsVerweis,
+} from './epa-eps.ts';
 import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen.ts';
 
 /**
@@ -18,6 +26,12 @@ import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen
  * wird, findet dieser Dienst unter der vergebenen entryUUID. Welche Dokumente sichtbar sind, hängt vom Ausbaustand ab: Im Release 3.1.3
  * liegen Laborbefunde als PDF vor, in der Vorschau auf ePA 3.2 als strukturierter
  * FHIR-Laborbefund (Fachkonzept dgLP, Stufe 1).
+ *
+ * **Vorschau auf ePA 3.2** (Ballot `de.gematik.epa.mhd` 1.2.0-ballot.1, ADR 0042): Die Suche nach
+ * `type=http://loinc.org|60591-5` erzeugt die leere ePA European Patient Summary des
+ * Aktensystems samt DocumentReference nach 1.2.0 (IG-MHD27048WTV, `epa-eps.ts`). Sie ist nicht
+ * versioniert — mit `status=superseded` gibt es nie einen Treffer — und erscheint in keiner
+ * anderen Suche. Alle übrigen Wege und Kennungen bleiben bei 1.1.3.
  */
 
 export const MHD_BASIS = '/epa/mhd/api/v1/fhir';
@@ -131,6 +145,35 @@ function codeAus(wert: string | undefined): string | undefined {
   return wert?.split('|').pop();
 }
 
+/** Codesystem eines Token-Parameters, falls angegeben (`system|code`). */
+function systemAus(wert: string | undefined): string | undefined {
+  return wert?.includes('|') ? wert.split('|')[0] : undefined;
+}
+
+/**
+ * Vorschau ePA 3.2: Die Suche erzeugt die ePS und ihre DocumentReference (IG-MHD27048WTV) — neue
+ * Kennungen bei jeder Suche, keine frühere Fassung.
+ */
+function epsSuchergebnis(kvnr: string, aktuell: boolean) {
+  const treffer: Ressource[] = [];
+  if (aktuell) {
+    const entryUuid = uuidV7();
+    epsAblegen(kvnr, entryUuid, epaEpsBilden(kvnr));
+    treffer.push(epsVerweis(kvnr, entryUuid, uuidV7(), jetzt(), `${MHD_ABRUF}/${entryUuid}.json`));
+  }
+  return {
+    resourceType: 'Bundle',
+    meta: { lastUpdated: jetzt(), profile: [MHD_VORSCHAU.suchergebnis] },
+    type: 'searchset',
+    total: treffer.length,
+    entry: treffer.map((r) => ({
+      fullUrl: vollUrl(r),
+      resource: r,
+      search: { mode: 'match', score: 1 },
+    })),
+  };
+}
+
 export function mhdEinhaengen(
   app: FastifyInstance,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
@@ -152,6 +195,14 @@ export function mhdEinhaengen(
     const eins = (n: string) => ([] as string[]).concat(q[n] ?? [])[0];
     const status = eins('status') ?? 'current';
     const typ = codeAus(eins('type'));
+    const typSystem = systemAus(eins('type'));
+    if (
+      typ === EPS_TYP &&
+      (!typSystem || typSystem === 'http://loinc.org') &&
+      abStufe(AB_STUFE.epaEps)
+    ) {
+      return epsSuchergebnis(kvnr, status.split(',').includes('current'));
+    }
     const klasse = codeAus(eins('category'));
     const begriff = eins('_content')?.toLowerCase().trim();
     // Volltextsuche erst ab Weiterentwicklung 1 (ADR 0034). Ein nicht unterstützter
@@ -256,9 +307,17 @@ export function mhdEinhaengen(
     const kvnr = kvnrAus(anfrage);
     const { datei } = anfrage.params as { datei: string };
     const uuid = datei.replace(/\.[a-z]+$/, '');
+    const annehmen = String(anfrage.headers['accept'] ?? '*/*');
+    // Eine erzeugte ePS liegt nicht im Bestand, sondern in der Ablage der letzten Suchen.
+    const eps = abStufe(AB_STUFE.epaEps) ? epsAbrufen(kvnr, uuid) : undefined;
+    if (eps) {
+      if (!annehmen.includes('*/*') && !annehmen.includes('application/fhir+json'))
+        return antwort.code(406).send();
+      void antwort.header('content-type', 'application/fhir+json');
+      return JSON.stringify(eps);
+    }
     const d = bestandFuer(kvnr).dokumente.find((x) => sichtbar(x) && eintragsUuid(x) === uuid);
     if (!d) return antwort.code(404).send();
-    const annehmen = String(anfrage.headers['accept'] ?? '*/*');
     if (!annehmen.includes('*/*') && !annehmen.includes(d.mimeType))
       return antwort.code(406).send();
     void antwort.header('content-type', d.mimeType);

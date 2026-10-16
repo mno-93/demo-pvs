@@ -82,5 +82,18 @@ describe('FHIR-Antworten des Simulators', () => {
         ).toEqual([]);
       }
     });
+
+    // Vorschau ePA 3.2: die ePS des Aktensystems, erzeugt bei der Suche (ADR 0042). Beide Antworten
+    // prüft der HL7-Validator im Vorschau-Lauf gegen die Ballot-Pakete.
+    it(`${kvnr}: ePS des Aktensystems (ITI-67 und ITI-68)`, async () => {
+      const suche = await antwort(
+        kvnr,
+        '/epa/mhd/api/v1/fhir/DocumentReference?type=http://loinc.org|60591-5&status=current',
+      );
+      expect(nurFehler(fhirPruefen(suche))).toEqual([]);
+      const verweis = (suche['entry'] as { resource: Ressource }[])[0]!.resource;
+      const pfad = (verweis['content'] as { attachment: { url: string } }[])[0]!.attachment.url;
+      expect(nurFehler(fhirPruefen(await antwort(kvnr, pfad)))).toEqual([]);
+    });
   }
 });

@@ -67,12 +67,19 @@ export function PatientSummaryAnsicht({
   patientId,
   sprung,
   inDokumentenSuchen,
+  herkunft = 'vorschlag',
 }: {
   inhalt: PatientSummaryInhalt;
   roh: unknown;
   patientId: string;
   sprung: PsSprung;
   inDokumentenSuchen: () => void;
+  /**
+   * `aktensystem`: die ePA European Patient Summary, die das Aktensystem nach den Ballots für
+   * ePA 3.2 erzeugt (über MHD, ADR 0042) — nur die Abschnitte, die sie führt. `vorschlag`: die ✦
+   * Patient Summary der Demo.
+   */
+  herkunft?: 'aktensystem' | 'vorschlag';
 }) {
   const [fhir, setzeFhir] = useState(false);
   const provenance = inhalt.ressourcen.filter((r) => r.resourceType === 'Provenance');
@@ -93,7 +100,9 @@ export function PatientSummaryAnsicht({
     .sort()
     .pop();
   const block = (s: PsAbschnittSchluessel) => {
-    const a = inhalt.abschnitte.find((x) => x.schluessel === s)!;
+    // Die ePS des Aktensystems führt nur ihre Pflicht-Sections; die übrigen Blöcke entfallen.
+    const a = inhalt.abschnitte.find((x) => x.schluessel === s);
+    if (!a) return null;
     return (
       <Block
         key={s}
@@ -126,6 +135,14 @@ export function PatientSummaryAnsicht({
           </span>{' '}
           Patient Summary
         </h3>
+        {herkunft === 'aktensystem' && (
+          <Marker
+            ton="neutral"
+            titel="gemIG_ePA_ePS 1.0.0-ballot.1, abgerufen über MHD 1.2.0-ballot.1"
+          >
+            vom Aktensystem erzeugt · Ballot ePA 3.2
+          </Marker>
+        )}
         <span className="leise-klein">
           Stand {deutscherZeitpunkt(inhalt.erstellt)} · {gefuellt} von {inhalt.abschnitte.length}{' '}
           Abschnitten mit Inhalt

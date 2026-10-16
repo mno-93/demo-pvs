@@ -158,7 +158,9 @@ export function Aufrufprotokoll() {
                 <option value="weiterentwicklung-2">
                   Weiterentwicklung 2 ✦ strukturierte Briefe
                 </option>
-                <option value="weiterentwicklung">Weiterentwicklung 1 · Labor und Volltext</option>
+                <option value="weiterentwicklung">
+                  Weiterentwicklung 1 · ePA 3.2: Labor, Volltext, leere ePS
+                </option>
                 <option value="release-3.1.3">Release 3.1.3</option>
               </select>
             </div>

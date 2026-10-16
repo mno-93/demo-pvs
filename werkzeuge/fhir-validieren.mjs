@@ -14,6 +14,13 @@
  * 4. Die Zusammenfassung steht in `zusammenfassung.json` und `zusammenfassung.md`. In GitHub
  *    Actions erscheint sie auf der Seite des Laufs, Fehler zusätzlich als Anmerkungen.
  *
+ * **Vorschau-Lauf** (ADR 0042): Ausgaben der Vorschau auf ePA 3.2 folgen Ballots, deren Profile
+ * mit denen des Hauptlaufs kollidieren (`epa-mhd-document-reference` 1.1.3 gegen 1.2.0). Dateien,
+ * deren Profil unter `vorschau.profile` fällt, prüft deshalb ein zweiter Lauf gegen
+ * `vorschau.pakete`. Pakete, die nicht in der FHIR-Registry liegen (`vorschau.dateien`), erwartet
+ * das Skript als Datei in `~/.fhir/vorschau` (oder `FHIR_VORSCHAU_PAKETE`) und prüft ihre
+ * Prüfsumme; in der CI holt sie der Job „FHIR-Validator".
+ *
  * Voraussetzungen: Java ab 17 — aus `JAVA_HOME`, sonst `java` im Pfad — und `validator_cli.jar`,
  * Pfad aus `FHIR_VALIDATOR_JAR`, sonst `~/.fhir/validator_cli.jar`.
  * Bezug: https://github.com/hapifhir/org.hl7.fhir.core/releases
@@ -22,11 +29,14 @@
  * Aufruf: npm run fhir:validieren
  */
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   appendFileSync,
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -37,6 +47,9 @@ const konfiguration = JSON.parse(readFileSync('werkzeuge/fhir-validator.json', '
 const ORDNER = join('ausgabe', 'fhir-validierung');
 const RESSOURCEN = join(ORDNER, 'ressourcen');
 const BERICHT = join(ORDNER, 'bericht.json');
+const VORSCHAU = join(ORDNER, 'ressourcen-vorschau');
+const BERICHT_VORSCHAU = join(ORDNER, 'bericht-vorschau.json');
+const PAKETORDNER = process.env.FHIR_VORSCHAU_PAKETE ?? join(homedir(), '.fhir', 'vorschau');
 /** Höchstzahl einzeln aufgeführter Fehler in Zusammenfassung und Anmerkungen. */
 const MAX_EINZELN = 50;
 
@@ -73,31 +86,72 @@ const tests = spawnSync('npx', ['vitest', 'run', ...konfiguration.testdateien], 
 });
 if (tests.status !== 0) abbrechen('Die Tests sind fehlgeschlagen — erst sie, dann der Validator.');
 
-// 3. Validator
-const argumente = [
-  '-jar',
-  jar,
-  RESSOURCEN,
-  '-version',
-  konfiguration.fhirVersion,
-  ...konfiguration.pakete.flatMap((p) => ['-ig', p]),
-  '-tx',
-  konfiguration.terminologie,
-  '-allow-example-urls',
-  'true',
-  ...konfiguration.erweiterungenErlaubt.flatMap((d) => ['-extension', d]),
-  '-output',
-  BERICHT,
-];
-console.log(`\n${JAVA} ${argumente.join(' ')}\n`);
-const lauf = spawnSync(JAVA, argumente, { stdio: 'inherit' });
-if (!existsSync(BERICHT))
-  abbrechen(`Der Validator hat keinen Bericht geschrieben (Status ${lauf.status}).`);
+// Ausgaben der Vorschau in einen eigenen Ordner — sie prüft der zweite Lauf.
+const vorschau = konfiguration.vorschau ?? null;
+let vorschauDateien = 0;
+if (vorschau) {
+  const muster = vorschau.profile.map((p) => new RegExp(p));
+  mkdirSync(VORSCHAU, { recursive: true });
+  for (const name of readdirSync(RESSOURCEN)) {
+    const pfad = join(RESSOURCEN, name);
+    // Ein Suchergebnis gehört dorthin, wohin seine Einträge gehören.
+    if (profileMitEintraegen(pfad).some((pr) => muster.some((m) => m.test(pr)))) {
+      renameSync(pfad, join(VORSCHAU, name));
+      vorschauDateien += 1;
+    }
+  }
+}
+
+/** Ballot-Pakete ohne Registry-Eintrag: als Datei mit fester Prüfsumme. */
+function vorschauPakete() {
+  return (vorschau?.dateien ?? []).map((d) => {
+    const pfad = join(PAKETORDNER, `${d.paket}.tgz`);
+    if (!existsSync(pfad)) {
+      abbrechen(
+        `Ballot-Paket fehlt: ${pfad}\nBezug: ${d.url}\nPrüfsumme (SHA-256): ${d.sha256}\n` +
+          `Etwa: mkdir -p "${PAKETORDNER}" && curl -fsSL -o "${pfad}" "${d.url}"`,
+      );
+    }
+    const ist = createHash('sha256').update(readFileSync(pfad)).digest('hex');
+    if (ist !== d.sha256) {
+      abbrechen(`Prüfsumme stimmt nicht: ${pfad}\nerwartet ${d.sha256}\nist      ${ist}`);
+    }
+    return pfad;
+  });
+}
+
+// 3. Validator — Hauptlauf und, wenn es Ausgaben der Vorschau gibt, Vorschau-Lauf
+function validieren(ordner, pakete, bericht) {
+  const argumente = [
+    '-jar',
+    jar,
+    ordner,
+    '-version',
+    konfiguration.fhirVersion,
+    ...pakete.flatMap((p) => ['-ig', p]),
+    '-tx',
+    konfiguration.terminologie,
+    '-allow-example-urls',
+    'true',
+    ...konfiguration.erweiterungenErlaubt.flatMap((d) => ['-extension', d]),
+    '-output',
+    bericht,
+  ];
+  console.log(`\n${JAVA} ${argumente.join(' ')}\n`);
+  const lauf = spawnSync(JAVA, argumente, { stdio: 'inherit' });
+  if (!existsSync(bericht))
+    abbrechen(`Der Validator hat keinen Bericht geschrieben (Status ${lauf.status}).`);
+  const inhalt = JSON.parse(readFileSync(bericht, 'utf8'));
+  return inhalt.resourceType === 'Bundle' ? inhalt.entry.map((e) => e.resource) : [inhalt];
+}
 
 // 4. Bericht auswerten
-const bericht = JSON.parse(readFileSync(BERICHT, 'utf8'));
-const ergebnisse =
-  bericht.resourceType === 'Bundle' ? bericht.entry.map((e) => e.resource) : [bericht];
+const ergebnisse = [
+  ...validieren(RESSOURCEN, konfiguration.pakete, BERICHT),
+  ...(vorschauDateien > 0
+    ? validieren(VORSCHAU, [...vorschau.pakete, ...vorschauPakete()], BERICHT_VORSCHAU)
+    : []),
+];
 const DATEI = 'http://hl7.org/fhir/StructureDefinition/operationoutcome-file';
 // Ausnahmen greifen über den Meldungstext (`muster`) oder über das Profil der geprüften Datei
 // (`profil`) — Letzteres für ganze Artefakte, die bewusst noch nicht angeglichen sind.
@@ -109,6 +163,17 @@ const ausnahmen = konfiguration.ausnahmen.map((a) => ({
 function profileVon(datei) {
   try {
     return JSON.parse(readFileSync(datei, 'utf8')).meta?.profile ?? [];
+  } catch {
+    return [];
+  }
+}
+function profileMitEintraegen(datei) {
+  try {
+    const r = JSON.parse(readFileSync(datei, 'utf8'));
+    return [
+      ...(r.meta?.profile ?? []),
+      ...(r.entry ?? []).flatMap((e) => e.resource?.meta?.profile ?? []),
+    ];
   } catch {
     return [];
   }
@@ -143,6 +208,7 @@ const ohneTreffer = konfiguration.ausnahmen
 
 const zusammenfassung = {
   dateien: ergebnisse.length,
+  davonVorschau: vorschauDateien,
   fehler: offen.length,
   ausgenommen: Object.fromEntries(ausgenommen),
   ausnahmenOhneTreffer: ohneTreffer,
@@ -152,7 +218,9 @@ writeFileSync(join(ORDNER, 'zusammenfassung.json'), JSON.stringify(zusammenfassu
 const markdown = alsMarkdown();
 writeFileSync(join(ORDNER, 'zusammenfassung.md'), markdown);
 
-console.log(`\n${ergebnisse.length} Dateien geprüft · ${warnungen} Warnungen`);
+console.log(
+  `\n${ergebnisse.length} Dateien geprüft, davon ${vorschauDateien} im Vorschau-Lauf · ${warnungen} Warnungen`,
+);
 for (const [grund, zahl] of ausgenommen) console.log(`ausgenommen (${zahl}): ${grund}`);
 for (const grund of ohneTreffer) console.warn(`Ausnahme ohne Treffer, kann entfallen: ${grund}`);
 
@@ -187,6 +255,15 @@ function alsMarkdown() {
     } · ${warnungen} Warnungen · Pakete: ${konfiguration.pakete.map((p) => `\`${p}\``).join(', ')}`,
     '',
   ];
+  if (vorschauDateien > 0) {
+    const pakete = [...vorschau.pakete, ...(vorschau.dateien ?? []).map((d) => d.paket)];
+    zeilen.push(
+      `Vorschau-Lauf (Ballots ePA 3.2): ${vorschauDateien} Dateien · Pakete: ${pakete
+        .map((p) => `\`${p}\``)
+        .join(', ')}`,
+      '',
+    );
+  }
   if (ausgenommen.size > 0) {
     zeilen.push('| Ausnahme (Grund) | Fehler |', '| --- | ---: |');
     for (const [grund, zahl] of ausgenommen) zeilen.push(`| ${zelle(grund)} | ${zahl} |`);

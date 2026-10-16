@@ -79,6 +79,18 @@ export function zufallHex(bytes: number): string {
   return [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
 }
 
+/**
+ * UUID Version 7 nach RFC 9562: 48 Bit Zeitstempel in Millisekunden, dann Version, Variante und
+ * Zufall. So vergibt der MHD Service Kennungen für Dokumente, die er selbst erzeugt
+ * (IG `de.gematik.epa.mhd` 1.2.0-ballot.1, IG-MHD27048WTV).
+ */
+export function uuidV7(ms: number = Date.now()): string {
+  const zeit = Math.floor(ms).toString(16).padStart(12, '0').slice(-12);
+  const r = zufallHex(10);
+  const variante = ((parseInt(r[3]!, 16) & 0x3) | 0x8).toString(16);
+  return `${zeit.slice(0, 8)}-${zeit.slice(8, 12)}-7${r.slice(0, 3)}-${variante}${r.slice(4, 7)}-${r.slice(7, 19)}`;
+}
+
 /** Base64 oder Base64url zu Text (UTF-8). */
 export function base64ZuText(wert: string): string {
   const normal = wert.replace(/-/g, '+').replace(/_/g, '/');

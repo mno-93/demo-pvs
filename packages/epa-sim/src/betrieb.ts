@@ -8,7 +8,8 @@
 /**
  * Ausbaustand der ePA. `release-3.1.3` bildet nur ab, was spezifiziert ist (ADR 0013). Die
  * Weiterentwicklungen bauen aufeinander auf (ADR 0034):
- * - `weiterentwicklung` (1): strukturierte Laborbefunde (Vorschau auf ePA 3.2) und Volltextsuche;
+ * - `weiterentwicklung` (1): Vorschau auf ePA 3.2 — strukturierte Laborbefunde, Volltextsuche und
+ *   die leere ePA European Patient Summary des Aktensystems über MHD (Ballots, ADR 0042);
  * - `weiterentwicklung-2` (2): ✦ Arzt- und Entlassbriefe als FHIR-Dokument (ADR 0033);
  * - `weiterentwicklung-3` (3): ✦ Allergien- und Diagnosenliste (ADR 0018), Impfliste (ADR 0026)
  *   und Patient Summary (ADR 0021);
@@ -34,6 +35,7 @@ export const STUFE: Record<Ausbaustand, number> = {
 export const AB_STUFE = {
   laborbefunde: 1,
   volltextsuche: 1,
+  epaEps: 1,
   strukturierteBriefe: 2,
   listen: 3,
   patientSummary: 3,

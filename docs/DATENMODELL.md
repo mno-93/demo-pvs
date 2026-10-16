@@ -235,7 +235,9 @@ prüft; in der CI läuft dasselbe im Job „FHIR-Validator“. **Stand 15.10.202
 erste Lauf fand 965; was er fand und welche Ausnahmen mit welchem Grund gelten, steht in
 ENTWICKLUNG, Abschnitt „FHIR-Validator“. Seit der Angleichung an `de.gematik.epa.laboratory`
 1.0.0-ballot.1 ist auch der Laborbefund geprüft; offen sind dort nur zwei Meldungen, die keine
-Instanz beheben kann (SPEZIFIKATION 5.5).
+Instanz beheben kann (SPEZIFIKATION 5.5). Seit 16.10.2026 prüft ein Vorschau-Lauf die Ausgaben
+der Vorschau auf ePA 3.2 gegen die Ballot-Pakete — die erzeugte ePS und ihre DocumentReference nach
+MHD 1.2.0 (ADR 0042): keine Fehler.
 
 Was der Validator ohne Terminologieserver nicht leistet, prüfen Tests: den Abschnitt des
 Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund

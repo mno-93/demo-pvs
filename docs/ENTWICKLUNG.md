@@ -127,6 +127,26 @@ prüft der Validator die gematik-Codesysteme des Laborbefunds nicht (SPEZIFIKATI
 Neue Fassung des Validators: `VALIDATOR_VERSION` und `VALIDATOR_SHA256` im Workflow ändern (die
 Prüfsumme steht am Release-Eintrag auf GitHub), dazu die Version oben.
 
+**Vorschau-Lauf** (ADR 0042): Die Ausgaben der Vorschau auf ePA 3.2 folgen Ballots, deren Profile
+mit denen des Hauptlaufs kollidieren — `epa-mhd-document-reference` gibt es in 1.1.3 und in 1.2.0.
+Das Skript legt Dateien, deren Profil oder deren Einträge unter `vorschau.profile` fallen, in
+`ressourcen-vorschau` ab und prüft sie in einem zweiten Lauf gegen `vorschau.pakete`, darunter
+`de.gematik.epa.mhd` 1.2.0-ballot.1 und `de.gematik.epa` 1.4.0-ballot.1. Das Paket
+`de.gematik.epa.eps` 1.0.0-ballot.1 liegt nicht in der Registry: Es kommt als Datei aus
+`~/.fhir/vorschau` (oder `FHIR_VORSCHAU_PAKETE`), mit fester Prüfsumme aus der Konfiguration.
+Lokal einmal ablegen:
+
+```bash
+mkdir -p ~/.fhir/vorschau && curl -fsSL -o "$HOME/.fhir/vorschau/de.gematik.epa.eps#1.0.0-ballot.1.tgz" https://gemspec.gematik.de/ig/fhir/epa-eps/1.0.0-ballot.1/package.tgz
+```
+
+Die CI holt die Datei im Job „FHIR-Validator“ und prüft die Summe; das Skript prüft sie ein
+zweites Mal. Der Bericht des Vorschau-Laufs steht in `bericht-vorschau.json`.
+
+**Stand 16.10.2026 (MHD-Ballot):** 79 Dateien, davon 4 im Vorschau-Lauf, **keine Fehler**, 815
+Warnungen. Gegenprobe: Ohne `masterIdentifier` und `documentStorageLocation` verwirft der
+Vorschau-Lauf die DocumentReference der ePS mit vier Fehlern (SPEZIFIKATION 5.13, Befund 1).
+
 **Stand nach der Angleichung des Laborbefunds (15.10.2026):** 75 Dateien, **keine Fehler**, rund
 890 Warnungen — überwiegend „ohne Terminologieserver nicht prüfbar“, nicht veröffentlichte
 gematik-ValueSets und Hinweise zur Best Practice. Seit dem Terminologiepaket (16.10.2026) sind es
@@ -150,14 +170,15 @@ bleiben ATC, PZN, OPS und die Codesysteme von IHE Deutschland für Klasse und Ty
 
 **Ausnahmen** (`werkzeuge/fhir-validator.json`, jede mit Grund):
 
-| Ausnahme                                                      | Fehler | Grund                                                                                                                                          |
-| ------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3   | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig                                       |
-| Abschnitt des Laborbefunds (`section:result`) und Folgefehler | 9      | ohne Terminologieserver nicht auswertbar: Zuordnung über `memberOf` auf ein LOINC-ValueSet; der Abschnitt ist in `laborbefund.test.ts` geprüft |
-| `content.format` an ✦ strukturierten Briefen                  | 6      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                                                        |
-| Provenance früherer Fassungen in der Patient Summary          | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                                                           |
-| `dr-comp-identifier` im Laborbefund                           | 3      | Profilkonflikt im Ballot: `composition-dglp` verbietet `identifier.type`, `diagnostic-report-dglp` verlangt ihn — nicht erfüllbar              |
-| E-Rezept                                                      | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                                                            |
+| Ausnahme                                                       | Fehler | Grund                                                                                                                                                         |
+| -------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identifier im MHD-Profil `epa-mhd-document-reference` 1.1.3    | 60     | Profilfehler: Schnitt nach `use`, dessen Werte nur in den Typprofilen stehen; die Instanzen sind richtig                                                      |
+| Abschnitt des Laborbefunds (`section:result`) und Folgefehler  | 9      | ohne Terminologieserver nicht auswertbar: Zuordnung über `memberOf` auf ein LOINC-ValueSet; der Abschnitt ist in `laborbefund.test.ts` geprüft                |
+| `content.format` an ✦ strukturierten Briefen                   | 3      | bewusst kein erfundener formatCode (SPEZIFIKATION 5.11)                                                                                                       |
+| Provenance früherer Fassungen in der Patient Summary           | 4      | im Dokument nicht auflösbar; Abbildung der Herkunft offen (DATENMODELL, Abschnitt 7)                                                                          |
+| `dr-comp-identifier` im Laborbefund                            | 3      | Profilkonflikt im Ballot: `composition-dglp` verbietet `identifier.type`, `diagnostic-report-dglp` verlangt ihn — nicht erfüllbar                             |
+| E-Rezept                                                       | 1      | vereinfachter Demo-Ersatz, KBV-Pakete nicht geladen                                                                                                           |
+| formatCode des Laborbefunds (`urn:gematik:ig:laboratory:v1.0`) | 3      | Der Hauptlauf löst das ValueSet über `epa-mhd` 1.1.3 gegen die ältere TI Terminology auf; die Expansion in 1.1.0-ballot.2 führt den Code (SPEZIFIKATION 5.13) |
 
 Ausnahmen greifen über den Meldungstext (`muster`) oder über das Profil der geprüften Datei
 (`profil`). Eine neue Ausnahme nur mit Grund und nur so eng wie möglich; lässt sich ein Profilfehler
@@ -245,6 +266,8 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P64 | Arztbrief nach eGK → je Abschnitt „Auswählen ▾“; Diagnosen: Vorhofflimmern ☑; Escape; Befunde → „Befund in der Karteikarte notieren →“ → Notiz B speichern → zurück                                                                                   | Menü mit Gruppen Praxis und ePA, Filterfeld fokussiert; ePA-Eintrag mit Marker „ePA“ im Brief; Escape schließt, Fokus am Knopf; Reiter „Arztbrief ✦ · Entwurf“; neuer Befund gewählt mit „neu“, Beurteilung erhalten; Konsole ohne Fehler                                                                      |
 | P65 | Diagnose erfassen: Klinischer Status „Rezidiv“, dann „Behoben“                                                                                                                                                                                        | Bei „Rezidiv“ ist „Zeitraum bis“ gesperrt („nur Beginn, solange gegenwärtig“) und leer; bei „Behoben“ frei. Die FHIR-Vorschau zeigt `abatementDateTime` nur bei „Behoben“                                                                                                                                      |
 | P66 | Allergie erfassen: Klinischer Status „Aktiv“, dann „Behoben“ mit „Zeitraum bis“                                                                                                                                                                       | Bei „Aktiv“ ist „Zeitraum bis“ gesperrt; nach dem Speichern trägt der Eintrag der Allergienliste das Ende als Extension `allergyintolerance-abatement`, nicht als `onsetPeriod`                                                                                                                                |
+| P67 | „Weiterentwicklung 1“, Frau Hoffmann nach eGK → ePA-Fenster → Reiter „Patient Summary“                                                                                                                                                                | „vom Aktensystem erzeugt · Ballot ePA 3.2“, „0 von 5 Abschnitten mit Inhalt“, fünf Blöcke „Information nicht verfügbar“; in den Aufrufen ITI-67 `type=…60591-5`, dann ITI-68                                                                                                                                   |
+| P68 | Ausbaustand von „Weiterentwicklung 1“ auf „3“, dann auf „Release 3.1.3“                                                                                                                                                                               | in 3 die ✦ Patient Summary ohne den Marker, in 3.1.3 weder Reiter noch Kachel; beim Umschalten kein Abruf mit altem Stand (kein 404 auf `$summary`, keine ePS-Suche in 3)                                                                                                                                      |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

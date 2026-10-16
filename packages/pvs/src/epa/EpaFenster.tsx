@@ -35,6 +35,7 @@ import {
   diagnosedienstVerfuegbar,
   dokumentAbrufen,
   dokumenteSuchen,
+  epaPatientSummarySuchen,
   istDatei,
   medikationslisteLesen,
   medikationsplanLesen,
@@ -142,12 +143,25 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
   const dienst = useEpaAbfrage(() => diagnosedienstVerfuegbar(), [betriebsstand]);
   const mitListen = dienst.daten === true;
   const summaryDienst = useEpaAbfrage(() => patientSummaryVerfuegbar(), [betriebsstand]);
-  const mitSummary = summaryDienst.daten === true;
   const mitLotse = useLotseVorhanden() === true;
   const zugriff = !dokumente.fehler;
+  // Ohne den ✦ Dienst sucht das Praxissystem die ePS des Aktensystems über MHD (Vorschau ePA 3.2,
+  // ADR 0042). Im Release 3.1.3 findet die Suche keine; dann gibt es den Reiter nicht. Gesucht wird
+  // erst nach der frischen Antwort, ob es den Dienst gibt — sonst liefe beim Umschalten des
+  // Ausbaustands eine Suche mit dem alten Stand.
+  const epsAktensystem = useEpaAbfrage(
+    () => epaPatientSummarySuchen(kvnr),
+    [kvnr, einlesungen, summaryDienst.geladenUm],
+    zugriff && summaryDienst.daten === false && !summaryDienst.laedt,
+  );
+  const vomAktensystem = summaryDienst.daten === false && !!epsAktensystem.daten;
+  const mitSummary = summaryDienst.daten === true || vomAktensystem;
   // Ein Reiter, den das Aktensystem nicht (mehr) anbietet, fällt auf die Übersicht zurück.
   const ansicht: EpaBereich =
-    (bereich === 'summary' && summaryDienst.daten === false) ||
+    (bereich === 'summary' &&
+      summaryDienst.daten === false &&
+      !epsAktensystem.laedt &&
+      !epsAktensystem.daten) ||
     (bereich === 'listen' && dienst.daten === false) ||
     (bereich === 'lotse' && !mitLotse)
       ? 'uebersicht'
@@ -170,12 +184,23 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
     [kvnr, einlesungen, betriebsstand],
     zugriff && mitListen && (ueberblick || gebraucht.has('listen')),
   );
-  const summary = useEpaAbfrage(
+  const vorschlag = useEpaAbfrage(
     () => patientSummaryAbrufen(kvnr),
-    [kvnr, einlesungen, betriebsstand],
-    zugriff && mitSummary && (ueberblick || gebraucht.has('summary')),
+    [kvnr, einlesungen, summaryDienst.geladenUm],
+    zugriff &&
+      summaryDienst.daten === true &&
+      !summaryDienst.laedt &&
+      (ueberblick || gebraucht.has('summary')),
   );
-  const summaryInhalt = useMemo(() => patientSummaryLesen(summary.daten), [summary.daten]);
+  // Der Reiter zeigt die ✦ Patient Summary, sonst die ePS des Aktensystems.
+  const summary = vomAktensystem ? epsAktensystem : vorschlag;
+  const summaryRoh = vomAktensystem ? epsAktensystem.daten?.inhalt : vorschlag.daten;
+  // Ohne Patient Summary kein Inhalt — auch nicht der einer früheren Abfrage, etwa nach dem
+  // Umschalten auf einen Ausbaustand ohne sie.
+  const summaryInhalt = useMemo(
+    () => (mitSummary ? patientSummaryLesen(summaryRoh, { nurVorhandene: vomAktensystem }) : null),
+    [mitSummary, summaryRoh, vomAktensystem],
+  );
   // Stand und „aktualisieren" gelten für die Abfrage, auf der der gewählte Reiter beruht.
   const aktiv =
     ansicht === 'summary'
@@ -327,7 +352,8 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
             ) : (
               <PatientSummaryAnsicht
                 inhalt={summaryInhalt}
-                roh={summary.daten}
+                roh={summaryRoh}
+                herkunft={vomAktensystem ? 'aktensystem' : 'vorschlag'}
                 patientId={patient.id}
                 sprung={(ziel) => {
                   epaFensterSchliessen();

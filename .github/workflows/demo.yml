@@ -84,6 +84,17 @@ jobs:
         with:
           path: ~/.fhir/packages
           key: fhir-pakete-${{ hashFiles('werkzeuge/fhir-validator.json') }}
+      - name: Ballot-Pakete der Vorschau holen
+        # Pakete ohne Registry-Eintrag, mit fester Prüfsumme aus werkzeuge/fhir-validator.json
+        # (vorschau.dateien, ADR 0042). Das Skript prüft die Summe ein zweites Mal.
+        run: |
+          mkdir -p "$HOME/.fhir/vorschau"
+          jq -r '.vorschau.dateien[] | [.paket, .url, .sha256] | @tsv' werkzeuge/fhir-validator.json |
+            while IFS=$'\t' read -r paket url sha; do
+              ziel="$HOME/.fhir/vorschau/${paket}.tgz"
+              curl -fsSL -o "$ziel" "$url"
+              echo "${sha}  ${ziel}" | sha256sum --check --strict
+            done
       - run: npm ci
       - run: npm run build --workspace @demo-pvs/kern
       - name: Validieren

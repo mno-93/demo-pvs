@@ -48,7 +48,8 @@ Daraus folgen drei Regeln, die beim Weiterbauen einzuhalten sind:
 Der Simulator folgt den Implementation Guides des Release ePA 3.1.3 —
 [0013](entscheidungen/0013-epa-zugriffe-nach-release-3-1-3.md),
 [0019](entscheidungen/0019-konformitaet-mit-den-implementation-guides.md). Dokumente über den
-MHD Service (`epa-sim/src/mhd.ts`: ITI-67 mit Volltext, ITI-68), Medikation über den Medication
+MHD Service (`epa-sim/src/mhd.ts`: ITI-67 mit Volltext, ITI-68; in der Vorschau auf ePA 3.2 die
+leere ePS des Aktensystems aus `epa-sim/src/epa-eps.ts`, ADR 0042), Medikation über den Medication
 Service (`epa-sim/src/medikation.ts`: Liste, Plan, Plan-Log, EMP-Operationen, Nachtrag,
 Verknüpfung). Gemeinsame Schreibmechanik in `epa-sim/src/schreibwege.ts`
 (`X-Requesting-Organization`, `EPAActivityProvenance`, Versionierung) und
