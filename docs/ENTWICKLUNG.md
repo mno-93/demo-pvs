@@ -22,10 +22,12 @@ Node ab Version 20. Prüfen mit `node -v`.
 
 ## Gehostete Fassung und Workflow
 
-`.github/workflows/demo.yml` läuft bei jedem Push und Pull Request: `npm ci`, Kern bauen,
-`npm run pruefen`, dann `npm run build:gehostet` mit `BASIS=/<repository>/`. Auf `main`
-veröffentlicht er auf GitHub Pages, wenn die Repository-Variable `PAGES_FREIGEGEBEN` den Wert
-`ja` hat (ADR 0025). Ohne diese Variable bleibt es bei Prüfen und Bauen.
+`.github/workflows/demo.yml` läuft bei jedem Push auf einen Branch und bei Pull Requests aus
+Forks; Pull Requests aus dem Repository sind über den Push geprüft (ADR 0041). Ablauf: `npm ci`,
+Kern bauen, `npm run pruefen`, danach parallel der FHIR-Validator und `npm run build:gehostet` mit
+`BASIS=/<repository>/`. Auf `main` veröffentlicht er auf GitHub Pages, wenn der Validator
+bestanden hat und die Repository-Variable `PAGES_FREIGEGEBEN` den Wert `ja` hat (ADR 0025). Ohne
+diese Variable bleibt es bei Prüfen und Bauen.
 
 Im Hosting-Build leitet `pvs/src/epa/transport.ts` die Wege `/epa`, `/information`, `/erp` und
 `/verwaltung` an `simulatorImBrowser()` aus `@demo-pvs/epa-sim/browser`. Wer im Simulator etwas
@@ -96,26 +98,41 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
 2. **Validator:** Er prüft den Ordner gegen die Pakete der Konfiguration, ohne Terminologieserver
    (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt.
 3. **Auswertung:** Das Skript liest `bericht.json`, nimmt die begründeten Ausnahmen der
-   Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Die Zusammenfassung steht in
-   `zusammenfassung.json`.
+   Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Eine Ausnahme ohne Treffer
+   meldet es als Warnung — sie kann entfallen. Die Zusammenfassung steht in `zusammenfassung.json`
+   und `zusammenfassung.md`.
 
 **Voraussetzungen:**
 
 - Java ab Version 17 — aus `JAVA_HOME`, sonst `java` im Pfad. Mit Homebrew ohne Eingriff in die
   Shell: `brew install openjdk@21`, dann `JAVA_HOME="$(brew --prefix openjdk@21)" npm run fhir:validieren`.
 - `validator_cli.jar` **7.0.1** von github.com/hapifhir/org.hl7.fhir.core/releases, abgelegt unter
-  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`. Die CI lädt dieselbe Fassung.
+  `~/.fhir/validator_cli.jar` oder angegeben in `FHIR_VALIDATOR_JAR`. Die CI lädt dieselbe Fassung
+  und prüft ihre SHA-256-Prüfsumme (`VALIDATOR_SHA256` im Workflow).
 
 Das Skript lädt nichts selbst herunter. Der Validator holt die Pakete beim ersten Lauf aus der
-Registry.
+Registry. Darunter ist `de.gematik.terminology`: Kein Paket führt es als Abhängigkeit, ohne es
+prüft der Validator die gematik-Codesysteme des Laborbefunds nicht (SPEZIFIKATION 5.5, Befund 4).
 
-**In der CI:** Job „FHIR-Validator“ in `.github/workflows/demo.yml`, mit Bericht als Artefakt.
-Seit der Kalibrierung am 15.10.2026 lässt jeder Fehler ohne begründete Ausnahme den Lauf
-scheitern.
+**In der CI** (Job „FHIR-Validator“ in `.github/workflows/demo.yml`, ADR 0041):
+
+- läuft bei jedem Push auf jeden Branch, nach „Format, Lint, Typen, Tests“;
+- Validator und Pakete kommen aus dem Cache, der Validator nur mit passender Prüfsumme;
+- die Zusammenfassung steht auf der Seite des Laufs, jeder verbleibende Fehler als Anmerkung,
+  Ausnahmen ohne Treffer als Warnung; der vollständige Bericht ist das Artefakt
+  „fhir-validierung“;
+- seit der Kalibrierung am 15.10.2026 lässt jeder Fehler ohne begründete Ausnahme den Lauf
+  scheitern — und ohne bestandenen Validator wird nicht veröffentlicht.
+
+Neue Fassung des Validators: `VALIDATOR_VERSION` und `VALIDATOR_SHA256` im Workflow ändern (die
+Prüfsumme steht am Release-Eintrag auf GitHub), dazu die Version oben.
 
 **Stand nach der Angleichung des Laborbefunds (15.10.2026):** 75 Dateien, **keine Fehler**, rund
 890 Warnungen — überwiegend „ohne Terminologieserver nicht prüfbar“, nicht veröffentlichte
-gematik-ValueSets und Hinweise zur Best Practice. Der erste Lauf fand 965 Fehler. Behoben sind:
+gematik-ValueSets und Hinweise zur Best Practice. Seit dem Terminologiepaket (16.10.2026) sind es
+779 Warnungen: Die Meldungen zu den unbekannten gematik-Codesystemen entfallen. Weiter unbekannt
+bleiben ATC, PZN, OPS und die Codesysteme von IHE Deutschland für Klasse und Typ der Dokumente
+(`urn:oid:1.3.6.1.4.1.19376.3.276.1.5.8` und `….5.9`). Der erste Lauf fand 965 Fehler. Behoben sind:
 
 | Befund des Validators                                                                                                          | Behebung                                                                                                           |
 | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------ |

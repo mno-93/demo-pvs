@@ -69,13 +69,15 @@ Regeln aus [CLAUDE.md](CLAUDE.md) übernimmt. Rollen, Ablauf und was nie ins Rep
 
 ## Gehostete Demo
 
-Der Workflow [`.github/workflows/demo.yml`](.github/workflows/demo.yml) prüft jede Änderung und
-baut eine Fassung, in der der ePA-Simulator im Browser läuft — ePA, E-Rezepte und
-Demo-Steuerung funktionieren ohne Server
+Der Workflow [`.github/workflows/demo.yml`](.github/workflows/demo.yml) prüft jeden Push auf
+jeden Branch, legt die FHIR-Ausgaben dem HL7 FHIR Validator vor und baut eine Fassung, in der der
+ePA-Simulator im Browser läuft — ePA, E-Rezepte und Demo-Steuerung funktionieren ohne Server
 ([ADR 0025](docs/entscheidungen/0025-gehostete-demo-mit-simulator-im-browser.md)). Neu laden setzt
-den Bestand zurück.
+den Bestand zurück. Das Ergebnis des Validators steht auf der Seite des Laufs
+([ADR 0041](docs/entscheidungen/0041-validator-in-der-ci.md)).
 
-Veröffentlicht wird auf GitHub Pages, sobald
+Veröffentlicht wird auf GitHub Pages von `main`, wenn der Validator ohne Fehler durchgelaufen ist
+und sobald
 
 1. unter _Settings → Pages_ als Quelle **GitHub Actions** gewählt ist und
 2. unter _Settings → Secrets and variables → Actions → Variables_ die Variable

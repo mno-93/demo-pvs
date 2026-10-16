@@ -49,9 +49,9 @@ export const DGLP = 'https://gematik.de/fhir/epa-laboratory/StructureDefinition/
 /** Versionen der Terminologien, wie sie der Content-IG in Mustern und Beispielen führt. */
 export const LOINC_VERSION = '2.82';
 /**
- * Version des gematik-Codesystems `laboratory-identificator`, wie sie die Beispiele des Pakets
- * führen (die Profile verlangen sie, 1..1). ⚠ Das Codesystem selbst liegt in keinem
- * veröffentlichten Paket; Version und Anzeigen sind nur über die Beispiele belegt.
+ * Version des gematik-Codesystems `laboratory-identificator`, die die Profile an der Kennungsart
+ * verlangen (1..1): 1.1.0 im Terminologiepaket `de.gematik.terminology` 1.1.0-ballot.2. Das Paket
+ * ist keine Abhängigkeit des Laborpakets; der Validator lädt es eigens (SPEZIFIKATION 5.5).
  */
 const LABOR_CS_VERSION = '1.1.0';
 const LABOR_KENNUNG = 'https://gematik.de/fhir/terminology/CodeSystem/laboratory-identificator';

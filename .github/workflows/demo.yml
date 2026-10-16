@@ -1,13 +1,18 @@
-# Prüft jede Änderung und veröffentlicht die Demo auf GitHub Pages (ADR 0025).
+# Prüft jede Änderung und veröffentlicht die Demo auf GitHub Pages (ADR 0025, ADR 0041).
 #
-# Veröffentlicht wird erst, wenn die Repository-Variable PAGES_FREIGEGEBEN den Wert „ja" hat —
-# die Seite ist dann öffentlich erreichbar, auch wenn das Repository privat ist. Bis dahin
-# prüft und baut der Workflow nur; das gebaute Paket liegt als Artefakt am Lauf.
+# Läuft bei jedem Push auf einen Branch und bei Pull Requests aus Forks; Pull Requests aus dem
+# Repository selbst sind über den Push schon geprüft. Der FHIR-Validator prüft die Ausgaben der
+# Demo gegen die veröffentlichten Pakete; sein Ergebnis steht auf der Seite des Laufs.
+#
+# Veröffentlicht wird nur von main, nur mit bestandenem FHIR-Validator und erst, wenn die
+# Repository-Variable PAGES_FREIGEGEBEN den Wert „ja" hat — die Seite ist dann öffentlich
+# erreichbar, auch wenn das Repository privat ist. Bis dahin prüft und baut der Workflow nur; das
+# gebaute Paket liegt als Artefakt am Lauf.
 name: Prüfen und veröffentlichen
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
@@ -21,6 +26,9 @@ concurrency:
 jobs:
   pruefen:
     name: Format, Lint, Typen, Tests
+    # Pull Requests aus dem Repository prüft schon der Push; hier nur solche aus Forks. Die übrigen
+    # Jobs hängen an diesem und entfallen mit ihm.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,8 +48,13 @@ jobs:
     name: FHIR-Validator
     needs: pruefen
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     # Kalibriert am 15.10.2026: Jeder Fehler, der nicht unter eine begründete Ausnahme in
     # werkzeuge/fhir-validator.json fällt, lässt den Lauf scheitern (docs/ENTWICKLUNG.md).
+    env:
+      # Dieselbe Fassung wie lokal; die Prüfsumme ist die des Release-Eintrags auf GitHub.
+      VALIDATOR_VERSION: 7.0.1
+      VALIDATOR_SHA256: 1178b6a3a3fe98d9cd9545cadee505274967332466001d857e4d8bed7138a5bc
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,20 +65,31 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+      - name: Validator aus dem Cache
+        id: validator
+        uses: actions/cache@v4
+        with:
+          path: ~/.fhir/validator_cli.jar
+          key: fhir-validator-${{ env.VALIDATOR_VERSION }}-${{ env.VALIDATOR_SHA256 }}
+      - name: HL7 FHIR Validator holen
+        if: steps.validator.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.fhir
+          curl -fsSL -o ~/.fhir/validator_cli.jar \
+            "https://github.com/hapifhir/org.hl7.fhir.core/releases/download/${VALIDATOR_VERSION}/validator_cli.jar"
+      - name: Prüfsumme des Validators
+        run: echo "${VALIDATOR_SHA256}  ${HOME}/.fhir/validator_cli.jar" | sha256sum --check --strict
       - name: Paket-Cache des Validators
         uses: actions/cache@v4
         with:
           path: ~/.fhir/packages
           key: fhir-pakete-${{ hashFiles('werkzeuge/fhir-validator.json') }}
-      - name: HL7 FHIR Validator holen
-        # Dieselbe Fassung wie lokal (docs/ENTWICKLUNG.md, „FHIR-Validator“).
-        run: |
-          mkdir -p ~/.fhir
-          curl -fsSL -o ~/.fhir/validator_cli.jar \
-            https://github.com/hapifhir/org.hl7.fhir.core/releases/download/7.0.1/validator_cli.jar
       - run: npm ci
       - run: npm run build --workspace @demo-pvs/kern
-      - run: npm run fhir:validieren
+      - name: Validieren
+        # Schreibt die Zusammenfassung auf die Seite des Laufs; Fehler und Ausnahmen ohne Treffer
+        # erscheinen als Anmerkungen.
+        run: npm run fhir:validieren
       - name: Bericht sichern
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,7 +118,8 @@ jobs:
 
   veroeffentlichen:
     name: Auf GitHub Pages veröffentlichen
-    needs: bauen
+    # Nur was der Validator ohne Fehler geprüft hat, geht öffentlich (ADR 0041).
+    needs: [bauen, fhir-validator]
     if: github.ref == 'refs/heads/main' && vars.PAGES_FREIGEGEBEN == 'ja'
     runs-on: ubuntu-latest
     permissions:

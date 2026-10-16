@@ -5,6 +5,13 @@ E-Rezept und die Abrechnung. Entscheidung: [ADR 0039](entscheidungen/0039-einmal
 
 Kennzeichnung: ⚠ = unbelegt, zu verifizieren · ▸ = Bewertung · ✦ = Vorschlag, nicht spezifiziert.
 
+![Datenmodell im Überblick: Bestände im Praxissystem, Abbildung nach FHIR im Kern, Ausgaben an ePA, KIM, E-Rezept-Fachdienst und ohne FHIR im Praxissystem; darunter der Weg einer Diagnose](abbildungen/datenmodell.svg)
+
+_Überblick:_ Grau durchgezogen der Weg über den Kern — dort entsteht FHIR und geht nach außen; blau
+gestrichelt der Rückweg in die Bestände; grün der Weg ohne FHIR. Die Abbildung ist eine Datei
+([`abbildungen/datenmodell.svg`](abbildungen/datenmodell.svg)) — wer Bestände oder Abbildungen
+ändert, zieht sie nach.
+
 ## 1 Grundsatz
 
 **Jede Angabe wird an genau einer Stelle erfasst** — in dem Bestand, zu dem sie gehört. Alles
@@ -266,8 +273,8 @@ Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund
    - ▸ `dr-comp-identifier` ist mit den dgLP-Profilen nicht erfüllbar (Ausnahme im Validator).
    - ▸ `obs-range-2` schließt einseitige Referenzbereiche aus; die Demo setzt die fehlende Grenze
      mit `data-absent-reason` — ⚠ ob das dgLP das so vorsieht, ist offen.
-   - ⚠ Die gematik-Codesysteme `laboratory-identificator` und `laboratory-study-group` liegen in
-     keinem veröffentlichten Paket; die verlangte Version 1.1.0 an `laboratory-identificator` ist
-     nur über die Beispiele des Pakets belegt.
+   - Die gematik-Codesysteme `laboratory-identificator` und `laboratory-study-group` stehen in
+     Version 1.1.0 in `de.gematik.terminology` 1.1.0-ballot.2. Das Laborpaket führt es bewusst
+     nicht als Abhängigkeit; der Validator lädt es eigens (SPEZIFIKATION 5.5, Befund 4).
    - Die Laborbefunde tragen keinen Laborbereich an der Gruppe und keine optionalen Angaben
      (Akkreditierung, kritisches Ergebnis, alternative Ergebnisse).

@@ -10,7 +10,9 @@
  * 2. Der Validator prüft den Ordner gegen die Pakete der Konfiguration. Er lädt sie beim ersten
  *    Lauf in den Paket-Cache unter `~/.fhir/packages`.
  * 3. Das Skript liest den Bericht, nimmt die begründeten Ausnahmen heraus und endet mit Fehler,
- *    wenn ein Fehler bleibt.
+ *    wenn ein Fehler bleibt. Ausnahmen ohne Treffer meldet es, ohne den Lauf scheitern zu lassen.
+ * 4. Die Zusammenfassung steht in `zusammenfassung.json` und `zusammenfassung.md`. In GitHub
+ *    Actions erscheint sie auf der Seite des Laufs, Fehler zusätzlich als Anmerkungen.
  *
  * Voraussetzungen: Java ab 17 — aus `JAVA_HOME`, sonst `java` im Pfad — und `validator_cli.jar`,
  * Pfad aus `FHIR_VALIDATOR_JAR`, sonst `~/.fhir/validator_cli.jar`.
@@ -20,7 +22,14 @@
  * Aufruf: npm run fhir:validieren
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -28,6 +37,8 @@ const konfiguration = JSON.parse(readFileSync('werkzeuge/fhir-validator.json', '
 const ORDNER = join('ausgabe', 'fhir-validierung');
 const RESSOURCEN = join(ORDNER, 'ressourcen');
 const BERICHT = join(ORDNER, 'bericht.json');
+/** Höchstzahl einzeln aufgeführter Fehler in Zusammenfassung und Anmerkungen. */
+const MAX_EINZELN = 50;
 
 function abbrechen(text, code = 2) {
   console.error(`\n${text}\n`);
@@ -120,21 +131,80 @@ for (const oo of ergebnisse) {
       continue;
     }
     const ort = (issue.expression ?? issue.location ?? [])[0] ?? '';
-    offen.push(`${datei.split(/[\\/]/).pop()} · ${ort}\n    ${text}`);
+    offen.push({ datei: datei.split(/[\\/]/).pop(), ort, text });
   }
 }
+
+// Eine Ausnahme ohne Treffer kann entfallen, wenn der Ballot den Fehler behoben oder die Demo
+// einen Umweg gefunden hat (ADR 0040). Sie lässt den Lauf nicht scheitern, wird aber gemeldet.
+const ohneTreffer = konfiguration.ausnahmen
+  .map((a) => a.grund)
+  .filter((grund) => !ausgenommen.has(grund));
 
 const zusammenfassung = {
   dateien: ergebnisse.length,
   fehler: offen.length,
   ausgenommen: Object.fromEntries(ausgenommen),
+  ausnahmenOhneTreffer: ohneTreffer,
   warnungen,
 };
 writeFileSync(join(ORDNER, 'zusammenfassung.json'), JSON.stringify(zusammenfassung, null, 2));
+const markdown = alsMarkdown();
+writeFileSync(join(ORDNER, 'zusammenfassung.md'), markdown);
+
 console.log(`\n${ergebnisse.length} Dateien geprüft · ${warnungen} Warnungen`);
 for (const [grund, zahl] of ausgenommen) console.log(`ausgenommen (${zahl}): ${grund}`);
+for (const grund of ohneTreffer) console.warn(`Ausnahme ohne Treffer, kann entfallen: ${grund}`);
+
+// GitHub Actions: Zusammenfassung auf der Seite des Laufs, Fehler und überholte Ausnahmen als
+// Anmerkungen. Die Werte stehen in Workflow-Befehlen, deshalb die Maskierung.
+if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
+if (process.env.GITHUB_ACTIONS === 'true') {
+  const befehl = (s) => s.replace(/%/g, '%25').replace(/\r/g, '%0D').replace(/\n/g, '%0A');
+  for (const f of offen.slice(0, MAX_EINZELN)) {
+    console.log(`::error title=FHIR-Validator::${befehl(`${f.datei} · ${f.ort}: ${f.text}`)}`);
+  }
+  for (const grund of ohneTreffer) {
+    console.log(`::warning title=FHIR-Validator - Ausnahme ohne Treffer::${befehl(grund)}`);
+  }
+}
+
 if (offen.length > 0) {
-  console.error(`\n${offen.length} Fehler:\n\n${offen.join('\n')}`);
+  const liste = offen.map((f) => `${f.datei} · ${f.ort}\n    ${f.text}`).join('\n');
+  console.error(`\n${offen.length} Fehler:\n\n${liste}`);
   process.exit(1);
 }
 console.log('Keine Fehler.');
+
+/** Zusammenfassung als Markdown — für die Seite des Laufs und `zusammenfassung.md`. */
+function alsMarkdown() {
+  const zelle = (s) => s.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  const zeilen = [
+    '## FHIR-Validator',
+    '',
+    `${ergebnisse.length} Dateien geprüft · ${
+      offen.length === 0 ? '**keine Fehler**' : `**${offen.length} Fehler**`
+    } · ${warnungen} Warnungen · Pakete: ${konfiguration.pakete.map((p) => `\`${p}\``).join(', ')}`,
+    '',
+  ];
+  if (ausgenommen.size > 0) {
+    zeilen.push('| Ausnahme (Grund) | Fehler |', '| --- | ---: |');
+    for (const [grund, zahl] of ausgenommen) zeilen.push(`| ${zelle(grund)} | ${zahl} |`);
+    zeilen.push('');
+  }
+  if (ohneTreffer.length > 0) {
+    zeilen.push('**Ausnahmen ohne Treffer** — können entfallen (ADR 0040):', '');
+    for (const grund of ohneTreffer) zeilen.push(`- ${zelle(grund)}`);
+    zeilen.push('');
+  }
+  if (offen.length > 0) {
+    const anzahl = Math.min(offen.length, MAX_EINZELN);
+    zeilen.push(`**Fehler** (${anzahl} von ${offen.length}; alle im Artefakt „fhir-validierung“):`);
+    zeilen.push('');
+    for (const f of offen.slice(0, MAX_EINZELN)) {
+      zeilen.push(`- \`${f.datei}\` · \`${f.ort}\` — ${zelle(f.text)}`);
+    }
+    zeilen.push('');
+  }
+  return `${zeilen.join('\n')}\n`;
+}
