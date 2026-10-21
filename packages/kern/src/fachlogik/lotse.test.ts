@@ -4,7 +4,9 @@ import {
   lotseAntworten,
   medikationAbgleichen,
   medikationszeilenZerlegen,
+  uebernehmbar,
   vorschlaegeAusText,
+  vorschlagAlsDiagnose,
   VORSCHLAGSFRAGEN,
   type Lotsenquelle,
 } from './lotse.js';
@@ -390,5 +392,103 @@ describe('Ansprache und Belege', () => {
     );
     expect(satz.belege[0]?.zeilen).toEqual(['Allergien sind nicht bekannt.']);
     expect(antwort.absaetze[0]?.text).toMatch(/^In den Unterlagen ist eine Unverträglichkeit/);
+  });
+});
+
+describe('✦ Übernahme eines Vorschlags in die Liste', () => {
+  const vorschlaege = vorschlaegeAusText(ENTLASSBRIEF);
+  const diagnose = vorschlaege.find((v) => v.liste === 'diagnosen');
+  const prozedur = vorschlaege.find((v) => v.liste === 'prozeduren' && v.band === 'uebernehmbar');
+
+  it('hält eine kodierte Diagnose für übernehmbar', () => {
+    expect(diagnose && uebernehmbar(diagnose)).toBe(true);
+  });
+
+  it('hält eine kodierte Prozedur nicht für übernehmbar — es gibt keine Liste dafür', () => {
+    expect(prozedur?.band).toBe('uebernehmbar');
+    expect(prozedur && uebernehmbar(prozedur)).toBe(false);
+  });
+
+  it('hält einen Fund ohne Kodierung nicht für übernehmbar', () => {
+    const ohneKode = vorschlaegeAusText({
+      ...ENTLASSBRIEF,
+      zeilen: ['Echokardiographie: LVEF 40 %'],
+    });
+    expect(uebernehmbar(ohneKode[0]!)).toBe(false);
+  });
+
+  it('baut aus dem Vorschlag einen Listeneintrag mit übernommener Kodierung', () => {
+    const e = vorschlagAlsDiagnose(diagnose!, 'p-hoffmann', '2026-10-20');
+    expect(e?.code).toBe(diagnose!.kodierung!.code);
+    expect(e?.bezeichnung).not.toMatch(/^[A-Z][0-9]{2}/);
+    expect(e?.patientId).toBe('p-hoffmann');
+    expect(e?.dokumentiertAm).toBe('2026-10-20');
+  });
+
+  it('nennt in der Herkunft die Maschine und das Quelldokument', () => {
+    const e = vorschlagAlsDiagnose(diagnose!, 'p-hoffmann', '2026-10-20');
+    expect(e?.herkunft.quelle).toMatch(/^maschinell vorgeschlagen aus /);
+    expect(e?.herkunft.dokumentId).toBe(diagnose!.fundstelle.quelleId);
+    // Verantwortlich wird, wer bestätigt — der Dienst trägt hier niemanden ein.
+    expect(e?.herkunft.verantwortlich).toBe('');
+  });
+
+  it('baut aus einer Prozedur oder einem Fund ohne Kodierung keinen Eintrag', () => {
+    expect(vorschlagAlsDiagnose(prozedur!, 'p-hoffmann', '2026-10-20')).toBeNull();
+  });
+});
+
+describe('✦ Kodierung, Konfidenz und Bänder der Vorschläge', () => {
+  const vorschlaege = vorschlaegeAusText(ENTLASSBRIEF);
+  const zu = (teil: string) => vorschlaege.find((v) => v.text.includes(teil));
+
+  it('übernimmt den ICD-Kode aus der Briefzeile und stuft ihn als übernehmbar ein', () => {
+    const d = zu('Vorhofflimmern');
+    expect(d?.kodierung).toEqual({
+      system: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm',
+      code: 'I48.1',
+      anzeige: 'Vorhofflimmern, persistierend (Erstdiagnose)',
+    });
+    expect(d?.band).toBe('uebernehmbar');
+  });
+
+  it('kodiert eine Substanz über die veröffentlichte Werteliste', () => {
+    const a = zu('Penicillin');
+    expect(a?.kodierung?.system).toBe('http://snomed.info/sct');
+    expect(a?.kodierung?.code).toBeTruthy();
+    expect(a?.band).toBe('zu-pruefen');
+  });
+
+  it('nimmt den OPS-Kode aus der Prozedurzeile', () => {
+    const p = zu('Kardioversion');
+    expect(p?.kodierung?.system).toBe('http://fhir.de/CodeSystem/bfarm/ops');
+    expect(p?.kodierung?.code).toBe('8-640');
+    expect(p?.band).toBe('uebernehmbar');
+  });
+
+  it('meldet einen Fund ohne Kodierung, bietet ihn aber nicht als Eintrag an', () => {
+    const ohneKode = vorschlaegeAusText({
+      ...ENTLASSBRIEF,
+      zeilen: ['Echokardiographie: LVEF 40 %'],
+    });
+    expect(ohneKode).toHaveLength(1);
+    expect(ohneKode[0]?.kodierung).toBeNull();
+    expect(ohneKode[0]?.band).toBe('nur-gemeldet');
+  });
+
+  it('stuft eine unbekannte Substanz als nur gemeldet ein', () => {
+    const unbekannt = vorschlaegeAusText({
+      ...ENTLASSBRIEF,
+      zeilen: ['Allergien und Unverträglichkeiten', '   Zaubernuss-Extrakt: Juckreiz'],
+    });
+    expect(unbekannt[0]?.kodierung).toBeNull();
+    expect(unbekannt[0]?.band).toBe('nur-gemeldet');
+  });
+
+  it('gibt für jeden Vorschlag eine Konfidenz zwischen 0 und 1 an', () => {
+    for (const v of vorschlaege) {
+      expect(v.konfidenz).toBeGreaterThan(0);
+      expect(v.konfidenz).toBeLessThanOrEqual(1);
+    }
   });
 });

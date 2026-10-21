@@ -19,6 +19,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   VORSCHLAGSFRAGEN,
+  uebernehmbar,
+  vorschlagAlsDiagnose,
+  type Extraktionsvorschlag,
   type Lotsenabsatz,
   type Lotsenantwort,
   type Lotsenkontext,
@@ -56,6 +59,7 @@ import {
   belegzeilen,
   tag,
 } from './bausteine.js';
+import { inDieListeAufnehmen, useEpaListen } from '../epa/listen.js';
 import { useLotseVorhanden } from './vorhanden.js';
 import { useBeschriftung } from './beschriftung.js';
 
@@ -106,6 +110,12 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
   const [bestaetigt, setzeBestaetigt] = useState<Set<string>>(new Set());
   const [geoeffnet, setzeGeoeffnet] = useState<Geoeffnet | null>(null);
   const [kontextGanz, setzeKontextGanz] = useState(false);
+  /** Zählt bestätigte Vorschläge — danach liest der Lotse die Liste neu. */
+  const [uebernommen, setzeUebernommen] = useState(0);
+  const nutzer = useZustand((z) => z.nutzer);
+  const heute = useZustand((z) => z.heute);
+  // Der Lesenachweis der Diagnosenliste; ohne ihn lehnt der Dienst den Schreibzugriff ab.
+  const { lage: listenlage } = useEpaListen(patient);
   const angeboten = useLotseVorhanden();
   // Dieselbe Quelle wie die Dokumentenlisten (`useBeschriftung`) — eine Aussage je Dokument.
   const beschriftung = useBeschriftung(kvnr);
@@ -134,7 +144,30 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
     void dokumenteSuchen(kvnr)
       .then((r) => setzeVerweise(r.map(dokumentverweisLesen)))
       .catch(() => setzeVerweise([]));
-  }, [kvnr, angeboten, befugnisBis, betriebsstand]);
+  }, [kvnr, angeboten, befugnisBis, betriebsstand, uebernommen]);
+
+  /**
+   * Übernimmt einen Vorschlag in die Diagnosenliste der ePA.
+   *
+   * ▸ Hier endet der Vorschlag und beginnt die Verantwortung: Geschrieben wird über denselben
+   * Weg wie jeder andere Listeneintrag (`$add-condition-entry`), mit dem Lesenachweis der
+   * Liste und der angemeldeten Person als verantwortlich. Am Eintrag bleibt sichtbar, dass er
+   * maschinell vorgeschlagen wurde.
+   */
+  async function uebernehmen(v: Extraktionsvorschlag, schluessel: string) {
+    if (!patient || !kvnr || !uebernehmbar(v)) return;
+    const eintrag = vorschlagAlsDiagnose(v, patient.id, heute);
+    if (!eintrag) return;
+    const nachweis = listenlage.art === 'bereit' ? listenlage.listen.lesenachweis.Condition : null;
+    setzeFehler(null);
+    try {
+      await inDieListeAufnehmen(kvnr, 'Condition', nachweis, eintrag, nutzer.name);
+      setzeBestaetigt((vorher) => new Set(vorher).add(schluessel));
+      setzeUebernommen((n) => n + 1);
+    } catch (f) {
+      setzeFehler(f instanceof Error ? f : new Error('Der Eintrag ließ sich nicht aufnehmen.'));
+    }
+  }
 
   /** Öffnet die Unterlage hinter einer Angabe und markiert die Stellen, auf denen sie beruht. */
   async function nachlesen(q: Quellenangabe, markieren: string[]) {
@@ -348,22 +381,27 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
                       const schonBestaetigt = bestaetigt.has(schluessel);
                       return (
                         <li key={i} className={schonBestaetigt ? 'bestaetigt' : ''}>
-                          <span>{v.text}</span>
+                          <span>
+                            {v.text}
+                            <Band vorschlag={v} />
+                          </span>
                           <span className="lotse-zeilenwerkzeuge">
                             <QuellenKnopf
                               q={v.fundstelle}
                               oeffnen={() => void nachlesen(v.fundstelle, [v.fundstelle.zeile])}
                             />
-                            <button
-                              type="button"
-                              className="knopf klein"
-                              disabled={schonBestaetigt}
-                              onClick={() =>
-                                setzeBestaetigt((vorher) => new Set(vorher).add(schluessel))
-                              }
-                            >
-                              {schonBestaetigt ? 'bestätigt' : 'Bestätigen'}
-                            </button>
+                            {uebernehmbar(v) ? (
+                              <button
+                                type="button"
+                                className="knopf klein"
+                                disabled={schonBestaetigt}
+                                onClick={() => void uebernehmen(v, schluessel)}
+                              >
+                                {schonBestaetigt ? 'übernommen' : 'In die Liste'}
+                              </button>
+                            ) : v.band === 'uebernehmbar' ? (
+                              <span className="marker">keine Liste in der ePA</span>
+                            ) : null}
                           </span>
                         </li>
                       );
@@ -371,7 +409,10 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
                   </ul>
                 </details>
               ))}
-              <p className="herkunft">maschinell vorgeschlagen · Bestätigen schreibt nichts</p>
+              <p className="herkunft">
+                maschinell vorgeschlagen · ohne Kodierung kein Listeneintrag · „In die Liste“
+                schreibt in die Diagnosenliste der ePA
+              </p>
             </section>
           )}
           {umfang && umfang.uebergangen.length > 0 && <Umfangsangabe umfang={umfang} />}
@@ -475,5 +516,39 @@ function Kopf({ umfang = null }: { umfang?: string | null }) {
       <span className="vorschlagsmarke">✦ Vorschlag · regelbasiert</span>
       {umfang && <span className="lotse-umfang-kurz">{umfang}</span>}
     </div>
+  );
+}
+
+/**
+ * ✦ Kodierung und Konfidenz eines Vorschlags.
+ *
+ * ▸ Das Band entscheidet, **was angeboten wird**, nicht ob geschrieben wird. Ohne Kodierung
+ * gibt es nichts, was eine strukturierte Liste halten könnte — der Fund wird gemeldet und
+ * führt in das Dokument, aber er bekommt keine Schaltfläche.
+ */
+const SYSTEMNAME: Record<string, string> = {
+  'http://fhir.de/CodeSystem/bfarm/icd-10-gm': 'ICD-10-GM',
+  'http://fhir.de/CodeSystem/bfarm/ops': 'OPS',
+  'http://snomed.info/sct': 'SNOMED CT',
+};
+
+function Band({ vorschlag }: { vorschlag: Extraktionsvorschlag }) {
+  const prozent = Math.round(vorschlag.konfidenz * 100);
+  if (!vorschlag.kodierung) {
+    return (
+      <span className="lotse-band nur-gemeldet" title={`Konfidenz ${prozent} %`}>
+        ohne Kodierung
+      </span>
+    );
+  }
+  // Der Kode steht bei Diagnosen schon im Text — das Band nennt deshalb das System, nicht ihn.
+  const system = SYSTEMNAME[vorschlag.kodierung.system] ?? vorschlag.kodierung.system;
+  return (
+    <span
+      className={`lotse-band ${vorschlag.band}`}
+      title={`${vorschlag.kodierung.code} · ${vorschlag.kodierung.system}`}
+    >
+      {system} · {prozent} %{vorschlag.band === 'zu-pruefen' ? ' · zu prüfen' : ''}
+    </span>
   );
 }

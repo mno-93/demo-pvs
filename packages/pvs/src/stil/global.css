@@ -2966,3 +2966,35 @@ td.split-mitte .marker {
 .arztbrief .seitenansicht {
   max-height: 78vh;
 }
+
+/* ✦ Kodierung und Konfidenz eines Extraktionsvorschlags */
+
+.lotse-band {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 10px;
+  border: 1px solid var(--linie);
+  background: var(--flaeche2);
+  color: var(--text-leise);
+  font-size: 0.72rem;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+
+.lotse-band.uebernehmbar {
+  border-color: var(--gut-linie);
+  background: var(--gut-weich);
+  color: var(--gut);
+}
+
+.lotse-band.zu-pruefen {
+  border-color: var(--warn-linie);
+  background: var(--warn-weich);
+  color: var(--warn);
+}
+
+.lotse-band.nur-gemeldet {
+  border-style: dashed;
+  font-family: var(--schrift);
+}

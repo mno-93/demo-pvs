@@ -21,6 +21,9 @@
  */
 
 import { begriffeIn, mitAlltagssprache, type Alltagswort } from '../kataloge/alltagssprache.js';
+import { substanzen } from '../kataloge/substanzen.js';
+import { CODESYSTEM, type Kodierung } from '../typen/kodierung.js';
+import type { Diagnose } from '../typen/diagnose.js';
 
 /** Fachsprachlich wie im Dokument, oder in Alltagssprache umschrieben. */
 export type Lesart = 'fach' | 'alltag';
@@ -801,11 +804,65 @@ export function medikationAbgleichen(
 
 /* ---------- S5: Vorschläge aus unstrukturiertem Text ---------- */
 
+/**
+ * ✦ Wie weit ein Vorschlag trägt.
+ *
+ * ▸ Das Band entscheidet, **was angeboten wird** — nicht, ob geschrieben wird. Geschrieben
+ * wird nie ohne einen Menschen. Ohne Kodierung gibt es nichts, was eine Liste halten könnte;
+ * ein solcher Fund wird gemeldet und nicht als Eintrag angeboten.
+ */
+export type Konfidenzband = 'uebernehmbar' | 'zu-pruefen' | 'nur-gemeldet';
+
 export interface Extraktionsvorschlag {
   /** Welche Liste den Eintrag aufnehmen würde. */
   liste: 'diagnosen' | 'allergien' | 'prozeduren';
   text: string;
+  /**
+   * Kodierung aus dem Quelltext oder aus einer Werteliste. Fehlt sie, kann keine strukturierte
+   * Liste den Eintrag aufnehmen — dann bleibt es bei einem Hinweis auf die Fundstelle.
+   */
+  kodierung: Kodierung | null;
+  /**
+   * Wie sicher die Extraktion ist, 0 bis 1.
+   *
+   * ⚠ In der Demo **abgeleitet, nicht gemessen**: Ein ausgeschriebener Kode im Quelltext zählt
+   * mehr als ein über eine Werteliste gefundener, dieser mehr als eine bloße Texterkennung. Ein
+   * echter Dienst liefert hier das Maß seines eigenen Verfahrens.
+   */
+  konfidenz: number;
+  band: Konfidenzband;
   fundstelle: Fundstelle;
+}
+
+/** Ab wann ein Vorschlag übernehmbar ist, und ab wann er nur noch zu prüfen ist. */
+const BAND_GRENZE = { uebernehmbar: 0.8, zuPruefen: 0.5 } as const;
+
+function bandFuer(kodierung: Kodierung | null, konfidenz: number): Konfidenzband {
+  if (!kodierung) return 'nur-gemeldet';
+  if (konfidenz >= BAND_GRENZE.uebernehmbar) return 'uebernehmbar';
+  if (konfidenz >= BAND_GRENZE.zuPruefen) return 'zu-pruefen';
+  return 'nur-gemeldet';
+}
+
+/**
+ * Sucht eine Substanz in der veröffentlichten Werteliste.
+ *
+ * ▸ Das ist die kleine Entsprechung dessen, was ein Strukturierungsdienst „Integration
+ * medizinischer Ontologien" nennt: Aus einem Wort im Brief wird ein geprüfter Kode — oder
+ * eben keiner, und dann entsteht kein Listeneintrag.
+ */
+function substanzKodieren(begriff: string): Kodierung | null {
+  const gesucht = normalisiere(begriff.trim());
+  if (!gesucht) return null;
+  const treffer = substanzen.find(
+    (e) =>
+      normalisiere(e.bezeichnung) === gesucht ||
+      e.synonyme.some((sy) => normalisiere(sy) === gesucht) ||
+      normalisiere(e.bezeichnung).startsWith(gesucht),
+  );
+  return treffer
+    ? { system: CODESYSTEM.snomed, code: treffer.snomed, anzeige: treffer.bezeichnung }
+    : null;
 }
 
 const ICD_ZEILE = /^([A-Z][0-9]{2}(?:\.[0-9A-Z]{1,3})?)\s+(.+)$/;
@@ -819,34 +876,135 @@ const OPS_ZEILE = /\(OPS\s+([0-9][-0-9a-z.]*)\)/i;
  */
 export function vorschlaegeAusText(quelle: Lotsenquelle): Extraktionsvorschlag[] {
   const vorschlaege: Extraktionsvorschlag[] = [];
-
-  for (const zeile of abschnitt(quelle.zeilen, 'Diagnosen')) {
-    const m = ICD_ZEILE.exec(zeile.trim());
-    if (m) {
-      vorschlaege.push({
-        liste: 'diagnosen',
-        text: `${m[1]} ${m[2]}`,
-        fundstelle: alsFundstelle(quelle, zeile),
-      });
-    }
-  }
-  for (const zeile of abschnitt(quelle.zeilen, 'Allergien und Unverträglichkeiten')) {
+  const nimm = (
+    liste: Extraktionsvorschlag['liste'],
+    text: string,
+    zeile: string,
+    kodierung: Kodierung | null,
+    konfidenz: number,
+  ) =>
     vorschlaege.push({
-      liste: 'allergien',
-      text: zeile.trim(),
+      liste,
+      text,
+      kodierung,
+      konfidenz,
+      band: bandFuer(kodierung, konfidenz),
       fundstelle: alsFundstelle(quelle, zeile),
     });
+
+  // Diagnosen: Der Kode steht ausgeschrieben im Brief — die sicherste Lage.
+  for (const zeile of abschnitt(quelle.zeilen, 'Diagnosen')) {
+    const m = ICD_ZEILE.exec(zeile.trim());
+    if (!m) continue;
+    nimm(
+      'diagnosen',
+      `${m[1]} ${m[2]}`,
+      zeile,
+      { system: CODESYSTEM.icd10gm, code: m[1]!, anzeige: m[2]!.trim() },
+      0.95,
+    );
   }
+
+  // Allergien: Der Brief nennt die Substanz im Klartext. Der Kode kommt aus der Werteliste.
+  for (const zeile of abschnitt(quelle.zeilen, 'Allergien und Unverträglichkeiten')) {
+    const substanz = (zeile.split(':')[0] ?? zeile).trim();
+    const kodierung = substanzKodieren(substanz);
+    nimm('allergien', zeile.trim(), zeile, kodierung, kodierung ? 0.75 : 0.4);
+  }
+
+  // Prozeduren: mit OPS-Kode sicher, ohne Kode nur gemeldet.
   for (const zeile of quelle.zeilen) {
-    if (OPS_ZEILE.test(zeile) || /echokardiographie|sonographie|endoskopie/i.test(zeile)) {
-      vorschlaege.push({
-        liste: 'prozeduren',
-        text: zeile.trim(),
-        fundstelle: alsFundstelle(quelle, zeile),
-      });
+    const ops = OPS_ZEILE.exec(zeile);
+    if (ops) {
+      nimm(
+        'prozeduren',
+        zeile.trim(),
+        zeile,
+        {
+          system: CODESYSTEM.ops,
+          code: ops[1]!,
+          anzeige: zeile.replace(/\s*\(OPS[^)]*\)/, '').trim(),
+        },
+        0.9,
+      );
+    } else if (/echokardiographie|sonographie|endoskopie/i.test(zeile)) {
+      nimm('prozeduren', zeile.trim(), zeile, null, 0.35);
     }
   }
   return vorschlaege;
+}
+
+/* ---------- S5: Übernahme in eine Liste ---------- */
+
+/**
+ * ✦ Welche Listen der ✦ Diagnose-Service führt. Eine Prozedur kann kodiert und trotzdem
+ * nirgends unterzubringen sein — dafür gibt es in der ePA keine Liste.
+ *
+ * ▸ Das Band „übernehmbar" heißt **kodiert**, nicht „es gibt ein Ziel". Beides muss stimmen.
+ */
+export const LISTE_VORHANDEN: Record<Extraktionsvorschlag['liste'], boolean> = {
+  diagnosen: true,
+  allergien: true,
+  prozeduren: false,
+};
+
+/** Ob dieser Vorschlag übernommen werden kann: kodiert, sicher genug und mit Ziel. */
+export function uebernehmbar(v: Extraktionsvorschlag): boolean {
+  return v.band === 'uebernehmbar' && LISTE_VORHANDEN[v.liste];
+}
+
+/**
+ * Baut aus einem Vorschlag den Diagnoseneintrag, der in die Liste ginge.
+ *
+ * ▸ Zwei Festlegungen, die hier getroffen werden und begründet gehören:
+ *
+ * - **Die Kodierung wird übernommen, nicht gedeutet.** Steht `I48.1` im Brief, steht `I48.1`
+ *   im Eintrag. Der Dienst erfindet keinen Kode und ergänzt keinen zweiten.
+ * - **Die Herkunft nennt die Maschine.** `quelle` sagt, dass der Eintrag maschinell
+ *   vorgeschlagen wurde und aus welcher Unterlage; verantwortlich wird, wer bestätigt. So
+ *   bleibt am Eintrag sichtbar, wie er entstanden ist.
+ *
+ * Gibt `null` zurück, wenn der Vorschlag keine Diagnose ist oder keine Kodierung trägt.
+ */
+export function vorschlagAlsDiagnose(
+  v: Extraktionsvorschlag,
+  patientId: string,
+  heute: string,
+): Diagnose | null {
+  if (v.liste !== 'diagnosen' || !v.kodierung) return null;
+  const bezeichnung = ohneKode(v.text) || v.text;
+  return {
+    id: `lotse-${v.fundstelle.quelleId}-${v.kodierung.code}`,
+    patientId,
+    fallId: null,
+    code: v.kodierung.code,
+    bezeichnung,
+    snomed: null,
+    alphaId: null,
+    // Der Brief führt sie unter „Diagnosen" — nicht als Verdacht und nicht als Zustand nach.
+    zusatzkennzeichen: 'G',
+    seitenlokalisation: null,
+    diagnosesicherheit: 'gesichert',
+    art: 'dauer',
+    klinischerStatus: 'aktiv',
+    schweregrad: null,
+    koerperstelle: null,
+    beginn: v.fundstelle.datum,
+    ende: null,
+    festgestelltAm: null,
+    dokumentiertAm: heute,
+    feststellendePerson: null,
+    notiz: null,
+    herkunft: {
+      bestand: 'epa',
+      quelle: `maschinell vorgeschlagen aus ${v.fundstelle.titel}, ${v.fundstelle.einrichtung}`,
+      zeitpunkt: heute,
+      verantwortlich: '',
+      dokumentId: v.fundstelle.quelleId,
+    },
+    epaId: null,
+    epaFassung: null,
+  };
 }
 
 /* ---------- Antwortformen der beiden zusammengesetzten Auskünfte ---------- */
