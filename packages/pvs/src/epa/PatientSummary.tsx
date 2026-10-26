@@ -67,6 +67,7 @@ export function PatientSummaryAnsicht({
   patientId,
   sprung,
   inDokumentenSuchen,
+  dokumentZeigen,
   herkunft = 'vorschlag',
 }: {
   inhalt: PatientSummaryInhalt;
@@ -74,6 +75,8 @@ export function PatientSummaryAnsicht({
   patientId: string;
   sprung: PsSprung;
   inDokumentenSuchen: () => void;
+  /** Öffnet ein Quelldokument der ePA — aus der Herkunftszeile automatisch übernommener Einträge. */
+  dokumentZeigen?: (dokumentId: string) => void;
   /**
    * `aktensystem`: die ePA European Patient Summary, die das Aktensystem nach den Ballots für
    * ePA 3.2 erzeugt (über MHD, ADR 0042) — nur die Abschnitte, die sie führt. `vorschlag`: die ✦
@@ -122,6 +125,7 @@ export function PatientSummaryAnsicht({
           provenance={provenance}
           patientId={patientId}
           seit={seit}
+          dokumentZeigen={dokumentZeigen}
         />
       </Block>
     );
@@ -242,18 +246,66 @@ function herkunftAus(chronik: Chronik): Herkunft {
   };
 }
 
+/** Quelldokument eines aus Dokumenten übernommenen Eintrags — `DocumentReference/<entryUUID>`. */
+function quelldokument(r: Ressource): { id: string | null; anzeige: string } | null {
+  const verweis = (r.extension ?? []).find((e) => e.url.endsWith('source-document'))
+    ?.valueReference as { reference?: string; display?: string } | undefined;
+  if (!verweis) return null;
+  const id = verweis.reference?.startsWith('DocumentReference/')
+    ? verweis.reference.slice('DocumentReference/'.length)
+    : null;
+  return { id, anzeige: verweis.display ?? id ?? '' };
+}
+
+/** Herkunftszeile mit Sprung ins Dokument, wenn der Verweis eines nennt. */
+function Quellverweis({
+  quelle,
+  zeigen,
+  aus = false,
+}: {
+  quelle: { id: string | null; anzeige: string } | null;
+  zeigen?: (dokumentId: string) => void;
+  aus?: boolean;
+}) {
+  if (!quelle) return null;
+  const id = quelle.id;
+  return (
+    <div className="ps-herkunft">
+      {id && zeigen ? (
+        // „aus" steht im Knopf, damit Verweis und Text gemeinsam umbrechen.
+        <button
+          type="button"
+          className="ps-quelle"
+          aria-label={`Dokument öffnen: ${quelle.anzeige}`}
+          onClick={() => zeigen(id)}
+        >
+          {aus && 'aus '}
+          <span>{quelle.anzeige}</span>
+        </button>
+      ) : (
+        <>
+          {aus && 'aus '}
+          {quelle.anzeige}
+        </>
+      )}
+    </div>
+  );
+}
+
 function Eintraege({
   abschnitt: a,
   ressourcen,
   provenance,
   patientId,
   seit,
+  dokumentZeigen,
 }: {
   abschnitt: PsAbschnitt;
   ressourcen: readonly Ressource[];
   provenance: readonly Ressource[];
   patientId: string;
   seit: SeitLetztemAufruf;
+  dokumentZeigen?: (dokumentId: string) => void;
 }) {
   if (a.eintraege.length === 0) {
     return (
@@ -369,12 +421,9 @@ function Eintraege({
   }
 
   if (a.schluessel === 'laborwerte') {
-    const quelleVon = (o: Ressource) =>
-      (o.extension ?? []).find((e) => e.url.endsWith('source-document'))?.valueReference?.display ??
-      '';
     // Stammen alle Werte aus demselben Befund, steht die Quelle einmal unter der Tabelle.
-    const quellen = [...new Set(a.eintraege.map(quelleVon))];
-    const gemeinsam = quellen.length === 1 ? quellen[0] : null;
+    const quellen = [...new Set(a.eintraege.map((o) => quelldokument(o)?.anzeige ?? ''))];
+    const gemeinsam = quellen.length === 1 ? quelldokument(a.eintraege[0]!) : null;
     return (
       <>
         <table className="liste ps-tabelle">
@@ -391,13 +440,13 @@ function Eintraege({
               const deutung = (
                 o['interpretation'] as { coding?: { code?: string }[] }[] | undefined
               )?.[0]?.coding?.[0]?.code;
-              const quelle = gemeinsam ? null : quelleVon(o);
+              const quelle = gemeinsam ? null : quelldokument(o);
               return (
                 <tr key={String(o.id)}>
                   <td>
                     {untersuchung(o)}
                     <NeuMarke seit={seit} ressource={o} />
-                    {quelle && <div className="ps-herkunft">{quelle}</div>}
+                    <Quellverweis quelle={quelle} zeigen={dokumentZeigen} />
                   </td>
                   <td className="zahl">
                     <b className={deutung && deutung !== 'N' ? 'ps-auffaellig' : undefined}>
@@ -411,7 +460,7 @@ function Eintraege({
             })}
           </tbody>
         </table>
-        {gemeinsam && <div className="ps-herkunft">aus {gemeinsam}</div>}
+        <Quellverweis quelle={gemeinsam} zeigen={dokumentZeigen} aus />
       </>
     );
   }
@@ -452,9 +501,6 @@ function Eintraege({
   }
 
   if (a.schluessel === 'prozeduren' || a.schluessel === 'implantate') {
-    const quelleVon = (r: Ressource) =>
-      (r.extension ?? []).find((e) => e.url.endsWith('source-document'))?.valueReference?.display ??
-      '';
     const prozeduren = a.schluessel === 'prozeduren';
     return (
       <table className="liste ps-tabelle">
@@ -491,7 +537,7 @@ function Eintraege({
                     </span>
                   )}
                   {notiz && <div className="leise-klein">{notiz}</div>}
-                  <div className="ps-herkunft">aus {quelleVon(r)}</div>
+                  <Quellverweis quelle={quelldokument(r)} zeigen={dokumentZeigen} aus />
                 </td>
                 <td>{datum ? deutschesDatum(datum) : '—'}</td>
               </tr>

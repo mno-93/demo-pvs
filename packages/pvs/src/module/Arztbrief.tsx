@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ADRESSBUCH,
   ARZTBRIEF_XDS,
@@ -9,6 +9,7 @@ import {
   briefAusFhir,
   briefPdfErzeugen,
   deutschesDatum,
+  istKeineBekannteAllergie,
   pdfSeitenLesen,
   uuidAlsOid,
   type Allergie,
@@ -32,7 +33,10 @@ import {
 import { fehlerTitel } from '../epa/epa-bestand.js';
 import { istGueltig, useBefugnis } from '../epa/befugnis.js';
 import { useBriefangebote, type Abschnitt, type Angebot } from './arztbrief/angebote.js';
-import { Briefabschnitt } from './arztbrief/Auswahlmenue.js';
+import { Briefabschnitt, type Pflege } from './arztbrief/Auswahlmenue.js';
+import { Quellpflege, type Pflegeziel } from './arztbrief/Quellpflege.js';
+import { istBerichtigt } from './diagnosen/listenpflege.js';
+import { useEpaListen } from '../epa/listen.js';
 import {
   entwurfAendern,
   entwurfVerwerfen,
@@ -47,9 +51,11 @@ import {
  *
  * **Alles Strukturierte steht zur Wahl.** Je Abschnitt öffnet „Auswählen" ein Menü mit allem,
  * was Praxis und ePA dazu führen (`arztbrief/angebote.ts`), nach Quelle gegliedert; das
- * Aktuelle ist vorausgewählt. Neues wird nicht im Brief erfasst, sondern in seiner Quelle —
- * Diagnosen und Allergien, Medikationsplan, Impfungen, Karteikarte. Der Entwurf bleibt dabei
- * erhalten (`arztbrief/entwurf.ts`), und was neu angelegt wurde, ist bei der Rückkehr gewählt.
+ * Aktuelle ist vorausgewählt. Neues wird nicht im Brief erfasst, sondern in seiner Quelle.
+ * Diagnosen und Allergien legt die Ärztin im Pop-up an oder ändert sie dort — mit der Maske der
+ * Liste, auf Wunsch auch in der ✦ Liste der ePA (`arztbrief/Quellpflege.tsx`). Für
+ * Medikationsplan, Impfungen und Karteikarte verlässt sie den Reiter; der Entwurf bleibt dabei
+ * erhalten (`arztbrief/entwurf.ts`). Was neu angelegt wurde, ist danach im Brief gewählt.
  * Frei geschrieben werden nur Fragestellung, Beurteilung und Empfehlungen.
  *
  * Die Vorschau ist der Brief, wie er gedruckt und versandt wird — erzeugt aus dem FHIR-Dokument.
@@ -132,7 +138,9 @@ export function Arztbrief() {
   const befugt = istGueltig(useBefugnis(patientId));
 
   const entwurf = useEntwurf(patientId, zeitpunktJetzt(heute));
-  const angebote = useBriefangebote(patientId, entwurf.beginn);
+  const epaListen = useEpaListen(patient);
+  const angebote = useBriefangebote(patientId, entwurf.beginn, epaListen.lage);
+  const [pflegeziel, setzePflegeziel] = useState<Pflegeziel | null>(null);
   const aendern = (teil: Parameters<typeof entwurfAendern>[1]) => entwurfAendern(patientId, teil);
   const gewaehlt = (a: Angebot) => istGewaehlt(entwurf, a.id, a.vorgabe);
   const auswahl = (abschnitt: Abschnitt) => angebote[abschnitt].angebote.filter(gewaehlt);
@@ -304,6 +312,20 @@ export function Arztbrief() {
       />
     </div>
   );
+  // Diagnosen und Allergien: anlegen und ändern im Pop-up an der Quelle — nur ärztlich.
+  const pflegeFuer = (s: Abschnitt): Pflege | null => {
+    const art = s === 'diagnosen' ? 'diagnose' : s === 'allergien' ? 'allergie' : null;
+    if (!art || !aerztlich) return null;
+    return {
+      neu: art === 'diagnose' ? 'Neue Diagnose' : 'Neue Allergie',
+      anlegen: () => setzePflegeziel({ art, angebot: null }),
+      aendern: (a) => setzePflegeziel({ art, angebot: a }),
+      aenderbar: (a) => {
+        const e = a.diagnose ?? a.allergie;
+        return !!e && !istBerichtigt(e) && !(a.allergie && istKeineBekannteAllergie(a.allergie));
+      },
+    };
+  };
   const abschnitt = (s: (typeof ABSCHNITTE)[number]) => (
     <Briefabschnitt
       key={s.abschnitt}
@@ -313,6 +335,7 @@ export function Arztbrief() {
       gewaehlt={gewaehlt}
       umschalten={(a) => umschalten(patientId, a.id, a.vorgabe, gewaehlt(a))}
       erfassen={s.erfassen}
+      pflege={pflegeFuer(s.abschnitt)}
       gesperrt={fest}
     />
   );
@@ -424,6 +447,15 @@ export function Arztbrief() {
       <Karte titel="Vorschau">
         {seiten ? <Seitenansicht seiten={seiten} markieren={[]} /> : <Leer>Keine Vorschau.</Leer>}
       </Karte>
+
+      {pflegeziel && patient && (
+        <Quellpflege
+          patient={patient}
+          epaListen={epaListen}
+          ziel={pflegeziel}
+          schliessen={() => setzePflegeziel(null)}
+        />
+      )}
     </div>
   );
 }

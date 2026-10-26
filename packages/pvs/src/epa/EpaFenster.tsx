@@ -67,6 +67,7 @@ import { listenLaden, type EpaListen, type Listeneintrag } from './listen.js';
 import {
   EPA_BEREICHE,
   epaBereichWaehlen,
+  epaDokumentZeigen,
   epaFensterSchliessen,
   useEpaFenster,
   type EpaBereich,
@@ -97,7 +98,14 @@ export function EpaFenster() {
     [fenster.patientId],
   );
   if (!fenster.offen || !patient) return null;
-  return <EpaDialog key={patient.id} patient={patient} bereich={fenster.bereich} />;
+  return (
+    <EpaDialog
+      key={patient.id}
+      patient={patient}
+      bereich={fenster.bereich}
+      dokumentId={fenster.dokumentId}
+    />
+  );
 }
 
 /** Abgerufene Dokumentinhalte, nach Dokumentkennung. Lebt nur, solange das Fenster offen ist. */
@@ -105,7 +113,15 @@ type Inhaltsspeicher = Record<string, { inhalt?: unknown; fehler?: string }>;
 
 type Medikation = [Medikationsliste, Medikationsplan];
 
-function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich }) {
+function EpaDialog({
+  patient,
+  bereich,
+  dokumentId,
+}: {
+  patient: Patient;
+  bereich: EpaBereich;
+  dokumentId: string | null;
+}) {
   const kvnr = patient.versicherung.kvnr;
   const dialog = useRef<HTMLDivElement>(null);
   const protokollOffen = useProtokollSichtbar();
@@ -368,6 +384,7 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
                   );
                 }}
                 inDokumentenSuchen={() => epaBereichWaehlen('dokumente')}
+                dokumentZeigen={epaDokumentZeigen}
               />
             )
           ) : ansicht === 'uebersicht' ? (
@@ -390,7 +407,7 @@ function EpaDialog({ patient, bereich }: { patient: Patient; bereich: EpaBereich
               }
             />
           ) : ansicht === 'dokumente' ? (
-            <DokumenteInEpa {...gemeinsam} kvnr={kvnr} laedt={dokumente.laedt} />
+            <DokumenteInEpa {...gemeinsam} kvnr={kvnr} laedt={dokumente.laedt} ziel={dokumentId} />
           ) : ansicht === 'medikation' ? (
             <MedikationInEpa
               patientId={patient.id}
@@ -662,8 +679,10 @@ function DokumenteInEpa({
   inhalte,
   abrufen,
   uebernehmen,
-}: Dokumentzugang & { kvnr: string; laedt: boolean }) {
+  ziel,
+}: Dokumentzugang & { kvnr: string; laedt: boolean; ziel: string | null }) {
   const [ansicht, setzeAnsicht] = useState<string | null>(null);
+  const betrachter = useRef<HTMLDivElement>(null);
   const [begriff, setzeBegriff] = useState('');
   const [treffer, setzeTreffer] = useState<Dokumentverweis[] | null>(null);
   const [volltext, setzeVolltext] = useState(false);
@@ -688,6 +707,23 @@ function DokumenteInEpa({
     };
   }, [betriebsstand]);
   const gezeigt = liste.find((v) => v.id === ansicht) ?? null;
+
+  // Sprung aus der Patient Summary: das Quelldokument öffnen, sobald die Liste es kennt.
+  const angesprungen = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ziel || angesprungen.current === ziel) return;
+    const v = verweise.find((x) => x.id === ziel);
+    if (!v) return;
+    angesprungen.current = ziel;
+    setzeTreffer(null);
+    setzeAnsicht(v.id);
+    void abrufen([v]);
+  }, [ziel, verweise, abrufen]);
+  useEffect(() => {
+    if (ansicht && ansicht === angesprungen.current) {
+      betrachter.current?.scrollIntoView?.({ block: 'start' });
+    }
+  }, [ansicht]);
 
   async function suchen() {
     const b = begriff.trim();
@@ -824,7 +860,7 @@ function DokumenteInEpa({
       )}
 
       {gezeigt && (
-        <div className="epa-betrachter">
+        <div ref={betrachter} className="epa-betrachter" aria-label={`Dokument ${gezeigt.titel}`}>
           <div className="reihe" style={{ marginBottom: 8 }}>
             <b>{gezeigt.titel}</b>
             <button type="button" className="knopf klein rechts" onClick={() => setzeAnsicht(null)}>

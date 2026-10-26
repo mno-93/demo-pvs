@@ -101,11 +101,12 @@ npm run vorschau:gehostet
    „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
 4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
-   wo er gepflegt wird. Welche Einträge der Listen sie zeigt, bestimmt die Markierung ★ im
-   Splitscreen — die Listen bleiben vollständig.
+   wo er gepflegt wird; Prozeduren und Implantate öffnen ihr Quelldokument. Welche Einträge der
+   Listen sie zeigt, bestimmt die Markierung ★ im Splitscreen — die Listen bleiben vollständig.
 5. **Arztbrief ✦**: Das Aktuelle ist vorausgewählt; „Auswählen ▾" je Abschnitt zeigt alles aus
-   Praxis und ePA, nach Quelle. Fehlt etwas, führt der Verweis im Menü in die Quelle — der
-   Entwurf bleibt. Beurteilung tippen, „Unterschreiben", dann „In die ePA einstellen" und „Per KIM senden". Das
+   Praxis und ePA, nach Quelle. Diagnosen und Allergien entstehen und ändern sich im Pop-up mit
+   der Maske der Liste („+ Neue Diagnose", „Ändern"); für Übriges führt der Verweis im Menü in die
+   Quelle — der Entwurf bleibt. Beurteilung tippen, „Unterschreiben", dann „In die ePA einstellen" und „Per KIM senden". Das
    Aufrufprotokoll zeigt die SOAP-Nachricht und die Client-Mail.
 6. **Medikation**: Ramipril „Rezept" → „Signieren und senden". Nach wenigen Sekunden steht die
    Verordnung in der Medikationsliste, verknüpft mit dem Planeintrag.

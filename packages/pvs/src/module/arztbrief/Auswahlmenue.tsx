@@ -3,10 +3,20 @@ import { Link } from 'react-router-dom';
 import { Marker } from '../../bausteine/Bausteine.js';
 import type { Angebot, Quelle } from './angebote.js';
 
+/** Anlegen und Ändern an der Quelle, im Pop-up (`Quellpflege.tsx`). */
+export interface Pflege {
+  /** Beschriftung des Anlegens, z. B. „Neue Diagnose". */
+  neu: string;
+  anlegen: () => void;
+  aendern: (a: Angebot) => void;
+  aenderbar: (a: Angebot) => boolean;
+}
+
 /**
  * Ein Abschnitt des Briefs: die gewählten Einträge, je mit Quelle, und ein Menü mit allem, was
- * Praxis und ePA dazu führen. Neues wird nicht hier erfasst, sondern in seiner Quelle — der
- * Verweis steht unten im Menü.
+ * Praxis und ePA dazu führen. Neues wird nicht im Brief erfasst, sondern in seiner Quelle — bei
+ * Diagnosen und Allergien im Pop-up mit der Maske der Liste (`pflege`), sonst über den Verweis
+ * unten im Menü.
  */
 export function Briefabschnitt({
   titel,
@@ -15,6 +25,7 @@ export function Briefabschnitt({
   gewaehlt,
   umschalten,
   erfassen,
+  pflege = null,
   gesperrt,
 }: {
   titel: string;
@@ -24,6 +35,7 @@ export function Briefabschnitt({
   umschalten: (a: Angebot) => void;
   /** Wo Neues erfasst wird: Reiter der Kartei und Beschriftung. */
   erfassen: { pfad: string; text: string } | null;
+  pflege?: Pflege | null;
   gesperrt: boolean;
 }) {
   const [offen, setzeOffen] = useState(false);
@@ -38,11 +50,16 @@ export function Briefabschnitt({
         <span className="leise-klein">
           {auswahl.length} von {angeboten}
         </span>
+        {!gesperrt && pflege && (
+          <button type="button" className="knopf klein rechts" onClick={pflege.anlegen}>
+            + {pflege.neu}
+          </button>
+        )}
         {!gesperrt && (
           <button
             ref={knopf}
             type="button"
-            className="knopf klein rechts"
+            className={`knopf klein ${pflege ? '' : 'rechts'}`}
             aria-haspopup="dialog"
             aria-expanded={offen}
             aria-label={`${titel} auswählen`}
@@ -63,6 +80,16 @@ export function Briefabschnitt({
                 {a.bestand === 'epa' ? 'ePA' : 'Praxis'}
               </Marker>
               {a.marken.includes('neu') && <Marker ton="gut">neu</Marker>}
+              {!gesperrt && pflege?.aenderbar(a) && (
+                <button
+                  type="button"
+                  className="knopf klein"
+                  aria-label={`${a.text} ändern`}
+                  onClick={() => pflege.aendern(a)}
+                >
+                  Ändern
+                </button>
+              )}
               {!gesperrt && (
                 <button
                   type="button"
@@ -85,6 +112,7 @@ export function Briefabschnitt({
           gewaehlt={gewaehlt}
           umschalten={umschalten}
           erfassen={erfassen}
+          pflege={pflege}
           schliessen={() => {
             setzeOffen(false);
             knopf.current?.focus();
@@ -103,6 +131,7 @@ function Menue({
   gewaehlt,
   umschalten,
   erfassen,
+  pflege,
   schliessen,
   knopf,
 }: {
@@ -112,6 +141,7 @@ function Menue({
   gewaehlt: (a: Angebot) => boolean;
   umschalten: (a: Angebot) => void;
   erfassen: { pfad: string; text: string } | null;
+  pflege: Pflege | null;
   schliessen: () => void;
   knopf: React.RefObject<HTMLButtonElement | null>;
 }) {
@@ -171,18 +201,46 @@ function Menue({
               <p className="leise-klein">Keine Einträge.</p>
             ) : (
               eintraege.map((a) => (
-                <label key={a.id} className="brief-eintrag">
-                  <input type="checkbox" checked={gewaehlt(a)} onChange={() => umschalten(a)} />
-                  <span>{a.text}</span>
-                  <span className="leise-klein">{a.marken.join(' · ')}</span>
-                </label>
+                <div key={a.id} className="brief-eintrag-zeile">
+                  <label className="brief-eintrag">
+                    <input type="checkbox" checked={gewaehlt(a)} onChange={() => umschalten(a)} />
+                    <span>{a.text}</span>
+                    <span className="leise-klein">{a.marken.join(' · ')}</span>
+                  </label>
+                  {pflege?.aenderbar(a) && (
+                    <button
+                      type="button"
+                      className="knopf klein"
+                      aria-label={`${a.text} ändern`}
+                      onClick={() => {
+                        schliessen();
+                        pflege.aendern(a);
+                      }}
+                    >
+                      Ändern
+                    </button>
+                  )}
+                </div>
               ))
             )}
           </fieldset>
         );
       })}
       <div className="brief-menue-fuss">
-        {erfassen && <Link to={`../${erfassen.pfad}`}>{erfassen.text} →</Link>}
+        {pflege ? (
+          <button
+            type="button"
+            className="knopf klein"
+            onClick={() => {
+              schliessen();
+              pflege.anlegen();
+            }}
+          >
+            + {pflege.neu}
+          </button>
+        ) : (
+          erfassen && <Link to={`../${erfassen.pfad}`}>{erfassen.text} →</Link>
+        )}
         <button type="button" className="knopf klein rechts" onClick={schliessen}>
           Fertig
         </button>

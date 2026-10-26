@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -69,8 +69,41 @@ const VORHOFFLIMMERN = diagnoseNachFhir(
   'A123456780',
 );
 
+/** Antwort einer schreibenden Operation der Diagnosenliste: Eintrag und Chronologieeintrag. */
+function geschrieben(id: string, version: string) {
+  return {
+    status: 200,
+    inhalt: {
+      resourceType: 'Parameters',
+      parameter: [
+        {
+          name: 'entry',
+          resource: { resourceType: 'Condition', id, meta: { versionId: version } },
+        },
+        {
+          name: 'relatedChronology',
+          resource: {
+            resourceType: 'Provenance',
+            id: 'chron-2',
+            extension: [
+              {
+                url: 'https://example.org/demo-pvs/fhir/StructureDefinition/is-condition-list-chronology',
+                valueBoolean: true,
+              },
+            ],
+            target: [{ reference: 'Patient/pat' }],
+            recorded: '2026-09-01T10:00:00+02:00',
+          },
+        },
+      ],
+    },
+  };
+}
+
 function attrappe(xds: 'erfolg' | 'fehler' = 'erfolg') {
   return epaAttrappe((a: Aufzeichnung) => {
+    if (a.pfad === `${DIENST}/$add-condition-entry`) return geschrieben('cond-mig', '1');
+    if (a.pfad === `${DIENST}/$update-condition-entry`) return geschrieben('cond-vhf', '2');
     if (a.pfad.endsWith('/patient-summary/api/v1/fhir/metadata'))
       return { status: 200, inhalt: { resourceType: 'CapabilityStatement' } };
     if (a.pfad === `${DIENST}/metadata`)
@@ -142,7 +175,9 @@ describe('Arztbrief', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Diagnosen auswählen' }));
     const menue = screen.getByRole('dialog', { name: 'Diagnosen auswählen' });
     const epa = await within(menue).findByRole('group', { name: /Diagnosenliste/ });
-    const vhf = within(epa).getByLabelText(/I48\.1 G Vorhofflimmern/) as HTMLInputElement;
+    const vhf = within(epa).getByRole('checkbox', {
+      name: /I48\.1 G Vorhofflimmern/,
+    }) as HTMLInputElement;
     expect(vhf.checked).toBe(false);
     expect(
       (within(menue).getByRole('group', { name: /Praxis\s+Diagnosen/ }) as HTMLElement).textContent,
@@ -255,5 +290,81 @@ describe('Arztbrief', () => {
         .disabled,
     ).toBe(true);
     expect(screen.getByText('nur ärztlich')).toBeTruthy();
+  });
+
+  it('legt eine Diagnose im Pop-up an ihrer Quelle an — in Praxis und Diagnosenliste, im Brief gewählt', async () => {
+    const aufrufe = attrappe();
+    öffne();
+    fireEvent.click(await screen.findByRole('button', { name: '+ Neue Diagnose' }));
+    const popup = screen.getByRole('dialog', { name: 'Diagnose dokumentieren' });
+    fireEvent.change(within(popup).getByRole('combobox', { name: /Diagnose suchen/ }), {
+      target: { value: 'Migräne' },
+    });
+    fireEvent.click(within(within(popup).getByRole('listbox')).getAllByRole('option')[0]!);
+    fireEvent.change(within(popup).getByLabelText('Kategorie'), { target: { value: 'dauer' } });
+    const kaestchen = within(popup).getByRole('checkbox', {
+      name: /In der Diagnosenliste der ePA führen/,
+    }) as HTMLInputElement;
+    expect(kaestchen.checked).toBe(true);
+    fireEvent.click(within(popup).getByRole('button', { name: 'Diagnose speichern' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Diagnose dokumentieren' })).toBeNull(),
+    );
+    expect(aufrufe.some((a) => a.pfad === `${DIENST}/$add-condition-entry`)).toBe(true);
+    const neu = lesen().diagnosen.find((d) => d.epaId === 'cond-mig');
+    expect(neu?.art).toBe('dauer');
+    const dx = imBrief('Diagnosen');
+    expect(within(dx).getByText(/Migräne/)).toBeTruthy();
+    expect(within(dx).getByText('neu')).toBeTruthy();
+  });
+
+  it('ändert einen Eintrag, der nur in der ePA-Liste steht, im Pop-up — verknüpft übernommen und zurück übertragen', async () => {
+    const aufrufe = attrappe();
+    öffne();
+    fireEvent.click(await screen.findByRole('button', { name: 'Diagnosen auswählen' }));
+    const menue = screen.getByRole('dialog', { name: 'Diagnosen auswählen' });
+    fireEvent.click(
+      await within(menue).findByRole('button', { name: /I48\.1 G Vorhofflimmern.* ändern/ }),
+    );
+    expect(screen.queryByRole('dialog', { name: 'Diagnosen auswählen' })).toBeNull();
+    const popup = screen.getByRole('dialog', { name: 'Diagnose aus der ePA ändern' });
+    expect(
+      (
+        within(popup).getByRole('checkbox', {
+          name: /Änderung in die Diagnosenliste der ePA übertragen/,
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    fireEvent.change(within(popup).getByLabelText('Kategorie'), { target: { value: 'dauer' } });
+    fireEvent.click(within(popup).getByRole('button', { name: 'Diagnose speichern' }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Diagnose aus der ePA ändern' })).toBeNull(),
+    );
+    expect(aufrufe.some((a) => a.pfad === `${DIENST}/$update-condition-entry`)).toBe(true);
+    expect(aufrufe.some((a) => a.pfad === `${DIENST}/$add-condition-entry`)).toBe(false);
+    const lokal = lesen().diagnosen.filter((d) => d.epaId === 'cond-vhf');
+    expect(lokal).toHaveLength(1);
+    expect(lokal[0]!.art).toBe('dauer');
+    expect(lokal[0]!.id).not.toBe('cond-vhf');
+    // Im Brief steht der Eintrag jetzt bei der Praxis.
+    const zeile = within(imBrief('Diagnosen'))
+      .getByText(/Vorhofflimmern/)
+      .closest('li')!;
+    expect(zeile.textContent).toContain('Praxis');
+  });
+
+  it('zeigt Anlegen und Ändern nur in ärztlicher Rolle', async () => {
+    attrappe();
+    speicherStarten({
+      ...startzustand(),
+      nutzer: startzustand().nutzerliste[1]!,
+      epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')],
+    });
+    öffne();
+    await screen.findByRole('button', { name: 'Diagnosen auswählen' });
+    expect(screen.queryByRole('button', { name: '+ Neue Diagnose' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /ändern$/ })).toBeNull();
   });
 });

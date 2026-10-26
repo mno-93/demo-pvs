@@ -18,8 +18,8 @@ import {
   type Listenzeile,
   type Ressource,
 } from '@demo-pvs/kern';
-import { ausfuehren, lesen, useAuswahl, useZustand } from '../speicher/speicher.js';
-import { neueId, vorgaenge } from '../speicher/vorgaenge.js';
+import { ausfuehren, useAuswahl, useZustand } from '../speicher/speicher.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { usePatientId } from './Patientenkartei.js';
 import {
@@ -32,7 +32,6 @@ import {
   leererAllergieentwurf,
   type Allergieentwurf,
 } from './diagnosen/AllergieFormular.js';
-import type { Listenoption } from './diagnosen/Listenwahl.js';
 import {
   Herkunftszeile,
   Kompaktkarte,
@@ -40,12 +39,17 @@ import {
   type Aufklappen,
 } from './diagnosen/Splitscreen.js';
 import { ordnungsangaben, useOrdnung } from './diagnosen/ordnung.js';
-import { EpaFehler, type Listenart } from '../epa/klient.js';
+import {
+  LISTENART,
+  bezeichnung,
+  istBerichtigt,
+  naheliegend,
+  useListenpflege,
+  type Pflegeart,
+} from './diagnosen/listenpflege.js';
 import {
   LISTENNAME,
   inDerListeBerichtigen,
-  inDieListeAufnehmen,
-  inDieListeUebertragen,
   psRelevanzAendern,
   keineBekannteAllergieEintragen,
   useEpaListen,
@@ -79,19 +83,8 @@ import { protokollOeffnen } from '../epa/protokoll.js';
  * in derselben Maske.
  */
 
-type Art = 'diagnose' | 'allergie';
+type Art = Pflegeart;
 type Bearbeitung = { art: Art; id: string } | null;
-type Meldung = { art: 'gut' | 'fehler' | 'neutral'; text: string } | null;
-
-const LISTENART: Record<Art, Listenart> = { diagnose: 'Condition', allergie: 'AllergyIntolerance' };
-
-function bezeichnung(e: Diagnose | Allergie): string {
-  return 'substanz' in e ? e.substanz : e.bezeichnung;
-}
-
-function istBerichtigt(e: Diagnose | Allergie): boolean {
-  return 'substanz' in e ? e.gewissheit === 'irrtümlich' : e.diagnosesicherheit === 'irrtümlich';
-}
 
 export function Diagnosen() {
   const patientId = usePatientId();
@@ -178,9 +171,19 @@ export function Diagnosen() {
   const [erfassung, setzeErfassung] = useState<Art>('diagnose');
   // Neuer Schlüssel nach jedem Speichern setzt die Maske zurück.
   const [durchlauf, setzeDurchlauf] = useState(0);
-  const [meldung, setzeMeldung] = useState<Meldung>(null);
-  const [laeuft, setzeLaeuft] = useState(false);
   const [rueckfrage, setzeRueckfrage] = useState<string | null>(null);
+  const {
+    meldung,
+    setzeMeldung,
+    laeuft,
+    eintragZu,
+    epaHandlung,
+    inDieEpa,
+    inDiePraxis: uebernehmen,
+    diagnoseSpeichern: diagnoseAblegen,
+    allergieSpeichern: allergieAblegen,
+    listenoption,
+  } = useListenpflege(patient, { lage, abfrage }, () => setzeRueckfrage(null));
 
   const inBearbeitung =
     bearbeitung?.art === 'diagnose'
@@ -189,96 +192,8 @@ export function Diagnosen() {
         ? allergien.find((a) => a.id === bearbeitung.id)
         : undefined;
 
-  function eintragZu(
-    art: Art,
-    epaId: string | null,
-  ): Listeneintrag<Diagnose | Allergie> | undefined {
-    if (!listen || !epaId) return undefined;
-    const alle: Listeneintrag<Diagnose | Allergie>[] =
-      art === 'diagnose' ? listen.diagnosen : listen.allergien;
-    return alle.find((x) => x.eintrag.id === epaId);
-  }
-
-  /** Führt eine Schreibung an der ePA aus, meldet das Ergebnis und fragt die Listen neu ab. */
-  async function epaHandlung(schritt: () => Promise<void>, erfolg: string) {
-    setzeLaeuft(true);
-    setzeMeldung({ art: 'neutral', text: 'Wird an die ePA übermittelt …' });
-    try {
-      await schritt();
-      setzeMeldung({ art: 'gut', text: erfolg });
-    } catch (f) {
-      setzeMeldung({
-        art: 'fehler',
-        text:
-          f instanceof EpaFehler && f.veraltet
-            ? 'Die Liste wurde inzwischen geändert und ist neu geladen. Bitte prüfen und wiederholen.'
-            : f instanceof EpaFehler
-              ? `Von der ePA abgelehnt — ${f.status}${f.code ? ` ${f.code}` : ''}: ${f.diagnose}`
-              : 'Der Vorgang ist fehlgeschlagen.',
-      });
-    }
-    setzeLaeuft(false);
-    setzeRueckfrage(null);
-    abfrage.neuLaden();
-  }
-
-  /**
-   * Nimmt einen Eintrag der Praxis in die Liste auf oder überträgt seine Änderung. Als Folge des
-   * Speicherns ist das keine eigene Handlung — gezählt wird dann nur das Speichern.
-   */
-  async function inDieEpa(
-    art: Art,
-    lokal: Diagnose | Allergie,
-    alsFolge = false,
-    psRelevant?: boolean,
-  ) {
-    const vorhanden = eintragZu(art, lokal.epaId);
-    const liste = LISTENNAME[LISTENART[art]];
-    const lesenachweis = listen?.lesenachweis[LISTENART[art]] ?? null;
-    const setztAusserKraft = art === 'allergie' && !vorhanden && keineBekannteGueltig.length > 0;
-    await epaHandlung(
-      async () => {
-        const { eintrag: neu } = vorhanden
-          ? await inDieListeUebertragen(
-              kvnr,
-              LISTENART[art],
-              lesenachweis,
-              lokal,
-              vorhanden.ressource,
-              nutzer.name,
-            )
-          : await inDieListeAufnehmen(
-              kvnr,
-              LISTENART[art],
-              lesenachweis,
-              lokal,
-              nutzer.name,
-              psRelevant ?? naheliegend(lokal),
-            );
-        ausfuehren(
-          vorgaenge.listeneintragVerknuepfen(
-            art,
-            lokal.id,
-            String(neu.id),
-            neu.meta?.versionId ?? '1',
-            alsFolge,
-          ),
-        );
-      },
-      vorhanden
-        ? `Änderung an „${bezeichnung(lokal)}" in die ${liste} der ePA übertragen.`
-        : `„${bezeichnung(lokal)}" in die ${liste} der ePA aufgenommen.${setztAusserKraft ? ' Die Angabe „Keine bekannten Allergien" hat der Dienst damit außer Kraft gesetzt.' : ''}`,
-    );
-  }
-
   function inDiePraxis(art: Art, epa: Diagnose | Allergie) {
-    const eintrag = eintragZu(art, epa.id);
-    const quelle = `${LISTENNAME[LISTENART[art]]} der ePA, angelegt von ${eintrag?.chronik.angelegtVon ?? 'unbekannt'}`;
-    ausfuehren(
-      art === 'diagnose'
-        ? vorgaenge.diagnoseAusEpaUebernehmen(patientId, epa as Diagnose, quelle)
-        : vorgaenge.allergieAusEpaUebernehmen(patientId, epa as Allergie, quelle),
-    );
+    uebernehmen(art, epa);
     setzeMeldung({
       art: 'gut',
       text: `„${bezeichnung(epa)}" in die Praxis übernommen — verknüpft mit der ${LISTENNAME[LISTENART[art]]}.`,
@@ -366,12 +281,10 @@ export function Diagnosen() {
     psRelevant: boolean,
     id?: string,
   ) {
-    const kennung = id ?? neueId('diag');
-    ausfuehren(id ? vorgaenge.diagnoseAendern(id, e) : vorgaenge.diagnoseAnlegen(e, kennung));
+    const fertig = diagnoseAblegen(e, inListe, psRelevant, id);
     if (id) setzeBearbeitung(null);
     else setzeDurchlauf((n) => n + 1);
-    const lokal = lesen().diagnosen.find((d) => d.id === kennung);
-    if (inListe && lokal) await inDieEpa('diagnose', lokal, true, psRelevant);
+    await fertig;
   }
 
   async function allergieSpeichern(
@@ -380,35 +293,10 @@ export function Diagnosen() {
     psRelevant: boolean,
     id?: string,
   ) {
-    const kennung = id ?? neueId('allg');
-    ausfuehren(id ? vorgaenge.allergieAendern(id, e) : vorgaenge.allergieAnlegen(e, kennung));
+    const fertig = allergieAblegen(e, inListe, psRelevant, id);
     if (id) setzeBearbeitung(null);
     else setzeDurchlauf((n) => n + 1);
-    const lokal = lesen().allergien.find((a) => a.id === kennung);
-    if (inListe && lokal) await inDieEpa('allergie', lokal, true, psRelevant);
-  }
-
-  const grundOhneListe =
-    lage.art === 'ohne-befugnis'
-      ? 'Keine Befugnis für die ePA.'
-      : lage.art === 'nicht-angeboten'
-        ? 'Release 3.1.3: keine Liste in der ePA.'
-        : lage.art === 'laedt'
-          ? 'Wird abgefragt …'
-          : lage.art === 'fehler'
-            ? `ePA-Fehler (${lage.status || '—'}).`
-            : null;
-
-  function listenoption(art: Art, e?: Diagnose | Allergie): Listenoption {
-    const eintrag = eintragZu(art, e?.epaId ?? null);
-    const berichtigt = eintrag ? istBerichtigt(eintrag.eintrag) : false;
-    return {
-      moeglich: lage.art === 'bereit' && !berichtigt,
-      grund: berichtigt ? 'In der ePA als fehlerhaft gekennzeichnet.' : grundOhneListe,
-      // Eine Verknüpfung auf einen Eintrag, den die gelesene Liste nicht kennt, zählt nicht.
-      verknuepft: !!eintrag || (!!e?.epaId && lage.art !== 'bereit'),
-      angelegtVon: eintrag?.chronik.angelegtVon ?? null,
-    };
+    await fertig;
   }
 
   /* ---------- Zeilen ---------- */
@@ -424,13 +312,6 @@ export function Diagnosen() {
       {beschriftung}
     </button>
   );
-
-  /** Gehört der Eintrag nach der Vorbelegung in die Liste? Dann ist das Aufnehmen hervorgehoben. */
-  function naheliegend(e: Diagnose | Allergie): boolean {
-    return 'substanz' in e
-      ? e.klinischerStatus === 'aktiv' && !istBerichtigt(e)
-      : e.art === 'dauer' && istGegenwaertig(e.klinischerStatus);
-  }
 
   function mitte<T extends Diagnose | Allergie>(art: Art) {
     const operation = art === 'diagnose' ? 'condition' : 'allergy';

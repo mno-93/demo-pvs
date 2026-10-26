@@ -32,7 +32,7 @@ import {
   type Ladezustand,
 } from '../../epa/epa-bestand.js';
 import { istGueltig, useBefugnis, useEinlesungen } from '../../epa/befugnis.js';
-import { useEpaListen, type Listenlage } from '../../epa/listen.js';
+import type { Listenlage } from '../../epa/listen.js';
 import { impflisteLaden } from '../../epa/impfliste.js';
 
 /**
@@ -126,6 +126,8 @@ function befundzeile(b: GelesenerBefund): string {
 export function useBriefangebote(
   patientId: string,
   beginn: string,
+  /** Lage der ✦ Listen — vom Aufrufer abgefragt, damit das Pop-up an der Quelle sie teilt. */
+  listenlage: Listenlage,
 ): Record<Abschnitt, Abschnittsangebot> {
   const patient = useAuswahl((z) => z.patienten.find((p) => p.id === patientId), [patientId]);
   const heute = useZustand((z) => z.heute);
@@ -160,7 +162,6 @@ export function useBriefangebote(
   const aktiv = !!kvnr && befugt;
   const abh = [kvnr, betriebsstand, einlesungen];
 
-  const { lage: listenlage } = useEpaListen(patient);
   const impfliste = useEpaAbfrage(() => impflisteLaden(kvnr, patientId), abh, aktiv);
   const medikation = useEpaAbfrage(
     () => Promise.all([medikationsplanLesen(kvnr), medikationslisteLesen(kvnr)]),

@@ -4,10 +4,10 @@ import { ADRESSBUCH } from '@demo-pvs/kern';
 /**
  * Entwurf eines Arztbriefs je Person — außerhalb des Bildschirms gehalten.
  *
- * Wer im Brief etwas vermisst, trägt es in seiner eigentlichen Quelle ein: die Diagnose in
- * „Diagnosen und Allergien", das Mittel im Medikationsplan, die Notiz in der Karteikarte. Dafür
- * verlässt man den Reiter. Der Entwurf überlebt das, und was in der Zwischenzeit neu angelegt
- * wurde, ist bei der Rückkehr schon ausgewählt.
+ * Wer im Brief etwas vermisst, trägt es in seiner eigentlichen Quelle ein: Diagnosen und
+ * Allergien im Pop-up mit der Maske der Liste (`Quellpflege.tsx`), das Mittel im Medikationsplan,
+ * die Notiz in der Karteikarte — dafür verlässt man den Reiter. Der Entwurf überlebt das, und was
+ * in der Zwischenzeit neu angelegt wurde, ist schon ausgewählt.
  *
  * Gewählt wird über Abweichungen von der Vorauswahl: `hinzu` und `ab`. So bleibt die Vorauswahl
  * für Einträge gültig, die erst später geladen werden — etwa aus der ePA.

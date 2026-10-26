@@ -73,6 +73,16 @@ const IMPLANTAT: Ressource = {
   extension: [QUELLDOKUMENT],
 };
 
+/** Das Quelldokument in der Dokumentenliste der ePA — seine Kennung ist die entryUUID. */
+const ENTLASSBRIEF: Ressource = {
+  resourceType: 'DocumentReference',
+  id: 'dok-1',
+  status: 'current',
+  description: 'Entlassbrief stationäre Behandlung',
+  date: '2026-07-20',
+  content: [{ attachment: { contentType: 'application/pdf', title: 'Entlassbrief' } }],
+};
+
 function summaryBundle(kvnr: string, mitDokumenten = false) {
   const z = startzustand();
   const d = z.diagnosen.find((x) => x.patientId === 'p-krueger')!;
@@ -152,7 +162,7 @@ function aktensystem(mitSummary: boolean, mitDokumenten = false) {
     if (a.pfad === `${PS}/Patient/$summary`)
       return { status: 200, inhalt: summaryBundle(kvnr, mitDokumenten) };
     if (a.pfad.startsWith('/epa/mhd/api/v1/fhir/DocumentReference')) {
-      return { status: 200, inhalt: suchergebnis([]) };
+      return { status: 200, inhalt: suchergebnis(mitDokumenten ? [ENTLASSBRIEF] : []) };
     }
     return undefined;
   });
@@ -306,5 +316,34 @@ describe('Patient Summary', () => {
     });
     expect(within(implantate).getByText('Herzschrittmacher (Zweikammer)')).toBeDefined();
     expect(implantate.textContent).toContain('02.04.2019');
+  });
+
+  it('springt aus der Herkunft einer Prozedur direkt in ihr Quelldokument', async () => {
+    aktensystem(true, true);
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-krueger')] });
+    öffne('/patient/p-krueger/karteikarte');
+    fireEvent.click(await screen.findByRole('button', { name: 'Patient Summary' }));
+    const dialog = screen.getByRole('dialog', { name: 'Elektronische Patientenakte' });
+    const implantate = await within(dialog).findByRole('region', {
+      name: 'Implantate und Medizinprodukte',
+    });
+    fireEvent.click(
+      within(implantate).getByRole('button', {
+        name: 'Dokument öffnen: Entlassbrief stationäre Behandlung, Klinikum Sonnenschein',
+      }),
+    );
+
+    // Nicht die Liste aller Dokumente, sondern das eine — geöffnet und in der Liste markiert.
+    expect(
+      within(dialog).getByRole('button', { name: 'Dokumente' }).getAttribute('aria-current'),
+    ).toBe('page');
+    expect(
+      await within(dialog).findByLabelText('Dokument Entlassbrief stationäre Behandlung'),
+    ).toBeDefined();
+    const zeile = within(dialog)
+      .getAllByText('Entlassbrief stationäre Behandlung', { selector: 'b' })
+      .map((b) => b.closest('tr'))
+      .find(Boolean)!;
+    expect(zeile.className).toContain('hervorgehoben');
   });
 });

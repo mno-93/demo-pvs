@@ -33,12 +33,15 @@ export interface EpaFensterzustand {
   offen: boolean;
   patientId: string | null;
   bereich: EpaBereich;
+  /** Dokument, das unter „Dokumente" geöffnet werden soll — gesetzt von einem Sprung. */
+  dokumentId: string | null;
 }
 
 let zustand: EpaFensterzustand = {
   offen: false,
   patientId: null,
   bereich: 'uebersicht',
+  dokumentId: null,
 };
 const hoerer = new Set<() => void>();
 
@@ -48,7 +51,7 @@ function setzen(teil: Partial<EpaFensterzustand>) {
 }
 
 export function epaFensterOeffnen(patientId: string, bereich: EpaBereich = 'uebersicht'): void {
-  setzen({ offen: true, patientId, bereich });
+  setzen({ offen: true, patientId, bereich, dokumentId: null });
 }
 
 export function epaFensterSchliessen(): void {
@@ -56,7 +59,12 @@ export function epaFensterSchliessen(): void {
 }
 
 export function epaBereichWaehlen(bereich: EpaBereich): void {
-  setzen({ bereich });
+  setzen({ bereich, dokumentId: null });
+}
+
+/** Springt im offenen Fenster zu einem Dokument: Bereich „Dokumente", das Dokument geöffnet. */
+export function epaDokumentZeigen(dokumentId: string): void {
+  setzen({ bereich: 'dokumente', dokumentId });
 }
 
 function abonnieren(h: () => void) {
