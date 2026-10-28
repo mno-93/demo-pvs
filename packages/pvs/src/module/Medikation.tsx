@@ -16,6 +16,9 @@ import {
   istKeineBekannteAllergie,
   jetztAlsIsoOrtszeit,
   laborwerteAusDokumenten,
+  letzteVerordnung,
+  planangabeAusRezept,
+  planeintragZumRezept,
   schwersterBefund,
   staendeVergleichen,
   type Rezept,
@@ -24,6 +27,7 @@ import {
   type ArzneimittelEintrag,
   type DokumentierteAllergie,
   type EmpStatus,
+  type PraxisplanEintrag,
   type Ressource,
   type SpiegelEintrag,
 } from '@demo-pvs/kern';
@@ -74,6 +78,10 @@ import { Aenderungsband } from '../epa/gesehen.js';
  *
  * ▸ Für das Projekt ist das die Blaupause: automatisch abgeleiteter Bestand plus ärztlich
  * verantwortete Ebene darüber — so ist es für die Patient Summary vorgeschlagen.
+ *
+ * Gibt es keine Akte, führt die Praxis den Plan selbst — als Medikationsplan der Praxis, ein
+ * eigener Bestand im Praxissystem (ADR 0045). Rezepte lassen sich dann aus ihm verordnen und
+ * in ihn übernehmen; eine Medikationsliste gibt es ohne Akte nicht.
  */
 
 const ATC = CODESYSTEM.atc;
@@ -336,6 +344,11 @@ export function Medikation() {
     [patientId],
   );
   const aktenstatus = useAktenstatus(patient);
+  const ohneAkte = aktenstatus.daten?.akte === 'keine';
+  const praxisplan = useAuswahl(
+    (z) => z.praxisplan.filter((e) => e.patientId === patientId),
+    [patientId],
+  );
   const [vorlage, setzeVorlage] = useState<Rezeptvorlage | null>(null);
   const [neuesRezept, setzeNeuesRezept] = useState(false);
   const lesezeichen = useLesezeichen(patientId, 'medikation');
@@ -456,9 +469,11 @@ export function Medikation() {
 
   const ohneBefugnis = fehler?.ohneBefugnis ?? false;
   const ausSpiegel = fehler !== null && spiegel !== null;
-  const angezeigt: (SpiegelEintrag & Partial<Planzeile>)[] = ausSpiegel
-    ? [...spiegel.eintraege]
-    : (stand?.zeilen ?? []);
+  const angezeigt: (SpiegelEintrag & Partial<Planzeile>)[] = ohneAkte
+    ? [...praxisplan]
+    : ausSpiegel
+      ? [...spiegel.eintraege]
+      : (stand?.zeilen ?? []);
   const aktivePlanCodes = angezeigt
     .filter((e) => e.status === 'aktiv')
     .map((e) => e.atc)
@@ -466,7 +481,7 @@ export function Medikation() {
   const umgebung: AmtsUmgebung = { ...umgebungOhnePlan, bestehendeAtc: aktivePlanCodes };
   const lesenachweis = stand?.plan.lesenachweis ?? null;
   const gesperrt = fehler?.status === 423 || aktenstatus.daten?.medikationGesperrt === true;
-  const planSchreibbar = darfVerordnen && !!stand && !ausSpiegel && !gesperrt;
+  const planSchreibbar = darfVerordnen && (ohneAkte || (!!stand && !ausSpiegel && !gesperrt));
 
   /*
    * Solange ein gesendetes Rezept noch nicht in der Medikationsliste steht, fragt das Modul
@@ -491,6 +506,12 @@ export function Medikation() {
     setzeNachfragen(0);
     void handlung(
       async () => {
+        if (ohneAkte) {
+          const id = rezeptOhneAkte(v, a);
+          const r = lesen().rezepte.find((x) => x.id === id);
+          if (senden && r) await rezeptSenden(r);
+          return;
+        }
         let empId = v.empId;
         if (a.auchInPlan) {
           if (v.listeneintrag) {
@@ -541,6 +562,67 @@ export function Medikation() {
       },
       senden ? 'E-Rezept signiert und gesendet.' : 'E-Rezept vorbereitet.',
     );
+  }
+
+  /**
+   * Ohne Akte: Rezept anlegen und dem Medikationsplan der Praxis zuordnen — dem Eintrag, aus dem
+   * verordnet wird, oder einem neuen, wenn „auch in den Medikationsplan" gewählt ist.
+   */
+  function rezeptOhneAkte(v: Rezeptvorlage, a: Rezeptangabe) {
+    const id = neueId('rezept');
+    ausfuehren(
+      vorgaenge.rezeptVorbereiten(
+        {
+          patientId,
+          arzneimittel: v.arzneimittel,
+          dosierung: a.dosierung,
+          packungen: a.packungen,
+          normgroesse: a.normgroesse,
+          empId: null,
+          grund: a.grund,
+          freigabe: a.freigabe,
+          hinweis: a.hinweis,
+        },
+        id,
+      ),
+    );
+    if (v.praxisplanId) {
+      ausfuehren(vorgaenge.praxisplanRezeptZuordnen(v.praxisplanId, id));
+    } else if (a.auchInPlan) {
+      const r = lesen().rezepte.find((x) => x.id === id);
+      if (r)
+        ausfuehren(
+          vorgaenge.praxisplanAufnehmen({ patientId, ...planangabeAusRezept(r), rezeptIds: [id] }),
+        );
+    }
+    return id;
+  }
+
+  /** Nimmt ein vorhandenes Rezept in den Medikationsplan der Praxis auf. */
+  function rezeptInPraxisplan(r: Rezept) {
+    ausfuehren(
+      vorgaenge.praxisplanAufnehmen({ patientId, ...planangabeAusRezept(r), rezeptIds: [r.id] }),
+    );
+    setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
+  }
+
+  function vorlageAusPraxisplan(e: PraxisplanEintrag) {
+    setzeNeuesRezept(false);
+    setzeVorlage({
+      arzneimittel: {
+        bezeichnung: e.bezeichnung,
+        pzn: e.pzn ?? arzneimittel.find((m) => m.atc === e.atc)?.pzn ?? '',
+        atc: e.atc,
+        atcVersion: e.atcVersion,
+      },
+      dosierung: e.dosierung,
+      empId: null,
+      praxisplanId: e.id,
+      grund: e.grund,
+      herkunft: 'plan',
+      imPlan: true,
+      katalog: arzneimittel.find((m) => m.atc === e.atc) ?? null,
+    });
   }
 
   function vorlageAusPlan(z: Planzeile) {
@@ -648,19 +730,21 @@ export function Medikation() {
 
   return (
     <>
-      <Bestandsband lage="beides" />
+      <Bestandsband lage={ohneAkte ? 'lokal' : 'beides'} />
 
-      <Abgleichband
-        kvnr={kvnr}
-        ausSpiegel={ausSpiegel}
-        ohneBefugnis={ohneBefugnis || fehler !== null}
-        spiegel={spiegel}
-        lesenachweis={lesenachweis}
-        neuLaden={neuLaden}
-      />
+      {!ohneAkte && (
+        <Abgleichband
+          kvnr={kvnr}
+          ausSpiegel={ausSpiegel}
+          ohneBefugnis={ohneBefugnis || fehler !== null}
+          spiegel={spiegel}
+          lesenachweis={lesenachweis}
+          neuLaden={neuLaden}
+        />
+      )}
 
-      {ohneBefugnis && <BefugnisHinweis patientId={patientId} />}
-      {fehler && !ohneBefugnis && (
+      {ohneBefugnis && !ohneAkte && <BefugnisHinweis patientId={patientId} />}
+      {fehler && !ohneBefugnis && !ohneAkte && (
         <div className={`hinweisbox ${fehler.status === 423 ? 'warn' : 'fehler'}`}>
           <b>{fehlerTitel(fehler)}</b> {fehler.status === 423 ? '' : fehler.diagnose}
         </div>
@@ -681,8 +765,9 @@ export function Medikation() {
       )}
 
       <div className="reihe" style={{ marginBottom: 10 }}>
+        {ohneAkte && <Marker ton="neutral">keine ePA</Marker>}
         <Marker ton="neutral">{aktivePlanCodes.length} aktiv im Plan</Marker>
-        <Marker ton="neutral">{stand?.liste.length ?? 0} in der Liste</Marker>
+        {!ohneAkte && <Marker ton="neutral">{stand?.liste.length ?? 0} in der Liste</Marker>}
         {umgebung.egfr !== null ? (
           <Marker ton={umgebung.egfr < 45 ? 'warn' : 'neutral'}>
             eGFR {umgebung.egfr} ml/min/1,73 m²
@@ -699,13 +784,15 @@ export function Medikation() {
         <Marker ton={umgebung.allergien.length > 0 ? 'warn' : 'neutral'}>
           {umgebung.allergien.length} Allergieangaben
         </Marker>
-        <button
-          type="button"
-          className="knopf klein rechts"
-          onClick={() => epaFensterOeffnen(patientId, 'medikation')}
-        >
-          in der ePA
-        </button>
+        {!ohneAkte && (
+          <button
+            type="button"
+            className="knopf klein rechts"
+            onClick={() => epaFensterOeffnen(patientId, 'medikation')}
+          >
+            in der ePA
+          </button>
+        )}
       </div>
 
       {vorlage && (
@@ -721,8 +808,8 @@ export function Medikation() {
         />
       )}
 
-      <Karte titel="Medikationsplan">
-        {seit?.plan && !ausSpiegel && (
+      <Karte titel={ohneAkte ? 'Medikationsplan der Praxis' : 'Medikationsplan'}>
+        {seit?.plan && !ausSpiegel && !ohneAkte && (
           <Aenderungsband
             am={seit.am}
             teile={[
@@ -735,7 +822,7 @@ export function Medikation() {
             von={seit.planVon}
           />
         )}
-        {laedt && !stand ? (
+        {laedt && !stand && !ohneAkte ? (
           <Leer>Wird abgefragt …</Leer>
         ) : angezeigt.length === 0 ? (
           <Leer>{gesperrt ? 'Gesperrt durch Widerspruch.' : 'Kein Eintrag im Plan.'}</Leer>
@@ -766,7 +853,12 @@ export function Medikation() {
                       <div className="leise-klein">
                         ATC {e.atc} · Fassung {e.fassung}
                       </div>
-                      {stand && !ausSpiegel && <Spur spur={rezeptspur(stand.roh, e.id)} />}
+                      {stand && !ausSpiegel && !ohneAkte && (
+                        <Spur spur={rezeptspur(stand.roh, e.id)} />
+                      )}
+                      {ohneAkte && (
+                        <PraxisplanSpur eintrag={e as PraxisplanEintrag} rezepte={rezepte} />
+                      )}
                     </td>
                     <td>
                       <span className="code">{e.dosierung}</span>
@@ -783,6 +875,24 @@ export function Medikation() {
                     </td>
                     <td>
                       <div className="reihe" style={{ gap: 5 }}>
+                        {ohneAkte && e.status === 'aktiv' && (
+                          <button
+                            type="button"
+                            className="knopf klein"
+                            onClick={() => vorlageAusPraxisplan(e as PraxisplanEintrag)}
+                          >
+                            Rezept
+                          </button>
+                        )}
+                        {ohneAkte && darfVerordnen && e.status !== 'entered-in-error' && (
+                          <Planhandlungen
+                            zeile={e}
+                            ausfuehren={(status, text) => {
+                              ausfuehren(vorgaenge.praxisplanStatusSetzen(e.id, status));
+                              setzeMeldung({ art: 'gut', text });
+                            }}
+                          />
+                        )}
                         {!ausSpiegel && e.eintrag && e.status === 'aktiv' && (
                           <button
                             type="button"
@@ -811,39 +921,45 @@ export function Medikation() {
       </Karte>
 
       <Karte titel="Medikationsliste">
-        {seit && seit.liste.size > 0 && (
-          <Aenderungsband am={seit.am} teile={[`${seit.liste.size} neu`]} von={seit.listeVon} />
-        )}
-        {!stand || stand.liste.length === 0 ? (
-          <Leer>
-            {gesperrt
-              ? 'Gesperrt durch Widerspruch.'
-              : 'Keine Verordnungen, Abgaben oder Nachträge.'}
-          </Leer>
+        {ohneAkte ? (
+          <Leer>Keine ePA.</Leer>
         ) : (
-          <EmlTabelle
-            zeilen={stand.liste}
-            neu={seit?.liste ?? new Set()}
-            darfVerordnen={darfVerordnen && !ausSpiegel}
-            rezept={vorlageAusListe}
-            umgebung={umgebung}
-            uebernehmen={(z) =>
-              void handlung(async () => {
-                const neu = await empEintragAnlegen(
-                  kvnr,
-                  lesenachweis,
-                  { reference: `Medication/${String(z.medikament?.id)}` },
-                  planeintrag(kvnr, heute, z.dosierung, null),
-                );
-                await empVerknuepfen(
-                  kvnr,
-                  neu.lesenachweis,
-                  String(z.aussage.id),
-                  String(neu.eintrag.id),
-                );
-              }, 'In den Plan übernommen.')
-            }
-          />
+          <>
+            {seit && seit.liste.size > 0 && (
+              <Aenderungsband am={seit.am} teile={[`${seit.liste.size} neu`]} von={seit.listeVon} />
+            )}
+            {!stand || stand.liste.length === 0 ? (
+              <Leer>
+                {gesperrt
+                  ? 'Gesperrt durch Widerspruch.'
+                  : 'Keine Verordnungen, Abgaben oder Nachträge.'}
+              </Leer>
+            ) : (
+              <EmlTabelle
+                zeilen={stand.liste}
+                neu={seit?.liste ?? new Set()}
+                darfVerordnen={darfVerordnen && !ausSpiegel}
+                rezept={vorlageAusListe}
+                umgebung={umgebung}
+                uebernehmen={(z) =>
+                  void handlung(async () => {
+                    const neu = await empEintragAnlegen(
+                      kvnr,
+                      lesenachweis,
+                      { reference: `Medication/${String(z.medikament?.id)}` },
+                      planeintrag(kvnr, heute, z.dosierung, null),
+                    );
+                    await empVerknuepfen(
+                      kvnr,
+                      neu.lesenachweis,
+                      String(z.aussage.id),
+                      String(neu.eintrag.id),
+                    );
+                  }, 'In den Plan übernommen.')
+                }
+              />
+            )}
+          </>
         )}
       </Karte>
 
@@ -851,7 +967,14 @@ export function Medikation() {
         rezepte={rezepte}
         liste={stand?.roh ?? null}
         gesperrt={gesperrt || !befugt}
+        ohneAkte={ohneAkte}
         aerztlich={darfVerordnen}
+        {...(ohneAkte
+          ? {
+              imPlan: (r: Rezept) => planeintragZumRezept(r, praxisplan) !== null,
+              ...(darfVerordnen ? { inDenPlan: rezeptInPraxisplan } : {}),
+            }
+          : {})}
         werkzeuge={
           <button
             type="button"
@@ -880,7 +1003,27 @@ export function Medikation() {
         </Karte>
       )}
 
-      {darfVerordnen && !ausSpiegel && !ohneBefugnis && !gesperrt && (
+      {darfVerordnen && ohneAkte && (
+        <NeuerPlaneintrag
+          umgebung={umgebung}
+          beiAnlage={(mittel, dosierung, grund) => {
+            ausfuehren(
+              vorgaenge.praxisplanAufnehmen({
+                patientId,
+                bezeichnung: mittel.bezeichnung,
+                atc: mittel.atc,
+                atcVersion: mittel.atcVersion,
+                pzn: mittel.pzn,
+                dosierung,
+                grund,
+              }),
+            );
+            setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
+          }}
+        />
+      )}
+
+      {darfVerordnen && !ohneAkte && !ausSpiegel && !ohneBefugnis && !gesperrt && (
         <NeuerPlaneintrag
           umgebung={umgebung}
           beiAnlage={(mittel, dosierung, grund) =>
@@ -923,6 +1066,21 @@ function Spur({ spur }: { spur: Rezeptspur }) {
         </>
       )}
     </div>
+  );
+}
+
+/** Letzte Verordnung am Eintrag des Medikationsplans der Praxis — ohne ePA keine Abgabe. */
+function PraxisplanSpur({
+  eintrag,
+  rezepte,
+}: {
+  eintrag: PraxisplanEintrag;
+  rezepte: readonly Rezept[];
+}) {
+  const letzte = letzteVerordnung(eintrag, rezepte);
+  if (!letzte?.gesendetAm) return null;
+  return (
+    <div className="leise-klein">verordnet {deutschesDatum(letzte.gesendetAm.slice(0, 10))}</div>
   );
 }
 
@@ -994,7 +1152,7 @@ function Planhandlungen({
   zeile,
   ausfuehren,
 }: {
-  zeile: Planzeile;
+  zeile: Pick<SpiegelEintrag, 'status'>;
   ausfuehren: (status: EmpStatus, text: string) => void;
 }) {
   const [rueckfrage, setzeRueckfrage] = useState(false);

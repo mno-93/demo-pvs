@@ -155,6 +155,10 @@ export function useBriefangebote(
     (z) => z.medikationsspiegel.find((m) => m.patientId === patientId) ?? null,
     [patientId],
   );
+  const praxisplan = useAuswahl(
+    (z) => z.praxisplan.filter((e) => e.patientId === patientId),
+    [patientId],
+  );
   const kvnr = patient?.versicherung.kvnr ?? '';
   const befugt = istGueltig(useBefugnis(patientId));
   const einlesungen = useEinlesungen();
@@ -385,6 +389,28 @@ export function useBriefangebote(
             })
         : [];
 
+    // Ohne Akte: der Medikationsplan der Praxis (ADR 0045).
+    const praxisplanMittel: Angebot[] = praxisplan
+      .filter((e) => e.status === 'aktiv')
+      .map((e) => {
+        const mittel: Briefmittel = {
+          bezeichnung: e.bezeichnung,
+          atc: e.atc || null,
+          dosierung: e.dosierung,
+          grund: e.grund,
+        };
+        return {
+          id: `pp:${e.id}`,
+          abschnitt: 'medikation' as const,
+          text: mittelzeile(mittel),
+          quelle: 'Praxis · Medikationsplan der Praxis',
+          bestand: 'praxis' as const,
+          marken: [],
+          vorgabe: true,
+          mittel,
+        };
+      });
+
     /* Impfungen */
     const verknuepfteImpfungen = new Set(impfungen.map((i) => i.epaId).filter(Boolean));
     const impfAngebote: Angebot[] = [
@@ -455,8 +481,17 @@ export function useBriefangebote(
         ],
       },
       medikation: {
-        angebote: [...planMittel, ...listenMittel, ...spiegelMittel],
+        angebote: [...praxisplanMittel, ...planMittel, ...listenMittel, ...spiegelMittel],
         quellen: [
+          ...(praxisplanMittel.length > 0
+            ? [
+                {
+                  name: 'Praxis · Medikationsplan der Praxis',
+                  bestand: 'praxis' as const,
+                  zustand: null,
+                },
+              ]
+            : []),
           ...(spiegelMittel.length > 0
             ? [{ name: spiegelMittel[0]!.quelle, bestand: 'praxis' as const, zustand: null }]
             : []),
@@ -481,6 +516,7 @@ export function useBriefangebote(
     dokumente,
     impfungen,
     spiegel,
+    praxisplan,
     listenlage,
     impfliste.daten,
     impfliste.fehler,

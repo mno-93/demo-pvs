@@ -67,14 +67,28 @@ export function Karteikarte() {
         // Laborwerte stehen nicht im Zustand; sie werden aus den Befunden der Ablage gelesen.
         laborwerte: laborwerteAusDokumenten(z.dokumente.filter((d) => d.patientId === patientId)),
         // Ein Planeintrag gehört zu dem Tag, an dem er zuletzt geändert wurde.
-        medikation: (spiegel?.eintraege ?? []).map((e) => ({
-          id: e.id,
-          bezeichnung: e.bezeichnung,
-          dosierung: e.dosierung,
-          zeitpunkt: e.geaendertAm || spiegel?.abgeglichenAm || '',
-          verantwortlich: e.verantwortlich,
-          status: e.status,
-        })),
+        medikation: (spiegel?.eintraege ?? [])
+          .map((e) => ({
+            id: e.id,
+            bezeichnung: e.bezeichnung,
+            dosierung: e.dosierung,
+            zeitpunkt: e.geaendertAm || spiegel?.abgeglichenAm || '',
+            verantwortlich: e.verantwortlich,
+            status: e.status,
+          }))
+          .concat(
+            // Ohne Akte führt die Praxis den Plan selbst (ADR 0045).
+            z.praxisplan
+              .filter((e) => e.patientId === patientId)
+              .map((e) => ({
+                id: e.id,
+                bezeichnung: e.bezeichnung,
+                dosierung: e.dosierung,
+                zeitpunkt: e.geaendertAm,
+                verantwortlich: e.verantwortlich,
+                status: e.status,
+              })),
+          ),
         dokumente: z.dokumente.filter((d) => d.patientId === patientId),
         rezepte: z.rezepte.filter((r) => r.patientId === patientId),
         impfungen: z.impfungen.filter((i) => i.patientId === patientId),

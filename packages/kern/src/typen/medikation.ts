@@ -86,3 +86,21 @@ export interface Medikationsspiegel {
   abgeglichenAm: string;
   eintraege: readonly SpiegelEintrag[];
 }
+
+/**
+ * Eintrag im Medikationsplan der Praxis — geführt, wenn es keine Akte gibt (ADR 0045).
+ *
+ * Ohne ePA gibt es keinen eMP, den das Praxissystem spiegeln könnte. Den Plan führt die Praxis
+ * trotzdem: als eigenen Bestand im Praxissystem, nicht als Ersatz-eMP. Er trägt dieselben
+ * Angaben wie ein Spiegeleintrag, dazu die Kodierung des Arzneimittels und die E-Rezepte, die
+ * aus ihm verordnet oder in ihn übernommen wurden.
+ */
+export interface PraxisplanEintrag extends SpiegelEintrag {
+  patientId: string;
+  atcVersion: string;
+  pzn: string | null;
+  angelegtAm: string;
+  geaendertAm: string;
+  /** Kennungen der E-Rezepte der Praxis, die zu diesem Eintrag gehören. */
+  rezeptIds: readonly string[];
+}
