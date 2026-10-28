@@ -168,4 +168,15 @@ describe('Medikationsplan der Praxis ohne Akte', () => {
     expect(lesen().praxisplan[0]!.status).toBe('abgesetzt');
     expect(screen.getByRole('button', { name: 'in den Plan' })).toBeDefined();
   });
+
+  it('zeigt Plan und Rezepte in der Karteikarte als Bestand der Praxis, ohne Bezug zur ePA', async () => {
+    ohneAkte();
+    speicherStarten({ ...startzustand(), rezepte: [RAMIPRIL] });
+    öffne('/patient/p-weber/medikation');
+    fireEvent.click(await screen.findByRole('button', { name: 'in den Plan' }));
+    fireEvent.click(screen.getAllByRole('link', { name: 'Karteikarte' })[0]!);
+    expect(await screen.findByText('Medikationsplan der Praxis · aktiv')).toBeDefined();
+    expect(screen.queryByText(/Medikationsplan in der ePA/)).toBeNull();
+    await waitFor(() => expect(screen.queryAllByLabelText('in der ePA')).toHaveLength(0));
+  });
 });

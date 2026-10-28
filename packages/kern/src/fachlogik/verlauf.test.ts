@@ -126,6 +126,27 @@ describe('Verlauf der Karteikarte', () => {
     expect(verlauf[0]?.bereich).toBe('medikation');
   });
 
+  it('führt den Medikationsplan der Praxis als lokalen Bestand ohne Bezug zur ePA', () => {
+    const verlauf = verlaufBilden(
+      quellen({
+        medikation: [
+          {
+            id: 'pp-1',
+            bezeichnung: 'Ramipril 5 mg',
+            dosierung: '1-0-0-0',
+            zeitpunkt: '2026-09-09T09:06:00',
+            verantwortlich: 'Dr. med. Anna Brandt',
+            status: 'aktiv',
+            plan: 'praxis',
+          },
+        ],
+      }),
+    );
+    expect(verlauf[0]?.bestand).toBe('lokal');
+    expect(verlauf[0]?.epa).toBeNull();
+    expect(verlauf[0]?.zusatz).toBe('Medikationsplan der Praxis · aktiv');
+  });
+
   it('sortiert den jüngsten Eintrag nach oben, quellenübergreifend', () => {
     const verlauf = verlaufBilden(
       quellen({

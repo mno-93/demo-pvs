@@ -520,7 +520,9 @@ das neue Rezept dem Eintrag zu; „in den Plan" übernimmt ein vorhandenes Rezep
 Dosierung und Grund. Ein Rezept gilt als im Plan, wenn es einem gültigen Eintrag zugeordnet ist
 oder ein gültiger Eintrag denselben ATC-Code trägt (`kern/fachlogik/praxisplan.ts`). Am Eintrag
 steht die letzte Verordnung; eine Abgabe erfährt die Praxis ohne Akte nicht. Die Karte E-Rezepte
-nennt als Stand „keine ePA". Karteikarte und ✦ Arztbrief lesen den Plan der Praxis mit.
+nennt als Stand „keine ePA". Karteikarte und ✦ Arztbrief lesen den Plan der Praxis mit; die Karteikarte führt ihn als
+Bestand der Praxis („Medikationsplan der Praxis · aktiv") und setzt an Plan und Rezepten kein
+Kennzeichen ↑, weil nichts in die ePA gelangt.
 
 ---
 
