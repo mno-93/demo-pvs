@@ -41,7 +41,7 @@ jobs:
       - name: Format, Lint, Typen, Tests und Vertraulichkeit
         env:
           # Projektmuster liegen nicht im Repository, sondern in einer Repository-Variable.
-          VERTRAULICH_MUSTER: ${{ vars.VERTRAULICH_MUSTER }}
+          VERTRAULICH_MUSTER: ${{ secrets.VERTRAULICH_MUSTER }}
         run: npm run pruefen
 
   fhir-validator:
