@@ -351,6 +351,7 @@ export function Medikation() {
   );
   const [vorlage, setzeVorlage] = useState<Rezeptvorlage | null>(null);
   const [neuesRezept, setzeNeuesRezept] = useState(false);
+  const [neuerPlaneintrag, setzeNeuerPlaneintrag] = useState(false);
   const lesezeichen = useLesezeichen(patientId, 'medikation');
   const [seit, setzeSeit] = useState<SeitAbfrage | null>(null);
 
@@ -482,6 +483,8 @@ export function Medikation() {
   const lesenachweis = stand?.plan.lesenachweis ?? null;
   const gesperrt = fehler?.status === 423 || aktenstatus.daten?.medikationGesperrt === true;
   const planSchreibbar = darfVerordnen && (ohneAkte || (!!stand && !ausSpiegel && !gesperrt));
+  /** „neuer Planeintrag" — ohne Akte im Plan der Praxis, sonst im eMP. */
+  const planErgaenzbar = darfVerordnen && (ohneAkte || (!ausSpiegel && !ohneBefugnis && !gesperrt));
 
   /*
    * Solange ein gesendetes Rezept noch nicht in der Medikationsliste steht, fragt das Modul
@@ -808,7 +811,21 @@ export function Medikation() {
         />
       )}
 
-      <Karte titel={ohneAkte ? 'Medikationsplan der Praxis' : 'Medikationsplan'}>
+      <Karte
+        titel={ohneAkte ? 'Medikationsplan der Praxis' : 'Medikationsplan'}
+        werkzeuge={
+          planErgaenzbar && (
+            <button
+              type="button"
+              className="knopf klein"
+              aria-expanded={neuerPlaneintrag}
+              onClick={() => setzeNeuerPlaneintrag((n) => !n)}
+            >
+              neuer Planeintrag
+            </button>
+          )
+        }
+      >
         {seit?.plan && !ausSpiegel && !ohneAkte && (
           <Aenderungsband
             am={seit.am}
@@ -920,6 +937,50 @@ export function Medikation() {
         )}
       </Karte>
 
+      {planErgaenzbar && neuerPlaneintrag && (
+        <NeuerPlaneintrag
+          umgebung={umgebung}
+          abbrechen={() => setzeNeuerPlaneintrag(false)}
+          beiAnlage={(mittel, dosierung, grund) => {
+            // Nach dem Aufnehmen schließt der Dialog; geöffnet beginnt er wieder leer.
+            setzeNeuerPlaneintrag(false);
+            if (ohneAkte) {
+              ausfuehren(
+                vorgaenge.praxisplanAufnehmen({
+                  patientId,
+                  bezeichnung: mittel.bezeichnung,
+                  atc: mittel.atc,
+                  atcVersion: mittel.atcVersion,
+                  pzn: mittel.pzn,
+                  dosierung,
+                  grund,
+                }),
+              );
+              setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
+              return;
+            }
+            void handlung(
+              () =>
+                empEintragAnlegen(
+                  kvnr,
+                  lesenachweis,
+                  {
+                    resource: planmittelNachFhir({
+                      bezeichnung: mittel.bezeichnung,
+                      atc: mittel.atc,
+                      atcVersion: mittel.atcVersion,
+                      pzn: mittel.pzn,
+                      wirkstoff: mittel.wirkstoff,
+                    }),
+                  },
+                  planeintrag(kvnr, heute, dosierung, grund),
+                ),
+              'In den Plan aufgenommen.',
+            );
+          }}
+        />
+      )}
+
       <Karte titel="Medikationsliste">
         {ohneAkte ? (
           <Leer>Keine ePA.</Leer>
@@ -1001,52 +1062,6 @@ export function Medikation() {
         <Karte titel="Neues E-Rezept">
           <NeuesRezept beiAuswahl={vorlageNeu} />
         </Karte>
-      )}
-
-      {darfVerordnen && ohneAkte && (
-        <NeuerPlaneintrag
-          umgebung={umgebung}
-          beiAnlage={(mittel, dosierung, grund) => {
-            ausfuehren(
-              vorgaenge.praxisplanAufnehmen({
-                patientId,
-                bezeichnung: mittel.bezeichnung,
-                atc: mittel.atc,
-                atcVersion: mittel.atcVersion,
-                pzn: mittel.pzn,
-                dosierung,
-                grund,
-              }),
-            );
-            setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
-          }}
-        />
-      )}
-
-      {darfVerordnen && !ohneAkte && !ausSpiegel && !ohneBefugnis && !gesperrt && (
-        <NeuerPlaneintrag
-          umgebung={umgebung}
-          beiAnlage={(mittel, dosierung, grund) =>
-            void handlung(
-              () =>
-                empEintragAnlegen(
-                  kvnr,
-                  lesenachweis,
-                  {
-                    resource: planmittelNachFhir({
-                      bezeichnung: mittel.bezeichnung,
-                      atc: mittel.atc,
-                      atcVersion: mittel.atcVersion,
-                      pzn: mittel.pzn,
-                      wirkstoff: mittel.wirkstoff,
-                    }),
-                  },
-                  planeintrag(kvnr, heute, dosierung, grund),
-                ),
-              'In den Plan aufgenommen.',
-            )
-          }
-        />
       )}
     </>
   );
@@ -1335,9 +1350,11 @@ function UebernahmeKnopf({
 function NeuerPlaneintrag({
   umgebung,
   beiAnlage,
+  abbrechen,
 }: {
   umgebung: AmtsUmgebung;
   beiAnlage: (mittel: ArzneimittelEintrag, dosierung: string, grund: string | null) => void;
+  abbrechen: () => void;
 }) {
   const [mittel, setzeMittel] = useState<ArzneimittelEintrag | null>(null);
   const [dosierung, setzeDosierung] = useState('1-0-0-0');
@@ -1387,14 +1404,26 @@ function NeuerPlaneintrag({
               />
             </div>
           </div>
-          <button
-            type="button"
-            className="knopf stark"
-            onClick={() => beiAnlage(mittel, dosierung, grund.trim() === '' ? null : grund.trim())}
-          >
-            In den Plan aufnehmen
-          </button>
+          <div className="reihe" style={{ gap: 6 }}>
+            <button
+              type="button"
+              className="knopf stark"
+              onClick={() =>
+                beiAnlage(mittel, dosierung, grund.trim() === '' ? null : grund.trim())
+              }
+            >
+              In den Plan aufnehmen
+            </button>
+            <button type="button" className="knopf" onClick={abbrechen}>
+              abbrechen
+            </button>
+          </div>
         </>
+      )}
+      {!mittel && (
+        <button type="button" className="knopf klein" style={{ marginTop: 8 }} onClick={abbrechen}>
+          abbrechen
+        </button>
       )}
     </Karte>
   );

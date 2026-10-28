@@ -179,4 +179,27 @@ describe('Medikationsplan der Praxis ohne Akte', () => {
     expect(screen.queryByText(/Medikationsplan in der ePA/)).toBeNull();
     await waitFor(() => expect(screen.queryAllByLabelText('in der ePA')).toHaveLength(0));
   });
+
+  it('öffnet „Neuer Planeintrag" erst auf Knopfdruck und beginnt danach wieder leer', async () => {
+    ohneAkte();
+    speicherStarten(startzustand());
+    öffne('/patient/p-weber/medikation');
+    const knopf = await screen.findByRole('button', { name: 'neuer Planeintrag' });
+    expect(screen.queryByRole('combobox', { name: 'Arzneimittel suchen' })).toBeNull();
+
+    fireEvent.click(knopf);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Arzneimittel suchen' }), {
+      target: { value: 'Ramipril 5' },
+    });
+    fireEvent.click(screen.getByRole('option', { name: /Ramipril 5 mg Tabletten/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'In den Plan aufnehmen' }));
+    expect(lesen().praxisplan).toHaveLength(1);
+    // Der Dialog schließt; neu geöffnet steht kein Mittel und kein Befund darin.
+    expect(screen.queryByRole('button', { name: 'In den Plan aufnehmen' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'neuer Planeintrag' }));
+    expect(screen.getByRole('combobox', { name: 'Arzneimittel suchen' })).toBeDefined();
+    expect(screen.queryByText(/Doppel/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'abbrechen' }));
+    expect(screen.queryByRole('combobox', { name: 'Arzneimittel suchen' })).toBeNull();
+  });
 });
