@@ -20,6 +20,7 @@ import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { usePatientId } from './Patientenkartei.js';
 import { epaFensterOeffnen } from '../epa/fenster.js';
+import { useAktenstatus } from '../epa/aktenstatus.js';
 
 /**
  * Die Karteikarte: der Verlauf je Besuch.
@@ -87,6 +88,7 @@ export function Karteikarte() {
                 zeitpunkt: e.geaendertAm,
                 verantwortlich: e.verantwortlich,
                 status: e.status,
+                plan: 'praxis' as const,
               })),
           ),
         dokumente: z.dokumente.filter((d) => d.patientId === patientId),
@@ -100,15 +102,17 @@ export function Karteikarte() {
     (z) => z.termine.filter((t) => t.patientId === patientId),
     [patientId],
   );
+  const patient = useAuswahl((z) => z.patienten.find((p) => p.id === patientId), [patientId]);
+  const ohneAkte = useAktenstatus(patient).daten?.akte === 'keine';
 
   const besuche = useMemo(() => {
-    const verlauf = verlaufBilden(quellen).filter(
+    const verlauf = verlaufBilden({ ...quellen, ohneAkte }).filter(
       (e) => (filter === 'alle' || e.kuerzel === filter) && (bezug === 'alle' || e.epa === bezug),
     );
     const alle = besucheBilden(verlauf, termine, heute);
     // Mit Filter nur Tage, an denen etwas passt.
     return filter === 'alle' && bezug === 'alle' ? alle : alle.filter((b) => b.gruppen.length > 0);
-  }, [quellen, termine, heute, filter, bezug]);
+  }, [quellen, ohneAkte, termine, heute, filter, bezug]);
 
   function erfassen() {
     if (!text.trim()) return;

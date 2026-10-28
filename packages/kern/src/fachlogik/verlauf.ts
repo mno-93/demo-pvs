@@ -76,6 +76,8 @@ export interface Verlaufsquellen {
     zeitpunkt: string;
     verantwortlich: string;
     status: string;
+    /** Spiegel des eMP (Standard) oder Medikationsplan der Praxis ohne Akte (ADR 0045). */
+    plan?: 'epa' | 'praxis';
   }[];
   /** Dokumente der Praxisablage — übernommen, eingescannt oder vom Labor. */
   dokumente?: readonly LokalesDokument[];
@@ -83,6 +85,8 @@ export interface Verlaufsquellen {
   rezepte?: readonly Rezept[];
   /** Impfungen der Praxis. */
   impfungen?: readonly Impfung[];
+  /** Das Aktensystem kennt keine Akte — gesendete Rezepte gelangen nicht in die ePA. */
+  ohneAkte?: boolean;
 }
 
 /** Bezug eines Datensatzes aus Praxis oder ePA: übernommen, eingestellt oder keiner. */
@@ -185,18 +189,19 @@ export function verlaufBilden(quellen: Verlaufsquellen): Verlaufseintrag[] {
   }
 
   for (const m of quellen.medikation) {
+    const praxis = m.plan === 'praxis';
     eintraege.push({
       id: `v-${m.id}`,
       zeitpunkt: m.zeitpunkt,
       kuerzel: 'M',
       text: `${m.bezeichnung} ${m.dosierung}`,
-      zusatz: `Medikationsplan in der ePA · ${m.status}`,
+      zusatz: `${praxis ? 'Medikationsplan der Praxis' : 'Medikationsplan in der ePA'} · ${m.status}`,
       verfasser: m.verantwortlich,
       ursprung: 'medikation',
       quelleId: m.id,
       bereich: 'medikation',
-      bestand: 'epa',
-      epa: 'in-epa',
+      bestand: praxis ? 'lokal' : 'epa',
+      epa: praxis ? null : 'in-epa',
     });
   }
 
@@ -229,7 +234,7 @@ export function verlaufBilden(quellen: Verlaufsquellen): Verlaufseintrag[] {
       quelleId: r.id,
       bereich: 'medikation',
       bestand: 'lokal',
-      epa: r.status === 'gesendet' ? 'in-epa' : null,
+      epa: r.status === 'gesendet' && !quellen.ohneAkte ? 'in-epa' : null,
     });
   }
 
