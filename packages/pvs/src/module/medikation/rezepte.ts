@@ -72,10 +72,12 @@ export function rezeptInEpa(
   rezept: Rezept,
   liste: Medikationsliste | null,
   gesperrt: boolean,
+  ohneAkte = false,
 ): RezeptInEpa {
   if (rezept.status === 'vorbereitet')
     return { art: 'vorbereitet', text: 'nicht gesendet', abgaben: [] };
   if (rezept.status === 'geloescht') return { art: 'geloescht', text: 'gelöscht', abgaben: [] };
+  if (ohneAkte) return { art: 'nicht-sichtbar', text: 'keine ePA', abgaben: [] };
   if (gesperrt || !liste) {
     return { art: 'nicht-sichtbar', text: 'in der ePA für die Praxis nicht sichtbar', abgaben: [] };
   }

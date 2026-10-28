@@ -629,6 +629,7 @@ export function startzustand(): Zustand {
     allergien,
     dokumente,
     medikationsspiegel: [],
+    praxisplan: [],
     epaBefugnisse,
     leistungen,
     termine,

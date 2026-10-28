@@ -22,6 +22,8 @@ export interface Rezeptvorlage {
   arzneimittel: Rezept['arzneimittel'];
   dosierung: string;
   empId: string | null;
+  /** Eintrag im Medikationsplan der Praxis, aus dem ohne Akte verordnet wird (ADR 0045). */
+  praxisplanId?: string;
   grund: string | null;
   herkunft: 'plan' | 'liste' | 'neu';
   /** Steht das Mittel schon im Plan? */
@@ -112,7 +114,7 @@ export function RezeptFormular({
           <span className="leise-klein">
             PZN {vorlage.arzneimittel.pzn} · ATC {vorlage.arzneimittel.atc}
           </span>
-          {vorlage.empId ? (
+          {vorlage.empId || vorlage.praxisplanId ? (
             <Marker ton="gut">aus dem Plan</Marker>
           ) : (
             <Marker ton="warn">nicht im Plan</Marker>
@@ -277,8 +279,11 @@ export function RezepteKarte({
   rezepte,
   liste,
   gesperrt,
+  ohneAkte = false,
   aerztlich,
   werkzeuge,
+  imPlan,
+  inDenPlan,
   beiSenden,
   beiLoeschen,
   beiVerwerfen,
@@ -286,7 +291,13 @@ export function RezepteKarte({
   rezepte: readonly Rezept[];
   liste: Medikationsliste | null;
   gesperrt: boolean;
+  /** Keine Akte: Rezepte gehen nicht in die ePA; der Plan ist der Medikationsplan der Praxis. */
+  ohneAkte?: boolean;
   aerztlich: boolean;
+  /** Steht das Rezept im Medikationsplan der Praxis? */
+  imPlan?: (r: Rezept) => boolean;
+  /** Nimmt das Rezept in den Medikationsplan der Praxis auf. */
+  inDenPlan?: (r: Rezept) => void;
   werkzeuge?: React.ReactNode;
   beiSenden: (r: Rezept) => void;
   beiLoeschen: (r: Rezept) => void;
@@ -315,7 +326,8 @@ export function RezepteKarte({
             </thead>
             <tbody>
               {sortiert.map((r) => {
-                const epa = rezeptInEpa(r, liste, gesperrt);
+                const epa = rezeptInEpa(r, liste, gesperrt, ohneAkte);
+                const imPraxisplan = imPlan?.(r) ?? false;
                 return (
                   <tr key={r.id} className={r.status === 'geloescht' ? 'gedaempft' : undefined}>
                     <td>{deutschesDatum((r.gesendetAm ?? r.erstelltAm).slice(0, 10))}</td>
@@ -324,7 +336,7 @@ export function RezepteKarte({
                       <div className="leise-klein">
                         {r.packungen} × {r.normgroesse} ·{' '}
                         <span className="code">{r.dosierung}</span>
-                        {r.empId ? ' · aus dem Plan' : ''}
+                        {r.empId ? ' · aus dem Plan' : imPraxisplan ? ' · im Plan' : ''}
                       </div>
                     </td>
                     <td>
@@ -371,6 +383,15 @@ export function RezepteKarte({
                             onClick={() => beiVerwerfen(r)}
                           >
                             verwerfen
+                          </button>
+                        )}
+                        {inDenPlan && imPlan && !imPraxisplan && r.status !== 'geloescht' && (
+                          <button
+                            type="button"
+                            className="knopf klein"
+                            onClick={() => inDenPlan(r)}
+                          >
+                            in den Plan
                           </button>
                         )}
                         {r.status === 'gesendet' && epa.art !== 'eingeloest' && (

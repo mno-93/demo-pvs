@@ -6,7 +6,9 @@ import {
   type Karteikarteneintrag,
   type Kuerzel,
   type Leistungsziffer,
+  type EmpStatus,
   type Medikationsspiegel,
+  type PraxisplanEintrag,
   type LokalesDokument,
   type Dokumentart,
   type Nutzer,
@@ -183,6 +185,75 @@ export const vorgaenge = {
           spiegel,
           ...z.medikationsspiegel.filter((s) => s.patientId !== spiegel.patientId),
         ],
+      }),
+    };
+  },
+
+  /** Nimmt ein Mittel in den Medikationsplan der Praxis auf — nur ohne Akte (ADR 0045). */
+  praxisplanAufnehmen(
+    angabe: Pick<
+      PraxisplanEintrag,
+      'patientId' | 'bezeichnung' | 'atc' | 'atcVersion' | 'pzn' | 'dosierung' | 'grund'
+    > & { rezeptIds?: readonly string[] },
+    id: string = neueId('praxisplan'),
+  ): Vorgang {
+    return {
+      name: 'praxisplanAufnehmen',
+      beschreibung: `In den Medikationsplan der Praxis aufgenommen: ${angabe.bezeichnung}`,
+      anwenden: (z) => ({
+        ...z,
+        praxisplan: [
+          ...z.praxisplan,
+          {
+            ...angabe,
+            id,
+            rezeptIds: angabe.rezeptIds ?? [],
+            status: 'aktiv',
+            verantwortlich: z.nutzer.name,
+            fassung: '1',
+            angelegtAm: jetzt(z),
+            geaendertAm: jetzt(z),
+          },
+        ],
+      }),
+    };
+  },
+
+  /** Ändert den Status eines Eintrags im Medikationsplan der Praxis. */
+  praxisplanStatusSetzen(id: string, status: EmpStatus): Vorgang {
+    return {
+      name: 'praxisplanStatusSetzen',
+      beschreibung: 'Status im Medikationsplan der Praxis geändert',
+      anwenden: (z) => ({
+        ...z,
+        praxisplan: z.praxisplan.map((e) =>
+          e.id === id
+            ? {
+                ...e,
+                status,
+                verantwortlich: z.nutzer.name,
+                fassung: String(Number(e.fassung) + 1),
+                geaendertAm: jetzt(z),
+              }
+            : e,
+        ),
+      }),
+    };
+  },
+
+  /** Hält fest, dass ein E-Rezept zu einem Eintrag des Medikationsplans der Praxis gehört. */
+  praxisplanRezeptZuordnen(id: string, rezeptId: string): Vorgang {
+    return {
+      name: 'praxisplanRezeptZuordnen',
+      beschreibung: 'E-Rezept dem Medikationsplan der Praxis zugeordnet',
+      zaehltNicht: true,
+      anwenden: (z) => ({
+        ...z,
+        praxisplan: z.praxisplan.map((e) =>
+          e.id === id && !e.rezeptIds.includes(rezeptId)
+            ? { ...e, rezeptIds: [...e.rezeptIds, rezeptId] }
+            : e,
+        ),
       }),
     };
   },

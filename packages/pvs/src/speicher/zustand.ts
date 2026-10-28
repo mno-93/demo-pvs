@@ -4,6 +4,7 @@ import type {
   Diagnose,
   Karteikarteneintrag,
   Medikationsspiegel,
+  PraxisplanEintrag,
   LokalesDokument,
   Leistungsziffer,
   Nutzer,
@@ -50,6 +51,11 @@ export interface Zustand {
    * zuletzt übereinstimmten.
    */
   medikationsspiegel: readonly Medikationsspiegel[];
+  /**
+   * Medikationsplan der Praxis für Personen ohne Akte (ADR 0045). Ein eigener Bestand neben dem
+   * Spiegel: Er wird nicht mit der ePA abgeglichen und nicht stillschweigend in sie geschrieben.
+   */
+  praxisplan: readonly PraxisplanEintrag[];
   /**
    * Was das Praxissystem über seine Befugnis je Akte weiß — aus der Antwort der ePA beim
    * Einlesen der eGK. Maßgeblich ist allein die ePA; antwortet sie mit `notEntitled`, wird
