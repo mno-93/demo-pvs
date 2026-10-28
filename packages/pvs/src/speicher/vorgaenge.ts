@@ -1,4 +1,5 @@
 import {
+  epaStandVon,
   quartalVon,
   type Allergie,
   type Behandlungsfall,
@@ -7,7 +8,7 @@ import {
   type Kuerzel,
   type Leistungsziffer,
   type EmpStatus,
-  type Medikationsspiegel,
+  type SpiegelEintrag,
   type PraxisplanEintrag,
   type LokalesDokument,
   type Dokumentart,
@@ -31,6 +32,24 @@ export function neueId(praefix: string): string {
 function jetzt(zustand: Zustand): string {
   const uhrzeit = new Date().toTimeString().slice(0, 8);
   return `${zustand.heute}T${uhrzeit}`;
+}
+
+/** Ein eMP-Eintrag mit den Angaben, die der Plan der Praxis zusätzlich führt. */
+export type PlanausEpa = SpiegelEintrag & { atcVersion: string; pzn: string | null };
+
+/** Eintrag der Praxis auf den Stand des eMP gebracht — verknüpft, mit neuem Abgleichsstand. */
+function nachEpa(e: PraxisplanEintrag, epa: SpiegelEintrag): PraxisplanEintrag {
+  return {
+    ...e,
+    dosierung: epa.dosierung,
+    grund: epa.grund,
+    status: epa.status,
+    verantwortlich: epa.verantwortlich,
+    fassung: String(Number(e.fassung) + 1),
+    geaendertAm: epa.geaendertAm || e.geaendertAm,
+    epaId: epa.id,
+    epaStand: epaStandVon(epa),
+  };
 }
 
 /** Sucht den Behandlungsfall des laufenden Quartals oder legt ihn an. */
@@ -172,40 +191,67 @@ export const vorgaenge = {
     };
   },
 
-  /** Hält fest, dass der Medikationsplan mit der ePA abgeglichen wurde. */
-  medikationAbgeglichen(spiegel: Medikationsspiegel): Vorgang {
+  /**
+   * Abgleich des Plans der Praxis mit dem eMP (ADR 0046): nimmt neue eMP-Einträge verknüpft auf,
+   * übernimmt eMP-Änderungen dort, wo die Praxis nichts geändert hat, und hält den Zeitpunkt fest.
+   * Nur was eindeutig ist (`automatischerAbgleich`) — keine fachliche Handlung der Praxis.
+   */
+  planAbgleichen(
+    patientId: string,
+    planId: string,
+    abgeglichenAm: string,
+    aufnehmen: readonly PlanausEpa[],
+    uebernehmen: readonly { lokalId: string; epa: SpiegelEintrag }[],
+  ): Vorgang {
     return {
-      name: 'medikationAbgeglichen',
+      name: 'planAbgleichen',
       beschreibung: 'Medikationsplan mit der ePA abgeglichen',
       // Ein Abgleich ist keine fachliche Handlung, sondern eine technische Folge.
       zaehltNicht: true,
       anwenden: (z) => ({
         ...z,
-        medikationsspiegel: [
-          spiegel,
-          ...z.medikationsspiegel.filter((s) => s.patientId !== spiegel.patientId),
+        praxisplan: [
+          ...z.praxisplan.map((e) => {
+            const u = uebernehmen.find((x) => x.lokalId === e.id);
+            return u ? nachEpa(e, u.epa) : e;
+          }),
+          ...aufnehmen.map((e): PraxisplanEintrag => ({
+            ...e,
+            id: neueId('praxisplan'),
+            patientId,
+            angelegtAm: e.geaendertAm || abgeglichenAm,
+            geaendertAm: e.geaendertAm || abgeglichenAm,
+            rezeptIds: [],
+            epaId: e.id,
+            epaStand: epaStandVon(e),
+          })),
+        ],
+        planabgleiche: [
+          { patientId, planId, abgeglichenAm },
+          ...z.planabgleiche.filter((a) => a.patientId !== patientId),
         ],
       }),
     };
   },
 
-  /** Nimmt ein Mittel in den Medikationsplan der Praxis auf — nur ohne Akte (ADR 0045). */
+  /** Nimmt ein Mittel in den Medikationsplan der Praxis auf — auf Wunsch gleich verknüpft. */
   praxisplanAufnehmen(
     angabe: Pick<
       PraxisplanEintrag,
       'patientId' | 'bezeichnung' | 'atc' | 'atcVersion' | 'pzn' | 'dosierung' | 'grund'
-    > & { rezeptIds?: readonly string[] },
+    > & { rezeptIds?: readonly string[]; epa?: SpiegelEintrag },
     id: string = neueId('praxisplan'),
   ): Vorgang {
+    const { epa, ...rest } = angabe;
     return {
       name: 'praxisplanAufnehmen',
-      beschreibung: `In den Medikationsplan der Praxis aufgenommen: ${angabe.bezeichnung}`,
+      beschreibung: `In den Medikationsplan aufgenommen: ${angabe.bezeichnung}`,
       anwenden: (z) => ({
         ...z,
         praxisplan: [
           ...z.praxisplan,
           {
-            ...angabe,
+            ...rest,
             id,
             rezeptIds: angabe.rezeptIds ?? [],
             status: 'aktiv',
@@ -213,30 +259,70 @@ export const vorgaenge = {
             fassung: '1',
             angelegtAm: jetzt(z),
             geaendertAm: jetzt(z),
+            epaId: epa?.id ?? null,
+            epaStand: epa ? epaStandVon(epa) : null,
           },
         ],
       }),
     };
   },
 
-  /** Ändert den Status eines Eintrags im Medikationsplan der Praxis. */
-  praxisplanStatusSetzen(id: string, status: EmpStatus): Vorgang {
+  /** Ändert Status, Dosierung oder Grund eines Eintrags im Medikationsplan der Praxis. */
+  praxisplanAendern(
+    id: string,
+    teil: Partial<Pick<PraxisplanEintrag, 'status' | 'dosierung' | 'grund'>>,
+  ): Vorgang {
     return {
-      name: 'praxisplanStatusSetzen',
-      beschreibung: 'Status im Medikationsplan der Praxis geändert',
+      name: 'praxisplanAendern',
+      beschreibung: 'Medikationsplan der Praxis geändert',
       anwenden: (z) => ({
         ...z,
         praxisplan: z.praxisplan.map((e) =>
           e.id === id
             ? {
                 ...e,
-                status,
+                ...teil,
                 verantwortlich: z.nutzer.name,
                 fassung: String(Number(e.fassung) + 1),
                 geaendertAm: jetzt(z),
               }
             : e,
         ),
+      }),
+    };
+  },
+
+  /** Ändert den Status eines Eintrags im Medikationsplan der Praxis. */
+  praxisplanStatusSetzen(id: string, status: EmpStatus): Vorgang {
+    return { ...vorgaenge.praxisplanAendern(id, { status }), name: 'praxisplanStatusSetzen' };
+  },
+
+  /**
+   * Verknüpft einen Eintrag der Praxis mit seinem eMP-Eintrag und hält dessen Stand fest — nach
+   * „in die ePA →", „Änderung übertragen" oder „verknüpfen". Folge einer Handlung, keine eigene.
+   */
+  praxisplanVerknuepfen(id: string, epa: SpiegelEintrag): Vorgang {
+    return {
+      name: 'praxisplanVerknuepfen',
+      beschreibung: 'Medikationsplan der Praxis mit dem eMP verknüpft',
+      zaehltNicht: true,
+      anwenden: (z) => ({
+        ...z,
+        praxisplan: z.praxisplan.map((e) =>
+          e.id === id ? { ...e, epaId: epa.id, epaStand: epaStandVon(epa) } : e,
+        ),
+      }),
+    };
+  },
+
+  /** „← ePA-Stand übernehmen": Der Eintrag der Praxis erhält den Stand des eMP. */
+  praxisplanNachEpa(id: string, epa: SpiegelEintrag): Vorgang {
+    return {
+      name: 'praxisplanNachEpa',
+      beschreibung: 'Stand des eMP in den Medikationsplan der Praxis übernommen',
+      anwenden: (z) => ({
+        ...z,
+        praxisplan: z.praxisplan.map((e) => (e.id === id ? nachEpa(e, epa) : e)),
       }),
     };
   },

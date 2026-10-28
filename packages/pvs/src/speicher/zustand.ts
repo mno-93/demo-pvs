@@ -3,7 +3,7 @@ import type {
   Behandlungsfall,
   Diagnose,
   Karteikarteneintrag,
-  Medikationsspiegel,
+  Planabgleich,
   PraxisplanEintrag,
   LokalesDokument,
   Leistungsziffer,
@@ -46,16 +46,12 @@ export interface Zustand {
    */
   dokumente: readonly LokalesDokument[];
   /**
-   * Zuletzt aus der ePA abgeglichener Medikationsplan je Patient:in. Der Spiegel macht
-   * sichtbar, dass die Medikation lokal und in der ePA geführt wird — und wann beide
-   * zuletzt übereinstimmten.
-   */
-  medikationsspiegel: readonly Medikationsspiegel[];
-  /**
-   * Medikationsplan der Praxis für Personen ohne Akte (ADR 0045). Ein eigener Bestand neben dem
-   * Spiegel: Er wird nicht mit der ePA abgeglichen und nicht stillschweigend in sie geschrieben.
+   * Medikationsplan der Praxis — für jede Person der Primärbestand (ADR 0045, 0046). Verknüpfte
+   * Einträge tragen den Stand ihres eMP-Eintrags beim letzten Abgleich.
    */
   praxisplan: readonly PraxisplanEintrag[];
+  /** Wann der Plan einer Person zuletzt mit dem eMP abgeglichen wurde. */
+  planabgleiche: readonly Planabgleich[];
   /**
    * Was das Praxissystem über seine Befugnis je Akte weiß — aus der Antwort der ePA beim
    * Einlesen der eGK. Maßgeblich ist allein die ePA; antwortet sie mit `notEntitled`, wird

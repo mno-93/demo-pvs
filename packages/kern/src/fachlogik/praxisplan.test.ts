@@ -23,6 +23,8 @@ const eintrag = (teil: Partial<PraxisplanEintrag>): PraxisplanEintrag => ({
   angelegtAm: '2026-10-28T09:00:00',
   geaendertAm: '2026-10-28T09:00:00',
   rezeptIds: [],
+  epaId: null,
+  epaStand: null,
   ...teil,
 });
 

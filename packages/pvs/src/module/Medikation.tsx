@@ -3,18 +3,20 @@ import {
   CODESYSTEM,
   EMP_STATUS_BEZEICHNUNG,
   EMP_STATUS_CODE,
+  offeneUnterschiede,
+  planAbgleichen,
+  praxisGeaendert,
+  type Abgleichlage,
   allergieAusFhir,
   allergieFuerAmts,
   amtsPruefen,
   arzneimittel,
-  chronikLesen,
   deutscherZeitpunkt,
   deutschesDatum,
   planeintragNachFhir,
   planmittelNachFhir,
   dokumentinhaltLesen,
   istKeineBekannteAllergie,
-  jetztAlsIsoOrtszeit,
   laborwerteAusDokumenten,
   letzteVerordnung,
   planangabeAusRezept,
@@ -66,6 +68,12 @@ import { BefugnisHinweis, istGueltig, useBefugnis, useEinlesungen } from '../epa
 import { useEpaListen } from '../epa/listen.js';
 import { useLesezeichen } from '../epa/lesezeichen.js';
 import { Aenderungsband } from '../epa/gesehen.js';
+import {
+  eindeutigesAbgleichen,
+  planzeilen,
+  referenz,
+  type Planzeile,
+} from './medikation/planabgleich.js';
 
 /**
  * Medikationsmodul nach dem digital gestützten Medikationsprozess — gegen den Medication
@@ -79,17 +87,15 @@ import { Aenderungsband } from '../epa/gesehen.js';
  * ▸ Für das Projekt ist das die Blaupause: automatisch abgeleiteter Bestand plus ärztlich
  * verantwortete Ebene darüber — so ist es für die Patient Summary vorgeschlagen.
  *
- * Gibt es keine Akte, führt die Praxis den Plan selbst — als Medikationsplan der Praxis, ein
- * eigener Bestand im Praxissystem (ADR 0045). Rezepte lassen sich dann aus ihm verordnen und
- * in ihn übernehmen; eine Medikationsliste gibt es ohne Akte nicht.
+ * Angezeigt wird der Medikationsplan der Praxis — für jede Person der Bestand des
+ * Praxissystems, auch ohne eingelesene eGK (ADR 0045, 0046). Mit Zugriff wird er gegen den eMP
+ * abgeglichen: Eindeutiges automatisch, Eigenes auf Knopfdruck; geschrieben wird dann in den
+ * eMP, und der Plan der Praxis folgt. Ohne Zugriff wirken die Handlungen im Plan der Praxis.
+ * Die Medikationsliste ist eine reine Sicht der ePA.
  */
 
 const ATC = CODESYSTEM.atc;
 const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
-
-const STATUS_AUS_CODE: Record<string, EmpStatus> = Object.fromEntries(
-  Object.entries(EMP_STATUS_CODE).map(([k, v]) => [v, k as EmpStatus]),
-);
 
 const STATUS_TON: Record<EmpStatus, 'gut' | 'neutral' | 'warn'> = {
   aktiv: 'gut',
@@ -99,12 +105,12 @@ const STATUS_TON: Record<EmpStatus, 'gut' | 'neutral' | 'warn'> = {
   'entered-in-error': 'warn',
 };
 
-/** Ein Eintrag des Plans mit allem, was die Handlungen brauchen. */
-interface Planzeile extends SpiegelEintrag {
-  eintrag: Ressource;
-  angelegtVon: string;
-  zuletztVon: string;
-  zuletztVonTelematikId: string | null;
+/** Eine Zeile des Plans: Eintrag der Praxis, eMP-Eintrag oder beide — mit der Lage im Abgleich. */
+interface Ansichtszeile {
+  /** `null`: ohne eMP, kein Abgleich. */
+  lage: Abgleichlage | null;
+  lokal: PraxisplanEintrag | null;
+  epa: Planzeile | null;
 }
 
 /** Was die spezifizierte Abfrage „seit dem letzten Aufruf" ergeben hat (ADR 0030). */
@@ -225,37 +231,6 @@ function rezeptspur(liste: Medikationsliste, planId: string): Rezeptspur {
   };
 }
 
-function referenz(r: Ressource, feld = 'medicationReference'): string {
-  return (
-    String((r[feld] as { reference?: string } | undefined)?.reference ?? '').split('/')[1] ?? ''
-  );
-}
-
-function planzeilen(plan: Medikationsplan): Planzeile[] {
-  const provenance = plan.ressourcen.filter((r) => r.resourceType === 'Provenance');
-  return plan.eintraege.map((e) => {
-    const mittel = plan.ressourcen.find(
-      (r) => r.resourceType === 'Medication' && r.id === referenz(e),
-    );
-    const chronik = chronikLesen(e, provenance);
-    return {
-      id: String(e.id),
-      eintrag: e,
-      bezeichnung: mittel ? textVon(mittel) : '(ohne Bezeichnung)',
-      atc: (mittel && codeVon(mittel, 'code', ATC)) ?? '',
-      dosierung: (e['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ?? '—',
-      grund: (e['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? null,
-      status: STATUS_AUS_CODE[String(e['status'])] ?? 'aktiv',
-      verantwortlich: chronik.zuletztVon,
-      fassung: e.meta?.versionId ?? '1',
-      angelegtVon: chronik.angelegtVon,
-      zuletztVon: chronik.zuletztVon,
-      zuletztVonTelematikId: chronik.zuletztVonTelematikId,
-      geaendertAm: chronik.zuletztAm,
-    };
-  });
-}
-
 function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[] {
   const suche = (typ: string, id: string) =>
     liste.einschluesse.find((r) => r.resourceType === typ && r.id === id);
@@ -335,8 +310,8 @@ export function Medikation() {
     art: 'gut' | 'fehler' | 'neutral';
     text: string;
   } | null>(null);
-  const spiegel = useAuswahl(
-    (z) => z.medikationsspiegel.find((m) => m.patientId === patientId) ?? null,
+  const planabgleich = useAuswahl(
+    (z) => z.planabgleiche.find((a) => a.patientId === patientId) ?? null,
     [patientId],
   );
   const rezepte = useAuswahl(
@@ -369,36 +344,8 @@ export function Medikation() {
       .then(([liste, plan]) => {
         if (abgebrochen) return;
         const zeilen = planzeilen(plan);
-        ausfuehren(
-          vorgaenge.medikationAbgeglichen({
-            patientId,
-            planId: plan.lesenachweis ?? '',
-            abgeglichenAm: jetztAlsIsoOrtszeit(),
-            eintraege: zeilen.map(
-              ({
-                id,
-                bezeichnung,
-                atc,
-                dosierung,
-                grund,
-                status,
-                verantwortlich,
-                fassung,
-                geaendertAm,
-              }) => ({
-                id,
-                bezeichnung,
-                atc,
-                dosierung,
-                grund,
-                status,
-                verantwortlich,
-                fassung,
-                geaendertAm,
-              }),
-            ),
-          }),
-        );
+        // Der Plan der Praxis übernimmt, was eindeutig ist (ADR 0046).
+        eindeutigesAbgleichen(patientId, plan);
         const listenZeilen = listenzeilen(liste, zeilen);
         setzeStand({ plan, zeilen, liste: listenZeilen, roh: liste });
         setzeLaedt(false);
@@ -469,22 +416,36 @@ export function Medikation() {
   }, [lokaleAllergien, epaAllergien, lokaleDokumente]);
 
   const ohneBefugnis = fehler?.ohneBefugnis ?? false;
-  const ausSpiegel = fehler !== null && spiegel !== null;
-  const angezeigt: (SpiegelEintrag & Partial<Planzeile>)[] = ohneAkte
-    ? [...praxisplan]
-    : ausSpiegel
-      ? [...spiegel.eintraege]
-      : (stand?.zeilen ?? []);
-  const aktivePlanCodes = angezeigt
+  const gesperrt = fehler?.status === 423 || aktenstatus.daten?.medikationGesperrt === true;
+  // Der eMP ist gelesen und beschreibbar: Plan und Liste geladen, keine Sperre, kein Widerspruch.
+  const mitEpa = !!stand && !fehler && !ohneAkte && !gesperrt;
+  const lesenachweis = stand?.plan.lesenachweis ?? null;
+
+  /*
+   * Der Plan der Praxis ist, was angezeigt wird (ADR 0046). Mit eMP trägt jede Zeile ihre Lage
+   * im Abgleich; ohne eMP stehen nur die Einträge der Praxis da.
+   */
+  const zeilen: Ansichtszeile[] = useMemo(() => {
+    if (!mitEpa || !stand) return praxisplan.map((l) => ({ lage: null, lokal: l, epa: null }));
+    return planAbgleichen(praxisplan, stand.zeilen)
+      .filter((z) => !(z.lage === 'nur-epa' && z.epa?.status === 'entered-in-error'))
+      .map((z) => ({
+        lage: z.lage,
+        lokal: z.lokal,
+        epa: z.epa ? (stand.zeilen.find((x) => x.id === z.epa!.id) ?? null) : null,
+      }));
+  }, [mitEpa, stand, praxisplan]);
+  const offen = mitEpa && stand ? offeneUnterschiede(planAbgleichen(praxisplan, stand.zeilen)) : 0;
+  const aktivePlanCodes = zeilen
+    .map((z) => z.lokal ?? z.epa!)
     .filter((e) => e.status === 'aktiv')
     .map((e) => e.atc)
     .filter(Boolean);
   const umgebung: AmtsUmgebung = { ...umgebungOhnePlan, bestehendeAtc: aktivePlanCodes };
-  const lesenachweis = stand?.plan.lesenachweis ?? null;
-  const gesperrt = fehler?.status === 423 || aktenstatus.daten?.medikationGesperrt === true;
-  const planSchreibbar = darfVerordnen && (ohneAkte || (!!stand && !ausSpiegel && !gesperrt));
-  /** „neuer Planeintrag" — ohne Akte im Plan der Praxis, sonst im eMP. */
-  const planErgaenzbar = darfVerordnen && (ohneAkte || (!ausSpiegel && !ohneBefugnis && !gesperrt));
+  // Aufnehmen und Ergänzen gehen immer: in den eMP, wenn er erreichbar ist, sonst in den Plan
+  // der Praxis (ADR 0046).
+  const planSchreibbar = darfVerordnen;
+  const planErgaenzbar = darfVerordnen;
 
   /*
    * Solange ein gesendetes Rezept noch nicht in der Medikationsliste steht, fragt das Modul
@@ -509,8 +470,9 @@ export function Medikation() {
     setzeNachfragen(0);
     void handlung(
       async () => {
-        if (ohneAkte) {
-          const id = rezeptOhneAkte(v, a);
+        // Ohne eMP — und für Einträge nur der Praxis — gehört das Rezept zum Plan der Praxis.
+        if (!mitEpa || v.praxisplanId) {
+          const id = rezeptOhneEpa(v, a);
           const r = lesen().rezepte.find((x) => x.id === id);
           if (senden && r) await rezeptSenden(r);
           return;
@@ -568,10 +530,10 @@ export function Medikation() {
   }
 
   /**
-   * Ohne Akte: Rezept anlegen und dem Medikationsplan der Praxis zuordnen — dem Eintrag, aus dem
+   * Ohne eMP: Rezept anlegen und dem Medikationsplan der Praxis zuordnen — dem Eintrag, aus dem
    * verordnet wird, oder einem neuen, wenn „auch in den Medikationsplan" gewählt ist.
    */
-  function rezeptOhneAkte(v: Rezeptvorlage, a: Rezeptangabe) {
+  function rezeptOhneEpa(v: Rezeptvorlage, a: Rezeptangabe) {
     const id = neueId('rezept');
     ausfuehren(
       vorgaenge.rezeptVorbereiten(
@@ -695,7 +657,7 @@ export function Medikation() {
       empId: null,
       grund: null,
       herkunft: 'neu',
-      imPlan: angezeigt.some((e) => e.atc === m.atc && e.status === 'aktiv'),
+      imPlan: aktivePlanCodes.includes(m.atc),
       katalog: m,
     });
   }
@@ -729,6 +691,74 @@ export function Medikation() {
       empEintragAendern(kvnr, lesenachweis, { ...z.eintrag, status: EMP_STATUS_CODE[status] });
   }
 
+  /** „in die ePA →": Eintrag nur der Praxis als neuen eMP-Eintrag anlegen und verknüpfen. */
+  function inDieEpa(l: PraxisplanEintrag) {
+    const katalog = arzneimittel.find((m) => m.atc === l.atc);
+    void handlung(async () => {
+      const neu = await empEintragAnlegen(
+        kvnr,
+        lesenachweis,
+        {
+          resource: planmittelNachFhir({
+            bezeichnung: l.bezeichnung,
+            atc: l.atc,
+            atcVersion: l.atcVersion || (katalog?.atcVersion ?? ''),
+            pzn: l.pzn ?? katalog?.pzn ?? '',
+            ...(katalog?.wirkstoff ? { wirkstoff: katalog.wirkstoff } : {}),
+          }),
+        },
+        planeintrag(kvnr, heute, l.dosierung, l.grund),
+      );
+      ausfuehren(
+        vorgaenge.praxisplanVerknuepfen(l.id, {
+          ...l,
+          id: String(neu.eintrag.id),
+          status: 'aktiv',
+          fassung: neu.eintrag.meta?.versionId ?? '1',
+        }),
+      );
+    }, `„${l.bezeichnung}" in den Medikationsplan der ePA aufgenommen.`);
+  }
+
+  /** „Änderung in die ePA →": Dosierung, Grund und Status der Praxis in den eMP-Eintrag. */
+  function aenderungUebertragen(l: PraxisplanEintrag, e: Planzeile) {
+    const dosierungen =
+      (e.eintrag['dosageInstruction'] as Record<string, unknown>[] | undefined) ?? [];
+    // Ohne Grund in der Praxis entfällt er auch im eMP.
+    const ohneGrund: Ressource = { ...e.eintrag };
+    delete ohneGrund['reasonCode'];
+    void handlung(async () => {
+      const neu = await empEintragAendern(kvnr, lesenachweis, {
+        ...ohneGrund,
+        status: EMP_STATUS_CODE[l.status],
+        dosageInstruction: [
+          { ...(dosierungen[0] ?? {}), text: l.dosierung },
+          ...dosierungen.slice(1),
+        ],
+        ...(l.grund ? { reasonCode: [{ text: l.grund }] } : {}),
+      });
+      ausfuehren(
+        vorgaenge.praxisplanVerknuepfen(l.id, {
+          ...e,
+          dosierung: l.dosierung,
+          grund: l.grund,
+          status: l.status,
+          fassung: neu.eintrag.meta?.versionId ?? e.fassung,
+        }),
+      );
+    }, `Änderung an „${l.bezeichnung}" in den Medikationsplan der ePA übertragen.`);
+  }
+
+  /** Status ändern: im eMP, wenn der Eintrag abgeglichen ist — sonst im Plan der Praxis. */
+  function statusAendern(z: Ansichtszeile, status: EmpStatus, text: string) {
+    if (mitEpa && z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert')) {
+      void handlung(statusSetzen(z.epa, status), text);
+    } else if (z.lokal) {
+      ausfuehren(vorgaenge.praxisplanStatusSetzen(z.lokal.id, status));
+      setzeMeldung({ art: 'gut', text });
+    }
+  }
+
   if (!patient) return null;
 
   return (
@@ -738,9 +768,20 @@ export function Medikation() {
       {!ohneAkte && (
         <Abgleichband
           kvnr={kvnr}
-          ausSpiegel={ausSpiegel}
-          ohneBefugnis={ohneBefugnis || fehler !== null}
-          spiegel={spiegel}
+          mitEpa={mitEpa}
+          grund={
+            gesperrt
+              ? 'Widerspruch gegen den Medikationsprozess'
+              : ohneBefugnis
+                ? 'keine ePA-Befugnis'
+                : fehler
+                  ? 'ePA antwortet nicht'
+                  : laedt
+                    ? 'wird abgefragt'
+                    : null
+          }
+          zuletzt={planabgleich?.abgeglichenAm ?? null}
+          offen={offen}
           lesenachweis={lesenachweis}
           neuLaden={neuLaden}
         />
@@ -812,7 +853,7 @@ export function Medikation() {
       )}
 
       <Karte
-        titel={ohneAkte ? 'Medikationsplan der Praxis' : 'Medikationsplan'}
+        titel="Medikationsplan der Praxis"
         werkzeuge={
           planErgaenzbar && (
             <button
@@ -826,7 +867,7 @@ export function Medikation() {
           )
         }
       >
-        {seit?.plan && !ausSpiegel && !ohneAkte && (
+        {seit?.plan && mitEpa && (
           <Aenderungsband
             am={seit.am}
             teile={[
@@ -839,10 +880,10 @@ export function Medikation() {
             von={seit.planVon}
           />
         )}
-        {laedt && !stand && !ohneAkte ? (
+        {laedt && !stand && zeilen.length === 0 && befugt && !ohneAkte ? (
           <Leer>Wird abgefragt …</Leer>
-        ) : angezeigt.length === 0 ? (
-          <Leer>{gesperrt ? 'Gesperrt durch Widerspruch.' : 'Kein Eintrag im Plan.'}</Leer>
+        ) : zeilen.length === 0 ? (
+          <Leer>Kein Eintrag im Plan.</Leer>
         ) : (
           <div className="tabelle-rahmen">
             <table className="liste">
@@ -853,84 +894,145 @@ export function Medikation() {
                   <th>Grund</th>
                   <th>Status</th>
                   <th>Zuletzt</th>
+                  {!ohneAkte && <th>ePA</th>}
                   <th>
                     <span className="nur-fuer-screenreader">Aktionen</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {angezeigt.map((e) => (
-                  <tr key={e.id}>
-                    <td>
-                      <b>{e.bezeichnung}</b>
-                      {seit?.plan?.neu.has(e.id) && <span className="neu-marke">neu</span>}
-                      {seit?.plan?.geaendert.has(e.id) && (
-                        <span className="neu-marke">geändert</span>
+                {zeilen.map((z) => {
+                  const e = z.lokal ?? z.epa!;
+                  const abgeglichen =
+                    mitEpa && !!z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert');
+                  const ungeklaert = z.lage === 'praxis-geaendert' || z.lage === 'beide-geaendert';
+                  return (
+                    <tr key={z.lokal?.id ?? z.epa!.id}>
+                      <td>
+                        <b>{e.bezeichnung}</b>
+                        {z.epa && seit?.plan?.neu.has(z.epa.id) && (
+                          <span className="neu-marke">neu</span>
+                        )}
+                        {z.epa && seit?.plan?.geaendert.has(z.epa.id) && (
+                          <span className="neu-marke">geändert</span>
+                        )}
+                        <div className="leise-klein">ATC {e.atc || '—'}</div>
+                        {abgeglichen && stand ? (
+                          <Spur spur={rezeptspur(stand.roh, z.epa!.id)} />
+                        ) : (
+                          z.lokal && <PraxisplanSpur eintrag={z.lokal} rezepte={rezepte} />
+                        )}
+                        {(ungeklaert || z.lage === 'gleiches-mittel') && z.epa && (
+                          <div className="leise-klein">
+                            ePA: {z.epa.dosierung} · {z.epa.grund ?? '—'} ·{' '}
+                            {EMP_STATUS_BEZEICHNUNG[z.epa.status]}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <span className="code">{e.dosierung}</span>
+                      </td>
+                      <td>{e.grund ?? '—'}</td>
+                      <td>
+                        <Marker ton={STATUS_TON[e.status]}>
+                          {EMP_STATUS_BEZEICHNUNG[e.status]}
+                        </Marker>
+                      </td>
+                      <td
+                        className="leise-klein"
+                        title={z.epa?.angelegtVon ? `angelegt von ${z.epa.angelegtVon}` : undefined}
+                      >
+                        {e.verantwortlich}
+                      </td>
+                      {!ohneAkte && (
+                        <td>
+                          <AbgleichMarker zeile={z} />
+                        </td>
                       )}
-                      <div className="leise-klein">
-                        ATC {e.atc} · Fassung {e.fassung}
-                      </div>
-                      {stand && !ausSpiegel && !ohneAkte && (
-                        <Spur spur={rezeptspur(stand.roh, e.id)} />
-                      )}
-                      {ohneAkte && (
-                        <PraxisplanSpur eintrag={e as PraxisplanEintrag} rezepte={rezepte} />
-                      )}
-                    </td>
-                    <td>
-                      <span className="code">{e.dosierung}</span>
-                    </td>
-                    <td>{e.grund ?? '—'}</td>
-                    <td>
-                      <Marker ton={STATUS_TON[e.status]}>{EMP_STATUS_BEZEICHNUNG[e.status]}</Marker>
-                    </td>
-                    <td
-                      className="leise-klein"
-                      title={e.angelegtVon ? `angelegt von ${e.angelegtVon}` : undefined}
-                    >
-                      {e.verantwortlich}
-                    </td>
-                    <td>
-                      <div className="reihe" style={{ gap: 5 }}>
-                        {ohneAkte && e.status === 'aktiv' && (
-                          <button
-                            type="button"
-                            className="knopf klein"
-                            onClick={() => vorlageAusPraxisplan(e as PraxisplanEintrag)}
-                          >
-                            Rezept
-                          </button>
-                        )}
-                        {ohneAkte && darfVerordnen && e.status !== 'entered-in-error' && (
-                          <Planhandlungen
-                            zeile={e}
-                            ausfuehren={(status, text) => {
-                              ausfuehren(vorgaenge.praxisplanStatusSetzen(e.id, status));
-                              setzeMeldung({ art: 'gut', text });
-                            }}
-                          />
-                        )}
-                        {!ausSpiegel && e.eintrag && e.status === 'aktiv' && (
-                          <button
-                            type="button"
-                            className="knopf klein"
-                            onClick={() => vorlageAusPlan(e as Planzeile)}
-                          >
-                            Rezept
-                          </button>
-                        )}
-                        {!ausSpiegel && darfVerordnen && e.eintrag && (
-                          <Planhandlungen
-                            zeile={e as Planzeile}
-                            ausfuehren={(status, text) =>
-                              void handlung(statusSetzen(e as Planzeile, status), text)
-                            }
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      <td>
+                        <div className="reihe" style={{ gap: 5 }}>
+                          {mitEpa &&
+                            darfVerordnen &&
+                            z.lokal &&
+                            z.lage === 'nur-praxis' &&
+                            e.status !== 'beendet' &&
+                            e.status !== 'abgesetzt' &&
+                            e.status !== 'entered-in-error' && (
+                              <button
+                                type="button"
+                                className="knopf klein stark"
+                                onClick={() => inDieEpa(z.lokal!)}
+                              >
+                                in die ePA →
+                              </button>
+                            )}
+                          {mitEpa && darfVerordnen && ungeklaert && z.lokal && z.epa && (
+                            <>
+                              <button
+                                type="button"
+                                className="knopf klein stark"
+                                onClick={() => aenderungUebertragen(z.lokal!, z.epa!)}
+                              >
+                                Änderung in die ePA →
+                              </button>
+                              <button
+                                type="button"
+                                className="knopf klein"
+                                onClick={() => {
+                                  ausfuehren(vorgaenge.praxisplanNachEpa(z.lokal!.id, z.epa!));
+                                  setzeMeldung({
+                                    art: 'gut',
+                                    text: `„${e.bezeichnung}" auf den Stand der ePA gebracht.`,
+                                  });
+                                }}
+                              >
+                                ← ePA-Stand
+                              </button>
+                            </>
+                          )}
+                          {mitEpa && darfVerordnen && z.lage === 'gleiches-mittel' && (
+                            <button
+                              type="button"
+                              className="knopf klein"
+                              onClick={() => {
+                                ausfuehren(vorgaenge.praxisplanVerknuepfen(z.lokal!.id, z.epa!));
+                                setzeMeldung({
+                                  art: 'gut',
+                                  text: `„${e.bezeichnung}" mit dem Eintrag der ePA verknüpft.`,
+                                });
+                              }}
+                            >
+                              verknüpfen
+                            </button>
+                          )}
+                          {!ungeklaert && e.status === 'aktiv' && (abgeglichen || z.lokal) && (
+                            <button
+                              type="button"
+                              className="knopf klein"
+                              onClick={() =>
+                                abgeglichen
+                                  ? vorlageAusPlan(z.epa!)
+                                  : vorlageAusPraxisplan(z.lokal!)
+                              }
+                            >
+                              Rezept
+                            </button>
+                          )}
+                          {darfVerordnen &&
+                            !ungeklaert &&
+                            z.lage !== 'gleiches-mittel' &&
+                            z.lage !== 'nur-epa' &&
+                            e.status !== 'entered-in-error' && (
+                              <Planhandlungen
+                                zeile={e}
+                                ausfuehren={(status, text) => statusAendern(z, status, text)}
+                              />
+                            )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -944,7 +1046,8 @@ export function Medikation() {
           beiAnlage={(mittel, dosierung, grund) => {
             // Nach dem Aufnehmen schließt der Dialog; geöffnet beginnt er wieder leer.
             setzeNeuerPlaneintrag(false);
-            if (ohneAkte) {
+            // Ohne eMP in den Plan der Praxis; mit eMP dorthin — der Plan der Praxis folgt im Abgleich.
+            if (!mitEpa) {
               ausfuehren(
                 vorgaenge.praxisplanAufnehmen({
                   patientId,
@@ -993,13 +1096,15 @@ export function Medikation() {
               <Leer>
                 {gesperrt
                   ? 'Gesperrt durch Widerspruch.'
-                  : 'Keine Verordnungen, Abgaben oder Nachträge.'}
+                  : !mitEpa
+                    ? 'Ohne Zugriff auf die ePA.'
+                    : 'Keine Verordnungen, Abgaben oder Nachträge.'}
               </Leer>
             ) : (
               <EmlTabelle
                 zeilen={stand.liste}
                 neu={seit?.liste ?? new Set()}
-                darfVerordnen={darfVerordnen && !ausSpiegel}
+                darfVerordnen={darfVerordnen && mitEpa}
                 rezept={vorlageAusListe}
                 umgebung={umgebung}
                 uebernehmen={(z) =>
@@ -1030,7 +1135,7 @@ export function Medikation() {
         gesperrt={gesperrt || !befugt}
         ohneAkte={ohneAkte}
         aerztlich={darfVerordnen}
-        {...(ohneAkte
+        {...(!mitEpa
           ? {
               imPlan: (r: Rezept) => planeintragZumRezept(r, praxisplan) !== null,
               ...(darfVerordnen ? { inDenPlan: rezeptInPraxisplan } : {}),
@@ -1103,16 +1208,21 @@ function PraxisplanSpur({
 
 function Abgleichband({
   kvnr,
-  ausSpiegel,
-  ohneBefugnis,
-  spiegel,
+  mitEpa,
+  grund,
+  zuletzt,
+  offen,
   lesenachweis,
   neuLaden,
 }: {
   kvnr: string;
-  ausSpiegel: boolean;
-  ohneBefugnis: boolean;
-  spiegel: { abgeglichenAm: string; planId: string } | null;
+  mitEpa: boolean;
+  /** Warum nicht abgeglichen wird. */
+  grund: string | null;
+  /** Letzter erfolgreicher Abgleich. */
+  zuletzt: string | null;
+  /** Unterschiede, die eine Handlung brauchen. */
+  offen: number;
   lesenachweis: string | null;
   neuLaden: () => void;
 }) {
@@ -1131,27 +1241,28 @@ function Abgleichband({
   }
 
   return (
-    <div className={`abgleichband ${ausSpiegel || ohneBefugnis ? 'veraltet' : 'synchron'}`}>
+    <div className={`abgleichband ${mitEpa && offen === 0 ? 'synchron' : 'veraltet'}`}>
       <span className="abgleichband-punkt" aria-hidden="true" />
-      {ausSpiegel && spiegel ? (
+      {mitEpa ? (
         <span>
-          <b>Nicht abgeglichen</b> · lokaler Stand vom {deutscherZeitpunkt(spiegel.abgeglichenAm)}
-        </span>
-      ) : ohneBefugnis ? (
-        <span>
-          <b>Nicht abgeglichen</b>
-        </span>
-      ) : spiegel ? (
-        <span>
-          <b>Abgeglichen</b> · {deutscherZeitpunkt(spiegel.abgeglichenAm)}
+          <b>Abgeglichen</b>
+          {zuletzt && ` · ${deutscherZeitpunkt(zuletzt)}`}
+          {offen > 0 && ` · ${offen} ${offen === 1 ? 'Unterschied' : 'Unterschiede'} offen`}
         </span>
       ) : (
-        <span>Noch nicht abgeglichen</span>
+        <span>
+          <b>Nicht abgeglichen</b>
+          {grund && ` · ${grund}`}
+          {' · '}
+          {zuletzt
+            ? `Stand des letzten Abgleichs ${deutscherZeitpunkt(zuletzt)}`
+            : 'noch nie mit der ePA abgeglichen'}
+        </span>
       )}
       <button
         type="button"
         className="knopf klein rechts"
-        disabled={ohneBefugnis}
+        disabled={!mitEpa}
         onClick={() => void pruefen()}
       >
         Stand prüfen
@@ -1159,6 +1270,36 @@ function Abgleichband({
       {pruefung && <span className="leise-klein">{pruefung}</span>}
     </div>
   );
+}
+
+/** Lage eines Eintrags im Abgleich mit dem eMP — ohne eMP, was der letzte Abgleich hinterließ. */
+function AbgleichMarker({ zeile: z }: { zeile: Ansichtszeile }) {
+  const lage =
+    z.lage ??
+    (z.lokal?.epaId ? (praxisGeaendert(z.lokal) ? 'praxis-geaendert' : 'stand') : 'nur-praxis');
+  switch (lage) {
+    case 'abgeglichen':
+    case 'epa-geaendert':
+      return <Marker ton="gut">abgeglichen</Marker>;
+    case 'stand':
+      return (
+        <Marker ton="neutral" titel="Stand des letzten Abgleichs">
+          verknüpft
+        </Marker>
+      );
+    case 'praxis-geaendert':
+      return <Marker ton="warn">lokal geändert</Marker>;
+    case 'beide-geaendert':
+      return <Marker ton="warn">in beiden geändert</Marker>;
+    case 'nur-praxis':
+      return <Marker ton="lokal">nur Praxis</Marker>;
+    case 'nur-epa':
+      return <Marker ton="akzent">nur ePA</Marker>;
+    case 'gleiches-mittel':
+      return <Marker ton="warn">gleiches Mittel in der ePA</Marker>;
+    case 'nicht-in-epa':
+      return <Marker ton="warn">nicht mehr in der ePA</Marker>;
+  }
 }
 
 /* ---------- Handlungen am Plan ---------- */

@@ -45,7 +45,7 @@ import { impflisteLaden } from '../../epa/impfliste.js';
  * | Diagnosen   | Diagnosen                      | ✦ Diagnosenliste                             |
  * | Allergien   | Allergien                      | ✦ Allergienliste                             |
  * | Befunde     | Karteikarte (B), Laborbefunde  | Laborbefunde (dgLP)                          |
- * | Medikation  | Spiegel des Plans, wenn die ePA nicht antwortet | Medikationsplan, Medikationsliste |
+ * | Medikation  | Medikationsplan der Praxis     | Medikationsplan (nicht verknüpft), Medikationsliste |
  * | Impfungen   | Impfungen                      | ✦ Impfliste                                  |
  *
  * Doppeltes erscheint einmal: Ein ePA-Eintrag, mit dem ein Eintrag der Praxis verknüpft ist oder
@@ -149,10 +149,6 @@ export function useBriefangebote(
   );
   const impfungen = useAuswahl(
     (z) => z.impfungen.filter((i) => i.patientId === patientId),
-    [patientId],
-  );
-  const spiegel = useAuswahl(
-    (z) => z.medikationsspiegel.find((m) => m.patientId === patientId) ?? null,
     [patientId],
   );
   const praxisplan = useAuswahl(
@@ -305,8 +301,10 @@ export function useBriefangebote(
 
     /* Medikation */
     const [plan, liste] = medikation.daten ?? [null, null];
+    // eMP-Einträge, die der Plan der Praxis schon führt, stehen nur dort (ADR 0046).
+    const imPraxisplan = new Set(praxisplan.map((e) => e.epaId).filter(Boolean));
     const planMittel: Angebot[] = (plan?.eintraege ?? [])
-      .filter((e) => e['status'] === 'active')
+      .filter((e) => e['status'] === 'active' && !imPraxisplan.has(String(e.id)))
       .map((e) => {
         const verweis =
           (e['medicationReference'] as { reference?: string } | undefined)?.reference ?? '';
@@ -330,7 +328,9 @@ export function useBriefangebote(
           mittel,
         };
       });
-    const imPlan = new Set(planMittel.map((p) => p.mittel?.atc).filter(Boolean));
+    const imPlan = new Set(
+      [...planMittel.map((p) => p.mittel?.atc), ...praxisplan.map((e) => e.atc)].filter(Boolean),
+    );
     const listenMittel: Angebot[] = (liste?.eintraege ?? [])
       .filter((a) => !Array.isArray(a['basedOn']))
       .map((a): Angebot | null => {
@@ -364,32 +364,7 @@ export function useBriefangebote(
         };
       })
       .filter((x): x is Angebot => x !== null);
-    // Antwortet die ePA nicht, bleibt der lokale Spiegel des Plans — mit seinem Stand.
-    const spiegelMittel: Angebot[] =
-      !medikation.daten && spiegel
-        ? spiegel.eintraege
-            .filter((e) => e.status === 'aktiv')
-            .map((e) => {
-              const mittel: Briefmittel = {
-                bezeichnung: e.bezeichnung,
-                atc: e.atc || null,
-                dosierung: e.dosierung,
-                grund: e.grund,
-              };
-              return {
-                id: `sp:${e.id}`,
-                abschnitt: 'medikation' as const,
-                text: mittelzeile(mittel),
-                quelle: `Praxis · Spiegel des Medikationsplans, Stand ${deutschesDatum(spiegel.abgeglichenAm.slice(0, 10))}`,
-                bestand: 'praxis' as const,
-                marken: [],
-                vorgabe: true,
-                mittel,
-              };
-            })
-        : [];
-
-    // Ohne Akte: der Medikationsplan der Praxis (ADR 0045).
+    // Der Medikationsplan der Praxis — der Bestand des Praxissystems (ADR 0045, 0046).
     const praxisplanMittel: Angebot[] = praxisplan
       .filter((e) => e.status === 'aktiv')
       .map((e) => {
@@ -481,7 +456,7 @@ export function useBriefangebote(
         ],
       },
       medikation: {
-        angebote: [...praxisplanMittel, ...planMittel, ...listenMittel, ...spiegelMittel],
+        angebote: [...praxisplanMittel, ...planMittel, ...listenMittel],
         quellen: [
           ...(praxisplanMittel.length > 0
             ? [
@@ -491,9 +466,6 @@ export function useBriefangebote(
                   zustand: null,
                 },
               ]
-            : []),
-          ...(spiegelMittel.length > 0
-            ? [{ name: spiegelMittel[0]!.quelle, bestand: 'praxis' as const, zustand: null }]
             : []),
           { name: 'ePA · Medikationsplan', bestand: 'epa', zustand: medZustand },
           { name: 'ePA · Medikationsliste', bestand: 'epa', zustand: medZustand },
@@ -515,7 +487,6 @@ export function useBriefangebote(
     allergien,
     dokumente,
     impfungen,
-    spiegel,
     praxisplan,
     listenlage,
     impfliste.daten,

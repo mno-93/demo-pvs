@@ -37,21 +37,21 @@ Die Oberfläche baut keine Ressourcen. Zurück in die Bestände führt `fhir/les
 
 ## 2 Bestände und wofür sie verwendet werden
 
-| Bestand                      | Art                                | Verbindung zur ePA                       | Verwendet in                                                                                                     |
-| ---------------------------- | ---------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Patient                      | erfasst (eGK)                      | KVNR = Kennung der Akte                  | jede Ausgabe: `Patient`, `subject.identifier`, XDS-Patientenkennung, E-Rezept, Betreff der KIM-Nachricht         |
-| Praxisstammdaten             | erfasst, einmal je Praxis          | Telematik-ID                             | `X-Requesting-Organization`, XDS-Autor, Absender des Arztbriefs, Organisation im E-Rezept, KIM-Absender, Kontakt |
-| Nutzer                       | erfasst                            | —                                        | Verfasser mit LANR (Brief, E-Rezept), Herkunft jedes Eintrags                                                    |
-| Diagnosen                    | erfasst                            | `epaId`, `epaFassung` ↔ Diagnosenliste ✦ | Diagnosenliste, Arztbrief, Abrechnungsprüfung, Karteikarte, Patient Summary (über die Liste)                     |
-| Allergien                    | erfasst                            | `epaId`, `epaFassung` ↔ Allergienliste ✦ | Allergienliste, Arztbrief, AMTS-Prüfung, Patient Summary                                                         |
-| Impfungen                    | erfasst                            | `epaId` ↔ Impfliste ✦                    | Impfliste, Arztbrief, Patient Summary                                                                            |
-| Karteikarte                  | erfasst, nur Freitext (A, B, T, S) | —                                        | Verlauf, Arztbrief (Anamnese, Befunde)                                                                           |
-| Dokumente                    | Ablage                             | `epaId` (Kennung in der Akte)            | Abgleich mit der ePA, Laborwerte, Arztbrief, Einstellen über ITI-41                                              |
-| Laborwerte                   | **abgeleitet** aus Laborbefunden   | —                                        | Labor, AMTS, Arztbrief                                                                                           |
-| Rezepte                      | erfasst                            | `empId`, `rezeptId`                      | E-Rezept → Medikationsliste der ePA, Verknüpfung mit dem Plan                                                    |
-| Medikationsspiegel           | datierte **Kopie** des Plans       | `planId`                                 | Anzeige ohne Verbindung; Arztbrief, wenn die ePA nicht antwortet                                                 |
-| Behandlungsfälle, Leistungen | erfasst                            | — (Abrechnung geht nicht in die ePA)     | Abrechnungsprüfung                                                                                               |
-| Verlauf je Besuch            | **abgeleitet**                     | —                                        | Karteikarte                                                                                                      |
+| Bestand                      | Art                                | Verbindung zur ePA                          | Verwendet in                                                                                                     |
+| ---------------------------- | ---------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Patient                      | erfasst (eGK)                      | KVNR = Kennung der Akte                     | jede Ausgabe: `Patient`, `subject.identifier`, XDS-Patientenkennung, E-Rezept, Betreff der KIM-Nachricht         |
+| Praxisstammdaten             | erfasst, einmal je Praxis          | Telematik-ID                                | `X-Requesting-Organization`, XDS-Autor, Absender des Arztbriefs, Organisation im E-Rezept, KIM-Absender, Kontakt |
+| Nutzer                       | erfasst                            | —                                           | Verfasser mit LANR (Brief, E-Rezept), Herkunft jedes Eintrags                                                    |
+| Diagnosen                    | erfasst                            | `epaId`, `epaFassung` ↔ Diagnosenliste ✦    | Diagnosenliste, Arztbrief, Abrechnungsprüfung, Karteikarte, Patient Summary (über die Liste)                     |
+| Allergien                    | erfasst                            | `epaId`, `epaFassung` ↔ Allergienliste ✦    | Allergienliste, Arztbrief, AMTS-Prüfung, Patient Summary                                                         |
+| Impfungen                    | erfasst                            | `epaId` ↔ Impfliste ✦                       | Impfliste, Arztbrief, Patient Summary                                                                            |
+| Karteikarte                  | erfasst, nur Freitext (A, B, T, S) | —                                           | Verlauf, Arztbrief (Anamnese, Befunde)                                                                           |
+| Dokumente                    | Ablage                             | `epaId` (Kennung in der Akte)               | Abgleich mit der ePA, Laborwerte, Arztbrief, Einstellen über ITI-41                                              |
+| Laborwerte                   | **abgeleitet** aus Laborbefunden   | —                                           | Labor, AMTS, Arztbrief                                                                                           |
+| Rezepte                      | erfasst                            | `empId`, `rezeptId`                         | E-Rezept → Medikationsliste der ePA, Verknüpfung mit dem Plan                                                    |
+| Medikationsplan der Praxis   | erfasst, mit dem eMP abgeglichen   | `epaId`, `epaStand` (Fassung beim Abgleich) | Medikation, Karteikarte, Arztbrief, AMTS; Abgleich mit dem eMP (ADR 0046)                                        |
+| Behandlungsfälle, Leistungen | erfasst                            | — (Abrechnung geht nicht in die ePA)        | Abrechnungsprüfung                                                                                               |
+| Verlauf je Besuch            | **abgeleitet**                     | —                                           | Karteikarte                                                                                                      |
 
 Strukturierte Sachverhalte stehen nie als Karteitext, Laborwerte nie als eigener Bestand — sie
 entstehen aus den Befunden (ADR 0016). Ein unterschriebener Brief liegt als FHIR-Dokument in der
@@ -245,13 +245,8 @@ Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund
 
 ## 7 Offene Punkte der Architektur
 
-1. ▸ **Medikation ohne lokalen Primärbestand.**
-   - Heute gilt: Der Plan in der ePA ist die Quelle. Das Praxissystem hält einen datierten Spiegel
-     und die Rezepte.
-   - Folge: Für eine Person ohne Akte (Frau Weber) kann die Praxis keine Dauermedikation führen.
-     Ohne Verbindung kennt der Brief nur den letzten Spiegel und keinen Einnahmebeginn.
-   - ✦ Vorschlag: lokale Medikationseinträge als Primärbestand mit `epaId` zum Planeintrag —
-     dasselbe Muster wie bei Diagnosen, Allergien und Impfungen.
+1. ~~Medikation ohne lokalen Primärbestand~~ — erledigt mit ADR 0046: Medikationsplan der Praxis
+   mit `epaId` und Abgleich. ⚠ Einnahmebeginn fehlt weiter im Plan der Praxis.
 2. **Mehrfachkodierungs-Kennzeichen** (†, \*, !) fehlt im Diagnosemodell, obwohl Must Support.
 3. **Namen von Personen** stehen beim Verfasser als `name.text`. ⚠ Die KBV-Profile verlangen
    strukturierte Namen.

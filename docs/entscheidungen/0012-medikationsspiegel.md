@@ -1,6 +1,6 @@
 # 0012 — Lokaler Spiegel des Medikationsplans
 
-**Datum:** 09.09.2026 · **Status:** angenommen
+**Datum:** 09.09.2026 · **Status:** abgelöst durch 0046 (28.10.2026) — der Plan der Praxis ersetzt den Spiegel
 
 ## Zusammenhang
 

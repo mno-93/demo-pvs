@@ -1,6 +1,6 @@
 # 0045 — Medikationsplan der Praxis, wenn es keine Akte gibt
 
-**Datum:** 28.10.2026 · **Status:** angenommen · **ergänzt:** 0009, 0012, 0023, 0024
+**Datum:** 28.10.2026 · **Status:** angenommen, erweitert durch 0046 (Plan der Praxis für alle, mit Abgleich) · **ergänzt:** 0009, 0012, 0023, 0024
 
 ## Zusammenhang
 

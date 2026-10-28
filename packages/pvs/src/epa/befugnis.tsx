@@ -11,6 +11,7 @@ import {
   beiFehlenderBefugnis,
   pruefungsnachweisBilden,
 } from './klient.js';
+import { beimEinlesenAbgleichen } from '../module/medikation/planabgleich.js';
 
 /**
  * Befugnis der Praxis für die ePA einer Person (ADR 0017).
@@ -91,6 +92,8 @@ export async function egkEinlesen(patientId: string): Promise<Einleseergebnis> {
   try {
     const { validTo } = await befugnisRegistrieren(kvnr, pruefungsnachweisBilden(kvnr));
     ausfuehren(vorgaenge.befugnisErhalten(patientId, validTo, jetztAlsIsoOrtszeit(demoJetzt())));
+    // Mit der Befugnis gleicht das Praxissystem seinen Medikationsplan mit dem eMP ab (ADR 0046).
+    void beimEinlesenAbgleichen(patientId);
     einlesungen += 1;
     hoerer.forEach((h) => h());
     return { ok: true, gueltigBis: validTo };

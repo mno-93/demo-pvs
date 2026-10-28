@@ -54,17 +54,8 @@ export const EMP_STATUS_CODE: Record<EmpStatus, string> = {
 };
 
 /**
- * Lokaler Spiegel des Medikationsplans.
- *
- * Ein Praxissystem führt den Plan nicht nur als Fernsicht. Es hält den zuletzt
- * abgeglichenen Stand vor, damit im Sprechzimmer etwas dasteht, wenn die ePA gerade nicht
- * antwortet. Der Spiegel ist deshalb ausdrücklich datiert: Was er zeigt, ist der Stand des
- * letzten Abgleichs — nicht notwendig der heutige.
- *
- * ▸ Der Unterschied zur ePA-Ansicht ist beabsichtigt und gehört zur Aussage der Demo: Die
- * ePA-Ansicht ist eine Fernsicht und zeigt bei fehlender Verbindung nichts. Der Spiegel ist
- * eine lokale Kopie und zeigt den letzten Stand — mit Datum, damit niemand ihn für aktuell
- * hält.
+ * Ein Eintrag des Medikationsplans, wie ihn die ePA führt (eMP) — gelesen und auf das Nötige
+ * gebracht. Grundlage für den Abgleich mit dem Medikationsplan der Praxis (ADR 0046).
  */
 export interface SpiegelEintrag {
   id: string;
@@ -79,21 +70,30 @@ export interface SpiegelEintrag {
   geaendertAm?: string;
 }
 
-export interface Medikationsspiegel {
+/** Wann der Medikationsplan der Praxis zuletzt mit dem eMP abgeglichen wurde (ADR 0046). */
+export interface Planabgleich {
   patientId: string;
+  /** Lesenachweis des eMP beim Abgleich. */
   planId: string;
   /** ISO-Zeitpunkt des letzten erfolgreichen Abgleichs mit der ePA. */
   abgeglichenAm: string;
-  eintraege: readonly SpiegelEintrag[];
+}
+
+/** Stand eines eMP-Eintrags beim letzten Abgleich — woran sich Änderungen beider Seiten zeigen. */
+export interface EpaStand {
+  fassung: string;
+  dosierung: string;
+  grund: string | null;
+  status: EmpStatus;
 }
 
 /**
- * Eintrag im Medikationsplan der Praxis — geführt, wenn es keine Akte gibt (ADR 0045).
+ * Eintrag im Medikationsplan der Praxis — der Primärbestand des Praxissystems (ADR 0045, 0046).
  *
- * Ohne ePA gibt es keinen eMP, den das Praxissystem spiegeln könnte. Den Plan führt die Praxis
- * trotzdem: als eigenen Bestand im Praxissystem, nicht als Ersatz-eMP. Er trägt dieselben
- * Angaben wie ein Spiegeleintrag, dazu die Kodierung des Arzneimittels und die E-Rezepte, die
- * aus ihm verordnet oder in ihn übernommen wurden.
+ * Die Praxis führt den Plan selbst, für jede Person: ohne Akte, ohne eingelesene eGK, bei
+ * Widerspruch und bei Störung. Gibt es einen eMP, ist der Eintrag mit seinem eMP-Eintrag
+ * verknüpft (`epaId`) und trägt dessen Stand beim letzten Abgleich (`epaStand`). Daran zeigt
+ * sich, welche Seite seither geändert hat.
  */
 export interface PraxisplanEintrag extends SpiegelEintrag {
   patientId: string;
@@ -103,4 +103,7 @@ export interface PraxisplanEintrag extends SpiegelEintrag {
   geaendertAm: string;
   /** Kennungen der E-Rezepte der Praxis, die zu diesem Eintrag gehören. */
   rezeptIds: readonly string[];
+  /** Kennung des verknüpften eMP-Eintrags (`MedicationRequest.id`), sonst `null`. */
+  epaId: string | null;
+  epaStand: EpaStand | null;
 }

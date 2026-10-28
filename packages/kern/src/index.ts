@@ -19,6 +19,7 @@ export * from './fachlogik/dokumentinhalt.js';
 export * from './fachlogik/listenabgleich.js';
 export * from './fachlogik/listenordnung.js';
 export * from './fachlogik/praxisplan.js';
+export * from './fachlogik/planabgleich.js';
 export * from './fachlogik/lotse.js';
 export * from './fachlogik/pdf.js';
 export * from './fachlogik/beschriftung.js';
