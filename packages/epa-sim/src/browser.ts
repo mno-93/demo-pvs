@@ -89,6 +89,10 @@ class BrowserAnwendung {
     this.weg('POST', pfad, handler);
   }
 
+  put(pfad: string, handler: Handler) {
+    this.weg('PUT', pfad, handler);
+  }
+
   addHook(art: 'onRequest' | 'onSend', haken: Handler | SendeHaken) {
     if (art === 'onRequest') this.anfrageHaken.push(haken as Handler);
     else this.sendeHaken.push(haken as SendeHaken);

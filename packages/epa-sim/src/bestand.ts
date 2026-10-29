@@ -96,6 +96,11 @@ export interface Aktenbestand {
    * den E-Rezept-Fachdienst (`erp-submission`). Konzept ePA 3.1.3, Consent Management.
    */
   widersprueche: Record<Widerspruchsfunktion, 'permit' | 'deny'>;
+  /**
+   * Render API des Medication Service 1.4.0-ballot.1: eMP mit Zwischenüberschriften (Kategorien).
+   * Nicht gesetzt gilt der Standardwert `true`.
+   */
+  empZwischenueberschriften?: boolean;
 }
 
 export type Widerspruchsfunktion = 'medication' | 'erp-submission';

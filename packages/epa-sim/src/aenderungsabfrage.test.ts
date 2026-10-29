@@ -15,6 +15,7 @@ const KARDIOLOGIE = '1-DEMO-KARDIOLOGIE-AM-WALL';
 const HOFFMANN = 'A123456780';
 const MHD = '/epa/mhd/api/v1/fhir';
 const MS = '/epa/medication/api/v1/fhir';
+const QUERY = '/epa/query/api/v1/fhir';
 const TELEMATIK = 'https://gematik.de/fhir/sid/telematik-id';
 
 function kopf(): Record<string, string> {
@@ -90,18 +91,18 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
     await fremdEintragen();
 
     const seit = treffer(
-      await lesen(`${MS}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}`),
+      await lesen(`${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}`),
     );
     expect(seit).toHaveLength(1);
     const fremd = treffer(
       await lesen(
-        `${MS}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${encodeURIComponent(`${TELEMATIK}|${KARDIOLOGIE}`)}`,
+        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${encodeURIComponent(`${TELEMATIK}|${KARDIOLOGIE}`)}`,
       ),
     );
     expect(fremd).toHaveLength(1);
     const eigene = treffer(
       await lesen(
-        `${MS}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${PRAXIS}`,
+        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${PRAXIS}`,
       ),
     );
     expect(eigene).toHaveLength(0);
@@ -132,11 +133,20 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
     expect(treffer(await lesen(`${MS}/$medication-list?date=gt${lesezeichen}`))).toHaveLength(1);
   });
 
-  it('kennt _lastUpdated an der Query API', async () => {
-    const lesezeichen = (await lesen(`${MS}/MedicationRequest`)).meta!.lastUpdated!;
+  it('kennt _lastUpdated an der Common Query API', async () => {
+    const lesezeichen = (await lesen(`${QUERY}/MedicationRequest`)).meta!.lastUpdated!;
     await fremdEintragen();
-    const geaendert = treffer(await lesen(`${MS}/MedicationRequest?_lastUpdated=gt${lesezeichen}`));
+    const geaendert = treffer(
+      await lesen(`${QUERY}/MedicationRequest?_lastUpdated=gt${lesezeichen}`),
+    );
     // Verordnung der Kardiologie, neuer Planeintrag, geänderter Planeintrag.
     expect(geaendert.length).toBe(3);
+  });
+});
+
+describe('Medication Service 1.4.0 — keine eigene Query API', () => {
+  it('antwortet unter dem Basispfad des Dienstes nicht mehr auf Suchen', async () => {
+    const a = await app.inject({ method: 'GET', url: `${MS}/MedicationRequest`, headers: kopf() });
+    expect(a.statusCode).toBe(404);
   });
 });

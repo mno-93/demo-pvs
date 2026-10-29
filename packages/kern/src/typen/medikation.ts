@@ -15,6 +15,8 @@
  * diesen Weg bereits gegangen und deshalb das belastbarste Vorbild.
  */
 
+import type { Dosierung, EmpKategorie } from '../fachlogik/dosierung.js';
+
 /**
  * Eine Medikationsangabe, wie sie Brief, Patient Summary und Plan teilen: Arzneimittel mit
  * Kodierung, Dosierung als Text und Grund. ATC und PZN sind optional — kodiert wird, was
@@ -26,13 +28,13 @@ export interface Medikationsangabe {
   atc: string | null;
   atcVersion?: string | null;
   pzn?: string | null;
-  /** Viererschema oder Freitext, wie im Plan. */
+  /** Dosierungstext — bei strukturierter Dosierung der erzeugte Text nach Algorithmus 2.0.0. */
   dosierung: string;
   grund: string | null;
 }
 
 /**
- * Status eines eMP-Eintrags nach `EMPMedicationRequest` (IG Medication Service 1.3.5):
+ * Status eines eMP-Eintrags nach `EMPMedicationRequest` (IG Medication Service 1.4.0-ballot.1):
  * aktiv und pausiert gehören zum gültigen Plan; beendet, abgesetzt und fehlerhaft nicht.
  */
 export type EmpStatus = 'aktiv' | 'pausiert' | 'beendet' | 'abgesetzt' | 'entered-in-error';
@@ -61,8 +63,19 @@ export interface SpiegelEintrag {
   id: string;
   bezeichnung: string;
   atc: string;
+  /** Erzeugter Dosierungstext (`renderedDosageInstruction`), sonst der Freitext. */
   dosierung: string;
+  /**
+   * Strukturierte Dosierung nach `DosageDgMP`; `null`, wenn der Eintrag eine Form trägt, die das
+   * Praxissystem nicht selbst erfasst.
+   */
+  dosis?: Dosierung | null;
+  /** Behandlungsgrund in Worten der Patient:innen (`reasonPatientInstruction`). */
   grund: string | null;
+  /** Diagnose als Behandlungsgrund (`EMPReasonCondition`, ICD-10-GM). */
+  grundDiagnose?: { code: string; bezeichnung: string } | null;
+  /** Kategorie des eMP (Zwischenüberschrift); im Praxisplan bis zum Abgleich `null`. */
+  kategorie?: EmpKategorie | null;
   status: EmpStatus;
   verantwortlich: string;
   fassung: string;
@@ -99,6 +112,8 @@ export interface PraxisplanEintrag extends SpiegelEintrag {
   patientId: string;
   atcVersion: string;
   pzn: string | null;
+  /** Diagnose der Praxis, auf die der Behandlungsgrund verweist (`Diagnose.id`). */
+  grundDiagnoseId?: string | null;
   angelegtAm: string;
   geaendertAm: string;
   /** Kennungen der E-Rezepte der Praxis, die zu diesem Eintrag gehören. */

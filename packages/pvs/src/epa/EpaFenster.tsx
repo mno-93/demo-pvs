@@ -20,6 +20,8 @@ import {
   type LokalesDokument,
   type Patient,
   type Ressource,
+  dosierungsanzeige,
+  grundanzeige,
 } from '@demo-pvs/kern';
 import { ausfuehren, useAuswahl } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
@@ -982,12 +984,9 @@ function MedikationInEpa({
                     <div className="leise-klein">ATC {atc(e) ?? '—'}</div>
                   </td>
                   <td>
-                    <span className="code">
-                      {(e['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ??
-                        '—'}
-                    </span>
+                    <span className="code">{dosierungsanzeige(e)}</span>
                   </td>
-                  <td>{(e['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? '—'}</td>
+                  <td>{grundanzeige(e) ?? '—'}</td>
                   <td>
                     <Marker ton="neutral">
                       {STATUS[String(e['status'])] ?? String(e['status'])}
@@ -1028,9 +1027,7 @@ function MedikationInEpa({
                     </td>
                     <td>{name(e)}</td>
                     <td>
-                      <span className="code">
-                        {(e['dosage'] as { text?: string }[] | undefined)?.[0]?.text ?? '—'}
-                      </span>
+                      <span className="code">{dosierungsanzeige(e)}</span>
                     </td>
                     <td>{STATUS[String(e['status'])] ?? String(e['status'])}</td>
                   </tr>

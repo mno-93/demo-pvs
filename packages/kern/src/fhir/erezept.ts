@@ -1,3 +1,4 @@
+import { dosierungAusText, dosierungNachFhir } from '../fachlogik/dosierung.js';
 import type { Praxisstammdaten } from '../beispiele.js';
 import { CODESYSTEM } from '../typen/kodierung.js';
 import type { Patient } from '../typen/person.js';
@@ -27,7 +28,6 @@ const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
 const SECTION_TYPE = 'https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type';
 
 const VIERERSCHEMA = /^(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)$/;
-const TAGESZEIT = ['MORN', 'NOON', 'EVE', 'NIGHT'] as const;
 
 const zahl = (s: string) => Number(s.replace(',', '.'));
 
@@ -36,18 +36,8 @@ const zahl = (s: string) => Number(s.replace(',', '.'));
  * Freitext. Die erste Angabe trägt den Text, damit Leser ohne Strukturauswertung ihn finden.
  */
 export function dosierungStrukturiert(text: string): Record<string, unknown>[] {
-  const schema = VIERERSCHEMA.exec(text.trim());
-  if (!schema) return [{ text }];
-  const angaben = schema
-    .slice(1)
-    .map((menge, i) => ({ menge: zahl(menge), zeit: TAGESZEIT[i]! }))
-    .filter((x) => x.menge > 0);
-  if (angaben.length === 0) return [{ text }];
-  return angaben.map((x, i) => ({
-    ...(i === 0 ? { text } : {}),
-    timing: { repeat: { when: [x.zeit] } },
-    doseAndRate: [{ doseQuantity: { value: x.menge, unit: 'Stück' } }],
-  }));
+  // Dieselbe Abbildung wie im Medikationsplan: DosageDgMP (Medication IG DE 2.0.0-ballot).
+  return dosierungNachFhir(dosierungAusText(text));
 }
 
 /** Tagesmenge aus einem Viererschema, sonst `null`. */

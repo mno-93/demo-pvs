@@ -22,6 +22,7 @@ import {
  */
 
 const MS = '/epa/medication/api/v1/fhir';
+const QUERY = '/epa/query/api/v1/fhir';
 const MHD = '/epa/mhd/api/v1/fhir';
 const EMP = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
 const KARDIOLOGIE = {
@@ -113,7 +114,7 @@ describe('Abfrage „seit" im Medikationsplan', () => {
         return { status: 200, inhalt: plan(neu, [bisoV2, tora], [...mittelAlle, ...aenderungen]) };
       if (a.pfad === `${MS}/$medication-plan?provenance=chron-alt`)
         return { status: 200, inhalt: plan(alt, [bisoV1, ator], [...mittelAlle, ...aenderungen]) };
-      if (a.pfad.startsWith(`${MS}/Provenance?is-emp-chronology=true&recorded=gt`))
+      if (a.pfad.startsWith(`${QUERY}/Provenance?is-emp-chronology=true&recorded=gt`))
         return { status: 200, inhalt: suchergebnis([neu]) };
       return undefined;
     });

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   PRAXIS_STAMMDATEN,
+  dosierungsanzeige,
   patientSummaryLesen,
   verordnungsdatensatzBauen,
   type Rezept,
@@ -284,7 +285,7 @@ describe('E-Rezept', () => {
           (eintrag['medicationReference'] as { reference: string }).reference,
     )!;
     expect((mittel['code'] as { text: string }).text).toContain('2,5 mg');
-    expect((eintrag['dosageInstruction'] as { text: string }[])[0]!.text).toBe('2-0-0-0');
+    expect(dosierungsanzeige(eintrag)).toBe('täglich: 2-0-0-0 Stück');
   });
 
   it('aktualisiert den Plan nicht, wenn zu einem Rezept mehrere Arzneimittel abgegeben werden', async () => {

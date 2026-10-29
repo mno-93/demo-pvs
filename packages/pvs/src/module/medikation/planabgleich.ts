@@ -8,6 +8,7 @@ import {
   type EmpStatus,
   type Ressource,
   type SpiegelEintrag,
+  planeintragLesen,
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen } from '../../speicher/speicher.js';
 import { vorgaenge, type PlanausEpa } from '../../speicher/vorgaenge.js';
@@ -64,8 +65,7 @@ export function planzeilen(plan: Medikationsplan): Planzeile[] {
       atc: (mittel && codeVon(mittel, 'code', ATC)) ?? '',
       atcVersion: atcKodierung?.version ?? '',
       pzn: (mittel && codeVon(mittel, 'code', PZN)) ?? null,
-      dosierung: (e['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ?? '—',
-      grund: (e['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? null,
+      ...planeintragLesen(e, plan.ressourcen),
       status: STATUS_AUS_CODE[String(e['status'])] ?? 'aktiv',
       verantwortlich: chronik.zuletztVon,
       fassung: e.meta?.versionId ?? '1',
@@ -91,7 +91,10 @@ export function eindeutigesAbgleichen(patientId: string, plan: Medikationsplan):
       atcVersion: z.atcVersion,
       pzn: z.pzn,
       dosierung: z.dosierung,
+      dosis: z.dosis,
       grund: z.grund,
+      grundDiagnose: z.grundDiagnose,
+      kategorie: z.kategorie,
       status: z.status,
       verantwortlich: z.verantwortlich,
       fassung: z.fassung,

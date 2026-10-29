@@ -58,11 +58,13 @@ const REZEPT: Rezept = {
 };
 
 describe('E-Rezept', () => {
-  it('bildet das Viererschema als Tageszeiten ab und behält den Text', () => {
+  it('bildet das Viererschema strukturiert nach DosageDgMP ab, ohne Freitext', () => {
     const d = dosierungStrukturiert('1-0-1-0');
-    expect(d).toHaveLength(2);
-    expect(d[0]).toMatchObject({ text: '1-0-1-0', timing: { repeat: { when: ['MORN'] } } });
-    expect(d[1]).toMatchObject({ timing: { repeat: { when: ['EVE'] } } });
+    expect(d).toHaveLength(1);
+    expect(d[0]).toMatchObject({
+      timing: { repeat: { frequency: 2, period: 1, periodUnit: 'd', when: ['MORN', 'EVE'] } },
+    });
+    expect(d[0]).not.toHaveProperty('text');
     expect(dosierungStrukturiert('bei Bedarf 1 Hub')).toEqual([{ text: 'bei Bedarf 1 Hub' }]);
   });
 

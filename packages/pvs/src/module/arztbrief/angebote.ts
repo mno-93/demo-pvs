@@ -13,6 +13,8 @@ import {
   type Diagnose,
   type GelesenerBefund,
   type Impfung,
+  dosierungsanzeige,
+  grundanzeige,
 } from '@demo-pvs/kern';
 import { useAuswahl, useZustand } from '../../speicher/speicher.js';
 import {
@@ -314,8 +316,8 @@ export function useBriefangebote(
         const mittel: Briefmittel = {
           bezeichnung: m ? textVon(m) : '(ohne Bezeichnung)',
           atc: m ? codeVon(m, 'code', ATC) : null,
-          dosierung: (e['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ?? '—',
-          grund: (e['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? null,
+          dosierung: dosierungsanzeige(e),
+          grund: grundanzeige(e),
         };
         return {
           id: `emp:${String(e.id)}`,
@@ -349,7 +351,7 @@ export function useBriefangebote(
         const mittel: Briefmittel = {
           bezeichnung: m ? textVon(m) : textVon(a),
           atc,
-          dosierung: (a['dosage'] as { text?: string }[] | undefined)?.[0]?.text ?? '—',
+          dosierung: dosierungsanzeige(a),
           grund: null,
         };
         return {
