@@ -12,7 +12,7 @@ import { bestandFuer, bestandVorhanden } from './bestand.ts';
 import { betriebslage } from './betrieb.ts';
 import { chronologieAnlegen } from './chronologie.ts';
 import { jetzt, neueId, operationOutcome, parameterLesen } from './fhir-hilfen.ts';
-import { EMP, EMP_IDENTIFIER, EXT, PROFIL, istEmpEintrag } from './medikation.ts';
+import { EMP, EMP_IDENTIFIER, EXT, PROFIL, empVerweis, istEmpEintrag } from './medikation.ts';
 import {
   aktivitaetAnlegen,
   fortschreiben,
@@ -212,7 +212,7 @@ function verschreibungEinstellen(r: Rezept): void {
       )
     : undefined;
   if (plan) {
-    aussage['basedOn'] = [{ reference: `MedicationRequest/${String(plan.id)}` }];
+    aussage['basedOn'] = [empVerweis(String(plan.id))];
     plan.extension = [
       ...((plan.extension ?? []) as { url: string }[]),
       {

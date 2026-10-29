@@ -42,7 +42,7 @@ import { bestandFuer, bestaendeLeeren, type Dokument, type Kodewert } from './be
 import { befugnisErteilen, befugnisseLeeren } from './befugnis.ts';
 import { chronologieAnlegen } from './chronologie.ts';
 import { eintragAnlegen, listeFortschreiben } from './diagnosedienst.ts';
-import { EMP, EMP_IDENTIFIER, EXT, PROFIL } from './medikation.ts';
+import { EMP, EMP_IDENTIFIER, EXT, PROFIL, empVerweis } from './medikation.ts';
 import { eintragsUuid } from './mhd.ts';
 import { jetzt, neueId } from './fhir-hilfen.ts';
 import {
@@ -336,7 +336,7 @@ function planeintrag(
     authoredOn: datum,
     dosageInstruction: dosierungMitText('MedicationRequest', dosierung).dosierung,
   };
-  aussage['basedOn'] = [{ reference: `MedicationRequest/${id}` }];
+  aussage['basedOn'] = [empVerweis(id)];
   ablage.push(mittel, eintrag);
   aktivitaetAnlegen(
     ablage,

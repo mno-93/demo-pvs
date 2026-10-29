@@ -1028,7 +1028,7 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
         resource: {
           resourceType: 'MedicationStatement',
           extension: textErweiterungen('MedicationStatement', dosage),
-          status: 'active',
+          status: 'unknown',
           subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
           dosage,
         },
@@ -1037,6 +1037,7 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
         name: 'medication',
         resource: {
           resourceType: 'Medication',
+          status: 'active',
           code: {
             coding: [{ system: ATC, version: '2026', code: 'C10AA05' }],
             text: 'Atorvastatin 40 mg',

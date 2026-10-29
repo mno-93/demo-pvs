@@ -261,7 +261,17 @@ describe('E-Rezept', () => {
     const neu = eintragZu(treffer, alle, 'Ramipril');
     expect(neu).toBeDefined();
     expect(neu!['status']).toBe('intended');
-    expect(neu!['basedOn']).toEqual([{ reference: 'MedicationRequest/emp-h-med-3' }]);
+    expect(neu!['basedOn']).toEqual([
+      {
+        extension: [
+          {
+            url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/is-emp-extension',
+            valueBoolean: true,
+          },
+        ],
+        reference: 'MedicationRequest/emp-h-med-3',
+      },
+    ]);
     const nachher = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
     expect(
       Number(nachher.meta && (nachher.meta as { versionId: string }).versionId),

@@ -65,10 +65,14 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
   it('findet über _lastUpdated nur Dokumente, die seit dem Lesezeichen eingestellt wurden', async () => {
     const lesezeichen = (await lesen(`${MHD}/DocumentReference?status=current`)).meta!.lastUpdated!;
     expect(
-      treffer(await lesen(`${MHD}/DocumentReference?_lastUpdated=gt${lesezeichen}`)),
+      treffer(
+        await lesen(`${MHD}/DocumentReference?_lastUpdated=gt${encodeURIComponent(lesezeichen)}`),
+      ),
     ).toHaveLength(0);
     await fremdEintragen();
-    const neu = treffer(await lesen(`${MHD}/DocumentReference?_lastUpdated=gt${lesezeichen}`));
+    const neu = treffer(
+      await lesen(`${MHD}/DocumentReference?_lastUpdated=gt${encodeURIComponent(lesezeichen)}`),
+    );
     expect(neu.map((d) => d['description'])).toEqual(['Befundbericht Kardiologie, Kontrolle']);
     // Dasselbe Dokument über seine Kennung wiederfinden.
     const kennung = (neu[0]!['masterIdentifier'] as { value: string }).value;
@@ -91,18 +95,20 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
     await fremdEintragen();
 
     const seit = treffer(
-      await lesen(`${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}`),
+      await lesen(
+        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(lesezeichen)}`,
+      ),
     );
     expect(seit).toHaveLength(1);
     const fremd = treffer(
       await lesen(
-        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${encodeURIComponent(`${TELEMATIK}|${KARDIOLOGIE}`)}`,
+        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(lesezeichen)}&agent-identifier=${encodeURIComponent(`${TELEMATIK}|${KARDIOLOGIE}`)}`,
       ),
     );
     expect(fremd).toHaveLength(1);
     const eigene = treffer(
       await lesen(
-        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${lesezeichen}&agent-identifier=${PRAXIS}`,
+        `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(lesezeichen)}&agent-identifier=${PRAXIS}`,
       ),
     );
     expect(eigene).toHaveLength(0);
@@ -128,16 +134,20 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
 
   it('liefert über $medication-list mit date nur neue Einträge der Medikationsliste', async () => {
     const lesezeichen = (await lesen(`${MS}/$medication-list`)).meta!.lastUpdated!;
-    expect(treffer(await lesen(`${MS}/$medication-list?date=gt${lesezeichen}`))).toHaveLength(0);
+    expect(
+      treffer(await lesen(`${MS}/$medication-list?date=gt${encodeURIComponent(lesezeichen)}`)),
+    ).toHaveLength(0);
     await fremdEintragen();
-    expect(treffer(await lesen(`${MS}/$medication-list?date=gt${lesezeichen}`))).toHaveLength(1);
+    expect(
+      treffer(await lesen(`${MS}/$medication-list?date=gt${encodeURIComponent(lesezeichen)}`)),
+    ).toHaveLength(1);
   });
 
   it('kennt _lastUpdated an der Common Query API', async () => {
     const lesezeichen = (await lesen(`${QUERY}/MedicationRequest`)).meta!.lastUpdated!;
     await fremdEintragen();
     const geaendert = treffer(
-      await lesen(`${QUERY}/MedicationRequest?_lastUpdated=gt${lesezeichen}`),
+      await lesen(`${QUERY}/MedicationRequest?_lastUpdated=gt${encodeURIComponent(lesezeichen)}`),
     );
     // Verordnung der Kardiologie, neuer Planeintrag, geänderter Planeintrag.
     expect(geaendert.length).toBe(3);

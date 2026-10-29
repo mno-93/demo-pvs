@@ -296,3 +296,23 @@ export function anlegende(ablage: readonly Ressource[], typ: string, id: string)
   )?.[0]?.who;
   return who ? { telematikId: who.identifier.value, anzeige: who.display } : null;
 }
+
+/* ---------- Löschen ---------- */
+
+const GELOESCHT = new WeakMap<Ressource[], Set<string>>();
+
+/**
+ * Löscht eine Instanz aus der Ablage; ihre Fassungen bleiben im Archiv abrufbar (FHIR delete).
+ * Ein späterer Zugriff erkennt sie als gelöscht (410 `MSG_DELETED`) statt als unbekannt (404).
+ */
+export function loeschen(ablage: Ressource[], r: Ressource): void {
+  const i = ablage.indexOf(r);
+  if (i >= 0) ablage.splice(i, 1);
+  const s = GELOESCHT.get(ablage) ?? new Set<string>();
+  s.add(`${r.resourceType}/${String(r.id)}`);
+  GELOESCHT.set(ablage, s);
+}
+
+export function istGeloescht(ablage: Ressource[], typ: string, id: string): boolean {
+  return GELOESCHT.get(ablage)?.has(`${typ}/${id}`) ?? false;
+}
