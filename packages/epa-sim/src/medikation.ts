@@ -34,6 +34,11 @@ import {
 } from './fhir-hilfen.ts';
 import {
   aktivitaetAnlegen,
+  archivSichern,
+  archivWiederherstellen,
+  fassung,
+  fassungZum,
+  fassungen,
   fortschreiben,
   organisationAusKopf,
   patientFuer,
@@ -52,10 +57,11 @@ import {
  * Behandlungsgrund als `EMPReasonCondition` (`reasonCondition`), `reasonCode` gestrichen;
  * Kategorie des eMP-Eintrags; Status des Arzneimittels folgt dem Eintrag; `MEDSVC_ALREADY_LINKED`
  * bei `$add-emp-entry`; `$update-emp-entry` mit `medication`; `$link-emp` übernimmt Dosierung und
- * Arzneimittel; Datumsbezug von `$medication-list`. ⚠ Nicht nachgebildet: historischer Stand aller
- * Instanzen in `$medication-plan` (IG-MED04510JHX), Rücksetzlogik von `$unlink-emp` und
- * `$cancel-eml-entry`, Common Query API — der Simulator behält die Query API je Typ unter dem
- * Basispfad des Dienstes (SPEZIFIKATION 5.14).
+ * Arzneimittel; Datumsbezug von `$medication-list`; Instanzhistorie mit dem Stand zum
+ * Bezugszeitpunkt in `$medication-plan` (IG-MED04510JHX); Rücksetzlogik von `$unlink-emp` und
+ * `$cancel-eml-entry` mit `systemNotice`; Common Query API statt eigener Query API; Render API
+ * für die Zwischenüberschriften (SPEZIFIKATION 5.14). ⚠ Nicht nachgebildet: Render API für
+ * PDF/A und XHTML, `_has` und die übrigen Typen der Common Query API.
  *
  * - eML: `$medication-list` — Medikationsinformationen (MedicationStatement) aus Verordnung,
  *   Abgabe und Nachtrag, mit Verordnung, Abgabe, Arzneimittel, Änderungseinträgen und der
@@ -74,6 +80,10 @@ import {
  */
 
 export const MEDIKATION_BASIS = '/epa/medication/api/v1/fhir';
+/** Common Query API (`de.gematik.epa` 1.4.0-ballot.1, CapabilityStatement epa-common-query-api-server). */
+export const QUERY_BASIS = '/epa/query/api/v1/fhir';
+/** Render API des Medication Service: Einstellung der Zwischenüberschriften im eMP. */
+export const RENDER_EINSTELLUNG = '/epa/medication/render/v1/emp/settings';
 
 const MS = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
 const V = '|1.4.0';
@@ -335,6 +345,83 @@ function gruendeAnlegen(
   return angelegt;
 }
 
+const textErweiterung = (url: string) =>
+  url === TEXT_EXTENSION.gerendert('MedicationRequest') || url === TEXT_EXTENSION.generiert;
+
+function aktivitaetsverweise(r: Ressource): string[] {
+  return (
+    (r.extension ?? []) as {
+      url: string;
+      extension?: { url: string; valueReference?: unknown }[];
+    }[]
+  )
+    .filter((x) => x.url === EXT.aktivitaet)
+    .map((x) => referenzId(x.extension?.find((y) => y.url === 'reference')?.valueReference));
+}
+
+/**
+ * Löst einen eML-Eintrag von seinem eMP-Eintrag (IG 1.4.0-ballot.1, Geschäftslogik von
+ * `$unlink-emp`; `$cancel-eml-entry` verfährt ebenso). Die Instanzhistorie des eMP-Eintrags wird
+ * zurückverfolgt, solange Arzneimittel und Dosierung denen des eML-Eintrags gleichen und dieser
+ * noch im Aktivitätsnachweis steht. Erst wenn die erste abweichende Fassung („stop version")
+ * beides nicht mehr erfüllt, werden Dosierung, Arzneimittel und Dosierungstext auf sie
+ * zurückgesetzt und die Kategorie neu bestimmt. Eine zwischenzeitliche manuelle Änderung und ein
+ * schon verknüpft angelegter Eintrag setzen nichts zurück. Liefert, ob der eMP-Eintrag geändert
+ * wurde.
+ */
+function empZuruecksetzen(kvnr: string, eintrag: Ressource, aussage: Ressource): boolean {
+  const gleich = (f: Ressource) =>
+    referenzId(f['medicationReference']) === referenzId(aussage['medicationReference']) &&
+    JSON.stringify(f['dosageInstruction'] ?? []) === JSON.stringify(aussage['dosage'] ?? []);
+  const verknuepft = (f: Ressource) => aktivitaetsverweise(f).includes(String(aussage.id));
+  const frueher = fassungen(ablage(kvnr), 'MedicationRequest', String(eintrag.id))
+    .filter((f) => Number(f.meta?.versionId ?? '1') < Number(eintrag.meta?.versionId ?? '1'))
+    .reverse();
+  const stopp = [eintrag, ...frueher].find((f) => !(gleich(f) && verknuepft(f)));
+  let geaendert = false;
+  if (stopp && !gleich(stopp) && !verknuepft(stopp)) {
+    if (stopp['dosageInstruction'] !== undefined)
+      eintrag['dosageInstruction'] = structuredClone(stopp['dosageInstruction']);
+    else delete eintrag['dosageInstruction'];
+    eintrag['medicationReference'] = structuredClone(stopp['medicationReference']);
+    eintrag.extension = [
+      ...((eintrag.extension ?? []) as { url: string }[]).filter((x) => !textErweiterung(x.url)),
+      ...((stopp.extension ?? []) as { url: string }[]).filter((x) => textErweiterung(x.url)),
+    ];
+    kategorieSetzen(eintrag, { resourceType: 'MedicationRequest' }, kategorieVon(eintrag));
+    geaendert = true;
+  }
+  const bisher = eintrag.extension ?? [];
+  const uebrig = bisher.filter(
+    (x) =>
+      !(
+        x.url === EXT.aktivitaet &&
+        referenzId(x.extension?.find((y) => y.url === 'reference')?.valueReference) === aussage.id
+      ),
+  );
+  eintrag.extension = uebrig;
+  if (uebrig.length !== bisher.length) geaendert = true;
+  const basis = ((aussage['basedOn'] as { reference?: string }[] | undefined) ?? []).filter(
+    (v) => v.reference !== `MedicationRequest/${String(eintrag.id)}`,
+  );
+  if (basis.length > 0) aussage['basedOn'] = basis;
+  else delete aussage['basedOn'];
+  // Die Verordnung verliert ihren logischen Verweis auf den eMP-Eintrag.
+  for (const q of (aussage['derivedFrom'] as { reference?: string }[] | undefined) ?? []) {
+    const [typ, id] = String(q.reference ?? '').split('/');
+    const verordnung = typ === 'MedicationRequest' ? finden(kvnr, typ, String(id)) : undefined;
+    const bisher =
+      (verordnung?.['basedOn'] as { identifier?: { value?: string } }[] | undefined) ?? [];
+    const rest = bisher.filter((v) => v.identifier?.value !== String(eintrag.id));
+    if (verordnung && rest.length !== bisher.length) {
+      if (rest.length > 0) verordnung['basedOn'] = rest;
+      else delete verordnung['basedOn'];
+      fortschreiben(verordnung);
+    }
+  }
+  return geaendert;
+}
+
 function mitKontext(r: Ressource, wert: string): Ressource {
   return {
     ...r,
@@ -437,53 +524,53 @@ export function medikationEinhaengen(
         `Kein eMP-Stand ${gewuenscht}.`,
       );
     }
+    // 1.4.0 (IG-MED04510JHX): alle Instanzen in der Fassung zum Bezugszeitpunkt — `recorded`
+    // des Chronologieeintrags, sonst der Zeitpunkt der Anfrage.
+    const bezug = gewuenscht ? String(chronologie?.['recorded'] ?? jetzt()) : jetzt();
+    const zumBezug = (typ: string, id: string) =>
+      fassungZum(ablage(kvnr), typ, id, bezug) ?? finden(kvnr, typ, id);
     const eintraege = ((chronologie?.['target'] as { reference: string }[] | undefined) ?? [])
       .map((t) => {
-        const [typ, id, , fassung] = t.reference.split('/');
-        const r = finden(kvnr, String(typ), String(id));
-        // Eine spätere Fassung liefert die Demo nicht historisch nach; sie kennzeichnet sie.
-        return r && fassung && r.meta?.versionId !== fassung
-          ? { ...r, meta: { ...r.meta, versionId: fassung } }
-          : r;
+        const [typ, id, , v] = t.reference.split('/');
+        return (
+          (v ? fassung(ablage(kvnr), String(typ), String(id), v) : undefined) ??
+          finden(kvnr, String(typ), String(id))
+        );
       })
       .filter((r): r is Ressource => !!r);
     const dazu: Ressource[] = [];
+    const nimm = (r: Ressource | undefined) => {
+      if (r && !dazu.some((x) => x.resourceType === r.resourceType && x.id === r.id)) dazu.push(r);
+    };
     for (const e of eintraege) {
-      const m = finden(kvnr, 'Medication', referenzId(e['medicationReference']));
-      if (m) dazu.push(m);
-      for (const v of (e['reasonReference'] as { reference?: string }[] | undefined) ?? []) {
-        const g = finden(kvnr, 'Condition', referenzId(v));
-        if (g && !dazu.includes(g)) dazu.push(g);
-      }
+      nimm(zumBezug('Medication', referenzId(e['medicationReference'])));
+      for (const v of (e['reasonReference'] as { reference?: string }[] | undefined) ?? [])
+        nimm(zumBezug('Condition', referenzId(v)));
       for (const a of (
         (e.extension ?? []) as {
           url: string;
           extension?: { url: string; valueReference?: unknown }[];
         }[]
       ).filter((x) => x.url === EXT.aktivitaet)) {
-        const ms = finden(
-          kvnr,
-          'MedicationStatement',
-          referenzId(a.extension?.find((y) => y.url === 'reference')?.valueReference),
+        nimm(
+          zumBezug(
+            'MedicationStatement',
+            referenzId(a.extension?.find((y) => y.url === 'reference')?.valueReference),
+          ),
         );
-        if (ms) dazu.push(ms);
       }
       // Änderungseinträge des eMP-Eintrags mit den verantwortlichen Organisationen.
       for (const p of ablage(kvnr).filter(
         (r) =>
           r.resourceType === 'Provenance' &&
           !istChronologie(r, EMP) &&
+          String(r['recorded'] ?? '') <= bezug &&
           (r['target'] as { reference: string }[]).some((t) =>
             t.reference.startsWith(`MedicationRequest/${String(e.id)}/`),
           ),
       )) {
-        dazu.push(p);
-        const org = finden(
-          kvnr,
-          'Organization',
-          referenzId((p['agent'] as { who: unknown }[])[0]?.who),
-        );
-        if (org && !dazu.includes(org)) dazu.push(org);
+        nimm(p);
+        nimm(finden(kvnr, 'Organization', referenzId((p['agent'] as { who: unknown }[])[0]?.who)));
       }
     }
     return {
@@ -515,39 +602,80 @@ export function medikationEinhaengen(
   });
 
   /**
-   * Query API: Suche und Lesen je Ressourcentyp. Neben `_id` und `status` die Parameter, mit
-   * denen ein Primärsystem Änderungen seit einem Zeitpunkt abfragt (alle SHALL im
-   * CapabilityStatement 1.3.5): `_lastUpdated`, an Provenance `recorded`, `when`,
-   * `agent-identifier`, `target`, `is-emp-chronology`.
+   * Render API: Einstellung der Zwischenüberschriften im eMP (IG 1.4.0-ballot.1, „Render API:
+   * Einstellung der Zwischenüberschriften (eMP)"): je Aktenkonto, PUT setzt, GET liefert den
+   * anwendbaren Wert; JSON und XML mit dem Feld `subheadings`, Standard `true`. Kein FHIR.
    */
+  const einstellung = (wert: boolean, anfrage: Anfrage, antwort: FastifyReply) =>
+    String(anfrage.headers['accept'] ?? '').includes('xml')
+      ? antwort
+          .type('application/xml')
+          .send(`<settings><subheadings>${String(wert)}</subheadings></settings>`)
+      : antwort.type('application/json').send({ subheadings: wert });
+  app.get(RENDER_EINSTELLUNG, async (anfrage, antwort) =>
+    einstellung(bestandFuer(kvnrAus(anfrage)).empZwischenueberschriften ?? true, anfrage, antwort),
+  );
+  app.put(RENDER_EINSTELLUNG, async (anfrage, antwort) => {
+    const koerper = anfrage.body;
+    const wert =
+      typeof koerper === 'string'
+        ? /<subheadings>\s*(true|false)\s*<\/subheadings>/.exec(koerper)?.[1]
+        : (koerper as { subheadings?: unknown } | undefined)?.subheadings;
+    const gueltig = wert === true || wert === false || wert === 'true' || wert === 'false';
+    if (!gueltig)
+      return antwort
+        .code(400)
+        .send(operationOutcome('error', 'invalid', 'Erwartet wird subheadings (boolean).'));
+    const b = bestandFuer(kvnrAus(anfrage));
+    b.empZwischenueberschriften = wert === true || wert === 'true';
+    return einstellung(b.empZwischenueberschriften, anfrage, antwort);
+  });
+
+  /**
+   * Common Query API `/epa/query/api/v1/fhir` (`de.gematik.epa` 1.4.0-ballot.1): Suche, Lesen und
+   * Versionshistorie je Ressourcentyp. Der Medication Service hat seit 1.4.0 keine eigene Query
+   * API mehr. Neben `_id`, `_lastUpdated`, `status` und `identifier` die Parameter, mit denen ein
+   * Primärsystem Änderungen seit einem Zeitpunkt abfragt: an Provenance `recorded`, `when`,
+   * `agent-identifier`, `target`, `is-emp-chronology`. ⚠ Die Demo bedient nur die Typen des
+   * Medication Service samt `Condition` (Behandlungsgründe); `_has`, `Patient`, `Practitioner`,
+   * `PractitionerRole` und `AuditEvent` sind nicht nachgebildet.
+   */
+  const q = QUERY_BASIS;
   for (const typ of [
     'Medication',
     'MedicationRequest',
     'MedicationDispense',
     'MedicationStatement',
+    'Condition',
     'Organization',
     'Provenance',
   ]) {
-    app.get(`${b}/${typ}`, async (anfrage) => {
+    app.get(`${q}/${typ}`, async (anfrage) => {
       const kvnr = kvnrAus(anfrage);
-      const q = anfrage.query as Record<string, string | string[] | undefined>;
-      const eins = (n: string) => ([] as string[]).concat(q[n] ?? [])[0];
+      const p = anfrage.query as Record<string, string | string[] | undefined>;
+      const eins = (n: string) => ([] as string[]).concat(p[n] ?? [])[0];
       const agenten = (r: Ressource) =>
         ((r['agent'] as { who?: { identifier?: { system?: string; value?: string } } }[]) ?? [])
           .map((a) => a.who?.identifier)
           .filter(Boolean);
+      const kennungen = (r: Ressource) =>
+        (r['identifier'] as { system?: string; value?: string }[] | undefined) ?? [];
       return suchergebnis(
         ablage(kvnr).filter(
           (r) =>
             r.resourceType === typ &&
             (!eins('_id') || r.id === eins('_id')) &&
             (!eins('status') || r['status'] === eins('status')) &&
-            imZeitraum(r.meta?.lastUpdated, q['_lastUpdated']) &&
+            (!eins('identifier') ||
+              kennungen(r).some((k) => kennungPasst(k, eins('identifier')!))) &&
+            (!eins('intent') || r['intent'] === eins('intent')) &&
+            (!eins('context') || kontext(r) === eins('context')) &&
+            imZeitraum(r.meta?.lastUpdated, p['_lastUpdated']) &&
             (eins('is-emp-chronology') === undefined ||
               istChronologie(r, EMP) === (eins('is-emp-chronology') === 'true')) &&
             (typ !== 'Provenance' ||
-              (imZeitraum(String(r['recorded'] ?? ''), q['recorded']) &&
-                imZeitraum(String(r['occurredDateTime'] ?? ''), q['when']) &&
+              (imZeitraum(String(r['recorded'] ?? ''), p['recorded']) &&
+                imZeitraum(String(r['occurredDateTime'] ?? ''), p['when']) &&
                 (!eins('agent-identifier') ||
                   agenten(r).some((k) => kennungPasst(k, eins('agent-identifier')!))) &&
                 (!eins('target') ||
@@ -557,12 +685,45 @@ export function medikationEinhaengen(
         ),
       );
     });
-    app.get(`${b}/${typ}/:id`, async (anfrage, antwort) => {
+    const unbekannt = (antwort: FastifyReply) =>
+      antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`));
+    app.get(`${q}/${typ}/:id`, async (anfrage, antwort) => {
       const r = finden(kvnrAus(anfrage), typ, (anfrage.params as { id: string }).id);
-      return (
-        r ??
-        antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`))
-      );
+      return r ?? unbekannt(antwort);
+    });
+    /** Versionshistorie einer Instanz, neueste zuerst — aus dem Fassungsarchiv. */
+    app.get(`${q}/${typ}/:id/_history`, async (anfrage, antwort) => {
+      const kvnr = kvnrAus(anfrage);
+      const id = (anfrage.params as { id: string }).id;
+      const r = finden(kvnr, typ, id);
+      if (!r) return unbekannt(antwort);
+      const alle = fassungen(ablage(kvnr), typ, id);
+      const liste = (
+        alle.some((f) => f.meta?.versionId === r.meta?.versionId) ? alle : [...alle, r]
+      )
+        .slice()
+        .reverse();
+      return {
+        resourceType: 'Bundle',
+        meta: { lastUpdated: jetzt() },
+        type: 'history',
+        total: liste.length,
+        entry: liste.map((f) => ({
+          fullUrl: vollUrl(f),
+          resource: f,
+          request: { method: f.meta?.versionId === '1' ? 'POST' : 'PUT', url: `${typ}/${id}` },
+          response: { status: f.meta?.versionId === '1' ? '201 Created' : '200 OK' },
+        })),
+      };
+    });
+    app.get(`${q}/${typ}/:id/_history/:vid`, async (anfrage, antwort) => {
+      const kvnr = kvnrAus(anfrage);
+      const { id, vid } = anfrage.params as { id: string; vid: string };
+      const aktuell = finden(kvnr, typ, id);
+      const f =
+        fassung(ablage(kvnr), typ, id, vid) ??
+        (aktuell?.meta?.versionId === vid ? aktuell : undefined);
+      return f ?? unbekannt(antwort);
     });
   }
 
@@ -899,6 +1060,7 @@ export function medikationEinhaengen(
     if (!lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(letzter?.resource), antwort))
       return antwort;
     const sicherung = JSON.parse(JSON.stringify(ablage(kvnr))) as Ressource[];
+    const archiv = archivSichern(ablage(kvnr));
     const antworten: unknown[] = [];
     for (const e of eintraege.slice(0, -1)) {
       const url = String(e.request?.url ?? '');
@@ -909,6 +1071,7 @@ export function medikationEinhaengen(
           : null;
       if (!erg) {
         ablage(kvnr).splice(0, ablage(kvnr).length, ...sicherung);
+        archivWiederherstellen(ablage(kvnr), archiv);
         return antwort.sent ? antwort : ungueltig(antwort, `Im Stapel nicht zulässig: ${url}`);
       }
       antworten.push({
@@ -1001,16 +1164,32 @@ export function medikationEinhaengen(
         );
     }
     const zeit = jetzt();
+    // 1.4.0: Ein verknüpfter eMP-Eintrag wird wie bei `$unlink-emp` gelöst und gegebenenfalls
+    // zurückgesetzt; dann entsteht ein neuer Stand des eMP (`systemNotice` `empChanged`).
+    const planId = referenzId((aussage['basedOn'] as { reference?: string }[] | undefined)?.[0]);
+    const eintrag = planId ? finden(kvnr, 'MedicationRequest', planId) : undefined;
+    const empGeaendert = eintrag ? empZuruecksetzen(kvnr, eintrag, aussage) : false;
     aussage['status'] = 'entered-in-error';
     fortschreiben(aussage, zeit);
+    if (eintrag && empGeaendert) fortschreiben(eintrag, zeit);
     const aktivitaet = aktivitaetAnlegen(
       ablage(kvnr),
-      [versionierterVerweis(aussage)],
+      [
+        versionierterVerweis(aussage),
+        ...(eintrag && empGeaendert ? [versionierterVerweis(eintrag)] : []),
+      ],
       wer,
       'DELETE',
       zeit,
     );
-    return ausgabe([['relatedActivity', aktivitaet]]);
+    if (empGeaendert) chronologieAnlegen(ablage(kvnr), EMP, wer, zeit);
+    const ergebnis = ausgabe([['relatedActivity', aktivitaet]]);
+    return empGeaendert
+      ? {
+          ...ergebnis,
+          parameter: [...ergebnis.parameter, { name: 'systemNotice', valueCode: 'empChanged' }],
+        }
+      : ergebnis;
   });
 
   /** `$link-emp` / `$unlink-emp` — eML-Eintrag mit einem eMP-Eintrag verknüpfen oder lösen. */
@@ -1108,19 +1287,7 @@ export function medikationEinhaengen(
               ),
             );
         }
-        delete aussage['basedOn'];
-        eintrag.extension = (eintrag.extension ?? []).filter(
-          (e) =>
-            !(
-              e.url === EXT.aktivitaet &&
-              referenzId(e.extension?.find((y) => y.url === 'reference')?.valueReference) ===
-                aussage.id
-            ),
-        );
-        const herkunft = (
-          (eintrag.extension ?? []) as { url: string; valueReference?: unknown }[]
-        ).find((e) => e.url === EXT.herkunftsmittel);
-        if (herkunft) eintrag['medicationReference'] = herkunft.valueReference;
+        empZuruecksetzen(kvnr, eintrag, aussage);
       }
       fortschreiben(aussage, zeit);
       fortschreiben(eintrag, zeit);

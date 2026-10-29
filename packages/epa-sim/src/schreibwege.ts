@@ -172,7 +172,76 @@ export function aktivitaetAnlegen(
     ],
   };
   ablage.push(provenance);
+  fassungenSichern(ablage, ziele);
   return provenance;
+}
+
+/* ---------- Fassungen ---------- */
+
+/**
+ * Fassungsarchiv je Ablage: jede Fassung, auf die ein Änderungseintrag verweist, als Kopie. Der
+ * Medication Service 1.4.0-ballot.1 setzt die Instanzhistorie voraus — für `_history` der Common
+ * Query API, für den Stand zum Bezugszeitpunkt in `$medication-plan` (IG-MED04510JHX) und für die
+ * Rücksetzlogik von `$unlink-emp` und `$cancel-eml-entry`.
+ */
+const ARCHIV = new WeakMap<Ressource[], Map<string, Ressource[]>>();
+
+function archivVon(ablage: Ressource[]): Map<string, Ressource[]> {
+  let a = ARCHIV.get(ablage);
+  if (!a) {
+    a = new Map();
+    ARCHIV.set(ablage, a);
+  }
+  return a;
+}
+
+/** Sichert die Fassungen, auf die versionierte Verweise zeigen, sofern sie aktuell sind. */
+export function fassungenSichern(ablage: Ressource[], verweise: readonly string[]): void {
+  const archiv = archivVon(ablage);
+  for (const v of verweise) {
+    const [typ, id, , fassung] = v.split('/');
+    const r = ablage.find((x) => x.resourceType === typ && x.id === id);
+    if (!r || !fassung || String(r.meta?.versionId ?? '1') !== fassung) continue;
+    const schluessel = `${String(typ)}/${String(id)}`;
+    const liste = archiv.get(schluessel) ?? [];
+    if (!liste.some((f) => f.meta?.versionId === fassung)) liste.push(structuredClone(r));
+    archiv.set(schluessel, liste);
+  }
+}
+
+/** Alle gesicherten Fassungen einer Instanz, älteste zuerst. */
+export function fassungen(ablage: Ressource[], typ: string, id: string): Ressource[] {
+  return [...(archivVon(ablage).get(`${typ}/${id}`) ?? [])].sort((x, y) => version(x) - version(y));
+}
+
+/** Eine bestimmte Fassung, sonst `undefined`. */
+export function fassung(
+  ablage: Ressource[],
+  typ: string,
+  id: string,
+  versionId: string,
+): Ressource | undefined {
+  return fassungen(ablage, typ, id).find((f) => f.meta?.versionId === versionId);
+}
+
+/** Die Fassung, die zum Zeitpunkt galt — die jüngste mit `lastUpdated` bis dahin. */
+export function fassungZum(
+  ablage: Ressource[],
+  typ: string,
+  id: string,
+  zeitpunkt: string,
+): Ressource | undefined {
+  return fassungen(ablage, typ, id)
+    .filter((f) => String(f.meta?.lastUpdated ?? '') <= zeitpunkt)
+    .pop();
+}
+
+/** Sicherung und Wiederherstellung des Archivs — für atomare Stapel (`$batch-emp`). */
+export function archivSichern(ablage: Ressource[]): Map<string, Ressource[]> {
+  return new Map([...archivVon(ablage)].map(([k, v]) => [k, [...v]]));
+}
+export function archivWiederherstellen(ablage: Ressource[], stand: Map<string, Ressource[]>): void {
+  ARCHIV.set(ablage, stand);
 }
 
 export function version(r: Ressource): number {

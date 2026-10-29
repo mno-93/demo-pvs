@@ -37,7 +37,12 @@ import { ERP_BASIS, erezeptEinhaengen, erezepteLeeren } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
 import { operationOutcome } from './fhir-hilfen.ts';
-import { MEDIKATION_BASIS, medikationEinhaengen } from './medikation.ts';
+import {
+  MEDIKATION_BASIS,
+  QUERY_BASIS,
+  RENDER_EINSTELLUNG,
+  medikationEinhaengen,
+} from './medikation.ts';
 import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
 import { xdsEinhaengen } from './xds.ts';
 import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen, postausgangLeeren } from './kim.ts';
@@ -185,13 +190,17 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     }
     /*
      * Widerspruch gegen den Medikationsprozess: Der Medication Service ist für Einrichtungen
-     * gesperrt, die Daten bleiben erhalten (IG 1.3.5, Statuscodes: 423 locked; Konzept 3.1.3,
-     * Consent Management).
+     * gesperrt, die Daten bleiben erhalten (IG 1.4.0-ballot.1, Statuscodes: 423 locked; Konzept
+     * 3.1.3, Consent Management). ⚠ Für die Common Query API sperrt die Demo die Typen des
+     * Medication Service ebenso; der Ballot regelt das dort nicht ausdrücklich.
      */
-    if (
-      pfad.startsWith(MEDIKATION_BASIS) &&
-      bestandFuer(kvnr).widersprueche.medication === 'deny'
-    ) {
+    const medikationsweg =
+      pfad.startsWith('/epa/medication/') ||
+      (pfad.startsWith(QUERY_BASIS) &&
+        /^\/(Medication|MedicationRequest|MedicationDispense|MedicationStatement|Condition)\b/.test(
+          pfad.slice(QUERY_BASIS.length),
+        ));
+    if (medikationsweg && bestandFuer(kvnr).widersprueche.medication === 'deny') {
       return antwort
         .code(423)
         .send(
@@ -344,8 +353,8 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     ausbaustand: betriebslage.ausbaustand,
     grundlagen: [
       'Konzept und OpenAPI ePA-Basic, Release 3.1.3',
-      'Implementation Guide de.gematik.epa 1.3.2 (generelle Prinzipien, Provenance)',
-      'Implementation Guide de.gematik.epa.medication 1.3.5',
+      'Implementation Guide de.gematik.epa 1.3.2 (generelle Prinzipien, Provenance); Common Query API und Medikationsprofile nach 1.4.0-ballot.1',
+      'Implementation Guide de.gematik.epa.medication 1.4.0-ballot.1 (ADR 0047)',
       'Implementation Guide de.gematik.epa.mhd 1.1.3',
       'WSDL XDS Document Service (ITI-41) und XDS-Implementation-Guides, ePA-XDS-Document 3.1.3',
       'OpenAPI I_Information_Service 1.5.1 (Aktenstatus, Widersprüche)',
@@ -403,8 +412,12 @@ export function wegeEinhaengen(app: FastifyInstance): void {
       'MedicationStatement/{id}/$cancel-eml-entry',
       'MedicationStatement/{id}/$link-emp',
       'MedicationStatement/{id}/$unlink-emp',
-      'Query API: Medication, MedicationRequest, MedicationDispense, MedicationStatement, Organization, Provenance',
-    ].map((w) => `${MEDIKATION_BASIS}/${w}`),
+    ]
+      .map((w) => `${MEDIKATION_BASIS}/${w}`)
+      .concat([
+        `GET/PUT ${RENDER_EINSTELLUNG} — Render API: Zwischenüberschriften im eMP`,
+        `${QUERY_BASIS}/{Typ}, /{id}, /{id}/_history, /{id}/_history/{vid} — Common Query API: Medication, MedicationRequest, MedicationDispense, MedicationStatement, Condition, Organization, Provenance`,
+      ]),
     vorschlaege: [
       {
         dienst: 'Diagnose-Service für Allergien und Diagnosen — Vorschlag, nicht spezifiziert',

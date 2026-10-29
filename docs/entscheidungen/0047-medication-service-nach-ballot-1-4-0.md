@@ -45,9 +45,11 @@ Strukturierte Dosierung mit erzeugtem Text war schon in 1.3.5 vorgesehen (`de.fh
    `$medication-list`.
 6. **Das Praxissystem zeigt den Plan nach Status und Kategorie gruppiert**, einfache Tagesschemata
    als Tabelle morgens-mittags-abends-nachts, alles andere als erzeugten Text.
-7. **Zurückgestellt**, als ⚠ in SPEZIFIKATION 5.14: Common Query API, historischer Stand aller
-   Instanzen in `$medication-plan`, Rücksetzlogik von `$unlink-emp` und `$cancel-eml-entry`, Render
-   API mit der Einstellung der Zwischenüberschriften.
+7. **Nachgezogen am selben Tag** (SPEZIFIKATION 5.14): ein Fassungsarchiv je Ablage, gespeist aus
+   den versionierten Verweisen der Änderungseinträge. Darauf bauen `_history` der Common Query
+   API, der Stand zum Bezugszeitpunkt in `$medication-plan` und die Rücksetzlogik von
+   `$unlink-emp` und `$cancel-eml-entry`. Die Query API des Dienstes entfällt zugunsten der Common
+   Query API; die Einstellung der Zwischenüberschriften steuert die Gruppierung im Praxissystem.
 
 ## Verworfene Alternativen
 

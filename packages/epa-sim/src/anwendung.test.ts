@@ -6,8 +6,11 @@ import {
   EPS,
   STUECK,
   dosierungAusText,
+  dosierungNachFhir,
+  dosierungsanzeige,
   grundId,
   patientSummaryLesen,
+  planeintragFortschreiben,
   planeintragLesen,
   planeintragNachFhir,
   textErweiterungen,
@@ -972,5 +975,192 @@ describe('Medication Service — Ballot 1.4.0', () => {
     });
     const b = await anlegen(strukturiert);
     expect(planeintragLesen(parameter(b.json().parameter, 'empEntry')!).kategorie).toBe('daily');
+  });
+});
+
+describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () => {
+  const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
+  type P = { name: string; resource?: Record<string, unknown>; valueCode?: string }[];
+  const post = async (url: string, parameterliste: unknown[]) =>
+    app.inject({
+      method: 'POST',
+      url,
+      headers: kopf(),
+      payload: { resourceType: 'Parameters', parameter: parameterliste },
+    });
+  const lesen = async (url: string) => app.inject({ method: 'GET', url, headers: kopf() });
+
+  /** Planeintrag 1-0-0-0, Nachtrag 0-0-1-0, beide verknüpft — der Eintrag übernimmt den Nachtrag. */
+  async function verknuepfterStand() {
+    const neu = await post(`${MEDIKATION}/$add-emp-entry`, [
+      { name: 'acknowledgedChronologyId', valueId: await planLesen() },
+      {
+        name: 'empEntry',
+        resource: planeintragNachFhir({
+          kvnr: HOFFMANN,
+          datum: '2026-10-29',
+          dosierung: dosierungAusText('1-0-0-0'),
+          grund: null,
+        }),
+      },
+      {
+        name: 'medication',
+        part: [
+          {
+            name: 'resource',
+            resource: {
+              resourceType: 'Medication',
+              code: {
+                coding: [{ system: ATC, version: '2026', code: 'C10AA05' }],
+                text: 'Atorvastatin 20 mg',
+              },
+            },
+          },
+        ],
+      },
+    ]);
+    expect(neu.statusCode).toBe(200);
+    const eintrag = parameter(neu.json().parameter as Parameter[], 'empEntry')!;
+    const dosage = dosierungNachFhir(dosierungAusText('0-0-1-0'));
+    const nachtrag = await post(`${MEDIKATION}/MedicationStatement/$add-eml-entry`, [
+      {
+        name: 'medicationStatement',
+        resource: {
+          resourceType: 'MedicationStatement',
+          extension: textErweiterungen('MedicationStatement', dosage),
+          status: 'active',
+          subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
+          dosage,
+        },
+      },
+      {
+        name: 'medication',
+        resource: {
+          resourceType: 'Medication',
+          code: {
+            coding: [{ system: ATC, version: '2026', code: 'C10AA05' }],
+            text: 'Atorvastatin 40 mg',
+          },
+        },
+      },
+    ]);
+    expect(nachtrag.statusCode).toBe(200);
+    const aussage = parameter(nachtrag.json().parameter as Parameter[], 'medicationStatement')!;
+    const link = await post(`${MEDIKATION}/MedicationStatement/${String(aussage.id)}/$link-emp`, [
+      { name: 'acknowledgedChronologyId', valueId: await planLesen() },
+      { name: 'medicationPlanIdentifier', valueIdentifier: { value: eintrag.id } },
+    ]);
+    expect(link.statusCode).toBe(200);
+    const verknuepft = parameter(link.json().parameter as Parameter[], 'empEntry')!;
+    expect(dosierungsanzeige(verknuepft as never)).toBe('täglich: 0-0-1-0 Stück');
+    return { eintragId: String(eintrag.id), aussageId: String(aussage.id) };
+  }
+
+  it('führt die Fassungen des eMP-Eintrags in der Common Query API', async () => {
+    const { eintragId } = await verknuepfterStand();
+    const h = await lesen(`/epa/query/api/v1/fhir/MedicationRequest/${eintragId}/_history`);
+    expect(h.statusCode).toBe(200);
+    const versionen = (h.json().entry as { resource: { meta: { versionId: string } } }[]).map(
+      (e) => e.resource.meta.versionId,
+    );
+    expect(versionen).toEqual(['2', '1']);
+    const erste = await lesen(`/epa/query/api/v1/fhir/MedicationRequest/${eintragId}/_history/1`);
+    expect(dosierungsanzeige(erste.json())).toBe('täglich: 1-0-0-0 Stück');
+  });
+
+  it('liefert einen früheren eMP-Stand in der damaligen Fassung', async () => {
+    const vorher = await planLesen();
+    const { eintragId } = await verknuepfterStand();
+    const plan = await lesen(`${MEDIKATION}/$medication-plan?provenance=${vorher}`);
+    const ids = (plan.json().entry as { resource: { id: string } }[]).map((e) => e.resource.id);
+    expect(ids).not.toContain(eintragId);
+    // Der Stand direkt nach dem Anlegen zeigt die erste Dosierung.
+    const log = await lesen(`${MEDIKATION}/$medication-plan-log`);
+    const chronologien = (log.json().entry as { resource: { id: string } }[]).map(
+      (e) => e.resource.id,
+    );
+    const nachAnlage = chronologien[1]!; // neueste zuerst: Verknüpfung, dann Anlage
+    const damals = await lesen(`${MEDIKATION}/$medication-plan?provenance=${nachAnlage}`);
+    const e = (damals.json().entry as { resource: Record<string, unknown> }[])
+      .map((x) => x.resource)
+      .find((r) => r['id'] === eintragId)!;
+    expect(dosierungsanzeige(e as never)).toBe('täglich: 1-0-0-0 Stück');
+  });
+
+  it('setzt beim Lösen auf die Fassung vor der Übernahme zurück', async () => {
+    const { eintragId, aussageId } = await verknuepfterStand();
+    const a = await post(`${MEDIKATION}/MedicationStatement/${aussageId}/$unlink-emp`, [
+      { name: 'acknowledgedChronologyId', valueId: await planLesen() },
+      { name: 'medicationPlanIdentifier', valueIdentifier: { value: eintragId } },
+    ]);
+    expect(a.statusCode).toBe(200);
+    const e = parameter(a.json().parameter as Parameter[], 'empEntry')!;
+    expect(dosierungsanzeige(e as never)).toBe('täglich: 1-0-0-0 Stück');
+    expect(planeintragLesen(e as never).kategorie).toBe('daily');
+  });
+
+  it('löst und setzt auch beim Stornieren zurück und meldet einen neuen eMP-Stand', async () => {
+    const { eintragId, aussageId } = await verknuepfterStand();
+    const a = await post(`${MEDIKATION}/MedicationStatement/${aussageId}/$cancel-eml-entry`, []);
+    expect(a.statusCode).toBe(200);
+    expect((a.json().parameter as P).find((p) => p.name === 'systemNotice')?.valueCode).toBe(
+      'empChanged',
+    );
+    const e = await lesen(`/epa/query/api/v1/fhir/MedicationRequest/${eintragId}`);
+    expect(dosierungsanzeige(e.json())).toBe('täglich: 1-0-0-0 Stück');
+  });
+
+  it('setzt nach einer manuellen Änderung nichts zurück', async () => {
+    const { eintragId, aussageId } = await verknuepfterStand();
+    const aktuell = (await lesen(`/epa/query/api/v1/fhir/MedicationRequest/${eintragId}`)).json();
+    const geaendert = await post(`${MEDIKATION}/$update-emp-entry`, [
+      { name: 'acknowledgedChronologyId', valueId: await planLesen() },
+      { name: 'medicationPlanIdentifier', valueIdentifier: { value: eintragId } },
+      {
+        name: 'empEntry',
+        resource: planeintragFortschreiben(aktuell, {
+          dosierung: dosierungAusText('0-0-2-0'),
+          grund: null,
+        }),
+      },
+    ]);
+    expect(geaendert.statusCode).toBe(200);
+    const a = await post(`${MEDIKATION}/MedicationStatement/${aussageId}/$unlink-emp`, [
+      { name: 'acknowledgedChronologyId', valueId: await planLesen() },
+      { name: 'medicationPlanIdentifier', valueIdentifier: { value: eintragId } },
+    ]);
+    const e = parameter(a.json().parameter as Parameter[], 'empEntry')!;
+    expect(dosierungsanzeige(e as never)).toBe('täglich: 0-0-2-0 Stück');
+  });
+
+  it('sperrt nach Widerspruch auch die Medikationstypen der Common Query API', async () => {
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/akte',
+      payload: { kvnr: HOFFMANN, medication: 'deny' },
+    });
+    expect((await lesen('/epa/query/api/v1/fhir/MedicationRequest')).statusCode).toBe(423);
+    expect((await lesen('/epa/medication/render/v1/emp/settings')).statusCode).toBe(423);
+    expect((await lesen('/epa/query/api/v1/fhir/Organization')).statusCode).toBe(200);
+  });
+
+  it('führt die Einstellung der Zwischenüberschriften je Aktenkonto, Standard true', async () => {
+    const url = '/epa/medication/render/v1/emp/settings';
+    expect((await lesen(url)).json()).toEqual({ subheadings: true });
+    const gesetzt = await app.inject({
+      method: 'PUT',
+      url,
+      headers: { ...kopf(), 'content-type': 'application/json' },
+      payload: { subheadings: false },
+    });
+    expect(gesetzt.statusCode).toBe(200);
+    expect((await lesen(url)).json()).toEqual({ subheadings: false });
+    const falsch = await app.inject({
+      method: 'PUT',
+      url,
+      headers: { ...kopf(), 'content-type': 'application/json' },
+      payload: { subheadings: 'ja' },
+    });
+    expect(falsch.statusCode).toBe(400);
   });
 });

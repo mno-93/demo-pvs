@@ -278,6 +278,8 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P76 | Frau Hoffmann nach eGK → „Medikation“: Plan gruppiert „aktiv · Jeden Tag“, Dosierung als Tabelle mo–mi–ab–na                                                                                                                                          |
 | P77 | „neuer Planeintrag“ → Metamizol → Schema „bei Bedarf“, Tropfen, Anlass, Abstand, Höchstmenge → Text darunter; Diagnose als Grund → „In den Plan aufnehmen“ → Gruppe „Bei Bedarf“                                                                      |
 | P78 | Schema „Freitext“ mit „1-0-1-0“ → Marker DosageFourSlotPatternInText, Aufnehmen gesperrt; Metformin aus der Liste „in den Plan“ → Dosierung als Tabelle                                                                                               |
+| P79 | Frau Hoffmann nach eGK → „Medikation“ → „Zwischenüberschriften“ abwählen → Gruppe nur „aktiv“; wieder anwählen → Kategorien                                                                                                                           |
+| P80 | Medikation offen, dann fremde Einträge (Konfiguration) → Karteikarte → Medikation: „1 neu · 1 geändert“, Abfrage über `/epa/query/api/v1/fhir/Provenance`                                                                                             |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

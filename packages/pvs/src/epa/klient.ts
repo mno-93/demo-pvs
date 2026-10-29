@@ -58,6 +58,9 @@ export const USER_AGENT = 'DEMOPVSFIKTIV0000001/0.4.0';
 
 const MHD = '/epa/mhd/api/v1/fhir';
 const MEDIKATION = '/epa/medication/api/v1/fhir';
+/** Common Query API (`de.gematik.epa` 1.4.0-ballot.1) — seit 1.4.0 auch für die Medikation. */
+const QUERY = '/epa/query/api/v1/fhir';
+const RENDER_EINSTELLUNG = '/epa/medication/render/v1/emp/settings';
 const BEFUGNIS = '/epa/basic/api/v1/ps/entitlements';
 const PATIENT_SUMMARY = '/epa/vorschlag/patient-summary/api/v1/fhir';
 const DIAGNOSEDIENST = '/epa/vorschlag/diagnosis/api/v1/fhir';
@@ -79,7 +82,9 @@ export const GRUNDLAGE = {
   emp: '$medication-plan · IG epa-medication 1.4.0-ballot.1',
   empLog: '$medication-plan-log · IG epa-medication 1.4.0-ballot.1',
   iti67Seit: 'MHD ITI-67 mit _lastUpdated · IG epa-mhd 1.1.3',
-  empSeit: 'Provenance?is-emp-chronology&recorded · IG epa-medication 1.4.0-ballot.1',
+  empSeit: 'Provenance?is-emp-chronology&recorded · Common Query API, IG epa 1.4.0-ballot.1',
+  zwischenueberschriften:
+    'Render API: Einstellung der Zwischenüberschriften (eMP) · IG epa-medication 1.4.0-ballot.1',
   empFrueher: '$medication-plan zu früherem Chronologieeintrag · IG epa-medication 1.4.0-ballot.1',
   emlSeit: '$medication-list mit date · IG epa-medication 1.4.0-ballot.1',
   empNeu: '$add-emp-entry · IG epa-medication 1.4.0-ballot.1',
@@ -145,7 +150,7 @@ export function beiFehlenderBefugnis(rueckruf: (kvnr: string) => void): void {
 }
 
 interface Anfrage {
-  methode?: 'GET' | 'POST';
+  methode?: 'GET' | 'POST' | 'PUT';
   pfad: string;
   kvnr?: string;
   koerper?: unknown;
@@ -182,7 +187,7 @@ function anfragekennung(): string {
 const laufend = new Map<string, Promise<Antwort<unknown>>>();
 
 function anfragen<T>(anfrage: Anfrage): Promise<Antwort<T>> {
-  if ((anfrage.methode ?? 'GET') === 'POST') return senden<T>(anfrage);
+  if ((anfrage.methode ?? 'GET') !== 'GET') return senden<T>(anfrage);
   const schluessel = `${anfrage.pfad} ${anfrage.kvnr ?? ''}`;
   const vorhanden = laufend.get(schluessel);
   if (vorhanden) return vorhanden as Promise<Antwort<T>>;
@@ -561,12 +566,38 @@ export async function medikationsplanLesen(
  * Chronologieeinträge des Medikationsplans seit dem Lesezeichen, je mit der Einrichtung, die
  * geändert hat (`agent.who.identifier`).
  */
+/**
+ * Einstellung der Zwischenüberschriften im eMP (Render API, IG 1.4.0-ballot.1). Ein Client, der
+ * den eMP selbst darstellt, richtet seine Gruppierung danach (IG-MED09759K35-01).
+ */
+export async function zwischenueberschriftenLesen(kvnr: string): Promise<boolean> {
+  const { inhalt } = await anfragen<{ subheadings?: boolean }>({
+    pfad: RENDER_EINSTELLUNG,
+    kvnr,
+    inhaltstyp: 'application/json',
+    grundlage: GRUNDLAGE.zwischenueberschriften,
+  });
+  return inhalt.subheadings !== false;
+}
+
+export async function zwischenueberschriftenSetzen(kvnr: string, wert: boolean): Promise<boolean> {
+  const { inhalt } = await anfragen<{ subheadings?: boolean }>({
+    methode: 'PUT',
+    pfad: RENDER_EINSTELLUNG,
+    kvnr,
+    koerper: { subheadings: wert },
+    inhaltstyp: 'application/json',
+    grundlage: GRUNDLAGE.zwischenueberschriften,
+  });
+  return inhalt.subheadings !== false;
+}
+
 export async function planaenderungenSeit(
   kvnr: string,
   seit: string,
 ): Promise<{ id: string; telematikId: string | null; einrichtung: string }[]> {
   const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MEDIKATION}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(seit)}`,
+    pfad: `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(seit)}`,
     kvnr,
     grundlage: GRUNDLAGE.empSeit,
   });

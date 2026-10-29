@@ -68,6 +68,8 @@ import {
   medikationslisteSeit,
   medikationsplanLesen,
   medikationsplanStand,
+  zwischenueberschriftenLesen,
+  zwischenueberschriftenSetzen,
   planaenderungenSeit,
   type Medikationsliste,
   type Medikationsplan,
@@ -141,12 +143,12 @@ function kategorieDerZeile(e: SpiegelEintrag): EmpKategorie {
   );
 }
 
-function planGruppieren(zeilen: readonly Ansichtszeile[]) {
+function planGruppieren(zeilen: readonly Ansichtszeile[], mitKategorie: boolean) {
   const gruppen: { schluessel: string; kopf: string; zeilen: Ansichtszeile[] }[] = [];
   for (const status of STATUS_REIHE) {
     const imStatus = zeilen.filter((z) => (z.lokal ?? z.epa!).status === status);
     if (imStatus.length === 0) continue;
-    if (status !== 'aktiv' && status !== 'pausiert') {
+    if (!mitKategorie || (status !== 'aktiv' && status !== 'pausiert')) {
       gruppen.push({ schluessel: status, kopf: EMP_STATUS_BEZEICHNUNG[status], zeilen: imStatus });
       continue;
     }
@@ -520,10 +522,31 @@ export function Medikation() {
       }));
   }, [mitEpa, stand, praxisplan]);
   /**
-   * Gruppen nach Status, aktive und pausierte zusätzlich nach Kategorie (IG-MED09759K35-01; die
-   * Einstellung der Zwischenüberschriften gilt mit ihrem Standardwert `true`).
+   * Gruppen nach Status, aktive und pausierte zusätzlich nach Kategorie, wenn die Einstellung der
+   * Zwischenüberschriften es vorsieht (IG-MED09759K35-01, Render API).
    */
-  const gruppen = useMemo(() => planGruppieren(zeilen), [zeilen]);
+  const [ueberschriften, setzeUeberschriften] = useState(true);
+  useEffect(() => {
+    if (!mitEpa) return;
+    let gueltig = true;
+    zwischenueberschriftenLesen(kvnr)
+      .then((w) => gueltig && setzeUeberschriften(w))
+      .catch(() => undefined);
+    return () => {
+      gueltig = false;
+    };
+  }, [kvnr, mitEpa]);
+  function zwischenueberschriftenUmschalten(wert: boolean) {
+    setzeUeberschriften(wert);
+    void zwischenueberschriftenSetzen(kvnr, wert).then(setzeUeberschriften, () =>
+      setzeUeberschriften(!wert),
+    );
+  }
+  // Ohne ePA stellt das Praxissystem den Plan selbst dar, mit Zwischenüberschriften.
+  const gruppen = useMemo(
+    () => planGruppieren(zeilen, !mitEpa || ueberschriften),
+    [zeilen, mitEpa, ueberschriften],
+  );
   const offen = mitEpa && stand ? offeneUnterschiede(planAbgleichen(praxisplan, stand.zeilen)) : 0;
   const aktivePlanCodes = zeilen
     .map((z) => z.lokal ?? z.epa!)
@@ -951,16 +974,28 @@ export function Medikation() {
       <Karte
         titel="Medikationsplan der Praxis"
         werkzeuge={
-          planErgaenzbar && (
-            <button
-              type="button"
-              className="knopf klein"
-              aria-expanded={neuerPlaneintrag}
-              onClick={() => setzeNeuerPlaneintrag((n) => !n)}
-            >
-              neuer Planeintrag
-            </button>
-          )
+          <div className="reihe" style={{ gap: 8 }}>
+            {mitEpa && (
+              <label className="leise-klein">
+                <input
+                  type="checkbox"
+                  checked={ueberschriften}
+                  onChange={(e) => zwischenueberschriftenUmschalten(e.target.checked)}
+                />{' '}
+                Zwischenüberschriften
+              </label>
+            )}
+            {planErgaenzbar && (
+              <button
+                type="button"
+                className="knopf klein"
+                aria-expanded={neuerPlaneintrag}
+                onClick={() => setzeNeuerPlaneintrag((n) => !n)}
+              >
+                neuer Planeintrag
+              </button>
+            )}
+          </div>
         }
       >
         {seit?.plan && mitEpa && (
