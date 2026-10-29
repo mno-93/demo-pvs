@@ -13,8 +13,21 @@ import {
   arzneimittel,
   deutscherZeitpunkt,
   deutschesDatum,
+  EMP_KATEGORIEN,
+  EMP_KATEGORIE_BEZEICHNUNG,
+  automatischeKategorie,
+  dosierungNachFhir,
+  dosierungAlsText,
+  type EmpKategorie,
+  dosierungAusFhir,
+  dosierungsanzeige,
+  dosierungAusText,
+  planGrundNachFhir,
+  planeintragFortschreiben,
   planeintragNachFhir,
   planmittelNachFhir,
+  type Diagnose,
+  type Dosierung,
   dokumentinhaltLesen,
   istKeineBekannteAllergie,
   laborwerteAusDokumenten,
@@ -38,6 +51,12 @@ import { neueId, vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { Katalogsuche } from '../bausteine/Katalogsuche.js';
 import { Befundliste } from '../bausteine/Befundliste.js';
+import {
+  DOSIERUNG_VORGABE,
+  DosierungAnzeige,
+  DosierungEingabe,
+  dosierungGueltig,
+} from './medikation/DosierungEingabe.js';
 import { usePatientId } from './Patientenkartei.js';
 import {
   EINRICHTUNG,
@@ -106,6 +125,44 @@ const STATUS_TON: Record<EmpStatus, 'gut' | 'neutral' | 'warn'> = {
 };
 
 /** Eine Zeile des Plans: Eintrag der Praxis, eMP-Eintrag oder beide — mit der Lage im Abgleich. */
+const STATUS_REIHE: readonly EmpStatus[] = [
+  'aktiv',
+  'pausiert',
+  'beendet',
+  'abgesetzt',
+  'entered-in-error',
+];
+
+function kategorieDerZeile(e: SpiegelEintrag): EmpKategorie {
+  return (
+    e.kategorie ??
+    (e.dosis ? automatischeKategorie(dosierungNachFhir(e.dosis)) : null) ??
+    'unassigned'
+  );
+}
+
+function planGruppieren(zeilen: readonly Ansichtszeile[]) {
+  const gruppen: { schluessel: string; kopf: string; zeilen: Ansichtszeile[] }[] = [];
+  for (const status of STATUS_REIHE) {
+    const imStatus = zeilen.filter((z) => (z.lokal ?? z.epa!).status === status);
+    if (imStatus.length === 0) continue;
+    if (status !== 'aktiv' && status !== 'pausiert') {
+      gruppen.push({ schluessel: status, kopf: EMP_STATUS_BEZEICHNUNG[status], zeilen: imStatus });
+      continue;
+    }
+    for (const k of EMP_KATEGORIEN) {
+      const teil = imStatus.filter((z) => kategorieDerZeile(z.lokal ?? z.epa!) === k);
+      if (teil.length > 0)
+        gruppen.push({
+          schluessel: `${status}-${k}`,
+          kopf: `${EMP_STATUS_BEZEICHNUNG[status]} · ${EMP_KATEGORIE_BEZEICHNUNG[k]}`,
+          zeilen: teil,
+        });
+    }
+  }
+  return gruppen;
+}
+
 interface Ansichtszeile {
   /** `null`: ohne eMP, kein Abgleich. */
   lage: Abgleichlage | null;
@@ -268,16 +325,39 @@ function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[]
           (aktivitaet?.['agent'] as { who?: { display?: string } }[] | undefined)?.[0]?.who
             ?.display ??
           '—',
-        dosierung: (a['dosage'] as { text?: string }[] | undefined)?.[0]?.text ?? '1-0-0-0',
+        dosierung: dosierungsanzeige(a),
         imPlan: Array.isArray(a['basedOn']) || planAtc.has(atc),
       };
     })
     .sort((x, y) => y.datum.localeCompare(x.datum));
 }
 
-/** Planeintrag für `$add-emp-entry` — Abbildung im Kern (fhir/medikation.ts). */
-function planeintrag(kvnr: string, datum: string, dosierung: string, grund: string | null) {
-  return planeintragNachFhir({ kvnr, datum, dosierung, grund });
+/**
+ * Planeintrag und Behandlungsgründe für `$add-emp-entry` — Abbildung im Kern
+ * (fhir/medikation.ts). Ohne strukturierte Dosierung wird der Text übernommen: ein Viererschema
+ * strukturiert, sonst Freitext.
+ */
+function planeintrag(
+  kvnr: string,
+  datum: string,
+  angabe: {
+    dosierung: string;
+    dosis?: Dosierung | null;
+    grund: string | null;
+    grundDiagnose?: Diagnose | null;
+  },
+): [Ressource, Ressource[]] {
+  const dosis = angabe.dosis ?? dosierungAusText(angabe.dosierung);
+  return [
+    planeintragNachFhir({
+      kvnr,
+      datum,
+      dosierung: dosis,
+      grund: angabe.grund,
+      grundDiagnose: angabe.grundDiagnose ?? null,
+    }),
+    angabe.grundDiagnose ? [planGrundNachFhir(angabe.grundDiagnose, kvnr)] : [],
+  ];
 }
 
 export function Medikation() {
@@ -285,6 +365,10 @@ export function Medikation() {
   const patient = useAuswahl((z) => z.patienten.find((p) => p.id === patientId), [patientId]);
   const lokaleAllergien = useAuswahl(
     (z) => z.allergien.filter((a) => a.patientId === patientId && a.klinischerStatus === 'aktiv'),
+    [patientId],
+  );
+  const diagnosen = useAuswahl(
+    (z) => z.diagnosen.filter((d) => d.patientId === patientId),
     [patientId],
   );
   const lokaleDokumente = useAuswahl(
@@ -435,6 +519,11 @@ export function Medikation() {
         epa: z.epa ? (stand.zeilen.find((x) => x.id === z.epa!.id) ?? null) : null,
       }));
   }, [mitEpa, stand, praxisplan]);
+  /**
+   * Gruppen nach Status, aktive und pausierte zusätzlich nach Kategorie (IG-MED09759K35-01; die
+   * Einstellung der Zwischenüberschriften gilt mit ihrem Standardwert `true`).
+   */
+  const gruppen = useMemo(() => planGruppieren(zeilen), [zeilen]);
   const offen = mitEpa && stand ? offeneUnterschiede(planAbgleichen(praxisplan, stand.zeilen)) : 0;
   const aktivePlanCodes = zeilen
     .map((z) => z.lokal ?? z.epa!)
@@ -484,7 +573,7 @@ export function Medikation() {
               kvnr,
               lesenachweis,
               { reference: `Medication/${v.listeneintrag.medicationId}` },
-              planeintrag(kvnr, heute, a.dosierung, a.grund),
+              ...planeintrag(kvnr, heute, { dosierung: a.dosierung, grund: a.grund }),
             );
             await empVerknuepfen(
               kvnr,
@@ -498,7 +587,7 @@ export function Medikation() {
               kvnr,
               lesenachweis,
               { resource: planmittelNachFhir(v.arzneimittel) },
-              planeintrag(kvnr, heute, a.dosierung, a.grund),
+              ...planeintrag(kvnr, heute, { dosierung: a.dosierung, grund: a.grund }),
             );
             empId = String(neu.eintrag.id);
           }
@@ -707,7 +796,12 @@ export function Medikation() {
             ...(katalog?.wirkstoff ? { wirkstoff: katalog.wirkstoff } : {}),
           }),
         },
-        planeintrag(kvnr, heute, l.dosierung, l.grund),
+        ...planeintrag(kvnr, heute, {
+          dosierung: l.dosierung,
+          dosis: l.dosis ?? null,
+          grund: l.grund,
+          grundDiagnose: diagnosen.find((d) => d.id === l.grundDiagnoseId) ?? null,
+        }),
       );
       ausfuehren(
         vorgaenge.praxisplanVerknuepfen(l.id, {
@@ -722,26 +816,28 @@ export function Medikation() {
 
   /** „Änderung in die ePA →": Dosierung, Grund und Status der Praxis in den eMP-Eintrag. */
   function aenderungUebertragen(l: PraxisplanEintrag, e: Planzeile) {
-    const dosierungen =
-      (e.eintrag['dosageInstruction'] as Record<string, unknown>[] | undefined) ?? [];
-    // Ohne Grund in der Praxis entfällt er auch im eMP.
-    const ohneGrund: Ressource = { ...e.eintrag };
-    delete ohneGrund['reasonCode'];
+    const grundDiagnose = diagnosen.find((d) => d.id === l.grundDiagnoseId) ?? null;
+    const fortgeschrieben = planeintragFortschreiben(e.eintrag, {
+      dosierung: l.dosis ?? dosierungAusText(l.dosierung),
+      grund: l.grund,
+      grundDiagnose,
+    });
     void handlung(async () => {
-      const neu = await empEintragAendern(kvnr, lesenachweis, {
-        ...ohneGrund,
-        status: EMP_STATUS_CODE[l.status],
-        dosageInstruction: [
-          { ...(dosierungen[0] ?? {}), text: l.dosierung },
-          ...dosierungen.slice(1),
-        ],
-        ...(l.grund ? { reasonCode: [{ text: l.grund }] } : {}),
-      });
+      const neu = await empEintragAendern(
+        kvnr,
+        lesenachweis,
+        { ...fortgeschrieben, status: EMP_STATUS_CODE[l.status] },
+        grundDiagnose ? [planGrundNachFhir(grundDiagnose, kvnr)] : [],
+      );
       ausfuehren(
         vorgaenge.praxisplanVerknuepfen(l.id, {
           ...e,
           dosierung: l.dosierung,
+          dosis: l.dosis ?? null,
           grund: l.grund,
+          grundDiagnose: grundDiagnose
+            ? { code: grundDiagnose.code, bezeichnung: grundDiagnose.bezeichnung }
+            : null,
           status: l.status,
           fassung: neu.eintrag.meta?.versionId ?? e.fassung,
         }),
@@ -901,138 +997,156 @@ export function Medikation() {
                 </tr>
               </thead>
               <tbody>
-                {zeilen.map((z) => {
-                  const e = z.lokal ?? z.epa!;
-                  const abgeglichen =
-                    mitEpa && !!z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert');
-                  const ungeklaert = z.lage === 'praxis-geaendert' || z.lage === 'beide-geaendert';
-                  return (
-                    <tr key={z.lokal?.id ?? z.epa!.id}>
-                      <td>
-                        <b>{e.bezeichnung}</b>
-                        {z.epa && seit?.plan?.neu.has(z.epa.id) && (
-                          <span className="neu-marke">neu</span>
-                        )}
-                        {z.epa && seit?.plan?.geaendert.has(z.epa.id) && (
-                          <span className="neu-marke">geändert</span>
-                        )}
-                        <div className="leise-klein">ATC {e.atc || '—'}</div>
-                        {abgeglichen && stand ? (
-                          <Spur spur={rezeptspur(stand.roh, z.epa!.id)} />
-                        ) : (
-                          z.lokal && <PraxisplanSpur eintrag={z.lokal} rezepte={rezepte} />
-                        )}
-                        {(ungeklaert || z.lage === 'gleiches-mittel') && z.epa && (
-                          <div className="leise-klein">
-                            ePA: {z.epa.dosierung} · {z.epa.grund ?? '—'} ·{' '}
-                            {EMP_STATUS_BEZEICHNUNG[z.epa.status]}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className="code">{e.dosierung}</span>
-                      </td>
-                      <td>{e.grund ?? '—'}</td>
-                      <td>
-                        <Marker ton={STATUS_TON[e.status]}>
-                          {EMP_STATUS_BEZEICHNUNG[e.status]}
-                        </Marker>
-                      </td>
-                      <td
-                        className="leise-klein"
-                        title={z.epa?.angelegtVon ? `angelegt von ${z.epa.angelegtVon}` : undefined}
-                      >
-                        {e.verantwortlich}
-                      </td>
-                      {!ohneAkte && (
+                {gruppen.flatMap((g) => [
+                  <tr className="gruppe" key={`gruppe-${g.schluessel}`}>
+                    <th colSpan={ohneAkte ? 6 : 7} scope="colgroup">
+                      {g.kopf}
+                    </th>
+                  </tr>,
+                  ...g.zeilen.map((z) => {
+                    const e = z.lokal ?? z.epa!;
+                    const abgeglichen =
+                      mitEpa && !!z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert');
+                    const ungeklaert =
+                      z.lage === 'praxis-geaendert' || z.lage === 'beide-geaendert';
+                    return (
+                      <tr key={z.lokal?.id ?? z.epa!.id}>
                         <td>
-                          <AbgleichMarker zeile={z} />
+                          <b>{e.bezeichnung}</b>
+                          {z.epa && seit?.plan?.neu.has(z.epa.id) && (
+                            <span className="neu-marke">neu</span>
+                          )}
+                          {z.epa && seit?.plan?.geaendert.has(z.epa.id) && (
+                            <span className="neu-marke">geändert</span>
+                          )}
+                          <div className="leise-klein">ATC {e.atc || '—'}</div>
+                          {abgeglichen && stand ? (
+                            <Spur spur={rezeptspur(stand.roh, z.epa!.id)} />
+                          ) : (
+                            z.lokal && <PraxisplanSpur eintrag={z.lokal} rezepte={rezepte} />
+                          )}
+                          {(ungeklaert || z.lage === 'gleiches-mittel') && z.epa && (
+                            <div className="leise-klein">
+                              ePA: {z.epa.dosierung} · {z.epa.grund ?? '—'} ·{' '}
+                              {EMP_STATUS_BEZEICHNUNG[z.epa.status]}
+                            </div>
+                          )}
                         </td>
-                      )}
-                      <td>
-                        <div className="reihe" style={{ gap: 5 }}>
-                          {mitEpa &&
-                            darfVerordnen &&
-                            z.lokal &&
-                            z.lage === 'nur-praxis' &&
-                            e.status !== 'beendet' &&
-                            e.status !== 'abgesetzt' &&
-                            e.status !== 'entered-in-error' && (
-                              <button
-                                type="button"
-                                className="knopf klein stark"
-                                onClick={() => inDieEpa(z.lokal!)}
-                              >
-                                in die ePA →
-                              </button>
+                        <td>
+                          <DosierungAnzeige text={e.dosierung} dosis={e.dosis} />
+                        </td>
+                        <td>
+                          {e.grund ?? (e.grundDiagnose ? '' : '—')}
+                          {e.grundDiagnose && (
+                            <div className="leise-klein">
+                              <span className="code">{e.grundDiagnose.code}</span>{' '}
+                              {e.grundDiagnose.bezeichnung}
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          <Marker ton={STATUS_TON[e.status]}>
+                            {EMP_STATUS_BEZEICHNUNG[e.status]}
+                          </Marker>
+                        </td>
+                        <td
+                          className="leise-klein"
+                          title={
+                            z.epa?.angelegtVon ? `angelegt von ${z.epa.angelegtVon}` : undefined
+                          }
+                        >
+                          {e.verantwortlich}
+                        </td>
+                        {!ohneAkte && (
+                          <td>
+                            <AbgleichMarker zeile={z} />
+                          </td>
+                        )}
+                        <td>
+                          <div className="reihe" style={{ gap: 5 }}>
+                            {mitEpa &&
+                              darfVerordnen &&
+                              z.lokal &&
+                              z.lage === 'nur-praxis' &&
+                              e.status !== 'beendet' &&
+                              e.status !== 'abgesetzt' &&
+                              e.status !== 'entered-in-error' && (
+                                <button
+                                  type="button"
+                                  className="knopf klein stark"
+                                  onClick={() => inDieEpa(z.lokal!)}
+                                >
+                                  in die ePA →
+                                </button>
+                              )}
+                            {mitEpa && darfVerordnen && ungeklaert && z.lokal && z.epa && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="knopf klein stark"
+                                  onClick={() => aenderungUebertragen(z.lokal!, z.epa!)}
+                                >
+                                  Änderung in die ePA →
+                                </button>
+                                <button
+                                  type="button"
+                                  className="knopf klein"
+                                  onClick={() => {
+                                    ausfuehren(vorgaenge.praxisplanNachEpa(z.lokal!.id, z.epa!));
+                                    setzeMeldung({
+                                      art: 'gut',
+                                      text: `„${e.bezeichnung}" auf den Stand der ePA gebracht.`,
+                                    });
+                                  }}
+                                >
+                                  ← ePA-Stand
+                                </button>
+                              </>
                             )}
-                          {mitEpa && darfVerordnen && ungeklaert && z.lokal && z.epa && (
-                            <>
-                              <button
-                                type="button"
-                                className="knopf klein stark"
-                                onClick={() => aenderungUebertragen(z.lokal!, z.epa!)}
-                              >
-                                Änderung in die ePA →
-                              </button>
+                            {mitEpa && darfVerordnen && z.lage === 'gleiches-mittel' && (
                               <button
                                 type="button"
                                 className="knopf klein"
                                 onClick={() => {
-                                  ausfuehren(vorgaenge.praxisplanNachEpa(z.lokal!.id, z.epa!));
+                                  ausfuehren(vorgaenge.praxisplanVerknuepfen(z.lokal!.id, z.epa!));
                                   setzeMeldung({
                                     art: 'gut',
-                                    text: `„${e.bezeichnung}" auf den Stand der ePA gebracht.`,
+                                    text: `„${e.bezeichnung}" mit dem Eintrag der ePA verknüpft.`,
                                   });
                                 }}
                               >
-                                ← ePA-Stand
+                                verknüpfen
                               </button>
-                            </>
-                          )}
-                          {mitEpa && darfVerordnen && z.lage === 'gleiches-mittel' && (
-                            <button
-                              type="button"
-                              className="knopf klein"
-                              onClick={() => {
-                                ausfuehren(vorgaenge.praxisplanVerknuepfen(z.lokal!.id, z.epa!));
-                                setzeMeldung({
-                                  art: 'gut',
-                                  text: `„${e.bezeichnung}" mit dem Eintrag der ePA verknüpft.`,
-                                });
-                              }}
-                            >
-                              verknüpfen
-                            </button>
-                          )}
-                          {!ungeklaert && e.status === 'aktiv' && (abgeglichen || z.lokal) && (
-                            <button
-                              type="button"
-                              className="knopf klein"
-                              onClick={() =>
-                                abgeglichen
-                                  ? vorlageAusPlan(z.epa!)
-                                  : vorlageAusPraxisplan(z.lokal!)
-                              }
-                            >
-                              Rezept
-                            </button>
-                          )}
-                          {darfVerordnen &&
-                            !ungeklaert &&
-                            z.lage !== 'gleiches-mittel' &&
-                            z.lage !== 'nur-epa' &&
-                            e.status !== 'entered-in-error' && (
-                              <Planhandlungen
-                                zeile={e}
-                                ausfuehren={(status, text) => statusAendern(z, status, text)}
-                              />
                             )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                            {!ungeklaert && e.status === 'aktiv' && (abgeglichen || z.lokal) && (
+                              <button
+                                type="button"
+                                className="knopf klein"
+                                onClick={() =>
+                                  abgeglichen
+                                    ? vorlageAusPlan(z.epa!)
+                                    : vorlageAusPraxisplan(z.lokal!)
+                                }
+                              >
+                                Rezept
+                              </button>
+                            )}
+                            {darfVerordnen &&
+                              !ungeklaert &&
+                              z.lage !== 'gleiches-mittel' &&
+                              z.lage !== 'nur-epa' &&
+                              e.status !== 'entered-in-error' && (
+                                <Planhandlungen
+                                  zeile={e}
+                                  ausfuehren={(status, text) => statusAendern(z, status, text)}
+                                />
+                              )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }),
+                ])}
               </tbody>
             </table>
           </div>
@@ -1042,8 +1156,9 @@ export function Medikation() {
       {planErgaenzbar && neuerPlaneintrag && (
         <NeuerPlaneintrag
           umgebung={umgebung}
+          diagnosen={diagnosen}
           abbrechen={() => setzeNeuerPlaneintrag(false)}
-          beiAnlage={(mittel, dosierung, grund) => {
+          beiAnlage={(mittel, { dosis, text, grund, grundDiagnose }) => {
             // Nach dem Aufnehmen schließt der Dialog; geöffnet beginnt er wieder leer.
             setzeNeuerPlaneintrag(false);
             // Ohne eMP in den Plan der Praxis; mit eMP dorthin — der Plan der Praxis folgt im Abgleich.
@@ -1055,8 +1170,10 @@ export function Medikation() {
                   atc: mittel.atc,
                   atcVersion: mittel.atcVersion,
                   pzn: mittel.pzn,
-                  dosierung,
+                  dosierung: text,
+                  dosis,
                   grund,
+                  grundDiagnoseId: grundDiagnose?.id ?? null,
                 }),
               );
               setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
@@ -1076,7 +1193,7 @@ export function Medikation() {
                       wirkstoff: mittel.wirkstoff,
                     }),
                   },
-                  planeintrag(kvnr, heute, dosierung, grund),
+                  ...planeintrag(kvnr, heute, { dosierung: text, dosis, grund, grundDiagnose }),
                 ),
               'In den Plan aufgenommen.',
             );
@@ -1113,7 +1230,11 @@ export function Medikation() {
                       kvnr,
                       lesenachweis,
                       { reference: `Medication/${String(z.medikament?.id)}` },
-                      planeintrag(kvnr, heute, z.dosierung, null),
+                      ...planeintrag(kvnr, heute, {
+                        dosierung: z.dosierung,
+                        dosis: dosierungAusFhir(z.aussage['dosage']),
+                        grund: null,
+                      }),
                     );
                     await empVerknuepfen(
                       kvnr,
@@ -1488,18 +1609,32 @@ function UebernahmeKnopf({
   );
 }
 
+/** Angaben eines neuen Planeintrags aus dem Dialog. */
+interface Planangabe {
+  dosis: Dosierung;
+  text: string;
+  grund: string | null;
+  grundDiagnose: Diagnose | null;
+}
+
 function NeuerPlaneintrag({
   umgebung,
+  diagnosen,
   beiAnlage,
   abbrechen,
 }: {
   umgebung: AmtsUmgebung;
-  beiAnlage: (mittel: ArzneimittelEintrag, dosierung: string, grund: string | null) => void;
+  diagnosen: readonly Diagnose[];
+  beiAnlage: (mittel: ArzneimittelEintrag, angabe: Planangabe) => void;
   abbrechen: () => void;
 }) {
   const [mittel, setzeMittel] = useState<ArzneimittelEintrag | null>(null);
-  const [dosierung, setzeDosierung] = useState('1-0-0-0');
+  const [dosis, setzeDosis] = useState<Dosierung>(DOSIERUNG_VORGABE);
   const [grund, setzeGrund] = useState('');
+  const [diagnoseId, setzeDiagnoseId] = useState('');
+  const gueltigeDiagnosen = diagnosen.filter(
+    (d) => d.diagnosesicherheit !== 'irrtümlich' && d.zusatzkennzeichen !== 'A',
+  );
   const befunde = useMemo(() => (mittel ? amtsPruefen(mittel, umgebung) : []), [mittel, umgebung]);
 
   return (
@@ -1525,22 +1660,30 @@ function NeuerPlaneintrag({
             </button>
           </div>
           <Befundliste befunde={befunde} />
+          <DosierungEingabe wert={dosis} setze={setzeDosis} />
           <div className="feldreihe">
-            <div className="feldzeile">
-              <label htmlFor="dosierung">Dosierung</label>
-              <input
-                id="dosierung"
-                type="text"
-                value={dosierung}
-                onChange={(e) => setzeDosierung(e.target.value)}
-              />
+            <div className="feldzeile" style={{ flex: '2 1 240px' }}>
+              <label htmlFor="grund-diagnose">Behandlungsgrund (Diagnose)</label>
+              <select
+                id="grund-diagnose"
+                value={diagnoseId}
+                onChange={(e) => setzeDiagnoseId(e.target.value)}
+              >
+                <option value="">—</option>
+                {gueltigeDiagnosen.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.code} {d.bezeichnung}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="feldzeile" style={{ flex: '2 1 240px' }}>
-              <label htmlFor="grund">Behandlungsgrund</label>
+              <label htmlFor="grund">Behandlungsgrund für Patient:in</label>
               <input
                 id="grund"
                 type="text"
                 value={grund}
+                placeholder="z. B. Blutdruck"
                 onChange={(e) => setzeGrund(e.target.value)}
               />
             </div>
@@ -1549,8 +1692,14 @@ function NeuerPlaneintrag({
             <button
               type="button"
               className="knopf stark"
+              disabled={!dosierungGueltig(dosis)}
               onClick={() =>
-                beiAnlage(mittel, dosierung, grund.trim() === '' ? null : grund.trim())
+                beiAnlage(mittel, {
+                  dosis,
+                  text: dosierungAlsText(dosis),
+                  grund: grund.trim() === '' ? null : grund.trim(),
+                  grundDiagnose: gueltigeDiagnosen.find((d) => d.id === diagnoseId) ?? null,
+                })
               }
             >
               In den Plan aufnehmen

@@ -1,4 +1,8 @@
 import {
+  automatischeKategorie,
+  dosierungAusText,
+  dosierungNachFhir,
+  textErweiterungen,
   allergieNachFhir,
   BEFUND_HOFFMANN,
   briefPdfErzeugen,
@@ -47,6 +51,21 @@ import {
   versionierterVerweis,
   type Handelnde,
 } from './schreibwege.ts';
+
+/**
+ * Strukturierte Dosierung samt erzeugtem Text (IG Medication Service 1.4.0-ballot.1): Ein
+ * Viererschema wird strukturiert, sonst bleibt der Text Freitext.
+ */
+function dosierungMitText(
+  typ: 'MedicationRequest' | 'MedicationStatement',
+  text: string,
+): {
+  dosierung: Record<string, unknown>[];
+  erweiterungen: { url: string; [k: string]: unknown }[];
+} {
+  const dosierung = dosierungNachFhir(dosierungAusText(text));
+  return { dosierung, erweiterungen: textErweiterungen(typ, dosierung) };
+}
 
 /**
  * Startbestand des simulierten Aktensystems. Alle Personen, Einrichtungen und Befunde sind
@@ -201,7 +220,8 @@ function verordnetUndAbgegeben(
     subject: subjektFuer(kvnr),
     authoredOn: datum,
     requester: { display: von },
-    dosageInstruction: [{ text: dosierung }],
+    extension: dosierungMitText('MedicationRequest', dosierung).erweiterungen,
+    dosageInstruction: dosierungMitText('MedicationRequest', dosierung).dosierung,
   };
   const abgabe: Ressource = {
     resourceType: 'MedicationDispense',
@@ -218,7 +238,10 @@ function verordnetUndAbgegeben(
     resourceType: 'MedicationStatement',
     id: `eml-${id}`,
     meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.aussage] },
-    extension: [{ url: EXT.kontext, valueCode: 'PRESCRIPTION' }],
+    extension: [
+      { url: EXT.kontext, valueCode: 'PRESCRIPTION' },
+      ...dosierungMitText('MedicationStatement', dosierung).erweiterungen,
+    ],
     status: 'unknown',
     medicationReference: { reference: `Medication/med-${id}` },
     subject: subjektFuer(kvnr),
@@ -228,7 +251,7 @@ function verordnetUndAbgegeben(
       { reference: `MedicationRequest/vo-${id}` },
       { reference: `MedicationDispense/ab-${id}` },
     ],
-    dosage: [{ text: dosierung }],
+    dosage: dosierungMitText('MedicationStatement', dosierung).dosierung,
   };
   ablage.push(medication, verordnung, abgabe, aussage);
   aktivitaetAnlegen(
@@ -293,6 +316,17 @@ function planeintrag(
           { url: 'addedOn', valueDateTime: zeit },
         ],
       },
+      ...dosierungMitText('MedicationRequest', dosierung).erweiterungen,
+      {
+        url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/reason-patient-instruction-extension',
+        valueString: grund,
+      },
+      {
+        url: 'https://gematik.de/fhir/epa/StructureDefinition/emp-category-extension',
+        valueCode:
+          automatischeKategorie(dosierungMitText('MedicationRequest', dosierung).dosierung) ??
+          'unassigned',
+      },
     ],
     identifier: [{ system: EMP_IDENTIFIER, value: id }],
     status: 'active',
@@ -300,8 +334,7 @@ function planeintrag(
     medicationReference: aussage['medicationReference'],
     subject: subjektFuer(kvnr),
     authoredOn: datum,
-    reasonCode: [{ text: grund }],
-    dosageInstruction: [{ text: dosierung }],
+    dosageInstruction: dosierungMitText('MedicationRequest', dosierung).dosierung,
   };
   aussage['basedOn'] = [{ reference: `MedicationRequest/${id}` }];
   ablage.push(mittel, eintrag);
@@ -544,10 +577,12 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
       !String(r.id).includes(String(aussage.id).replace(/^eml-/, '')),
   );
   const dosis = (r: Ressource) =>
-    (r['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text;
+    ((r.extension ?? []) as { url: string; valueMarkdown?: string }[]).find((e) =>
+      e.url.endsWith('MedicationRequest.renderedDosageInstruction'),
+    )?.valueMarkdown;
   const geaendert =
     kandidaten.find((r) => atcVon(r) === 'C07AB07') ??
-    kandidaten.find((r) => dosis(r) !== '1-0-1-0') ??
+    kandidaten.find((r) => dosis(r) !== 'täglich: 1-0-1-0 Stück') ??
     kandidaten[0];
   if (geaendert) {
     geaendert.meta = {
@@ -555,7 +590,16 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
       versionId: String(Number(geaendert.meta?.versionId ?? '1') + 1),
       lastUpdated: heute,
     };
-    geaendert['dosageInstruction'] = [{ text: '1-0-1-0' }];
+    const neu = dosierungMitText('MedicationRequest', '1-0-1-0');
+    geaendert['dosageInstruction'] = neu.dosierung;
+    geaendert.extension = [
+      ...((geaendert.extension ?? []) as { url: string }[]).filter(
+        (e) =>
+          !e.url.endsWith('renderedDosageInstruction') &&
+          !e.url.endsWith('GeneratedDosageInstructionsMeta'),
+      ),
+      ...neu.erweiterungen,
+    ];
     aktivitaetAnlegen(
       bestand.medikation,
       [versionierterVerweis(geaendert)],

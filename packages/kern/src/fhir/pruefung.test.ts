@@ -29,6 +29,7 @@ import {
   planeintragNachFhir,
   planmittelNachFhir,
 } from './medikation.js';
+import { dosierungAusText } from '../fachlogik/dosierung.js';
 import { fhirPruefen } from './pruefung.js';
 import type { Ressource } from './typen.js';
 
@@ -328,7 +329,12 @@ describe('Ausgaben der Demo sind ohne Fehler', () => {
     // $add-emp-entry: Arzneimittel als eigener Parameter, medicationReference setzt der Dienst.
     expect(
       regeln(
-        planeintragNachFhir({ kvnr: KVNR, datum: '2026-09-09', dosierung: '1-0-0-0', grund: null }),
+        planeintragNachFhir({
+          kvnr: KVNR,
+          datum: '2026-09-09',
+          dosierung: dosierungAusText('1-0-0-0'),
+          grund: null,
+        }),
       ),
     ).toEqual(['Pflicht R4']);
   });

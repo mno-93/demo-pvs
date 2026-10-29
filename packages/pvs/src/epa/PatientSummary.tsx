@@ -21,6 +21,8 @@ import {
   type PsAbschnitt,
   type PsAbschnittSchluessel,
   type Ressource,
+  dosierungsanzeige,
+  grundanzeige,
 } from '@demo-pvs/kern';
 import { Marker } from '../bausteine/Bausteine.js';
 import {
@@ -411,7 +413,7 @@ function Eintraege({
               <td>
                 <span className="code">{dosierung(r)}</span>
               </td>
-              <td>{(r['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? '—'}</td>
+              <td>{grundanzeige(r) ?? '—'}</td>
               <td>{STATUS[String(r['status'])] ?? '—'}</td>
             </tr>
           ))}
@@ -569,8 +571,7 @@ function arzneimittel(r: Ressource, ressourcen: readonly Ressource[]): string {
 }
 
 function dosierung(r: Ressource): string {
-  const d = (r['dosageInstruction'] ?? r['dosage']) as { text?: string }[] | undefined;
-  return d?.[0]?.text ?? '—';
+  return dosierungsanzeige(r);
 }
 
 function zeitraum(r: Ressource): string {

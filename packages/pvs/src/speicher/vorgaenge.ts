@@ -42,7 +42,10 @@ function nachEpa(e: PraxisplanEintrag, epa: SpiegelEintrag): PraxisplanEintrag {
   return {
     ...e,
     dosierung: epa.dosierung,
+    dosis: epa.dosis ?? null,
     grund: epa.grund,
+    grundDiagnose: epa.grundDiagnose ?? null,
+    kategorie: epa.kategorie ?? null,
     status: epa.status,
     verantwortlich: epa.verantwortlich,
     fassung: String(Number(e.fassung) + 1),
@@ -238,7 +241,15 @@ export const vorgaenge = {
   praxisplanAufnehmen(
     angabe: Pick<
       PraxisplanEintrag,
-      'patientId' | 'bezeichnung' | 'atc' | 'atcVersion' | 'pzn' | 'dosierung' | 'grund'
+      | 'patientId'
+      | 'bezeichnung'
+      | 'atc'
+      | 'atcVersion'
+      | 'pzn'
+      | 'dosierung'
+      | 'dosis'
+      | 'grund'
+      | 'grundDiagnoseId'
     > & { rezeptIds?: readonly string[]; epa?: SpiegelEintrag },
     id: string = neueId('praxisplan'),
   ): Vorgang {

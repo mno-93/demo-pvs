@@ -19,7 +19,8 @@
     "$kommentar": "Vorschau-Lauf für die Ballot-Wege der Vorschau auf ePA 3.2 (ADR 0042). Dateien, deren Profil unter `profile` fällt, prüft der Validator gegen diese Pakete statt gegen die des Hauptlaufs. `dateien`: Pakete ohne Registry-Eintrag, mit fester Prüfsumme — der CI-Job holt sie, lokal siehe docs/ENTWICKLUNG.md.",
     "profile": [
       "^https://gematik\\.de/fhir/epa-eps/StructureDefinition/",
-      "^https://gematik\\.de/fhir/epa-mhd/StructureDefinition/[^|]+\\|1\\.2\\.0$"
+      "^https://gematik\\.de/fhir/epa-mhd/StructureDefinition/[^|]+\\|1\\.2\\.0$",
+      "^https://gematik\\.de/fhir/epa-medication/StructureDefinition/[^|]+\\|1\\.4\\.0$"
     ],
     "pakete": [
       "hl7.fhir.uv.extensions.r4#5.3.0",
@@ -29,6 +30,7 @@
       "de.gematik.epa#1.4.0-ballot.1",
       "de.gematik.epa.medication#1.4.0-ballot.1",
       "de.gematik.epa.mhd#1.2.0-ballot.1",
+      "de.fhir.medication#2.0.0-ballot",
       "de.gematik.terminology#1.1.0-ballot.2",
       "hl7.fhir.eu.eps#1.0.0-ballot"
     ],

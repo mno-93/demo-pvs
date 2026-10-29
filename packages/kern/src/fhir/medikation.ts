@@ -1,16 +1,32 @@
 import { CODESYSTEM } from '../typen/kodierung.js';
+import type { Diagnose } from '../typen/diagnose.js';
 import type { Medikationsangabe } from '../typen/medikation.js';
-import { wertFehlt } from './abbildung.js';
+import {
+  TEXT_EXTENSION,
+  dosierungAusFhir,
+  dosierungNachFhir,
+  gerenderterText,
+  textErweiterungen,
+  type Dosierung,
+  type EmpKategorie,
+} from '../fachlogik/dosierung.js';
+import { diagnoseNachFhir, wertFehlt } from './abbildung.js';
 import type { Ressource } from './typen.js';
 
 /**
  * Medikation nach FHIR — die Abbildungen, die Medikationsplan, Arztbrief und Patient Summary
- * teilen. Vorher baute die Oberfläche das Arzneimittel des Plans an zwei Stellen selbst.
+ * teilen.
  *
  * - **Planeintrag** nach `EMPMedicationRequest` und **Arzneimittel** nach `EMPMedication`
- *   (IG `de.gematik.epa.medication` 1.3.5). Für `$add-emp-entry` gehen beide getrennt an den
- *   Dienst; den Verweis `medicationReference` setzt der Dienst selbst — die Eingabe hat deshalb
- *   kein `medication[x]`, obwohl es in der R4-Basis Pflicht ist.
+ *   (IG `de.gematik.epa.medication` 1.4.0-ballot.1, Profile in `de.gematik.epa` 1.4.0-ballot.1).
+ *   Für `$add-emp-entry` gehen Eintrag, Arzneimittel und Behandlungsgrund getrennt an den Dienst;
+ *   den Verweis `medicationReference` setzt der Dienst selbst — die Eingabe hat deshalb kein
+ *   `medication[x]`, obwohl es in der R4-Basis Pflicht ist.
+ * - **Dosierung** strukturiert nach `DosageDgMP` mit dem Text nach Algorithmus 2.0.0 in
+ *   `renderedDosageInstruction` (`fachlogik/dosierung.ts`).
+ * - **Behandlungsgrund**: die Diagnose als `EMPReasonCondition` über `reasonReference`
+ *   (Parameter `reasonCondition`), der Text für Patient:innen in `reasonPatientInstruction`.
+ *   `reasonCode` ist im Ballot gestrichen.
  * - **Medikationsaussage** nach `MedicationStatement` für Dokumente. EPS verlangt
  *   `effective[x]` (1..1); ist der Einnahmebeginn unbekannt, steht `data-absent-reason`.
  */
@@ -50,30 +66,79 @@ function arzneimittelKodierung(m: Arzneimittel) {
 export function planmittelNachFhir(m: Arzneimittel): Ressource {
   return {
     resourceType: 'Medication',
-    meta: { profile: [`${EMP_PROFIL}emp-medication`] },
+    meta: { profile: [`${EMP_PROFIL}emp-medication|1.4.0`] },
     extension: [{ url: `${EMP_PROFIL}context-extension`, valueCode: 'EMP' }],
     status: 'active',
     code: arzneimittelKodierung(m),
   };
 }
 
-/** Planeintrag nach `EMPMedicationRequest` — Eingabe für `$add-emp-entry` (siehe oben). */
+export const EMP_EXTENSION = {
+  kontext: `${EMP_PROFIL}context-extension`,
+  grundFuerPatienten: `${EMP_PROFIL}reason-patient-instruction-extension`,
+  kategorie: 'https://gematik.de/fhir/epa/StructureDefinition/emp-category-extension',
+  reihenfolge: 'https://gematik.de/fhir/epa/StructureDefinition/emp-sort-priority-extension',
+} as const;
+
+/** Kennung, unter der der Planeintrag auf seinen Behandlungsgrund verweist. */
+export const grundId = (diagnose: Pick<Diagnose, 'id'>) => `grund-${diagnose.id}`;
+
+/** Planeintrag nach `EMPMedicationRequest` 1.4.0 — Eingabe für `$add-emp-entry` (siehe oben). */
 export function planeintragNachFhir(e: {
   kvnr: string;
   datum: string;
-  dosierung: string;
+  dosierung: Dosierung;
+  /** Behandlungsgrund in Worten der Patient:innen (`reasonPatientInstruction`). */
   grund: string | null;
+  /** Diagnose der Praxis als Behandlungsgrund (`reasonReference`). */
+  grundDiagnose?: Pick<Diagnose, 'id' | 'code' | 'bezeichnung'> | null;
+  /**
+   * Kategorie, falls die Dosierung nicht automatisch kategorisierbar ist; sonst bestimmt sie der
+   * Dienst und übergeht die Angabe.
+   */
+  kategorie?: EmpKategorie | null;
 }): Ressource {
+  const dosageInstruction = dosierungNachFhir(e.dosierung);
   return {
     resourceType: 'MedicationRequest',
-    meta: { profile: [`${EMP_PROFIL}emp-medication-request`] },
-    extension: [{ url: `${EMP_PROFIL}context-extension`, valueCode: 'EMP' }],
+    meta: { profile: [`${EMP_PROFIL}emp-medication-request|1.4.0`] },
+    extension: [
+      { url: EMP_EXTENSION.kontext, valueCode: 'EMP' },
+      ...textErweiterungen('MedicationRequest', dosageInstruction),
+      ...(e.grund ? [{ url: EMP_EXTENSION.grundFuerPatienten, valueString: e.grund }] : []),
+      ...(e.kategorie ? [{ url: EMP_EXTENSION.kategorie, valueCode: e.kategorie }] : []),
+    ],
     status: 'active',
     intent: 'plan',
     subject: { identifier: { system: KVID, value: e.kvnr } },
     authoredOn: e.datum,
-    dosageInstruction: [{ text: e.dosierung }],
-    ...(e.grund ? { reasonCode: [{ text: e.grund }] } : {}),
+    ...(e.grundDiagnose
+      ? {
+          reasonReference: [
+            {
+              reference: `Condition/${grundId(e.grundDiagnose)}`,
+              display: e.grundDiagnose.bezeichnung,
+            },
+          ],
+        }
+      : {}),
+    dosageInstruction,
+  };
+}
+
+/**
+ * Behandlungsgrund nach `EMPReasonCondition` 1.4.0 — Parameter `reasonCondition`. Aus der
+ * Diagnose der Praxis: ICD-10-GM mit Diagnosesicherheit, klinischer und Verifikationsstatus
+ * wie in `ti-condition-diagnosis`; die Kategorie der Diagnosenliste gehört nicht dazu.
+ */
+export function planGrundNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
+  const d = diagnoseNachFhir(diagnose, kvnr);
+  const behalten = ['clinicalStatus', 'verificationStatus', 'code', 'subject'];
+  return {
+    resourceType: 'Condition',
+    id: grundId(diagnose),
+    meta: { profile: [`${EMP_PROFIL}emp-reason-condition|1.4.0`] },
+    ...Object.fromEntries(behalten.filter((k) => k in d).map((k) => [k, d[k]])),
   };
 }
 
@@ -104,4 +169,111 @@ export function medikationsaussageNachFhir(
     ...(m.grund ? { reasonCode: [{ text: m.grund }] } : {}),
     dosage: [{ text: m.dosierung }],
   };
+}
+
+const ICD = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm';
+
+/** Angaben eines eMP-Eintrags, wie Plan, Abgleich und Arztbrief sie lesen. */
+export interface Plangelesen {
+  dosierung: string;
+  dosis: Dosierung | null;
+  grund: string | null;
+  grundDiagnose: { code: string; bezeichnung: string } | null;
+  kategorie: EmpKategorie | null;
+}
+
+function erweiterung(r: Ressource, url: string) {
+  return ((r.extension ?? []) as { url: string; valueString?: string; valueCode?: string }[]).find(
+    (e) => e.url === url,
+  );
+}
+
+/**
+ * Dosierungstext eines Eintrags: der erzeugte Text, sonst die Freitexte. Gilt für
+ * MedicationRequest (`dosageInstruction`) und MedicationStatement (`dosage`).
+ */
+export function dosierungsanzeige(r: Ressource): string {
+  const gerendert = gerenderterText(r);
+  if (gerendert) return gerendert;
+  const d = (r['dosageInstruction'] ?? r['dosage']) as { text?: string }[] | undefined;
+  const texte = (d ?? []).map((x) => x.text).filter(Boolean);
+  return texte.length > 0 ? texte.join(' ') : '—';
+}
+
+/** Behandlungsgrund für Patient:innen, sonst die Diagnose; `reasonCode` nur aus Altbestand. */
+export function grundanzeige(r: Ressource): string | null {
+  return (
+    erweiterung(r, EMP_EXTENSION.grundFuerPatienten)?.valueString ??
+    (r['reasonReference'] as { display?: string }[] | undefined)?.[0]?.display ??
+    (r['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ??
+    null
+  );
+}
+
+/** Liest einen eMP-Eintrag; `ressourcen` enthält die mitgelieferten Behandlungsgründe. */
+export function planeintragLesen(e: Ressource, ressourcen: readonly Ressource[] = []): Plangelesen {
+  const verweis = (
+    e['reasonReference'] as { reference?: string; display?: string }[] | undefined
+  )?.[0];
+  const bedingung = ressourcen.find(
+    (r) => r.resourceType === 'Condition' && `Condition/${String(r.id)}` === verweis?.reference,
+  );
+  const icd = (
+    bedingung?.['code'] as
+      { coding?: { system?: string; code?: string; display?: string }[] } | undefined
+  )?.coding?.find((k) => k.system === ICD);
+  return {
+    dosierung: dosierungsanzeige(e),
+    dosis: dosierungAusFhir(e['dosageInstruction']),
+    grund:
+      erweiterung(e, EMP_EXTENSION.grundFuerPatienten)?.valueString ??
+      (e['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ??
+      null,
+    grundDiagnose: icd?.code
+      ? { code: icd.code, bezeichnung: icd.display ?? verweis?.display ?? icd.code }
+      : null,
+    kategorie:
+      (erweiterung(e, EMP_EXTENSION.kategorie)?.valueCode as EmpKategorie | undefined) ?? null,
+  };
+}
+
+/**
+ * Schreibt Dosierung und Grund eines bestehenden eMP-Eintrags fort — Eingabe für
+ * `$update-emp-entry`. Entfernt, was der Ballot nicht mehr kennt (`reasonCode`).
+ */
+export function planeintragFortschreiben(
+  e: Ressource,
+  angabe: {
+    dosierung: Dosierung;
+    grund: string | null;
+    grundDiagnose?: Pick<Diagnose, 'id' | 'code' | 'bezeichnung'> | null;
+  },
+): Ressource {
+  const dosageInstruction = dosierungNachFhir(angabe.dosierung);
+  const ersetzt = new Set<string>([
+    EMP_EXTENSION.grundFuerPatienten,
+    TEXT_EXTENSION.gerendert('MedicationRequest'),
+    TEXT_EXTENSION.generiert,
+  ]);
+  const neu: Ressource = {
+    ...e,
+    extension: [
+      ...((e.extension ?? []) as { url: string }[]).filter((x) => !ersetzt.has(x.url)),
+      ...textErweiterungen('MedicationRequest', dosageInstruction),
+      ...(angabe.grund
+        ? [{ url: EMP_EXTENSION.grundFuerPatienten, valueString: angabe.grund }]
+        : []),
+    ],
+    dosageInstruction,
+  };
+  delete neu['reasonCode'];
+  delete neu['reasonReference'];
+  if (angabe.grundDiagnose)
+    neu['reasonReference'] = [
+      {
+        reference: `Condition/${grundId(angabe.grundDiagnose)}`,
+        display: angabe.grundDiagnose.bezeichnung,
+      },
+    ];
+  return neu;
 }

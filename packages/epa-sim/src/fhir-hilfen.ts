@@ -139,10 +139,15 @@ export function imZeitraum(
     const praefix = /^(gt|ge|lt|le|eq)/.exec(b)?.[1] ?? 'eq';
     const wert = ohneZeitzone(b.replace(/^(gt|ge|lt|le|eq)/, ''));
     const t = lokal.slice(0, Math.max(wert.length, 10));
-    if (praefix === 'gt') return t > wert;
-    if (praefix === 'ge') return t >= wert;
-    if (praefix === 'lt') return t < wert;
-    if (praefix === 'le') return t <= wert;
+    // Ein reines Datum steht für den ganzen Tag (FHIR Search, Datumsbereiche): „nach" vergleicht
+    // mit dessen Ende, „vor" mit dessen Anfang.
+    const tag = lokal.length === 10 && wert.length > 10;
+    const ende = tag ? `${lokal}T23:59:59.999` : t;
+    const anfang = tag ? `${lokal}T00:00:00` : t;
+    if (praefix === 'gt') return ende > wert;
+    if (praefix === 'ge') return ende >= wert;
+    if (praefix === 'lt') return anfang < wert;
+    if (praefix === 'le') return anfang <= wert;
     return lokal.startsWith(wert);
   });
 }

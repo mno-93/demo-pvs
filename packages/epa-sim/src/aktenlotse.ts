@@ -15,6 +15,8 @@ import {
   type Lotsenvorschlaege,
   type Quellentext,
   type Ressource,
+  dosierungsanzeige,
+  grundanzeige,
 } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { jetzt } from './fhir-hilfen.ts';
@@ -74,7 +76,7 @@ function laborzeilen(d: Dokument): string[] {
 
 /**
  * Der Medikationsplan als Quelle. Er ist kein Dokument, aber die geführte Antwort auf
- * „Welche Medikamente nehme ich und wofür?" — der Grund steht nur dort (`reasonCode`).
+ * „Welche Medikamente nehme ich und wofür?" — der Grund steht nur dort (`reasonPatientInstruction`, `reasonReference`).
  */
 function medikationsplanQuelle(kvnr: string, heute: string): Lotsenquelle | null {
   // Nach Widerspruch gegen den Medikationsprozess ist der Plan gesperrt (`wege.ts`, 423) — der
@@ -170,8 +172,8 @@ function planEintraege(kvnr: string): { mittel: string; dosis: string; grund: st
         { text?: string; coding?: { display?: string }[] } | undefined;
       return {
         mittel: code?.text ?? code?.coding?.[0]?.display ?? '',
-        dosis: (r['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ?? '',
-        grund: (r['reasonCode'] as { text?: string }[] | undefined)?.[0]?.text ?? '',
+        dosis: dosierungsanzeige(r),
+        grund: grundanzeige(r) ?? '',
       };
     })
     .filter((e) => e.mittel);

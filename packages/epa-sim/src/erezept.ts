@@ -1,6 +1,13 @@
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { base64ZuText, zufallHex } from './plattform.ts';
-import type { Ressource } from '@demo-pvs/kern';
+import {
+  TEXT_EXTENSION,
+  dosierungAusFhir,
+  dosierungAusText,
+  dosierungNachFhir,
+  textErweiterungen,
+  type Ressource,
+} from '@demo-pvs/kern';
 import { bestandFuer, bestandVorhanden } from './bestand.ts';
 import { betriebslage } from './betrieb.ts';
 import { chronologieAnlegen } from './chronologie.ts';
@@ -159,7 +166,6 @@ function verschreibungEinstellen(r: Rezept): void {
     subject: subjektFuer(kvnr),
     authoredOn: r.authoredOn,
     requester: { display: `${r.arzt}, ${wer.anzeige}` },
-    dosageInstruction: dosierung,
     ...(r.verordnung!['dispenseRequest']
       ? { dispenseRequest: r.verordnung!['dispenseRequest'] }
       : {}),
@@ -177,9 +183,12 @@ function verschreibungEinstellen(r: Rezept): void {
     effectivePeriod: { start: r.authoredOn },
     dateAsserted: zeit,
     derivedFrom: [{ reference: `MedicationRequest/${String(verordnung.id)}` }],
-    // Die Dosierung wird in die Medikationsinformation kopiert (IG 1.3.5, Verknüpfungslogik).
-    dosage: dosierung,
   };
+  // Die Dosierung wird samt Text in die Medikationsinformation kopiert (Verknüpfungslogik).
+  if (Array.isArray(dosierung) && dosierung.length > 0) {
+    mitDosierung(verordnung, 'dosageInstruction', dosierung as Record<string, unknown>[]);
+    mitDosierung(aussage, 'dosage', dosierung as Record<string, unknown>[]);
+  }
   liste.push(medication, verordnung, aussage);
   aktivitaetAnlegen(
     liste,
@@ -280,6 +289,30 @@ function verschreibungStornieren(r: Rezept): void {
 export type Abgabeart = 'wie-verordnet' | 'austausch' | 'mehrfach';
 
 /** Halbiert eine Stärke im Namen und verdoppelt das Viererschema — für den Austausch. */
+/** Viererschema einer strukturierten Dosierung als „1-0-1-0", sonst leer. */
+function viererschema(dosierungen: unknown): string {
+  const d = dosierungAusFhir(dosierungen);
+  return d?.schema.art === 'tageszeiten'
+    ? d.schema.mengen.map((m) => String(m).replace('.', ',')).join('-')
+    : '';
+}
+
+/** Dosierung samt Text für eine Ressource des Dienstes (1.4.0-ballot.1). */
+function mitDosierung(
+  r: Ressource,
+  feld: 'dosageInstruction' | 'dosage',
+  dosierungen: Record<string, unknown>[],
+) {
+  const typ = r.resourceType as 'MedicationRequest' | 'MedicationStatement' | 'MedicationDispense';
+  r[feld] = dosierungen;
+  r.extension = [
+    ...((r.extension ?? []) as { url: string }[]).filter(
+      (e) => e.url !== TEXT_EXTENSION.gerendert(typ) && e.url !== TEXT_EXTENSION.generiert,
+    ),
+    ...textErweiterungen(typ, dosierungen),
+  ];
+}
+
 function austauschen(text: string, dosierung: string): { text: string; dosierung: string | null } {
   const staerke = /(\d+(?:,\d+)?)\s*mg/.exec(text);
   const schema = /^(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)$/.exec(
@@ -310,8 +343,7 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
   const verordnetesMittel = mitProzess(kvnr, 'Medication', prozess)[0];
   if (!verordnung || !aussage || !verordnetesMittel) return;
   const text = String((verordnetesMittel['code'] as { text?: string } | undefined)?.text ?? '');
-  const dosierungText =
-    (verordnung['dosageInstruction'] as { text?: string }[] | undefined)?.[0]?.text ?? '';
+  const dosierungText = viererschema(verordnung['dosageInstruction']);
   const coding = ((verordnetesMittel['code'] as { coding?: unknown[] } | undefined)?.coding ??
     []) as { system?: string }[];
 
@@ -367,8 +399,9 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
       authorizingPrescription: [{ reference: `MedicationRequest/${String(verordnung.id)}` }],
       whenHandedOver: heute,
       ...(art !== 'wie-verordnet' ? { substitution: { wasSubstituted: true } } : {}),
-      ...(p.dosierung ? { dosageInstruction: [{ text: p.dosierung }] } : {}),
     };
+    if (p.dosierung)
+      mitDosierung(a, 'dosageInstruction', dosierungNachFhir(dosierungAusText(p.dosierung)));
     mittel.push(m);
     abgaben.push(a);
   }
@@ -393,7 +426,12 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
   const plan = planeintragZu(kvnr, aussage);
   if (plan && abgaben.length === 1) {
     plan['medicationReference'] = { reference: `Medication/${String(mittel[0]!.id)}` };
-    if (produkte[0]!.dosierung) plan['dosageInstruction'] = [{ text: produkte[0]!.dosierung }];
+    if (produkte[0]!.dosierung)
+      mitDosierung(
+        plan,
+        'dosageInstruction',
+        dosierungNachFhir(dosierungAusText(produkte[0]!.dosierung)),
+      );
     fortschreiben(plan, zeit);
     aktivitaetAnlegen(liste, [versionierterVerweis(plan)], APOTHEKE, 'UPDATE', zeit);
     chronologieAnlegen(liste, EMP, APOTHEKE, zeit);

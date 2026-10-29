@@ -2,7 +2,16 @@ import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
-import { EPS, patientSummaryLesen } from '@demo-pvs/kern';
+import {
+  EPS,
+  STUECK,
+  dosierungAusText,
+  grundId,
+  patientSummaryLesen,
+  planeintragLesen,
+  planeintragNachFhir,
+  textErweiterungen,
+} from '@demo-pvs/kern';
 
 /**
  * Der Simulator von außen, über `inject`: Kopfzeilen der generellen Prinzipien
@@ -94,7 +103,8 @@ function neuerEintrag(lesenachweis?: string) {
           status: 'active',
           intent: 'plan',
           authoredOn: '2026-09-27',
-          dosageInstruction: [{ text: '1-0-0' }],
+          extension: textErweiterungen('MedicationRequest', [{ text: 'morgens eine' }]),
+          dosageInstruction: [{ text: 'morgens eine' }],
         },
       },
       {
@@ -822,5 +832,145 @@ describe('✦ Unklare Beschriftung und Kontaktauskunft', () => {
       url: `${KONTAKT}/einrichtung?name=${encodeURIComponent('AGP am Markt')}`,
     });
     expect(abkuerzung.statusCode).toBe(404);
+  });
+});
+
+describe('Medication Service — Ballot 1.4.0', () => {
+  /** `$add-emp-entry` mit einem Planeintrag, wie ihn das Praxissystem baut. */
+  async function anlegen(
+    eintrag: Record<string, unknown>,
+    zusatz: { name: string; resource: unknown }[] = [],
+  ) {
+    const p = neuerEintrag(await planLesen());
+    const parameterliste = p.parameter.map((x) =>
+      x.name === 'empEntry' ? { ...x, resource: eintrag } : x,
+    );
+    return app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/$add-emp-entry`,
+      headers: kopf(),
+      payload: { ...p, parameter: [...parameterliste, ...zusatz] },
+    });
+  }
+  const diagnose = {
+    id: 'dx-1',
+    patientId: 'p-hoffmann',
+    code: 'I10.90',
+    bezeichnung: 'Essentielle Hypertonie',
+  } as const;
+  const eintrag = (dosierung = dosierungAusText('1-0-1-0')) =>
+    planeintragNachFhir({
+      kvnr: HOFFMANN,
+      datum: '2026-10-29',
+      dosierung,
+      grund: 'Blutdruck',
+      grundDiagnose: diagnose,
+    });
+  const grund = {
+    name: 'reasonCondition',
+    resource: {
+      resourceType: 'Condition',
+      id: grundId(diagnose),
+      code: {
+        coding: [
+          {
+            system: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm',
+            version: '2026',
+            code: 'I10.90',
+            display: 'Essentielle Hypertonie',
+          },
+        ],
+      },
+      subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
+    },
+  };
+
+  it('nimmt eine strukturierte Dosierung mit Text an, legt den Grund an und setzt die Kategorie', async () => {
+    const a = await anlegen(eintrag(), [grund]);
+    expect(a.statusCode).toBe(200);
+    const p = a.json().parameter as Parameter[];
+    const neu = parameter(p, 'empEntry')!;
+    const angelegt = parameter(p, 'reasonCondition')!;
+    expect(angelegt.id).not.toBe(grundId(diagnose));
+    expect((neu as Record<string, unknown>)['reasonReference']).toEqual([
+      { reference: `Condition/${String(angelegt.id)}`, display: 'Essentielle Hypertonie' },
+    ]);
+    expect(planeintragLesen(neu, [angelegt])).toMatchObject({
+      dosierung: 'täglich: 1-0-1-0 Stück',
+      grund: 'Blutdruck',
+      grundDiagnose: { code: 'I10.90' },
+      kategorie: 'daily',
+    });
+    // Der Plan liefert den Grund mit.
+    const plan = await app.inject({
+      method: 'GET',
+      url: `${MEDIKATION}/$medication-plan`,
+      headers: kopf(),
+    });
+    const ressourcen = (plan.json().entry as { resource: Record<string, unknown> }[]).map(
+      (e) => e.resource,
+    );
+    expect(ressourcen.some((r) => r['id'] === angelegt.id)).toBe(true);
+  });
+
+  it('lehnt einen abweichenden Dosierungstext mit dem erwarteten ab', async () => {
+    const falsch = eintrag();
+    falsch.extension = falsch.extension!.map((e) =>
+      e.url.endsWith('renderedDosageInstruction') ? { ...e, valueMarkdown: '1-0-1-0' } : e,
+    );
+    const a = await anlegen(falsch);
+    expect(a.statusCode).toBe(400);
+    const issue = a.json().issue[0];
+    expect(issue.details.coding[0].code).toBe('SVC_DOSAGE_INVALID_RENDERED_INSTRUCTION');
+    expect(issue.extension[0]).toEqual({
+      url: 'https://gematik.de/fhir/ti/StructureDefinition/expected-dosage-text',
+      valueString: 'täglich: 1-0-1-0 Stück',
+    });
+  });
+
+  it('lehnt eine andere Algorithmusversion ab', async () => {
+    const alt = eintrag();
+    alt.extension = alt.extension!.map((e) =>
+      e.url.endsWith('GeneratedDosageInstructionsMeta')
+        ? {
+            ...e,
+            extension: [
+              { url: 'algorithmVersion', valueString: '1.0.1' },
+              { url: 'language', valueCode: 'de-DE' },
+            ],
+          }
+        : e,
+    );
+    const a = await anlegen(alt);
+    expect(a.statusCode).toBe(400);
+    expect(a.json().issue[0].details.coding[0].code).toBe('SVC_DOSAGE_INVALID_INSTRUCTION_META');
+  });
+
+  it('weist Viererschema als Freitext und reasonCode als Strukturfehler ab', async () => {
+    const frei = { ...eintrag(), dosageInstruction: [{ text: '1-0-1-0' }] };
+    expect((await anlegen(frei)).statusCode).toBe(422);
+    const mitCode = { ...eintrag(), reasonCode: [{ text: 'Hypertonie' }] };
+    expect((await anlegen(mitCode)).statusCode).toBe(422);
+  });
+
+  it('übernimmt die Kategorie des Primärsystems nur bei nicht auswertbarer Dosierung', async () => {
+    const frei = planeintragNachFhir({
+      kvnr: HOFFMANN,
+      datum: '2026-10-29',
+      dosierung: { schema: { art: 'freitext', text: 'nach Blutzucker' }, einheit: STUECK },
+      grund: null,
+      kategorie: 'as-needed',
+    });
+    const a = await anlegen(frei);
+    expect(planeintragLesen(parameter(a.json().parameter, 'empEntry')!).kategorie).toBe(
+      'as-needed',
+    );
+    const strukturiert = eintrag();
+    strukturiert.extension!.push({
+      url: 'https://gematik.de/fhir/epa/StructureDefinition/emp-category-extension',
+      valueCode: 'as-needed',
+    });
+    const b = await anlegen(strukturiert);
+    expect(planeintragLesen(parameter(b.json().parameter, 'empEntry')!).kategorie).toBe('daily');
   });
 });

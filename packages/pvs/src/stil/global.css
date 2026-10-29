@@ -3050,3 +3050,38 @@ td.split-mitte .marker {
   border-style: dashed;
   font-family: var(--schrift);
 }
+
+/* Dosierung als morgens-mittags-abends-nachts-Tabelle (IG Medication Service 1.4.0-ballot.1) */
+.dosisschema {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+.dosisschema table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+}
+.dosisschema th {
+  font-size: 0.7rem;
+  font-weight: 400;
+  color: var(--text-sehr-leise);
+  padding: 0 4px;
+  border: none;
+}
+.dosisschema td {
+  padding: 1px 4px;
+  text-align: center;
+  border: 1px solid var(--linie);
+  min-width: 1.6em;
+}
+table.liste tr.gruppe th {
+  background: var(--flaeche2);
+  color: var(--text-leise);
+  font-weight: 600;
+  text-align: left;
+}
+.code.dosistext {
+  white-space: normal;
+  display: inline-block;
+  max-width: 34ch;
+}
