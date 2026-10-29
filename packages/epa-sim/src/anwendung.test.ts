@@ -105,6 +105,8 @@ function neuerEintrag(lesenachweis?: string) {
           resourceType: 'MedicationRequest',
           status: 'active',
           intent: 'plan',
+          medicationReference: { reference: 'Medication/neu-1' },
+          subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
           authoredOn: '2026-09-27',
           extension: textErweiterungen('MedicationRequest', [{ text: 'morgens eine' }]),
           dosageInstruction: [{ text: 'morgens eine' }],
@@ -117,6 +119,13 @@ function neuerEintrag(lesenachweis?: string) {
             name: 'resource',
             resource: {
               resourceType: 'Medication',
+              extension: [
+                {
+                  url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/context-extension',
+                  valueCode: 'EMP',
+                },
+              ],
+              id: 'neu-1',
               code: {
                 coding: [
                   {
@@ -868,6 +877,7 @@ describe('Medication Service — Ballot 1.4.0', () => {
       dosierung,
       grund: 'Blutdruck',
       grundDiagnose: diagnose,
+      mittel: { reference: 'Medication/neu-1' },
     });
   const grund = {
     name: 'reasonCondition',
@@ -963,6 +973,7 @@ describe('Medication Service — Ballot 1.4.0', () => {
       dosierung: { schema: { art: 'freitext', text: 'nach Blutzucker' }, einheit: STUECK },
       grund: null,
       kategorie: 'as-needed',
+      mittel: { reference: 'Medication/neu-1' },
     });
     const a = await anlegen(frei);
     expect(planeintragLesen(parameter(a.json().parameter, 'empEntry')!).kategorie).toBe(
@@ -1001,6 +1012,7 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
           datum: '2026-10-29',
           dosierung: dosierungAusText('1-0-0-0'),
           grund: null,
+          mittel: { reference: 'Medication/neu-2' },
         }),
       },
       {
@@ -1010,6 +1022,13 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
             name: 'resource',
             resource: {
               resourceType: 'Medication',
+              extension: [
+                {
+                  url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/context-extension',
+                  valueCode: 'EMP',
+                },
+              ],
+              id: 'neu-2',
               code: {
                 coding: [{ system: ATC, version: '2026', code: 'C10AA05' }],
                 text: 'Atorvastatin 20 mg',
@@ -1029,6 +1048,7 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
           resourceType: 'MedicationStatement',
           extension: textErweiterungen('MedicationStatement', dosage),
           status: 'unknown',
+          medicationReference: { reference: 'Medication/nachtrag-1' },
           subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
           dosage,
         },
@@ -1037,6 +1057,7 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
         name: 'medication',
         resource: {
           resourceType: 'Medication',
+          id: 'nachtrag-1',
           status: 'active',
           code: {
             coding: [{ system: ATC, version: '2026', code: 'C10AA05' }],

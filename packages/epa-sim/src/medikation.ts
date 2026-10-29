@@ -7,6 +7,7 @@ import {
   automatischeKategorie,
   dosierungstext,
   gerenderterText,
+  profilPruefen,
   vollUrl,
   type EmpKategorie,
   type Ressource,
@@ -287,6 +288,32 @@ function empEintragPruefen(r: Ressource | undefined): string | null {
 type Json = Record<string, unknown>;
 
 /**
+ * Profilprüfung der Eingaben (IG 1.4.0-ballot.1: „Validate Input-Parameters … according to …
+ * profile"): die Regeln der Profile, ausgewertet im Kern (`profilPruefen`). Jeder Befund wird ein
+ * Eintrag im OperationOutcome mit dem Element als `expression`.
+ */
+function profilAbweisen(r: Ressource | undefined, profil: string, antwort: FastifyReply): boolean {
+  if (!r) return false;
+  const befunde = profilPruefen(r, profil);
+  if (befunde.length === 0) return false;
+  const details = detail(
+    'MEDSVC_NO_VALID_STRUCTURE',
+    'Invalid Data Structure in Medication Service',
+  );
+  void antwort.code(422).send({
+    ...operationOutcome('error', 'invalid', '', details),
+    issue: befunde.map((b) => ({
+      severity: 'error',
+      code: 'invariant',
+      details: { coding: [details] },
+      diagnostics: `${b.regel}: ${b.text}`,
+      ...(b.pfad ? { expression: [b.pfad] } : {}),
+    })),
+  });
+  return true;
+}
+
+/**
  * Prüfung der Dosierung nach `gemIG_TI_Common#Validierung` (IG 1.4.0-ballot.1, Geschäftslogik
  * von `$add-emp-entry`, `$update-emp-entry` und `$add-eml-entry`): Der Dienst erzeugt den Text
  * selbst neu und vergleicht ihn mit `renderedDosageInstruction`; bei Freitext muss derselbe Text
@@ -359,6 +386,12 @@ function dosierungAbweisen(r: Ressource, antwort: FastifyReply): boolean {
   } as (typeof ergebnis.issue)[0];
   void antwort.code(400).send(ergebnis);
   return true;
+}
+
+function gruendeAbweisen(koerper: unknown, antwort: FastifyReply): boolean {
+  return ((koerper as { parameter?: { name: string; resource?: Ressource }[] }).parameter ?? [])
+    .filter((p) => p.name === 'reasonCondition')
+    .some((p) => profilAbweisen(p.resource, PROFIL.grund, antwort));
 }
 
 /** Kategorie nach „Kategorisierung und Sortierung" (IG 1.4.0-ballot.1). */
@@ -839,6 +872,16 @@ export function medikationEinhaengen(
       void ungueltig(antwort, fehler);
       return null;
     }
+    if (
+      profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
+      profilAbweisen(
+        parameterLesen(koerper, 'medication')?.part?.find((p) => p.name === 'resource')?.resource,
+        PROFIL.empMedication,
+        antwort,
+      ) ||
+      gruendeAbweisen(koerper, antwort)
+    )
+      return null;
     if (eingang!['status'] === 'entered-in-error') {
       void statusUngueltig(antwort, 'Ein neuer eMP-Eintrag kann nicht fehlerhaft sein.');
       return null;
@@ -996,6 +1039,16 @@ export function medikationEinhaengen(
       void ungueltig(antwort, fehler);
       return null;
     }
+    if (
+      profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
+      profilAbweisen(
+        parameterLesen(koerper, 'medication')?.resource,
+        PROFIL.empMedication,
+        antwort,
+      ) ||
+      gruendeAbweisen(koerper, antwort)
+    )
+      return null;
     // Geschäftslogik IG 1.4.0-ballot.1: unbekannt 404, Fassung nicht aktuell 409, Kontext nicht
     // EMP 405, fehlerhafter Eintrag und fehlerhaftes Arzneimittel 400.
     if (!vorhanden) {
@@ -1215,6 +1268,11 @@ export function medikationEinhaengen(
     if (!aussage || aussage.resourceType !== 'MedicationStatement') {
       return ungueltig(antwort, 'Es fehlt eine MedicationStatement-Ressource.');
     }
+    if (
+      profilAbweisen(aussage, PROFIL.aussage, antwort) ||
+      profilAbweisen(mittel, PROFIL.medication, antwort)
+    )
+      return antwort;
     // Geschäftslogik IG 1.4.0-ballot.1: Arzneimittel `active`, Nachtrag `unknown`.
     if (mittel!['status'] !== 'active')
       return statusUngueltig(antwort, 'Das Arzneimittel eines Nachtrags muss aktiv sein.');

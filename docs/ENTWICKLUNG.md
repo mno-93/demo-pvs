@@ -86,6 +86,15 @@ node werkzeuge/scans/seite-fotografieren.mjs werkzeuge/scans/medikationsuebersic
 python3 werkzeuge/scans/als-scan.py /tmp/vorbefund.png /tmp/uebersicht.png
 ```
 
+## Profilregeln
+
+Der Simulator prüft Eingaben des Medication Service mit den Regeln der Profile (ADR 0048). Neu
+erzeugen, wenn sich ein Paket ändert: Version in `werkzeuge/profilregeln-erzeugen.mjs` anpassen,
+dann `node werkzeuge/profilregeln-erzeugen.mjs`. Das Skript liest den Paketcache
+(`~/.fhir/packages`, sonst `FHIR_PAKETE`) und lädt nichts herunter; die Pakete holt der
+FHIR-Validator beim ersten Lauf. Die Selbstprüfung in `medikation-pruefungen.test.ts` zeigt, ob der
+Startbestand die neuen Regeln erfüllt.
+
 ## FHIR-Validator
 
 `fhirPruefen` läuft in jedem Testlauf, kennt aber nur ausgewählte Regeln (DATENMODELL, Abschnitt 6).
@@ -280,6 +289,8 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P78 | Schema „Freitext“ mit „1-0-1-0“ → Marker DosageFourSlotPatternInText, Aufnehmen gesperrt; Metformin aus der Liste „in den Plan“ → Dosierung als Tabelle                                                                                               |
 | P79 | Frau Hoffmann nach eGK → „Medikation“ → „Zwischenüberschriften“ abwählen → Gruppe nur „aktiv“; wieder anwählen → Kategorien                                                                                                                           |
 | P80 | Medikation offen, dann fremde Einträge (Konfiguration) → Karteikarte → Medikation: „1 neu · 1 geändert“, Abfrage über `/epa/query/api/v1/fhir/Provenance`                                                                                             |
+| P81 | Frau Hoffmann nach eGK → „Medikation“ → „pausieren“ an einem Eintrag: Plan zeigt „pausiert · Jeden Tag“ (Profilprüfung und Fassung bestanden)                                                                                                         |
+| P82 | „neuer Planeintrag“ mit Diagnose als Grund → „In den Plan aufnehmen“; Metformin aus der Liste „in den Plan“ → „übernehmen“: alle Schreibungen 200                                                                                                     |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

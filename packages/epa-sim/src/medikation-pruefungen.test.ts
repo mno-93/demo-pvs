@@ -76,6 +76,7 @@ const eintrag = () =>
     datum: '2026-10-29',
     dosierung: dosierungAusText('1-0-0-0'),
     grund: null,
+    mittel: { reference: 'Medication/neu-1' },
   });
 const mittelParameter = (part: unknown) => ({ name: 'medication', part: [part] });
 
@@ -109,6 +110,13 @@ describe('Medication Service 1.4.0 — Prüfungen je Operation', () => {
         name: 'resource',
         resource: {
           resourceType: 'Medication',
+          id: 'neu-1',
+          extension: [
+            {
+              url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/context-extension',
+              valueCode: 'EMP',
+            },
+          ],
           code: { coding: [{ system: ATC, version: '2026', code: 'C10AA05' }] },
         },
       }),
@@ -172,6 +180,8 @@ describe('Medication Service 1.4.0 — Prüfungen je Operation', () => {
         resource: {
           resourceType: 'MedicationStatement',
           status: 'unknown',
+          medicationReference: { reference: 'Medication/nachtrag-1' },
+          subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
           dosage: [{ text: 'nach Bedarf' }],
           extension: [
             {
@@ -185,6 +195,7 @@ describe('Medication Service 1.4.0 — Prüfungen je Operation', () => {
         name: 'medication',
         resource: {
           resourceType: 'Medication',
+          id: 'nachtrag-1',
           status: 'active',
           code: { coding: [{ system: ATC, version: '2026', code: 'N02BE01' }] },
         },
@@ -208,6 +219,32 @@ describe('Medication Service 1.4.0 — Prüfungen je Operation', () => {
     const a = await post(`${MS}/MedicationStatement/$add-eml-entry`, [
       {
         name: 'medicationStatement',
+        resource: {
+          resourceType: 'MedicationStatement',
+          // Vom Profil zugelassen, aber nicht `unknown`: Die Statusprüfung folgt auf die Profilprüfung.
+          // (`intended` weist schon das Profil ab, Invariante epa-med-statement-status.)
+          status: 'entered-in-error',
+          medicationReference: { reference: 'Medication/nachtrag-1' },
+          subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
+        },
+      },
+      {
+        name: 'medication',
+        resource: {
+          resourceType: 'Medication',
+          id: 'nachtrag-1',
+          status: 'active',
+          code: { coding: [{ system: ATC, version: '2026', code: 'N02BE01' }] },
+        },
+      },
+    ]);
+    expect([a.statusCode, detail(a)]).toEqual([400, 'MEDSVC_STATUS_INVALID']);
+  });
+
+  it('weist eine Eingabe gegen die Profilregeln mit allen Befunden ab', async () => {
+    const a = await post(`${MS}/MedicationStatement/$add-eml-entry`, [
+      {
+        name: 'medicationStatement',
         resource: { resourceType: 'MedicationStatement', status: 'active' },
       },
       {
@@ -219,7 +256,11 @@ describe('Medication Service 1.4.0 — Prüfungen je Operation', () => {
         },
       },
     ]);
-    expect([a.statusCode, detail(a)]).toEqual([400, 'MEDSVC_STATUS_INVALID']);
+    expect([a.statusCode, detail(a)]).toEqual([422, 'MEDSVC_NO_VALID_STRUCTURE']);
+    const texte = JSON.stringify(a.json().issue);
+    expect(texte).toContain('MedicationStatement.medication');
+    expect(texte).toContain('MedicationStatement.subject');
+    expect(texte).toContain('epa-medication-statement-status-vs');
   });
 
   it('lesende Operationen weisen unbekannte Parameter und falsche Werte ab', async () => {
@@ -263,5 +304,22 @@ describe('Common Query API — Suchparameter nach dem CapabilityStatement', () =
     const alle = await lesen(`${QUERY}/MedicationRequest?intent=plan`);
     const zwei = await lesen(`${QUERY}/MedicationRequest?intent=plan&_count=2&_offset=1`);
     expect(ids(zwei)).toEqual(ids(alle).slice(1, 3));
+  });
+});
+
+describe('Selbstprüfung gegen die Profilregeln', () => {
+  it('der Startbestand des Medication Service erfüllt die Profile, die er nennt', async () => {
+    const { alleBestaende } = await import('./bestand.ts');
+    const { profilPruefen, geprueftesProfil } = await import('@demo-pvs/kern');
+    const befunde = alleBestaende().flatMap((b) =>
+      b.medikation
+        .filter((r) => geprueftesProfil(String(r.meta?.profile?.[0] ?? '')))
+        .flatMap((r) =>
+          profilPruefen(r, String(r.meta!.profile![0])).map(
+            (f) => `${r.resourceType}/${String(r.id)} ${f.regel} ${f.pfad}`,
+          ),
+        ),
+    );
+    expect(befunde).toEqual([]);
   });
 });

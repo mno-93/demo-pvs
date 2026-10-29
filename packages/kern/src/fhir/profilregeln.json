@@ -1,0 +1,1735 @@
+{
+ "$kommentar": "Erzeugt mit werkzeuge/profilregeln-erzeugen.mjs aus den FHIR-Paketen — nicht von Hand ändern.",
+ "pakete": [
+  "de.gematik.epa#1.4.0-ballot.1",
+  "de.gematik.epa.medication#1.4.0-ballot.1",
+  "de.fhir.medication#2.0.0-ballot",
+  "de.gematik.ti#1.5.0-ballot.2",
+  "de.basisprofil.r4#1.6.0",
+  "kbv.all.st#1.48.0",
+  "hl7.terminology.r4#7.4.0",
+  "hl7.fhir.r4.core#4.0.1"
+ ],
+ "profile": {
+  "https://gematik.de/fhir/epa-medication/StructureDefinition/emp-medication-request": {
+   "version": "1.4.0",
+   "typ": "MedicationRequest",
+   "paket": "de.gematik.epa#1.4.0-ballot.1",
+   "invarianten": [
+    {
+     "pfad": "MedicationRequest",
+     "key": "dom-2",
+     "text": "If the resource is contained in another resource, it SHALL NOT contain nested Resources",
+     "ausdruck": "contained.contained.empty()"
+    },
+    {
+     "pfad": "MedicationRequest",
+     "key": "dom-3",
+     "text": "If the resource is contained in another resource, it SHALL be referred to from elsewhere in the resource or SHALL refer to the containing resource",
+     "ausdruck": "contained.where((('#'+id in (%resource.descendants().reference | %resource.descendants().as(canonical) | %resource.descendants().as(uri) | %resource.descendants().as(url))) or descendants().where(reference = '#').exists() or descendants().where(as(canonical) = '#').exists() or descendants().where(as(canonical) = '#').exists()).not()).trace('unmatched', id).empty()"
+    },
+    {
+     "pfad": "MedicationRequest",
+     "key": "dom-4",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a meta.versionId or a meta.lastUpdated",
+     "ausdruck": "contained.meta.versionId.empty() and contained.meta.lastUpdated.empty()"
+    },
+    {
+     "pfad": "MedicationRequest",
+     "key": "dom-5",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a security label",
+     "ausdruck": "contained.meta.security.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.subject",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.encounter",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.supportingInformation",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.authoredOn",
+     "key": "epa-datetime",
+     "text": "dateTime muss mindestens aus Tag, Monat und Jahr bestehen",
+     "ausdruck": "toString().matches('^([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\\\\.[0-9]+)?(Z|(\\\\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?$')"
+    },
+    {
+     "pfad": "MedicationRequest.requester",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.performer",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.recorder",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.basedOn",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.insurance",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "dos-1",
+     "text": "AsNeededFor can only be set if AsNeeded is empty or true",
+     "ausdruck": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').empty() or asNeeded.empty() or asNeeded"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageStructuredOrFreeText",
+     "text": "A dosage must be given either as free text only or as complete structured information only; mixing both is not allowed.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction | \n %resource.ofType(MedicationDispense).dosageInstruction | \n %resource.ofType(MedicationStatement).dosage).all(\n  (text.exists() and timing.empty() and doseAndRate.empty()) or\n  (text.empty() and (timing.exists() or doseAndRate.exists()))\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageStructuredRequiresBoth",
+     "text": "If a structured dosage is given, both timing and doseAndRate must be present. For pure as-needed dosages, doseAndRate may be given without timing.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction |\n %resource.ofType(MedicationDispense).dosageInstruction |\n %resource.ofType(MedicationStatement).dosage).all(\n  (timing.exists() implies doseAndRate.exists()) and\n  (doseAndRate.exists() implies (\n    timing.exists() or\n    asNeeded.ofType(boolean) = true or\n    extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').exists()\n  ))\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageStructuredRequiresGeneratedText",
+     "text": "If a structured dosage is present (doseAndRate populated, text empty, plus timing or a pure as-needed dosage), the GeneratedDosageInstructionsMeta extension must be present.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).exists(\n    text.empty() and doseAndRate.exists() and\n    (timing.exists() or asNeeded.ofType(boolean) = true)\n  )\n)\nimplies\n(\n%resource.extension.where(\n  url = 'http://ig.fhir.de/igs/medication/StructureDefinition/GeneratedDosageInstructionsMeta'\n).exists() and\n(\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n  ).exists() or\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n  ).exists() or\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n  ).exists()\n)\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "FreeTextSingleDosageOnly",
+     "text": "If a dosage is given as pure free text, there must be exactly one Dosage element.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).exists(text.exists() and timing.empty() and doseAndRate.empty())\n)\nimplies\n(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).count() = 1\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "FreeTextMatchesRenderedText",
+     "text": "If a dosage is given as pure free text (text present, timing and doseAndRate empty) AND the renderedDosageInstruction extension is populated, the value in dosageInstruction.text must match the value in the extension.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).where(text.exists() and timing.empty() and doseAndRate.empty()).exists()\n)\nimplies\n(\n  (\n    %resource.ofType(MedicationRequest).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n      ).value = %resource.dosageInstruction.text\n    )\n  ) or\n  (\n    %resource.ofType(MedicationDispense).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n      ).value = %resource.dosageInstruction.text\n    )\n  ) or\n  (\n    %resource.ofType(MedicationStatement).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n      ).value = %resource.dosage.text\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageDoseQuantityAllowedFractions",
+     "text": "Dose values in doseQuantity or doseRange must be whole numbers or use one of the following fractional parts: .25, .33, .5, .66 or .75.",
+     "ausdruck": "doseAndRate.all(\n  (\n    dose.ofType(Quantity).value.empty() or\n    dose.ofType(Quantity).value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n  and\n  (\n    dose.ofType(Range).low.value.empty() or\n    dose.ofType(Range).low.value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n  and\n  (\n    dose.ofType(Range).high.value.empty() or\n    dose.ofType(Range).high.value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageDoseUnitSameCode",
+     "text": "The dose unit must be the same across all dosages.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).all(\ndoseAndRate.exists() implies\n  (\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Quantity).code |\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Range).low.code |\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Range).high.code\n  ).distinct().count() = 1\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageDoseValueDecimalNotation",
+     "text": "Dose values in doseQuantity or doseRange must use plain decimal notation with at most two decimal places. Exponential notation (e.g. 50e-2 instead of 0.5) is not allowed.",
+     "ausdruck": "doseAndRate.all(\n  (\n    dose.ofType(Quantity).value.empty() or\n    dose.ofType(Quantity).value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n  and\n  (\n    dose.ofType(Range).low.value.empty() or\n    dose.ofType(Range).low.value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n  and\n  (\n    dose.ofType(Range).high.value.empty() or\n    dose.ofType(Range).high.value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageDoseValuePositive",
+     "text": "doseQuantity.value and doseRange.high.value must be greater than 0. The value 0 is additionally allowed for doseRange.low.value only.",
+     "ausdruck": "doseAndRate.all(\n  dose.ofType(Quantity).value.all($this > 0) and\n  dose.ofType(Range).low.value.all($this >= 0) and\n  dose.ofType(Range).high.value.all($this > 0)\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DosageFourSlotPatternInText",
+     "text": "A bare four-slot dosing schema (Viererschema, e.g. 1-0-1-0 or 1-0-1-0 Stück) must not be given as free text in Dosage.text; it has to be represented structurally.",
+     "ausdruck": "text.exists() implies text.matches('^\\\\s*\\\\d+([.,]\\\\d+)?(\\\\s*/\\\\s*\\\\d+)?(\\\\s*[-–]\\\\s*\\\\d+([.,]\\\\d+)?(\\\\s*/\\\\s*\\\\d+)?){3}(\\\\s*[A-Za-zÄÖÜäöüß().]+)?\\\\s*$').not()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "PatientInstructionIdentical",
+     "text": "If patientInstruction is used in a resource with multiple dosages, the field must be populated identically in all Dosage elements.",
+     "ausdruck": "(\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).patientInstruction.distinct().count() <= 1\n)\nand\n(\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).patientInstruction.exists()\n  )\n  implies\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).all(patientInstruction.exists())\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "MaxDoseSameUnitAsDose",
+     "text": "maxDosePerPeriod must use the same unit, code and system as doseQuantity.",
+     "ausdruck": "\n  maxDosePerPeriod.empty() or (\n    (\n      doseAndRate.dose.ofType(Quantity).exists() and\n      doseAndRate.dose.ofType(Quantity).system = maxDosePerPeriod.numerator.system and\n      doseAndRate.dose.ofType(Quantity).code = maxDosePerPeriod.numerator.code and\n      doseAndRate.dose.ofType(Quantity).unit = maxDosePerPeriod.numerator.unit\n    ) or (\n      doseAndRate.dose.ofType(Range).exists() and\n      (\n        doseAndRate.dose.ofType(Range).low.empty() or (\n          doseAndRate.dose.ofType(Range).low.system = maxDosePerPeriod.numerator.system and\n          doseAndRate.dose.ofType(Range).low.code = maxDosePerPeriod.numerator.code and\n          doseAndRate.dose.ofType(Range).low.unit = maxDosePerPeriod.numerator.unit\n        )\n      ) and (\n        doseAndRate.dose.ofType(Range).high.empty() or (\n          doseAndRate.dose.ofType(Range).high.system = maxDosePerPeriod.numerator.system and\n          doseAndRate.dose.ofType(Range).high.code = maxDosePerPeriod.numerator.code and\n          doseAndRate.dose.ofType(Range).high.unit = maxDosePerPeriod.numerator.unit\n        )\n      )\n    )\n  )\n"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "MaxDosePerPeriodOnly24hOr1d",
+     "text": "maxDosePerPeriod is only allowed with a reference period of 24 hours (24 h) or 1 day (1 d). Other periods (e.g. at most 3 every 6 h) are not allowed.",
+     "ausdruck": "maxDosePerPeriod.empty() or (\n  (maxDosePerPeriod.denominator.value = 24 and maxDosePerPeriod.denominator.code = 'h') or\n  (maxDosePerPeriod.denominator.value = 1 and maxDosePerPeriod.denominator.code = 'd')\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "MaxDoseOnlyPureAsNeeded",
+     "text": "A maximum amount (maxDosePerPeriod) may only be given for a pure as-needed dosage: asNeededBoolean = true and no timing. A structured rhythm already determines how much is applied within the reference period.",
+     "ausdruck": "maxDosePerPeriod.exists() implies (asNeeded.ofType(boolean) = true and timing.empty())"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DoseRangeHighRequiredWhenLowPresent",
+     "text": "If a lower bound is given for doseRange, an upper bound must be given as well.",
+     "ausdruck": "doseAndRate.dose.ofType(Range).low.empty() or doseAndRate.dose.ofType(Range).high.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "DoseRangeLowAndHighSameUnit",
+     "text": "The lower and upper bound of a variable single dose must use the same unit of measure.",
+     "ausdruck": "doseAndRate.dose.ofType(Range).low.empty()\nor doseAndRate.dose.ofType(Range).high.empty()\nor (\n  doseAndRate.dose.ofType(Range).low.system = doseAndRate.dose.ofType(Range).high.system\n  and doseAndRate.dose.ofType(Range).low.code = doseAndRate.dose.ofType(Range).high.code\n  and doseAndRate.dose.ofType(Range).low.unit = doseAndRate.dose.ofType(Range).high.unit\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "MinimumIntervalOnlyPureAsNeeded",
+     "text": "A minimum interval between two single administrations (Mindestabstand) may only be given for a pure as-needed dosage: asNeededBoolean = true and no timing. A structured rhythm already determines the spacing between administrations; a second, weaker lower bound next to it is contradictory.",
+     "ausdruck": "modifierExtension.where(url='http://ig.fhir.de/igs/medication/StructureDefinition/MinimumIntervalBetweenAdministrations').exists() implies (asNeeded.ofType(boolean) = true and timing.empty())"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "AsNeededForRequiresAsNeeded",
+     "text": "A reason for use (asNeededFor) may only be given for an as-needed dosage (asNeededBoolean = true).",
+     "ausdruck": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').exists() implies asNeeded.ofType(boolean) = true"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "AsNeededSingleDosageOnly",
+     "text": "If an as-needed dosage with asNeededBoolean = true is given without timing, exactly one Dosage element must exist in the resource.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).where(\n  asNeeded.ofType(boolean) = true and timing.empty()\n).exists()\nimplies\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).count() = 1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "AsNeededIdentical",
+     "text": "The as-needed flag (asNeededBoolean) must be populated identically across all Dosage elements of a resource.",
+     "ausdruck": "(\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).asNeeded.ofType(boolean).distinct().count() <= 1\n)\nand\n(\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).asNeeded.ofType(boolean).exists()\n  )\n  implies\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).all(asNeeded.ofType(boolean).exists())\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "AsNeededForIdentical",
+     "text": "The reason for use (asNeededFor) must be populated identically across all Dosage elements of a resource. Multiple reasons per element are allowed but must then match in every element.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  extension.where(\n    url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor'\n  ).value.ofType(CodeableConcept).text.distinct().count()\n  =\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).extension.where(\n    url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor'\n  ).value.ofType(CodeableConcept).text.distinct().count()\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction",
+     "key": "MinimumIntervalUnitMatchesCode",
+     "text": "The display unit of the minimum interval (valueDuration.unit) must match the UCUM code (e.g. 'Stunde(n)' only with code='h').",
+     "ausdruck": "modifierExtension.where(\n  url='http://ig.fhir.de/igs/medication/StructureDefinition/MinimumIntervalBetweenAdministrations'\n).value.ofType(Duration).all(\n  (\n    code = 'min'\n    implies\n    (unit = 'Minute(n)' or unit = 'Minute' or unit = 'Minuten')\n  ) and (\n    code = 'h'\n    implies\n    (unit = 'Stunde(n)' or unit = 'Stunde' or unit = 'Stunden')\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-1",
+     "text": "if there's a duration, there needs to be duration units",
+     "ausdruck": "duration.empty() or durationUnit.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-2",
+     "text": "if there's a period, there needs to be period units",
+     "ausdruck": "period.empty() or periodUnit.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-4",
+     "text": "duration SHALL be a non-negative value",
+     "ausdruck": "duration.exists() implies duration >= 0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-5",
+     "text": "period SHALL be a non-negative value",
+     "ausdruck": "period.exists() implies period >= 0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-6",
+     "text": "If there's a periodMax, there must be a period",
+     "ausdruck": "periodMax.empty() or period.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-7",
+     "text": "If there's a durationMax, there must be a duration",
+     "ausdruck": "durationMax.empty() or duration.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-8",
+     "text": "If there's a countMax, there must be a count",
+     "ausdruck": "countMax.empty() or count.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-9",
+     "text": "If there's an offset, there must be a when (and not C, CM, CD, CV)",
+     "ausdruck": "offset.empty() or (when.exists() and ((when in ('C' | 'CM' | 'CD' | 'CV')).not()))"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "tim-10",
+     "text": "If there's a timeOfDay, there cannot be a when, or vice versa",
+     "ausdruck": "timeOfDay.empty() or when.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneType",
+     "text": "Exactly one of the supported timing schemas is allowed. With dayOfWeek, frequency and the pair period = 1 and periodUnit = wk are optional redundant legacy statements; they do not constitute an interval schema. With when or timeOfDay, frequency is optional; a non-daily period distinguishes the daily schema from a time interval combined with a time-of-day or clock-time reference. A variable frequency (frequencyMax) is reserved for the pure interval, because concrete times or weekdays already determine the number of administrations.",
+     "ausdruck": "/* DayOfWeek only; legacy frequency and the exact 1 wk pair are optional */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  timing.repeat.dayOfWeek.exists() and\n  timing.repeat.when.empty() and\n  timing.repeat.timeOfDay.empty() and\n  timing.repeat.frequencyMax.empty() and\n  timing.repeat.periodMax.empty() and\n  (\n    (timing.repeat.period.empty() and timing.repeat.periodUnit.empty()) or\n    (timing.repeat.period = 1 and timing.repeat.periodUnit = 'wk')\n  )\n) or\n\n/* Interval only (frequency + period + periodUnit, no when/timeOfDay/dayOfWeek) */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  timing.repeat.frequency.exists() and\n  timing.repeat.period.exists() and\n  timing.repeat.periodUnit.exists() and\n  timing.repeat.when.empty() and\n  timing.repeat.timeOfDay.empty() and\n  timing.repeat.dayOfWeek.empty()\n) or\n\n/* DayOfWeek and Time/4-Schema; legacy frequency and the exact 1 wk pair are optional */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction | \n  %resource.ofType(MedicationDispense).dosageInstruction | \n  %resource.ofType(MedicationStatement).dosage\n).all(\n  timing.repeat.dayOfWeek.exists() and\n  (\n    (timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()) or\n    (timing.repeat.when.exists() and timing.repeat.timeOfDay.empty())\n  ) and\n  timing.repeat.frequencyMax.empty() and\n  timing.repeat.periodMax.empty() and\n  (\n    (timing.repeat.period.empty() and timing.repeat.periodUnit.empty()) or\n    (timing.repeat.period = 1 and timing.repeat.periodUnit = 'wk')\n  )\n) or\n\n/* Daily When or TimeOfDay; frequency is optional, a variable frequency is not */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  timing.repeat.dayOfWeek.empty() and\n  (\n    (timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()) or\n    (timing.repeat.when.exists() and timing.repeat.timeOfDay.empty())\n  ) and\n  timing.repeat.frequencyMax.empty() and\n  timing.repeat.periodMax.empty() and\n  (\n    (timing.repeat.period.empty() and timing.repeat.periodUnit.empty()) or\n    (timing.repeat.period = 1 and timing.repeat.periodUnit = 'd')\n  )\n) or\n\n/* Non-daily interval combined with When or TimeOfDay; frequency is optional, a\n   variable frequency is not */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  timing.repeat.dayOfWeek.empty() and\n  (\n    (timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()) or\n    (timing.repeat.when.exists() and timing.repeat.timeOfDay.empty())\n  ) and\n  timing.repeat.frequencyMax.empty() and\n  timing.repeat.period.exists() and\n  timing.repeat.periodUnit.exists() and\n  (timing.repeat.periodUnit = 'd' or timing.repeat.periodUnit = 'wk' or timing.repeat.periodUnit = 'mo') and\n  (\n    timing.repeat.periodUnit != 'd' or\n    timing.repeat.period != 1 or\n    timing.repeat.periodMax.exists()\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingIntervalOnlyOneFrequency",
+     "text": "If a dosage is defined by a pure interval, only one Dosage element is allowed in the resource.",
+     "ausdruck": "( /* Detect Interval */\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n)\n.all(\n  (\n    timing.repeat.frequency.exists()\n    and timing.repeat.period.exists()\n    and timing.repeat.periodUnit.exists()\n    and timing.repeat.when.empty()\n    and timing.repeat.timeOfDay.empty()\n    and timing.repeat.dayOfWeek.empty()\n  )\n  /* Only One Dosage allowed for Interval */\n  implies\n  (\n    (\n      (\n        %resource.ofType(MedicationRequest).exists()\n        or %resource.ofType(MedicationDispense).exists()\n      )\n      implies (\n        %resource.dosageInstruction.count() = 1\n      )\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      %resource.dosage.count() = 1\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneWhen",
+     "text": "In a schema that uses only when, no part of the day may occur in more than one Dosage element of a resource.",
+     "ausdruck": "( /* Detect when-based schema */\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n    timing.repeat.dayOfWeek.empty() and\n    timing.repeat.when.exists() and\n    timing.repeat.timeOfDay.empty()\n  implies\n  (\n    (\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      (%resource.dosageInstruction.timing.repeat.when.distinct().count() = %resource.dosageInstruction.timing.repeat.when.count())\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      (%resource.dosage.timing.repeat.when.distinct().count() = %resource.dosage.timing.repeat.when.count())\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyWhenOrTimeOfDay",
+     "text": "The Dosage elements of a resource must not mix a time of day (timeOfDay) and a part of the day (when).",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n    (timing.repeat.when.exists() or \n    timing.repeat.timeOfDay.exists())\n  implies\n  (\n    (\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      (%resource.dosageInstruction.timing.repeat.when.exists() xor %resource.dosageInstruction.timing.repeat.timeOfDay.exists())\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      (%resource.dosage.timing.repeat.when.exists() xor %resource.dosage.timing.repeat.timeOfDay.exists())\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneTimeOfDay",
+     "text": "In a schema that uses only timeOfDay, no time of day may occur in more than one Dosage element of a resource.",
+     "ausdruck": "( /* Detect TimeOfDay */\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n  (\n    timing.repeat.dayOfWeek.empty() and\n    timing.repeat.timeOfDay.exists() and\n    timing.repeat.when.empty() \n  )\n  implies\n  (\n    (\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      (%resource.dosageInstruction.timing.repeat.timeOfDay.distinct().count() = %resource.dosageInstruction.timing.repeat.timeOfDay.count())\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      (%resource.dosage.timing.repeat.timeOfDay.distinct().count() = %resource.dosage.timing.repeat.timeOfDay.count())\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneDayOfWeek",
+     "text": "In a schema that uses only dayOfWeek, no weekday may occur in more than one Dosage element of a resource.",
+     "ausdruck": "( /* Detect DayOfWeek */\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n  (\n    timing.repeat.dayOfWeek.exists() and\n    timing.repeat.when.empty() and \n    timing.repeat.timeOfDay.empty()\n  )\n  implies\n  (\n    (\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      (%resource.dosageInstruction.timing.repeat.dayOfWeek.distinct().count() = %resource.dosageInstruction.timing.repeat.dayOfWeek.count())\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      (%resource.dosage.timing.repeat.dayOfWeek.distinct().count() = %resource.dosage.timing.repeat.dayOfWeek.count())\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneTimeForInterval",
+     "text": "In a schema that combines an interval with timeOfDay or when, all Dosage elements of a resource must use the same period and periodUnit, and each timeOfDay or when value must be unique across them.",
+     "ausdruck": "/* Detect Interval and Time/4-Schema */\n(\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n)\n.all(\n  (\n    timing.repeat.period.exists() and\n    timing.repeat.periodUnit.exists() and\n    timing.repeat.dayOfWeek.empty() and\n    (\n      (timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()) or\n      (timing.repeat.when.exists() and timing.repeat.timeOfDay.empty())\n    )\n  )\n  implies\n  (\n    (\n      %resource.ofType(MedicationRequest).exists()\n      or %resource.ofType(MedicationDispense).exists()\n    )\n    implies\n    (\n      %resource.dosageInstruction.timing.repeat.period.distinct().count() = 1\n      and %resource.dosageInstruction.timing.repeat.periodUnit.distinct().count() = 1\n    )\n    and\n    (\n      (%resource.dosageInstruction.timing.repeat.timeOfDay.distinct().count() = %resource.dosageInstruction.timing.repeat.timeOfDay.count())\n      and\n      (%resource.dosageInstruction.timing.repeat.when.distinct().count() = %resource.dosageInstruction.timing.repeat.when.count())\n    )\n  )\n  and\n  (\n    %resource.ofType(MedicationStatement).exists()\n    implies\n    (\n      (\n        %resource.dosage.timing.repeat.period.distinct().count() = 1\n        and %resource.dosage.timing.repeat.periodUnit.distinct().count() = 1\n      )\n      and\n      (\n        (%resource.dosage.timing.repeat.timeOfDay.distinct().count() = %resource.dosage.timing.repeat.timeOfDay.count())\n        and\n        (%resource.dosage.timing.repeat.when.distinct().count() = %resource.dosage.timing.repeat.when.count())\n      )\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingOnlyOneBounds",
+     "text": "All Dosage elements of a resource must state the same bounds (Duration or Period), and either all of them carry a bounds or none.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n  (\n    ( /* only one different value and code are allowed*/\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      %resource.dosageInstruction.timing.repeat.bounds.ofType(Duration).exists().not() or\n      (\n        (%resource.dosageInstruction.timing.repeat.bounds.ofType(Duration).value.distinct().count() = 1)\n        and\n        (%resource.dosageInstruction.timing.repeat.bounds.ofType(Duration).code.distinct().count() = 1)\n      )\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      %resource.dosage.timing.repeat.bounds.ofType(Duration).exists().not() or\n      (\n        (%resource.dosage.timing.repeat.bounds.ofType(Duration).value.distinct().count() = 1)\n        and\n        (%resource.dosage.timing.repeat.bounds.ofType(Duration).code.distinct().count() = 1)\n      )\n    )\n    and\n    ( /* boundsPeriod: Start und Ende müssen ebenfalls über alle Dosierungen gleich sein.\n         Die Textgenerierung liest den Zeitrahmen nur aus dem ersten Dosage-Element. */\n      (%resource.ofType(MedicationRequest).exists() or %resource.ofType(MedicationDispense).exists())\n      implies\n      %resource.dosageInstruction.timing.repeat.bounds.ofType(Period).exists().not() or\n      (\n        (%resource.dosageInstruction.timing.repeat.bounds.ofType(Period).start.distinct().count() <= 1)\n        and\n        (%resource.dosageInstruction.timing.repeat.bounds.ofType(Period).end.distinct().count() <= 1)\n      )\n    )\n    and\n    (\n      %resource.ofType(MedicationStatement).exists()\n      implies\n      %resource.dosage.timing.repeat.bounds.ofType(Period).exists().not() or\n      (\n        (%resource.dosage.timing.repeat.bounds.ofType(Period).start.distinct().count() <= 1)\n        and\n        (%resource.dosage.timing.repeat.bounds.ofType(Period).end.distinct().count() <= 1)\n      )\n    )\n  )\n  and\n  ( /* Entweder alle Dosage-Elemente tragen einen Zeitrahmen oder keines. Die\n       Textgenerierung liest ihn nur aus dem ersten Element; ein Element ohne\n       Zeitrahmen wuerde sonst stillschweigend als begrenzt dargestellt. */\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction |\n        %resource.ofType(MedicationDispense).dosageInstruction |\n        %resource.ofType(MedicationStatement).dosage\n      ).timing.repeat.bounds.exists()\n    )\n    implies\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction |\n        %resource.ofType(MedicationDispense).dosageInstruction |\n        %resource.ofType(MedicationStatement).dosage\n      ).all(timing.repeat.bounds.exists())\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingFrequencyCount",
+     "text": "If frequency is given together with when, timeOfDay or dayOfWeek, its value must match the number of concrete administrations.",
+     "ausdruck": "(when.exists() and dayOfWeek.empty() and frequency.exists() implies when.count() = frequency)\nand\n(when.exists() and dayOfWeek.exists() and frequency.exists() implies (when.count() * dayOfWeek.count()) = frequency)\nand\n(timeOfDay.exists() and dayOfWeek.empty() and frequency.exists() implies timeOfDay.count() = frequency)\nand\n(timeOfDay.exists() and dayOfWeek.exists() and frequency.exists() implies (timeOfDay.count() * dayOfWeek.count()) = frequency)\nand\n(dayOfWeek.exists() and timeOfDay.empty() and when.empty() and frequency.exists() implies dayOfWeek.count() = frequency)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingPeriodUnit",
+     "text": "periodUnit may only be given together with period. With dayOfWeek, only the redundant weekly statement is allowed; with when or timeOfDay without dayOfWeek, days, weeks or months are allowed.",
+     "ausdruck": "periodUnit.empty() or (\n  period.exists() and\n  (\n    (dayOfWeek.exists() and periodUnit = 'wk') or\n    (\n      dayOfWeek.empty() and\n      (\n        (when.empty() and timeOfDay.empty()) or\n        periodUnit = 'd' or\n        periodUnit = 'wk' or\n        periodUnit = 'mo'\n      )\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingPeriodOnlyWholeNumber",
+     "text": "period and periodMax must be whole numbers; decimal values are not allowed.",
+     "ausdruck": "(period.exists() implies period mod 1 = 0) and (periodMax.exists() implies periodMax mod 1 = 0)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingBoundsDurationOnlyWholeNumber",
+     "text": "boundsDuration.value must be a whole number; decimal values are not allowed.",
+     "ausdruck": "bounds.ofType(Duration).value.empty() or bounds.ofType(Duration).value mod 1 = 0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingFreqOrPeriodGtOne",
+     "text": "If frequency and period are given together, only one of them may exceed 1 - either the frequency including frequencyMax or the period including periodMax. A statement in which both exceed 1, such as 'six times within three hours', is hard to express in language and is not needed: the same meaning can be conveyed by adapting the period, e.g. 'every 30 minutes'.",
+     "ausdruck": "/* Detect Interval only */\n(\n  timeOfDay.empty() and\n  when.empty() and\n  dayOfWeek.empty() and\n  frequency.exists() and\n  period.exists()\n) implies\n(\n  (\n    (frequency > 1 or (frequencyMax.exists() and frequencyMax > 1))\n    implies\n    (\n      period = 1 and\n      (periodMax.empty() or periodMax = 1)\n    )\n  )\n  and\n  (\n    (period > 1 or (periodMax.exists() and periodMax > 1))\n    implies\n    (\n      frequency = 1 and\n      (frequencyMax.empty() or frequencyMax = 1)\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingVarFreqGtMin",
+     "text": "For a variable frequency, the maximum frequency must be greater than the minimum frequency.",
+     "ausdruck": "frequencyMax.empty() or frequency.empty() or\n  frequency.value.toInteger() < frequencyMax.value.toInteger()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingVarPeriodGtMin",
+     "text": "For a variable period, the maximum period must be greater than the minimum period.",
+     "ausdruck": "periodMax.empty() or period.empty() or period < periodMax"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingSingleDosageForTimeOfDay",
+     "text": "If only timeOfDay is used and dosing is daily, the times must be modelled in a single Dosage element. Multiple Dosage elements are only allowed if every element carries a distinct dose, including its data type.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n  (\n    timing.repeat.dayOfWeek.empty() and\n    timing.repeat.timeOfDay.exists() and\n    timing.repeat.when.empty()\n  )\n  implies\n  (\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()\n      ).count() = 1\n    )\n    or\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()\n      ).doseAndRate.dose.distinct().count()\n      =\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.timeOfDay.exists() and timing.repeat.when.empty()\n      ).count()\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingSingleDosageForWhen",
+     "text": "If only when is used and dosing is daily, the times of day must be modelled in a single Dosage element. Multiple Dosage elements are only allowed if every element carries a distinct dose, including its data type.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction\n  | %resource.ofType(MedicationDispense).dosageInstruction\n  | %resource.ofType(MedicationStatement).dosage\n).all(\n  (\n    timing.repeat.dayOfWeek.empty() and\n    timing.repeat.when.exists() and\n    timing.repeat.timeOfDay.empty()\n  )\n  implies\n  (\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.when.exists() and timing.repeat.timeOfDay.empty()\n      ).count() = 1\n    )\n    or\n    (\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.when.exists() and timing.repeat.timeOfDay.empty()\n      ).doseAndRate.dose.distinct().count()\n      =\n      (\n        %resource.ofType(MedicationRequest).dosageInstruction\n        | %resource.ofType(MedicationDispense).dosageInstruction\n        | %resource.ofType(MedicationStatement).dosage\n      ).where(\n        timing.repeat.dayOfWeek.empty() and timing.repeat.when.exists() and timing.repeat.timeOfDay.empty()\n      ).count()\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "key": "TimingBoundsUnitMatchesCode",
+     "text": "boundsDuration.unit must match the UCUM boundsDuration.code (e.g. 'Woche(n)' only with code='wk').",
+     "ausdruck": "bounds.ofType(Duration).exists().not() or (\n  (\n    bounds.ofType(Duration).code = 'd'\n    implies \n    (\n      bounds.ofType(Duration).unit = 'Tag(e)' or\n      bounds.ofType(Duration).unit = 'Tag' or\n      bounds.ofType(Duration).unit = 'Tage'\n    )\n  ) and (\n    bounds.ofType(Duration).code = 'wk'\n    implies \n    (\n      bounds.ofType(Duration).unit = 'Woche(n)' or\n      bounds.ofType(Duration).unit = 'Woche' or\n      bounds.ofType(Duration).unit = 'Wochen'\n    )\n  ) and (\n    bounds.ofType(Duration).code = 'mo'\n    implies \n    (\n      bounds.ofType(Duration).unit = 'Monat(e)' or\n      bounds.ofType(Duration).unit = 'Monat' or\n      bounds.ofType(Duration).unit = 'Monate'\n    )\n  ) and (\n    bounds.ofType(Duration).code = 'a'\n    implies \n    (\n      bounds.ofType(Duration).unit = 'Jahr(e)' or\n      bounds.ofType(Duration).unit = 'Jahr' or\n      bounds.ofType(Duration).unit = 'Jahre'\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.maxDosePerAdministration",
+     "key": "sqty-1",
+     "text": "The comparator is not used on a SimpleQuantity",
+     "ausdruck": "comparator.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.maxDosePerLifetime",
+     "key": "sqty-1",
+     "text": "The comparator is not used on a SimpleQuantity",
+     "ausdruck": "comparator.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.initialFill.quantity",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.initialFill.quantity",
+     "key": "sqty-1",
+     "text": "The comparator is not used on a SimpleQuantity",
+     "ausdruck": "comparator.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.initialFill.duration",
+     "key": "drt-1",
+     "text": "There SHALL be a code if there is a value and it SHALL be an expression of time.  If system is present, it SHALL be UCUM.",
+     "ausdruck": "code.exists() implies ((system = %ucum) and value.exists())"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.initialFill.duration",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.dispenseInterval",
+     "key": "drt-1",
+     "text": "There SHALL be a code if there is a value and it SHALL be an expression of time.  If system is present, it SHALL be UCUM.",
+     "ausdruck": "code.exists() implies ((system = %ucum) and value.exists())"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.dispenseInterval",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.validityPeriod",
+     "key": "per-1",
+     "text": "If present, start SHALL have a lower value than end",
+     "ausdruck": "start.hasValue().not() or end.hasValue().not() or (start <= end)"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.quantity",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.quantity",
+     "key": "sqty-1",
+     "text": "The comparator is not used on a SimpleQuantity",
+     "ausdruck": "comparator.empty()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.expectedSupplyDuration",
+     "key": "drt-1",
+     "text": "There SHALL be a code if there is a value and it SHALL be an expression of time.  If system is present, it SHALL be UCUM.",
+     "ausdruck": "code.exists() implies ((system = %ucum) and value.exists())"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.expectedSupplyDuration",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.performer",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.priorPrescription",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.detectedIssue",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationRequest.eventHistory",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    }
+   ],
+   "kardinalitaeten": [
+    {
+     "pfad": "MedicationRequest.status",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.intent",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.medication",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.subject",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.subject.identifier",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.authoredOn",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonCode",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.reference",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.type",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.use",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.type",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.system",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.value",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.period",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.assigner",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.display",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.note.text",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.sequence",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.text",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.additionalInstruction",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.patientInstruction",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.event",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.bounds",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.count",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.countMax",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.duration",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.durationMax",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.durationUnit",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.frequency",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.frequencyMax",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.period",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.periodMax",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.periodUnit",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.offset",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.code",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.asNeeded",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.site",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.route",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.method",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.doseAndRate",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.doseAndRate.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.doseAndRate.type",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.doseAndRate.dose",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.doseAndRate.rate",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.maxDosePerPeriod",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.maxDosePerAdministration",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.maxDosePerLifetime",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.quantity.value",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationRequest.substitution.allowed",
+     "min": 1,
+     "max": "1"
+    }
+   ],
+   "muster": [
+    {
+     "pfad": "MedicationRequest.intent",
+     "art": "pattern",
+     "wert": "plan"
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.quantity.system",
+     "art": "pattern",
+     "wert": "http://unitsofmeasure.org"
+    }
+   ],
+   "wertelisten": [
+    {
+     "pfad": "MedicationRequest.status",
+     "valueSet": "https://gematik.de/fhir/epa-medication/ValueSet/emp-medicationrequest-status-vs",
+     "codes": [
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-status|active",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-status|completed",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-status|entered-in-error",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-status|on-hold",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-status|stopped"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.intent",
+     "valueSet": "http://hl7.org/fhir/ValueSet/medicationrequest-intent|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|filler-order",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|instance-order",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|option",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|order",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|original-order",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|plan",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|proposal",
+      "http://hl7.org/fhir/CodeSystem/medicationrequest-intent|reflex-order"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.priority",
+     "valueSet": "http://hl7.org/fhir/ValueSet/request-priority|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/request-priority|asap",
+      "http://hl7.org/fhir/request-priority|routine",
+      "http://hl7.org/fhir/request-priority|stat",
+      "http://hl7.org/fhir/request-priority|urgent"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.reasonReference.identifier.use",
+     "valueSet": "http://hl7.org/fhir/ValueSet/identifier-use|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/identifier-use|official",
+      "http://hl7.org/fhir/identifier-use|old",
+      "http://hl7.org/fhir/identifier-use|secondary",
+      "http://hl7.org/fhir/identifier-use|temp",
+      "http://hl7.org/fhir/identifier-use|usual"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.durationUnit",
+     "valueSet": "http://hl7.org/fhir/ValueSet/units-of-time|4.0.1",
+     "codes": [
+      "http://unitsofmeasure.org|a",
+      "http://unitsofmeasure.org|d",
+      "http://unitsofmeasure.org|h",
+      "http://unitsofmeasure.org|min",
+      "http://unitsofmeasure.org|mo",
+      "http://unitsofmeasure.org|s",
+      "http://unitsofmeasure.org|wk"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.periodUnit",
+     "valueSet": "http://ig.fhir.de/igs/medication/ValueSet/PeriodUnitsOfTimeDgMP",
+     "codes": [
+      "http://unitsofmeasure.org|d",
+      "http://unitsofmeasure.org|h",
+      "http://unitsofmeasure.org|min",
+      "http://unitsofmeasure.org|mo",
+      "http://unitsofmeasure.org|wk"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.dayOfWeek",
+     "valueSet": "http://hl7.org/fhir/ValueSet/days-of-week|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/days-of-week|fri",
+      "http://hl7.org/fhir/days-of-week|mon",
+      "http://hl7.org/fhir/days-of-week|sat",
+      "http://hl7.org/fhir/days-of-week|sun",
+      "http://hl7.org/fhir/days-of-week|thu",
+      "http://hl7.org/fhir/days-of-week|tue",
+      "http://hl7.org/fhir/days-of-week|wed"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.dosageInstruction.timing.repeat.when",
+     "valueSet": "http://ig.fhir.de/igs/medication/ValueSet/TimingWhenDgMP",
+     "codes": [
+      "http://hl7.org/fhir/event-timing|EVE",
+      "http://hl7.org/fhir/event-timing|MORN",
+      "http://hl7.org/fhir/event-timing|NIGHT",
+      "http://hl7.org/fhir/event-timing|NOON"
+     ]
+    },
+    {
+     "pfad": "MedicationRequest.dispenseRequest.quantity.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    }
+   ]
+  },
+  "https://gematik.de/fhir/epa-medication/StructureDefinition/emp-medication": {
+   "version": "1.4.0",
+   "typ": "Medication",
+   "paket": "de.gematik.epa#1.4.0-ballot.1",
+   "invarianten": [
+    {
+     "pfad": "Medication",
+     "key": "dom-2",
+     "text": "If the resource is contained in another resource, it SHALL NOT contain nested Resources",
+     "ausdruck": "contained.contained.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-3",
+     "text": "If the resource is contained in another resource, it SHALL be referred to from elsewhere in the resource or SHALL refer to the containing resource",
+     "ausdruck": "contained.where((('#'+id in (%resource.descendants().reference | %resource.descendants().as(canonical) | %resource.descendants().as(uri) | %resource.descendants().as(url))) or descendants().where(reference = '#').exists() or descendants().where(as(canonical) = '#').exists() or descendants().where(as(canonical) = '#').exists()).not()).trace('unmatched', id).empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-4",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a meta.versionId or a meta.lastUpdated",
+     "ausdruck": "contained.meta.versionId.empty() and contained.meta.lastUpdated.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-5",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a security label",
+     "ausdruck": "contained.meta.security.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "ti-med-1",
+     "text": "Medication code, name, or ingredients must be specified",
+     "ausdruck": "code.exists() or ingredient.exists()"
+    },
+    {
+     "pfad": "Medication.manufacturer",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Medication.amount",
+     "key": "rat-1",
+     "text": "Numerator and denominator SHALL both be present, or both are absent. If both are absent, there SHALL be some extension present",
+     "ausdruck": "(numerator.empty() xor denominator.exists()) and (numerator.exists() or extension.exists())"
+    },
+    {
+     "pfad": "Medication.amount.numerator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.amount.denominator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.ingredient.strength",
+     "key": "rat-1",
+     "text": "Numerator and denominator SHALL both be present, or both are absent. If both are absent, there SHALL be some extension present",
+     "ausdruck": "(numerator.empty() xor denominator.exists()) and (numerator.exists() or extension.exists())"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    }
+   ],
+   "kardinalitaeten": [
+    {
+     "pfad": "Medication.extension",
+     "min": 1,
+     "max": "*"
+    },
+    {
+     "pfad": "Medication.manufacturer.display",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.item",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator.value",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator.value",
+     "min": 1,
+     "max": "1"
+    }
+   ],
+   "muster": [],
+   "wertelisten": [
+    {
+     "pfad": "Medication.status",
+     "valueSet": "http://hl7.org/fhir/ValueSet/medication-status|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/CodeSystem/medication-status|active",
+      "http://hl7.org/fhir/CodeSystem/medication-status|entered-in-error",
+      "http://hl7.org/fhir/CodeSystem/medication-status|inactive"
+     ]
+    },
+    {
+     "pfad": "Medication.amount.numerator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.amount.denominator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    }
+   ]
+  },
+  "https://gematik.de/fhir/epa-medication/StructureDefinition/epa-medication": {
+   "version": "1.4.0",
+   "typ": "Medication",
+   "paket": "de.gematik.epa#1.4.0-ballot.1",
+   "invarianten": [
+    {
+     "pfad": "Medication",
+     "key": "dom-2",
+     "text": "If the resource is contained in another resource, it SHALL NOT contain nested Resources",
+     "ausdruck": "contained.contained.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-3",
+     "text": "If the resource is contained in another resource, it SHALL be referred to from elsewhere in the resource or SHALL refer to the containing resource",
+     "ausdruck": "contained.where((('#'+id in (%resource.descendants().reference | %resource.descendants().as(canonical) | %resource.descendants().as(uri) | %resource.descendants().as(url))) or descendants().where(reference = '#').exists() or descendants().where(as(canonical) = '#').exists() or descendants().where(as(canonical) = '#').exists()).not()).trace('unmatched', id).empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-4",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a meta.versionId or a meta.lastUpdated",
+     "ausdruck": "contained.meta.versionId.empty() and contained.meta.lastUpdated.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "dom-5",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a security label",
+     "ausdruck": "contained.meta.security.empty()"
+    },
+    {
+     "pfad": "Medication",
+     "key": "ti-med-1",
+     "text": "Medication code, name, or ingredients must be specified",
+     "ausdruck": "code.exists() or ingredient.exists()"
+    },
+    {
+     "pfad": "Medication.manufacturer",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Medication.amount",
+     "key": "rat-1",
+     "text": "Numerator and denominator SHALL both be present, or both are absent. If both are absent, there SHALL be some extension present",
+     "ausdruck": "(numerator.empty() xor denominator.exists()) and (numerator.exists() or extension.exists())"
+    },
+    {
+     "pfad": "Medication.amount.numerator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.amount.denominator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.ingredient.strength",
+     "key": "rat-1",
+     "text": "Numerator and denominator SHALL both be present, or both are absent. If both are absent, there SHALL be some extension present",
+     "ausdruck": "(numerator.empty() xor denominator.exists()) and (numerator.exists() or extension.exists())"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator",
+     "key": "qty-3",
+     "text": "If a code for the unit is present, the system SHALL also be present",
+     "ausdruck": "code.empty() or system.exists()"
+    }
+   ],
+   "kardinalitaeten": [
+    {
+     "pfad": "Medication.manufacturer.display",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.item",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator.value",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator.value",
+     "min": 1,
+     "max": "1"
+    }
+   ],
+   "muster": [],
+   "wertelisten": [
+    {
+     "pfad": "Medication.status",
+     "valueSet": "http://hl7.org/fhir/ValueSet/medication-status|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/CodeSystem/medication-status|active",
+      "http://hl7.org/fhir/CodeSystem/medication-status|entered-in-error",
+      "http://hl7.org/fhir/CodeSystem/medication-status|inactive"
+     ]
+    },
+    {
+     "pfad": "Medication.amount.numerator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.amount.denominator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.ingredient.strength.numerator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    },
+    {
+     "pfad": "Medication.ingredient.strength.denominator.comparator",
+     "valueSet": "http://hl7.org/fhir/ValueSet/quantity-comparator|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/quantity-comparator|<",
+      "http://hl7.org/fhir/quantity-comparator|<=",
+      "http://hl7.org/fhir/quantity-comparator|>",
+      "http://hl7.org/fhir/quantity-comparator|>="
+     ]
+    }
+   ]
+  },
+  "https://gematik.de/fhir/epa-medication/StructureDefinition/epa-medication-statement": {
+   "version": "1.4.0",
+   "typ": "MedicationStatement",
+   "paket": "de.gematik.epa#1.4.0-ballot.1",
+   "invarianten": [
+    {
+     "pfad": "MedicationStatement",
+     "key": "dom-2",
+     "text": "If the resource is contained in another resource, it SHALL NOT contain nested Resources",
+     "ausdruck": "contained.contained.empty()"
+    },
+    {
+     "pfad": "MedicationStatement",
+     "key": "dom-3",
+     "text": "If the resource is contained in another resource, it SHALL be referred to from elsewhere in the resource or SHALL refer to the containing resource",
+     "ausdruck": "contained.where((('#'+id in (%resource.descendants().reference | %resource.descendants().as(canonical) | %resource.descendants().as(uri) | %resource.descendants().as(url))) or descendants().where(reference = '#').exists() or descendants().where(as(canonical) = '#').exists() or descendants().where(as(canonical) = '#').exists()).not()).trace('unmatched', id).empty()"
+    },
+    {
+     "pfad": "MedicationStatement",
+     "key": "dom-4",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a meta.versionId or a meta.lastUpdated",
+     "ausdruck": "contained.meta.versionId.empty() and contained.meta.lastUpdated.empty()"
+    },
+    {
+     "pfad": "MedicationStatement",
+     "key": "dom-5",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a security label",
+     "ausdruck": "contained.meta.security.empty()"
+    },
+    {
+     "pfad": "MedicationStatement",
+     "key": "epa-med-statement-status",
+     "text": "Ein MedicationStatement im Kontext 'Nachtrag' darf nicht den Status 'intended' haben",
+     "ausdruck": "extension('https://gematik.de/fhir/epa-medication/StructureDefinition/context-extension').exists(value != 'MANUAL') or status != 'intended'"
+    },
+    {
+     "pfad": "MedicationStatement.basedOn",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.partOf",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.subject",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.context",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.dateAsserted",
+     "key": "epa-datetime",
+     "text": "dateTime muss mindestens aus Tag, Monat und Jahr bestehen",
+     "ausdruck": "toString().matches('^([0-9]([0-9]([0-9][1-9]|[1-9]0)|[1-9]00)|[1-9]000)-(0[1-9]|1[0-2])-(0[1-9]|[1-2][0-9]|3[0-1])(T([01][0-9]|2[0-3]):[0-5][0-9]:([0-5][0-9]|60)(\\\\.[0-9]+)?(Z|(\\\\+|-)((0[0-9]|1[0-3]):[0-5][0-9]|14:00)))?$')"
+    },
+    {
+     "pfad": "MedicationStatement.informationSource",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.derivedFrom",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.reasonReference",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "dos-1",
+     "text": "AsNeededFor can only be set if AsNeeded is empty or true",
+     "ausdruck": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').empty() or asNeeded.empty() or asNeeded"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageStructuredOrFreeText",
+     "text": "A dosage must be given either as free text only or as complete structured information only; mixing both is not allowed.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction | \n %resource.ofType(MedicationDispense).dosageInstruction | \n %resource.ofType(MedicationStatement).dosage).all(\n  (text.exists() and timing.empty() and doseAndRate.empty()) or\n  (text.empty() and (timing.exists() or doseAndRate.exists()))\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageStructuredRequiresBoth",
+     "text": "If a structured dosage is given, both timing and doseAndRate must be present. For pure as-needed dosages, doseAndRate may be given without timing.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction |\n %resource.ofType(MedicationDispense).dosageInstruction |\n %resource.ofType(MedicationStatement).dosage).all(\n  (timing.exists() implies doseAndRate.exists()) and\n  (doseAndRate.exists() implies (\n    timing.exists() or\n    asNeeded.ofType(boolean) = true or\n    extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').exists()\n  ))\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageStructuredRequiresGeneratedText",
+     "text": "If a structured dosage is present (doseAndRate populated, text empty, plus timing or a pure as-needed dosage), the GeneratedDosageInstructionsMeta extension must be present.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).exists(\n    text.empty() and doseAndRate.exists() and\n    (timing.exists() or asNeeded.ofType(boolean) = true)\n  )\n)\nimplies\n(\n%resource.extension.where(\n  url = 'http://ig.fhir.de/igs/medication/StructureDefinition/GeneratedDosageInstructionsMeta'\n).exists() and\n(\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n  ).exists() or\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n  ).exists() or\n  %resource.extension.where(\n    url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n  ).exists()\n)\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "FreeTextSingleDosageOnly",
+     "text": "If a dosage is given as pure free text, there must be exactly one Dosage element.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).exists(text.exists() and timing.empty() and doseAndRate.empty())\n)\nimplies\n(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).count() = 1\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "FreeTextMatchesRenderedText",
+     "text": "If a dosage is given as pure free text (text present, timing and doseAndRate empty) AND the renderedDosageInstruction extension is populated, the value in dosageInstruction.text must match the value in the extension.",
+     "ausdruck": "(\n  (%resource.ofType(MedicationRequest).dosageInstruction |\n   %resource.ofType(MedicationDispense).dosageInstruction |\n   %resource.ofType(MedicationStatement).dosage\n  ).where(text.exists() and timing.empty() and doseAndRate.empty()).exists()\n)\nimplies\n(\n  (\n    %resource.ofType(MedicationRequest).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationRequest.renderedDosageInstruction'\n      ).value = %resource.dosageInstruction.text\n    )\n  ) or\n  (\n    %resource.ofType(MedicationDispense).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationDispense.renderedDosageInstruction'\n      ).value = %resource.dosageInstruction.text\n    )\n  ) or\n  (\n    %resource.ofType(MedicationStatement).exists() and\n    (\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n      ).empty() or\n      %resource.extension.where(\n        url = 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction'\n      ).value = %resource.dosage.text\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageDoseQuantityAllowedFractions",
+     "text": "Dose values in doseQuantity or doseRange must be whole numbers or use one of the following fractional parts: .25, .33, .5, .66 or .75.",
+     "ausdruck": "doseAndRate.all(\n  (\n    dose.ofType(Quantity).value.empty() or\n    dose.ofType(Quantity).value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n  and\n  (\n    dose.ofType(Range).low.value.empty() or\n    dose.ofType(Range).low.value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n  and\n  (\n    dose.ofType(Range).high.value.empty() or\n    dose.ofType(Range).high.value.all(\n      ($this mod 1 = 0) or\n      ($this mod 1 = 0.25) or\n      ($this mod 1 = 0.33) or\n      ($this mod 1 = 0.5) or\n      ($this mod 1 = 0.66) or\n      ($this mod 1 = 0.75)\n    )\n  )\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageDoseUnitSameCode",
+     "text": "The dose unit must be the same across all dosages.",
+     "ausdruck": "(%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).all(\ndoseAndRate.exists() implies\n  (\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Quantity).code |\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Range).low.code |\n    (%resource.ofType(MedicationRequest).dosageInstruction | %resource.ofType(MedicationDispense).dosageInstruction | %resource.ofType(MedicationStatement).dosage).doseAndRate.dose.ofType(Range).high.code\n  ).distinct().count() = 1\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageDoseValueDecimalNotation",
+     "text": "Dose values in doseQuantity or doseRange must use plain decimal notation with at most two decimal places. Exponential notation (e.g. 50e-2 instead of 0.5) is not allowed.",
+     "ausdruck": "doseAndRate.all(\n  (\n    dose.ofType(Quantity).value.empty() or\n    dose.ofType(Quantity).value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n  and\n  (\n    dose.ofType(Range).low.value.empty() or\n    dose.ofType(Range).low.value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n  and\n  (\n    dose.ofType(Range).high.value.empty() or\n    dose.ofType(Range).high.value.toString().matches('^[0-9]+([.][0-9]{1,2})?$')\n  )\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageDoseValuePositive",
+     "text": "doseQuantity.value and doseRange.high.value must be greater than 0. The value 0 is additionally allowed for doseRange.low.value only.",
+     "ausdruck": "doseAndRate.all(\n  dose.ofType(Quantity).value.all($this > 0) and\n  dose.ofType(Range).low.value.all($this >= 0) and\n  dose.ofType(Range).high.value.all($this > 0)\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DosageFourSlotPatternInText",
+     "text": "A bare four-slot dosing schema (Viererschema, e.g. 1-0-1-0 or 1-0-1-0 Stück) must not be given as free text in Dosage.text; it has to be represented structurally.",
+     "ausdruck": "text.exists() implies text.matches('^\\\\s*\\\\d+([.,]\\\\d+)?(\\\\s*/\\\\s*\\\\d+)?(\\\\s*[-–]\\\\s*\\\\d+([.,]\\\\d+)?(\\\\s*/\\\\s*\\\\d+)?){3}(\\\\s*[A-Za-zÄÖÜäöüß().]+)?\\\\s*$').not()"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "PatientInstructionIdentical",
+     "text": "If patientInstruction is used in a resource with multiple dosages, the field must be populated identically in all Dosage elements.",
+     "ausdruck": "(\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).patientInstruction.distinct().count() <= 1\n)\nand\n(\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).patientInstruction.exists()\n  )\n  implies\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).all(patientInstruction.exists())\n  )\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "MaxDoseSameUnitAsDose",
+     "text": "maxDosePerPeriod must use the same unit, code and system as doseQuantity.",
+     "ausdruck": "\n  maxDosePerPeriod.empty() or (\n    (\n      doseAndRate.dose.ofType(Quantity).exists() and\n      doseAndRate.dose.ofType(Quantity).system = maxDosePerPeriod.numerator.system and\n      doseAndRate.dose.ofType(Quantity).code = maxDosePerPeriod.numerator.code and\n      doseAndRate.dose.ofType(Quantity).unit = maxDosePerPeriod.numerator.unit\n    ) or (\n      doseAndRate.dose.ofType(Range).exists() and\n      (\n        doseAndRate.dose.ofType(Range).low.empty() or (\n          doseAndRate.dose.ofType(Range).low.system = maxDosePerPeriod.numerator.system and\n          doseAndRate.dose.ofType(Range).low.code = maxDosePerPeriod.numerator.code and\n          doseAndRate.dose.ofType(Range).low.unit = maxDosePerPeriod.numerator.unit\n        )\n      ) and (\n        doseAndRate.dose.ofType(Range).high.empty() or (\n          doseAndRate.dose.ofType(Range).high.system = maxDosePerPeriod.numerator.system and\n          doseAndRate.dose.ofType(Range).high.code = maxDosePerPeriod.numerator.code and\n          doseAndRate.dose.ofType(Range).high.unit = maxDosePerPeriod.numerator.unit\n        )\n      )\n    )\n  )\n"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "MaxDosePerPeriodOnly24hOr1d",
+     "text": "maxDosePerPeriod is only allowed with a reference period of 24 hours (24 h) or 1 day (1 d). Other periods (e.g. at most 3 every 6 h) are not allowed.",
+     "ausdruck": "maxDosePerPeriod.empty() or (\n  (maxDosePerPeriod.denominator.value = 24 and maxDosePerPeriod.denominator.code = 'h') or\n  (maxDosePerPeriod.denominator.value = 1 and maxDosePerPeriod.denominator.code = 'd')\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "MaxDoseOnlyPureAsNeeded",
+     "text": "A maximum amount (maxDosePerPeriod) may only be given for a pure as-needed dosage: asNeededBoolean = true and no timing. A structured rhythm already determines how much is applied within the reference period.",
+     "ausdruck": "maxDosePerPeriod.exists() implies (asNeeded.ofType(boolean) = true and timing.empty())"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DoseRangeHighRequiredWhenLowPresent",
+     "text": "If a lower bound is given for doseRange, an upper bound must be given as well.",
+     "ausdruck": "doseAndRate.dose.ofType(Range).low.empty() or doseAndRate.dose.ofType(Range).high.exists()"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "DoseRangeLowAndHighSameUnit",
+     "text": "The lower and upper bound of a variable single dose must use the same unit of measure.",
+     "ausdruck": "doseAndRate.dose.ofType(Range).low.empty()\nor doseAndRate.dose.ofType(Range).high.empty()\nor (\n  doseAndRate.dose.ofType(Range).low.system = doseAndRate.dose.ofType(Range).high.system\n  and doseAndRate.dose.ofType(Range).low.code = doseAndRate.dose.ofType(Range).high.code\n  and doseAndRate.dose.ofType(Range).low.unit = doseAndRate.dose.ofType(Range).high.unit\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "MinimumIntervalOnlyPureAsNeeded",
+     "text": "A minimum interval between two single administrations (Mindestabstand) may only be given for a pure as-needed dosage: asNeededBoolean = true and no timing. A structured rhythm already determines the spacing between administrations; a second, weaker lower bound next to it is contradictory.",
+     "ausdruck": "modifierExtension.where(url='http://ig.fhir.de/igs/medication/StructureDefinition/MinimumIntervalBetweenAdministrations').exists() implies (asNeeded.ofType(boolean) = true and timing.empty())"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "AsNeededForRequiresAsNeeded",
+     "text": "A reason for use (asNeededFor) may only be given for an as-needed dosage (asNeededBoolean = true).",
+     "ausdruck": "extension.where(url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor').exists() implies asNeeded.ofType(boolean) = true"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "AsNeededSingleDosageOnly",
+     "text": "If an as-needed dosage with asNeededBoolean = true is given without timing, exactly one Dosage element must exist in the resource.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).where(\n  asNeeded.ofType(boolean) = true and timing.empty()\n).exists()\nimplies\n(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).count() = 1"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "AsNeededIdentical",
+     "text": "The as-needed flag (asNeededBoolean) must be populated identically across all Dosage elements of a resource.",
+     "ausdruck": "(\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).asNeeded.ofType(boolean).distinct().count() <= 1\n)\nand\n(\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).asNeeded.ofType(boolean).exists()\n  )\n  implies\n  (\n    (\n      %resource.ofType(MedicationRequest).dosageInstruction |\n      %resource.ofType(MedicationDispense).dosageInstruction |\n      %resource.ofType(MedicationStatement).dosage\n    ).all(asNeeded.ofType(boolean).exists())\n  )\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "AsNeededForIdentical",
+     "text": "The reason for use (asNeededFor) must be populated identically across all Dosage elements of a resource. Multiple reasons per element are allowed but must then match in every element.",
+     "ausdruck": "(\n  %resource.ofType(MedicationRequest).dosageInstruction |\n  %resource.ofType(MedicationDispense).dosageInstruction |\n  %resource.ofType(MedicationStatement).dosage\n).all(\n  extension.where(\n    url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor'\n  ).value.ofType(CodeableConcept).text.distinct().count()\n  =\n  (\n    %resource.ofType(MedicationRequest).dosageInstruction |\n    %resource.ofType(MedicationDispense).dosageInstruction |\n    %resource.ofType(MedicationStatement).dosage\n  ).extension.where(\n    url='http://hl7.org/fhir/5.0/StructureDefinition/extension-Dosage.asNeededFor'\n  ).value.ofType(CodeableConcept).text.distinct().count()\n)"
+    },
+    {
+     "pfad": "MedicationStatement.dosage",
+     "key": "MinimumIntervalUnitMatchesCode",
+     "text": "The display unit of the minimum interval (valueDuration.unit) must match the UCUM code (e.g. 'Stunde(n)' only with code='h').",
+     "ausdruck": "modifierExtension.where(\n  url='http://ig.fhir.de/igs/medication/StructureDefinition/MinimumIntervalBetweenAdministrations'\n).value.ofType(Duration).all(\n  (\n    code = 'min'\n    implies\n    (unit = 'Minute(n)' or unit = 'Minute' or unit = 'Minuten')\n  ) and (\n    code = 'h'\n    implies\n    (unit = 'Stunde(n)' or unit = 'Stunde' or unit = 'Stunden')\n  )\n)"
+    }
+   ],
+   "kardinalitaeten": [
+    {
+     "pfad": "MedicationStatement.basedOn.id",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.basedOn.reference",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.basedOn.type",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.basedOn.identifier",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.basedOn.display",
+     "min": 0,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.status",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.medication",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.subject",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "MedicationStatement.subject.identifier",
+     "min": 1,
+     "max": "1"
+    }
+   ],
+   "muster": [],
+   "wertelisten": [
+    {
+     "pfad": "MedicationStatement.status",
+     "valueSet": "https://gematik.de/fhir/epa-medication/ValueSet/epa-medication-statement-status-vs",
+     "codes": [
+      "http://hl7.org/fhir/CodeSystem/medication-statement-status|entered-in-error",
+      "http://hl7.org/fhir/CodeSystem/medication-statement-status|intended",
+      "http://hl7.org/fhir/CodeSystem/medication-statement-status|unknown"
+     ]
+    }
+   ]
+  },
+  "https://gematik.de/fhir/epa-medication/StructureDefinition/emp-reason-condition": {
+   "version": "1.4.0",
+   "typ": "Condition",
+   "paket": "de.gematik.epa#1.4.0-ballot.1",
+   "invarianten": [
+    {
+     "pfad": "Condition",
+     "key": "dom-2",
+     "text": "If the resource is contained in another resource, it SHALL NOT contain nested Resources",
+     "ausdruck": "contained.contained.empty()"
+    },
+    {
+     "pfad": "Condition",
+     "key": "dom-3",
+     "text": "If the resource is contained in another resource, it SHALL be referred to from elsewhere in the resource or SHALL refer to the containing resource",
+     "ausdruck": "contained.where((('#'+id in (%resource.descendants().reference | %resource.descendants().as(canonical) | %resource.descendants().as(uri) | %resource.descendants().as(url))) or descendants().where(reference = '#').exists() or descendants().where(as(canonical) = '#').exists() or descendants().where(as(canonical) = '#').exists()).not()).trace('unmatched', id).empty()"
+    },
+    {
+     "pfad": "Condition",
+     "key": "dom-4",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a meta.versionId or a meta.lastUpdated",
+     "ausdruck": "contained.meta.versionId.empty() and contained.meta.lastUpdated.empty()"
+    },
+    {
+     "pfad": "Condition",
+     "key": "dom-5",
+     "text": "If a resource is contained in another resource, it SHALL NOT have a security label",
+     "ausdruck": "contained.meta.security.empty()"
+    },
+    {
+     "pfad": "Condition",
+     "key": "con-5",
+     "text": "Condition.clinicalStatus SHALL NOT be present if verification Status is entered-in-error",
+     "ausdruck": "verificationStatus.coding.where(system='http://terminology.hl7.org/CodeSystem/condition-ver-status' and code='entered-in-error').empty() or clinicalStatus.empty()"
+    },
+    {
+     "pfad": "Condition",
+     "key": "con-4",
+     "text": "If condition is abated, then clinicalStatus must be either inactive, resolved, or remission",
+     "ausdruck": "abatement.empty() or clinicalStatus.coding.where(system='http://terminology.hl7.org/CodeSystem/condition-clinical' and (code='resolved' or code='remission' or code='inactive')).exists()"
+    },
+    {
+     "pfad": "Condition.bodySite",
+     "key": "eu-bodysite-1",
+     "text": "Either a body site code or a reference to a BodyStructure resource SHALL be used, but not both.",
+     "ausdruck": "(coding.empty() and text.empty()) or extension('http://hl7.org/fhir/StructureDefinition/bodySite').empty()"
+    },
+    {
+     "pfad": "Condition.subject",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.subject.identifier.period",
+     "key": "per-1",
+     "text": "If present, start SHALL have a lower value than end",
+     "ausdruck": "start.hasValue().not() or end.hasValue().not() or (start <= end)"
+    },
+    {
+     "pfad": "Condition.subject.identifier.assigner",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.encounter",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.recorder",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.asserter",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.stage",
+     "key": "con-1",
+     "text": "Stage SHALL have summary or assessment",
+     "ausdruck": "summary.exists() or assessment.exists()"
+    },
+    {
+     "pfad": "Condition.stage.assessment",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    },
+    {
+     "pfad": "Condition.evidence",
+     "key": "con-2",
+     "text": "evidence SHALL have code or details",
+     "ausdruck": "code.exists() or detail.exists()"
+    },
+    {
+     "pfad": "Condition.evidence.detail",
+     "key": "ref-1",
+     "text": "SHALL have a contained resource if a local reference is provided",
+     "ausdruck": "reference.startsWith('#').not() or (reference.substring(1).trace('url') in %rootResource.contained.id.trace('ids'))"
+    }
+   ],
+   "kardinalitaeten": [
+    {
+     "pfad": "Condition.identifier",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.category",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.severity",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.code",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Condition.bodySite",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.subject",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Condition.subject.identifier",
+     "min": 1,
+     "max": "1"
+    },
+    {
+     "pfad": "Condition.encounter",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.onset",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.abatement",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.recordedDate",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.recorder",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.asserter",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.stage",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.evidence",
+     "min": 0,
+     "max": "0"
+    },
+    {
+     "pfad": "Condition.note",
+     "min": 0,
+     "max": "0"
+    }
+   ],
+   "muster": [],
+   "wertelisten": [
+    {
+     "pfad": "Condition.clinicalStatus",
+     "valueSet": "http://hl7.org/fhir/ValueSet/condition-clinical",
+     "codes": [
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|active",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|inactive",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|recurrence",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|relapse",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|remission",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|resolved",
+      "http://terminology.hl7.org/CodeSystem/condition-clinical|unknown"
+     ]
+    },
+    {
+     "pfad": "Condition.verificationStatus",
+     "valueSet": "http://hl7.org/fhir/ValueSet/condition-ver-status",
+     "codes": [
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|confirmed",
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|differential",
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|entered-in-error",
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|provisional",
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|refuted",
+      "http://terminology.hl7.org/CodeSystem/condition-ver-status|unconfirmed"
+     ]
+    },
+    {
+     "pfad": "Condition.subject.identifier.use",
+     "valueSet": "http://hl7.org/fhir/ValueSet/identifier-use|4.0.1",
+     "codes": [
+      "http://hl7.org/fhir/identifier-use|official",
+      "http://hl7.org/fhir/identifier-use|old",
+      "http://hl7.org/fhir/identifier-use|secondary",
+      "http://hl7.org/fhir/identifier-use|temp",
+      "http://hl7.org/fhir/identifier-use|usual"
+     ]
+    }
+   ]
+  }
+ }
+}

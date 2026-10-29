@@ -19,9 +19,9 @@ import type { Ressource } from './typen.js';
  *
  * - **Planeintrag** nach `EMPMedicationRequest` und **Arzneimittel** nach `EMPMedication`
  *   (IG `de.gematik.epa.medication` 1.4.0-ballot.1, Profile in `de.gematik.epa` 1.4.0-ballot.1).
- *   Für `$add-emp-entry` gehen Eintrag, Arzneimittel und Behandlungsgrund getrennt an den Dienst;
- *   den Verweis `medicationReference` setzt der Dienst selbst — die Eingabe hat deshalb kein
- *   `medication[x]`, obwohl es in der R4-Basis Pflicht ist.
+ *   Für `$add-emp-entry` gehen Eintrag, Arzneimittel und Behandlungsgrund getrennt an den Dienst,
+ *   jeweils mit eigener Kennung; der Eintrag verweist auf beide (wie die Beispiele des IG). Der
+ *   Dienst legt eigene Instanzen an und schreibt die Verweise um.
  * - **Dosierung** strukturiert nach `DosageDgMP` mit dem Text nach Algorithmus 2.0.0 in
  *   `renderedDosageInstruction` (`fachlogik/dosierung.ts`).
  * - **Behandlungsgrund**: die Diagnose als `EMPReasonCondition` über `reasonReference`
@@ -62,10 +62,21 @@ function arzneimittelKodierung(m: Arzneimittel) {
   return { ...(coding.length > 0 ? { coding } : {}), text: m.bezeichnung };
 }
 
-/** Arzneimittel eines neuen Planeintrags nach `EMPMedication`. */
-export function planmittelNachFhir(m: Arzneimittel): Ressource {
+/** Kennung für eine neue Instanz, wie die Beispiele des IG sie vergeben (UUID). */
+export function neueKennung(): string {
+  const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+  return c?.randomUUID
+    ? c.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx'.replace(/x/g, () =>
+        Math.floor(Math.random() * 16).toString(16),
+      );
+}
+
+/** Arzneimittel eines neuen Planeintrags nach `EMPMedication`, mit eigener Kennung. */
+export function planmittelNachFhir(m: Arzneimittel, id: string = neueKennung()): Ressource {
   return {
     resourceType: 'Medication',
+    id,
     meta: { profile: [`${EMP_PROFIL}emp-medication|1.4.0`] },
     extension: [{ url: `${EMP_PROFIL}context-extension`, valueCode: 'EMP' }],
     status: 'active',
@@ -97,10 +108,16 @@ export function planeintragNachFhir(e: {
    * Dienst und übergeht die Angabe.
    */
   kategorie?: EmpKategorie | null;
+  /**
+   * Verweis auf das Arzneimittel — das neue aus dem Parameter `medication` oder ein vorhandenes.
+   * `medication[x]` ist im Profil 1..1; die Beispiele des IG setzen es in der Eingabe.
+   */
+  mittel?: { reference: string } | null;
 }): Ressource {
   const dosageInstruction = dosierungNachFhir(e.dosierung);
   return {
     resourceType: 'MedicationRequest',
+    id: neueKennung(),
     meta: { profile: [`${EMP_PROFIL}emp-medication-request|1.4.0`] },
     extension: [
       { url: EMP_EXTENSION.kontext, valueCode: 'EMP' },
@@ -110,6 +127,7 @@ export function planeintragNachFhir(e: {
     ],
     status: 'active',
     intent: 'plan',
+    ...(e.mittel ? { medicationReference: { reference: e.mittel.reference } } : {}),
     subject: { identifier: { system: KVID, value: e.kvnr } },
     authoredOn: e.datum,
     ...(e.grundDiagnose

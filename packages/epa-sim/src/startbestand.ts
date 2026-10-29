@@ -1,5 +1,6 @@
 import {
   automatischeKategorie,
+  mitZeitzone,
   dosierungAusText,
   dosierungNachFhir,
   textErweiterungen,
@@ -201,7 +202,7 @@ function verordnetUndAbgegeben(
   wer: Handelnde,
   zeitpunkt?: string,
 ): Ressource {
-  const zeit = zeitpunkt ?? `${datum}T16:00:00`;
+  const zeit = mitZeitzone(zeitpunkt ?? `${datum}T16:00:00`);
   const ablage = bestandFuer(kvnr).medikation;
   const medication: Ressource = {
     resourceType: 'Medication',
@@ -285,7 +286,7 @@ function planeintrag(
   datum: string,
   zeitpunkt?: string,
 ): void {
-  const zeit = zeitpunkt ?? `${datum}T16:00:00`;
+  const zeit = mitZeitzone(zeitpunkt ?? `${datum}T16:00:00`);
   const ablage = bestandFuer(kvnr).medikation;
   const id = `emp-${String(aussage.id).replace(/^eml-/, '')}`;
   const mittel: Ressource = {

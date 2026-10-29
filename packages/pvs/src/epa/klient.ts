@@ -2,6 +2,7 @@ import {
   ITI41_INHALTSTYP,
   PRAXIS_STAMMDATEN,
   PROFIL,
+  neueKennung,
   praxisNachFhir,
   XDS_DOKUMENTENDIENST,
   kimNachrichtErzeugen,
@@ -663,6 +664,20 @@ export async function empEintragAnlegen(
   /** Behandlungsgründe nach `EMPReasonCondition` (Parameter `reasonCondition`, 1.4.0). */
   gruende: readonly Ressource[] = [],
 ): Promise<EmpErgebnis> {
+  // Der Eintrag verweist auf sein Arzneimittel (`medication[x]` 1..1, wie die Beispiele des IG).
+  const neu =
+    'resource' in mittel ? { ...mittel.resource, id: mittel.resource.id ?? neueKennung() } : null;
+  eintrag = eintrag['medicationReference']
+    ? eintrag
+    : {
+        ...eintrag,
+        medicationReference: {
+          reference: neu
+            ? `Medication/${String(neu.id)}`
+            : (mittel as { reference: string }).reference,
+        },
+      };
+  if (neu) mittel = { resource: neu };
   const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
     methode: 'POST',
     pfad: `${MEDIKATION}/$add-emp-entry`,
