@@ -13,7 +13,7 @@ import { Marker } from '../bausteine/Bausteine.js';
 import { epaFensterOeffnen, useEpaFenster } from '../epa/fenster.js';
 import { EgkKnopf } from '../epa/befugnis.js';
 import { EpaZugang, useAktenstatus } from '../epa/aktenstatus.js';
-import { patientSummaryVerfuegbar } from '../epa/klient.js';
+import { patientSummaryVerfuegbar } from '../epa/dienste/vorschlaege.js';
 import { useBetriebsstand, useEpaAbfrage } from '../epa/epa-bestand.js';
 import { useEntwurfsstand } from './arztbrief/entwurf.js';
 

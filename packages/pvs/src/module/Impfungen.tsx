@@ -6,9 +6,10 @@ import {
   impfungNachFhir,
   type Impfung,
   type ImpfstoffEintrag,
+  neueId,
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen, useAuswahl, useZustand } from '../speicher/speicher.js';
-import { neueId, vorgaenge } from '../speicher/vorgaenge.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { Katalogsuche } from '../bausteine/Katalogsuche.js';
 import { usePatientId } from './Patientenkartei.js';

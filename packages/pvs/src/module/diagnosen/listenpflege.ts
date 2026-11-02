@@ -5,10 +5,12 @@ import {
   type Allergie,
   type Diagnose,
   type Patient,
+  neueId,
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen, useZustand } from '../../speicher/speicher.js';
-import { neueId, vorgaenge } from '../../speicher/vorgaenge.js';
-import { EpaFehler, type Listenart } from '../../epa/klient.js';
+import { vorgaenge } from '../../speicher/vorgaenge.js';
+import { EpaFehler } from '../../epa/klient.js';
+import { type Listenart } from '../../epa/dienste/listendienste.js';
 import type { Ladezustand } from '../../epa/epa-bestand.js';
 import {
   LISTENNAME,

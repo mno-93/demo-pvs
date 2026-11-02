@@ -14,15 +14,15 @@ import {
   type Patient,
   type Ressource,
 } from '@demo-pvs/kern';
+import { EINRICHTUNG } from './klient.js';
 import {
-  EINRICHTUNG,
   diagnosedienstVerfuegbar,
   listeLesen,
   listeneintragAendern,
   listeneintragAnlegen,
   listeneintragMarkieren,
   type Listenart,
-} from './klient.js';
+} from './dienste/listendienste.js';
 import { istGueltig, useBefugnis, useEinlesungen } from './befugnis.js';
 import { useBetriebsstand, useEpaAbfrage, type Ladezustand } from './epa-bestand.js';
 

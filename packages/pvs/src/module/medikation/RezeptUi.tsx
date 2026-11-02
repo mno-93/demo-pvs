@@ -17,7 +17,7 @@ import {
 import { Karte, Leer, Marker } from '../../bausteine/Bausteine.js';
 import { Befundliste } from '../../bausteine/Befundliste.js';
 import { Katalogsuche } from '../../bausteine/Katalogsuche.js';
-import type { Medikationsliste } from '../../epa/klient.js';
+import type { Medikationsliste } from '../../epa/dienste/medikation.js';
 import { DosierungEingabe, dosierungGueltig } from './DosierungEingabe.js';
 import { rezeptInEpa, type RezeptInEpa } from './rezepte.js';
 

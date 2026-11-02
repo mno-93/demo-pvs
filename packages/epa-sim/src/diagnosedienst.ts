@@ -1,5 +1,5 @@
 import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
-import { psRelevanzSetzen, type Ressource } from '@demo-pvs/kern';
+import { psRelevanzSetzen, type Ressource, neueId, WEG } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import {
   aktuelleChronologie,
@@ -8,14 +8,7 @@ import {
   lesenachweisPruefen,
   type Chronologieart,
 } from './chronologie.ts';
-import {
-  ausgabe,
-  jetzt,
-  neueId,
-  operationOutcome,
-  parameterLesen,
-  suchergebnis,
-} from './fhir-hilfen.ts';
+import { ausgabe, jetzt, operationOutcome, parameterLesen, suchergebnis } from './fhir-hilfen.ts';
 import {
   aktivitaetAnlegen,
   fortschreiben,
@@ -52,7 +45,7 @@ import {
  * kein gematik-Namensraum.
  */
 
-export const DIAGNOSEDIENST_BASIS = '/epa/vorschlag/diagnosis/api/v1/fhir';
+export const DIAGNOSEDIENST_BASIS = WEG.diagnosedienst;
 
 const VORSCHLAG = 'https://example.org/demo-pvs/fhir/';
 const SNOMED = 'http://snomed.info/sct';
@@ -558,7 +551,7 @@ function listenwegeEinhaengen(
  * verlangt. Eine Relevanzmarkierung gibt es nicht: Jede Impfung zählt für den Impfschutz.
  * Ab Ausbaustand „Weiterentwicklung 3".
  */
-export const IMPFLISTE_BASIS = '/epa/vorschlag/immunization/api/v1/fhir';
+export const IMPFLISTE_BASIS = WEG.impfliste;
 
 export function impflisteEinhaengen(
   app: SimAnwendung,

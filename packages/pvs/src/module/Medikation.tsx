@@ -1,83 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
-  CODESYSTEM,
-  EMP_EXTENSION,
   EMP_STATUS_BEZEICHNUNG,
   EMP_STATUS_CODE,
   offeneUnterschiede,
   planAbgleichen,
-  praxisGeaendert,
-  type Abgleichlage,
-  allergieAusFhir,
-  allergieFuerAmts,
-  amtsPruefen,
   arzneimittel,
-  deutscherZeitpunkt,
-  deutschesDatum,
-  EMP_KATEGORIEN,
-  EMP_KATEGORIE_BEZEICHNUNG,
-  automatischeKategorie,
-  dosierungNachFhir,
-  dosierungAlsText,
-  type EmpKategorie,
   dosierungAusFhir,
-  dosierungsanzeige,
   dosierungAusText,
   planGrundNachFhir,
   planeintragFortschreiben,
-  planeintragNachFhir,
   planmittelNachFhir,
-  type Diagnose,
-  type Dosierung,
-  dokumentinhaltLesen,
-  istKeineBekannteAllergie,
-  laborwerteAusDokumenten,
-  imGueltigenPlan,
-  letzteVerordnung,
-  planangabeAusRezept,
   planeintragGleicherWirkstoff,
+  planangabeAusRezept,
   planeintragZumRezept,
-  schwersterBefund,
-  staendeVergleichen,
   type Rezept,
-  type Standaenderungen,
   type AmtsUmgebung,
-  type ArzneimittelEintrag,
-  type DokumentierteAllergie,
   type EmpStatus,
   type PraxisplanEintrag,
-  type Ressource,
-  type SpiegelEintrag,
+  neueId,
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen, useAuswahl, useZustand } from '../speicher/speicher.js';
-import { neueId, vorgaenge } from '../speicher/vorgaenge.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
-import { Katalogsuche } from '../bausteine/Katalogsuche.js';
-import { Befundliste } from '../bausteine/Befundliste.js';
-import {
-  DOSIERUNG_VORGABE,
-  DosierungAnzeige,
-  DosierungEingabe,
-  dosierungGueltig,
-} from './medikation/DosierungEingabe.js';
+import { DosierungAnzeige } from './medikation/DosierungEingabe.js';
 import { usePatientId } from './Patientenkartei.js';
-import {
-  EINRICHTUNG,
-  EpaFehler,
-  empEintragAendern,
-  empEintragAnlegen,
-  empVerknuepfen,
-  medikationslisteLesen,
-  medikationslisteSeit,
-  medikationsplanLesen,
-  medikationsplanStand,
-  zwischenueberschriftenLesen,
-  zwischenueberschriftenSetzen,
-  planaenderungenSeit,
-  type Medikationsliste,
-  type Medikationsplan,
-} from '../epa/klient.js';
-import { codeVon, fehlerTitel, textVon, useBetriebsstand } from '../epa/epa-bestand.js';
+import { EpaFehler } from '../epa/klient.js';
+import { empEintragAendern, empEintragAnlegen, empVerknuepfen } from '../epa/dienste/medikation.js';
+import { fehlerTitel } from '../epa/epa-bestand.js';
 import { useAktenstatus } from '../epa/aktenstatus.js';
 import {
   NeuesRezept,
@@ -86,323 +35,41 @@ import {
   type Rezeptangabe,
   type Rezeptvorlage,
 } from './medikation/RezeptUi.js';
-import { rezeptInEpa, rezeptLoeschen, rezeptSenden } from './medikation/rezepte.js';
+import { rezeptLoeschen, rezeptSenden } from './medikation/rezepte.js';
 import { epaFensterOeffnen } from '../epa/fenster.js';
-import { BefugnisHinweis, istGueltig, useBefugnis, useEinlesungen } from '../epa/befugnis.js';
+import { BefugnisHinweis, istGueltig, useBefugnis } from '../epa/befugnis.js';
 import { useEpaListen } from '../epa/listen.js';
-import { useLesezeichen } from '../epa/lesezeichen.js';
 import { Aenderungsband } from '../epa/gesehen.js';
+import { type Planzeile } from './medikation/planabgleich.js';
 import {
-  eindeutigesAbgleichen,
-  planzeilen,
-  referenz,
-  type Planzeile,
-} from './medikation/planabgleich.js';
-
-/**
- * Medikationsmodul nach dem digital gestützten Medikationsprozess — gegen den Medication
- * Service nach IG 1.3.5.
- *
- * Die Medikationsliste (eML) entsteht aus Verordnung, Abgabe und Nachtrag; der
- * Medikationsplan (eMP) nur durch ärztliche Handlung. Jede Änderung am Plan trägt den
- * Lesenachweis — die Kennung des Chronologieeintrags, auf dem die Ansicht beruht. Hat eine
- * andere Einrichtung inzwischen geändert, lehnt die ePA ab, und das Modul lädt neu.
- *
- * ▸ Für das Projekt ist das die Blaupause: automatisch abgeleiteter Bestand plus ärztlich
- * verantwortete Ebene darüber — so ist es für die Patient Summary vorgeschlagen.
- *
- * Angezeigt wird der Medikationsplan der Praxis — für jede Person der Bestand des
- * Praxissystems, auch ohne eingelesene eGK (ADR 0045, 0046). Mit Zugriff wird er gegen den eMP
- * abgeglichen: Eindeutiges automatisch, Eigenes auf Knopfdruck; geschrieben wird dann in den
- * eMP, und der Plan der Praxis folgt. Ohne Zugriff wirken die Handlungen im Plan der Praxis.
- * Die Medikationsliste ist eine reine Sicht der ePA.
- */
-
-const ATC = CODESYSTEM.atc;
-const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
-
-const STATUS_TON: Record<EmpStatus, 'gut' | 'neutral' | 'warn'> = {
-  aktiv: 'gut',
-  pausiert: 'warn',
-  beendet: 'neutral',
-  abgesetzt: 'neutral',
-  'entered-in-error': 'warn',
-};
-
-/** Eine Zeile des Plans: Eintrag der Praxis, eMP-Eintrag oder beide — mit der Lage im Abgleich. */
-const STATUS_REIHE: readonly EmpStatus[] = [
-  'aktiv',
-  'pausiert',
-  'beendet',
-  'abgesetzt',
-  'entered-in-error',
-];
-
-function kategorieDerZeile(e: SpiegelEintrag): EmpKategorie {
-  return (
-    e.kategorie ??
-    (e.dosis ? automatischeKategorie(dosierungNachFhir(e.dosis)) : null) ??
-    'unassigned'
-  );
-}
-
-function planGruppieren(zeilen: readonly Ansichtszeile[], mitKategorie: boolean) {
-  const gruppen: { schluessel: string; kopf: string; zeilen: Ansichtszeile[] }[] = [];
-  for (const status of STATUS_REIHE) {
-    const imStatus = zeilen.filter((z) => (z.lokal ?? z.epa!).status === status);
-    if (imStatus.length === 0) continue;
-    if (!mitKategorie || (status !== 'aktiv' && status !== 'pausiert')) {
-      gruppen.push({ schluessel: status, kopf: EMP_STATUS_BEZEICHNUNG[status], zeilen: imStatus });
-      continue;
-    }
-    for (const k of EMP_KATEGORIEN) {
-      const teil = imStatus.filter((z) => kategorieDerZeile(z.lokal ?? z.epa!) === k);
-      if (teil.length > 0)
-        gruppen.push({
-          schluessel: `${status}-${k}`,
-          kopf: `${EMP_STATUS_BEZEICHNUNG[status]} · ${EMP_KATEGORIE_BEZEICHNUNG[k]}`,
-          zeilen: teil,
-        });
-    }
-  }
-  return gruppen;
-}
-
-interface Ansichtszeile {
-  /** `null`: ohne eMP, kein Abgleich. */
-  lage: Abgleichlage | null;
-  lokal: PraxisplanEintrag | null;
-  epa: Planzeile | null;
-}
-
-/** Was die spezifizierte Abfrage „seit dem letzten Aufruf" ergeben hat (ADR 0030). */
-interface SeitAbfrage {
-  am: string;
-  plan: Standaenderungen | null;
-  /** Einrichtungen, die den Plan seitdem geändert haben. */
-  planVon: string[];
-  /** Neue Einträge der Medikationsliste von anderen Einrichtungen. */
-  liste: ReadonlySet<string>;
-  listeVon: string[];
-}
-
-function alsStand(z: Planzeile) {
-  return {
-    id: z.id,
-    fassung: z.fassung,
-    bezeichnung: z.bezeichnung,
-    vonAnderen: z.zuletztVonTelematikId !== EINRICHTUNG.telematikId,
-  };
-}
-
-/**
- * Fragt ab, was sich seit dem Lesezeichen geändert hat — mit den Mitteln des Medication
- * Service: Chronologieeinträge nach `recorded`, der Plan zum früheren Chronologieeintrag,
- * `$medication-list` mit `date`. Gemeldet wird nur, was andere Einrichtungen geändert haben.
- */
-async function seitAbfragen(
-  kvnr: string,
-  vorher: { zeitpunkt: string; chronologie: string | null },
-  zeilen: Planzeile[],
-  liste: Listenzeile[],
-): Promise<SeitAbfrage> {
-  // Chronologie und Liste hängen nicht voneinander ab; der frühere Plan nur von der Chronologie.
-  const [chronologie, seit] = await Promise.all([
-    planaenderungenSeit(kvnr, vorher.zeitpunkt),
-    medikationslisteSeit(kvnr, vorher.zeitpunkt),
-  ]);
-  const fremd = chronologie.filter((c) => c.telematikId !== EINRICHTUNG.telematikId);
-  let plan: Standaenderungen | null = null;
-  if (fremd.length > 0 && vorher.chronologie) {
-    const frueher = await medikationsplanLesen(kvnr, vorher.chronologie);
-    plan = staendeVergleichen(planzeilen(frueher).map(alsStand), zeilen.map(alsStand));
-  }
-  const neueAussagen = new Set(seit);
-  const fremdeZeilen = liste.filter(
-    (z) => neueAussagen.has(String(z.aussage.id)) && !z.einrichtung.includes(EINRICHTUNG.anzeige),
-  );
-  return {
-    am: vorher.zeitpunkt,
-    plan,
-    planVon: [...new Set(fremd.map((c) => c.einrichtung))],
-    liste: new Set(fremdeZeilen.map((z) => String(z.aussage.id))),
-    listeVon: [...new Set(fremdeZeilen.map((z) => z.einrichtung.split(', ').pop() ?? ''))],
-  };
-}
-
-/** Ein Eintrag der Liste: Medikationsinformation mit Arzneimittel und Herkunft. */
-interface Listenzeile {
-  aussage: Ressource;
-  medikament: Ressource | null;
-  atc: string;
-  art: 'Verordnung' | 'Nachtrag';
-  datum: string;
-  einrichtung: string;
-  dosierung: string;
-  /** Der Planeintrag, mit dem der Eintrag verknüpft ist (`basedOn`, ADR 0051). */
-  planeintrag: Planzeile | null;
-  /** Nicht verknüpft, aber ein gültiger Planeintrag mit demselben Wirkstoff (ATC-Code). */
-  wirkstoffImPlan: Planzeile | null;
-}
-
-interface Medikationsstand {
-  plan: Medikationsplan;
-  zeilen: Planzeile[];
-  liste: Listenzeile[];
-  /** Die Medikationsliste, wie sie kam — für Rezepte und Abgaben. */
-  roh: Medikationsliste;
-}
-
-/** Letzte Verschreibung und Abgabe zu einem Planeintrag, aus den verknüpften eML-Einträgen. */
-interface Rezeptspur {
-  verordnetAm: string | null;
-  abgegebenAm: string | null;
-  /** Mehr als ein abgegebenes Arzneimittel zur letzten Verschreibung (IG 1.3.5, MUSS-Hinweis). */
-  mehrfach: string[] | null;
-}
-
-function rezeptspur(liste: Medikationsliste, planId: string): Rezeptspur {
-  const quelle = (a: Ressource, typ: string) =>
-    ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
-      .map((d) => String(d.reference ?? '').split('/'))
-      .filter(([t]) => t === typ)
-      .map(([, id]) => liste.einschluesse.find((r) => r.resourceType === typ && r.id === id))
-      .filter((r): r is Ressource => !!r);
-  const verknuepft = liste.eintraege.filter((a) =>
-    ((a['basedOn'] as { reference?: string }[] | undefined) ?? []).some(
-      (b) => b.reference === `MedicationRequest/${planId}`,
-    ),
-  );
-  // Die jüngste Verordnung; zu ihr gehören alle Medikationsinformationen ihrer Abgaben — je
-  // abgegebenem Arzneimittel eine (IG 1.4.0-ballot.1, ADD-DISPENSATION-ERP-V1).
-  const letzte = verknuepft
-    .flatMap((a) => quelle(a, 'MedicationRequest'))
-    .sort((x, y) => String(y['authoredOn'] ?? '').localeCompare(String(x['authoredOn'] ?? '')))[0];
-  if (!letzte) return { verordnetAm: null, abgegebenAm: null, mehrfach: null };
-  const abgaben = verknuepft
-    .filter((a) => quelle(a, 'MedicationRequest').some((v) => v.id === letzte.id))
-    .flatMap((a) => quelle(a, 'MedicationDispense'));
-  const mittel = (a: Ressource) =>
-    textVon(
-      liste.einschluesse.find(
-        (r) =>
-          r.resourceType === 'Medication' &&
-          `Medication/${String(r.id)}` ===
-            (a['medicationReference'] as { reference?: string } | undefined)?.reference,
-      ) ?? a,
-    );
-  return {
-    verordnetAm: String(letzte['authoredOn'] ?? '').slice(0, 10),
-    abgegebenAm: abgaben[0] ? String(abgaben[0]['whenHandedOver'] ?? '').slice(0, 10) : null,
-    mehrfach: abgaben.length > 1 ? abgaben.map(mittel) : null,
-  };
-}
-
-function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[] {
-  const suche = (typ: string, id: string) =>
-    liste.einschluesse.find((r) => r.resourceType === typ && r.id === id);
-  const planNachId = new Map(plan.map((z) => [z.id, z]));
-  return liste.eintraege
-    .map((a) => {
-      const medikament = suche('Medication', referenz(a)) ?? null;
-      const atc = (medikament && codeVon(medikament, 'code', ATC)) ?? '';
-      const kontext = (a.extension ?? []).find((e) => e.url === EMP_EXTENSION.kontext)?.valueCode;
-      const verordnung = ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
-        .map((q) => String(q.reference ?? '').split('/'))
-        .map(([typ, id]) => suche(String(typ), String(id)))
-        .find((r) => r?.resourceType === 'MedicationRequest');
-      const aktivitaet = liste.einschluesse.find(
-        (r) =>
-          r.resourceType === 'Provenance' &&
-          (r['target'] as { reference: string }[]).some((t) =>
-            t.reference.startsWith(`MedicationStatement/${String(a.id)}/`),
-          ),
-      );
-      return {
-        aussage: a,
-        medikament,
-        atc,
-        art: kontext === 'MANUAL' ? ('Nachtrag' as const) : ('Verordnung' as const),
-        datum: String(
-          (a['effectivePeriod'] as { start?: string } | undefined)?.start ??
-            a['dateAsserted'] ??
-            '',
-        ),
-        einrichtung:
-          (verordnung?.['requester'] as { display?: string } | undefined)?.display ??
-          (aktivitaet?.['agent'] as { who?: { display?: string } }[] | undefined)?.[0]?.who
-            ?.display ??
-          '—',
-        dosierung: dosierungsanzeige(a),
-        ...planbezug(a, atc, plan, planNachId),
-      };
-    })
-    .sort((x, y) => y.datum.localeCompare(x.datum));
-}
-
-/**
- * Bezug eines eML-Eintrags zum eMP (ADR 0051): „im Plan“ nur über die Verknüpfung (`basedOn`,
- * gesetzt von `$link-emp` oder `$add-emp-entry`). Derselbe Wirkstoff in einem gültigen
- * Planeintrag ist ein eigener Hinweis — eine andere Stärke ist gerade die Abweichung, die der
- * Abgleich zeigen soll.
- */
-function planbezug(
-  aussage: Ressource,
-  atc: string,
-  plan: readonly Planzeile[],
-  planNachId: ReadonlyMap<string, Planzeile>,
-): Pick<Listenzeile, 'planeintrag' | 'wirkstoffImPlan'> {
-  const planeintrag =
-    ((aussage['basedOn'] as { reference?: string }[] | undefined) ?? [])
-      .map((b) => String(b.reference ?? '').split('/'))
-      .filter(([typ]) => typ === 'MedicationRequest')
-      .map(([, id]) => planNachId.get(String(id)))
-      .find((z) => z !== undefined) ?? null;
-  const wirkstoffImPlan =
-    planeintrag || !atc ? null : (plan.find((z) => z.atc === atc && imGueltigenPlan(z)) ?? null);
-  return { planeintrag, wirkstoffImPlan };
-}
-
-/** Die Kennung des eMP-Eintrags (`identifier`), über die `$link-emp` und Rezepte ihn nennen. */
-function empKennung(z: Planzeile): string {
-  return String((z.eintrag['identifier'] as { value?: string }[] | undefined)?.[0]?.value ?? z.id);
-}
-
-/**
- * Planeintrag und Behandlungsgründe für `$add-emp-entry` — Abbildung im Kern
- * (fhir/medikation.ts). Ohne strukturierte Dosierung gehen die `Dosage`-Elemente der Quelle
- * unverändert in den Eintrag (ADR 0052); ohne beides wird der Text übernommen: ein Viererschema
- * strukturiert, sonst Freitext.
- */
-function planeintrag(
-  kvnr: string,
-  datum: string,
-  angabe: {
-    dosierung: string;
-    dosis?: Dosierung | null;
-    /** `Dosage`-Elemente der Quelle, etwa des eML-Eintrags. */
-    dosage?: unknown;
-    grund: string | null;
-    grundDiagnose?: Diagnose | null;
-  },
-): [Ressource, Ressource[]] {
-  const dosis = angabe.dosis ?? dosierungAusText(angabe.dosierung);
-  const uebernommen =
-    !angabe.dosis && Array.isArray(angabe.dosage) && angabe.dosage.length > 0
-      ? (angabe.dosage as Ressource[])
-      : null;
-  return [
-    planeintragNachFhir({
-      kvnr,
-      datum,
-      dosierung: dosis,
-      dosageUebernommen: uebernommen,
-      grund: angabe.grund,
-      grundDiagnose: angabe.grundDiagnose ?? null,
-    }),
-    angabe.grundDiagnose ? [planGrundNachFhir(angabe.grundDiagnose, kvnr)] : [],
-  ];
-}
+  planGruppieren,
+  Ansichtszeile,
+  Listenzeile,
+  rezeptspur,
+  empKennung,
+  planeintrag,
+} from './medikation/stand.js';
+import { Abgleichband, AbgleichMarker } from './medikation/Abgleich.js';
+import {
+  STATUS_TON,
+  Spur,
+  PraxisplanSpur,
+  Planhandlungen,
+  EmlTabelle,
+} from './medikation/Tabellen.js';
+import { NeuerPlaneintrag } from './medikation/NeuerPlaneintrag.js';
+import {
+  useMedikationsstand,
+  useNachfragen,
+  useZwischenueberschriften,
+} from './medikation/laden.js';
+import { useAmtsUmgebung } from './medikation/amts.js';
+import {
+  vorlageAusListe,
+  vorlageAusPlan,
+  vorlageAusPraxisplan,
+  vorlageNeu,
+} from './medikation/vorlagen.js';
 
 export function Medikation() {
   const patientId = usePatientId();
@@ -425,15 +92,10 @@ export function Medikation() {
   const kvnr = patient?.versicherung.kvnr ?? '';
 
   const befugt = istGueltig(useBefugnis(patientId));
-  const einlesungen = useEinlesungen();
-  const betriebsstand = useBetriebsstand();
   const { lage: listenlage } = useEpaListen(patient);
+  const { stand, laedt, fehler, seit, neuLaden } = useMedikationsstand(patientId, kvnr, befugt);
+  const umgebungOhnePlan = useAmtsUmgebung(listenlage, lokaleAllergien, lokaleDokumente);
 
-  const [zaehler, setzeZaehler] = useState(0);
-  const neuLaden = useCallback(() => setzeZaehler((z) => z + 1), []);
-  const [stand, setzeStand] = useState<Medikationsstand | null>(null);
-  const [laedt, setzeLaedt] = useState(true);
-  const [fehler, setzeFehler] = useState<EpaFehler | null>(null);
   const [meldung, setzeMeldung] = useState<{
     art: 'gut' | 'fehler' | 'neutral';
     text: string;
@@ -455,93 +117,6 @@ export function Medikation() {
   const [vorlage, setzeVorlage] = useState<Rezeptvorlage | null>(null);
   const [neuesRezept, setzeNeuesRezept] = useState(false);
   const [neuerPlaneintrag, setzeNeuerPlaneintrag] = useState(false);
-  const lesezeichen = useLesezeichen(patientId, 'medikation');
-  const [seit, setzeSeit] = useState<SeitAbfrage | null>(null);
-
-  useEffect(() => {
-    let abgebrochen = false;
-    if (!befugt) {
-      setzeFehler(new EpaFehler(403, 'Keine Befugnis.', 'notEntitled'));
-      setzeStand(null);
-      setzeLaedt(false);
-      return;
-    }
-    setzeLaedt(true);
-    setzeFehler(null);
-    Promise.all([medikationslisteLesen(kvnr), medikationsplanLesen(kvnr)])
-      .then(([liste, plan]) => {
-        if (abgebrochen) return;
-        const zeilen = planzeilen(plan);
-        // Der Plan der Praxis übernimmt, was eindeutig ist (ADR 0046).
-        eindeutigesAbgleichen(patientId, plan);
-        const listenZeilen = listenzeilen(liste, zeilen);
-        setzeStand({ plan, zeilen, liste: listenZeilen, roh: liste });
-        setzeLaedt(false);
-        // Abfrage „seit" gegen das Lesezeichen vom Öffnen der Ansicht; danach das neue merken.
-        const vorher = lesezeichen.vorher;
-        if (vorher) {
-          seitAbfragen(kvnr, vorher, zeilen, listenZeilen)
-            .then((s) => {
-              if (!abgebrochen) setzeSeit(s);
-            })
-            .catch(() => undefined);
-        }
-        lesezeichen.merken(plan.abgerufen || (liste.abgerufen ?? ''), plan.lesenachweis);
-      })
-      .catch((f: unknown) => {
-        if (abgebrochen) return;
-        setzeFehler(f instanceof EpaFehler ? f : new EpaFehler(0, 'Unbekannter Fehler'));
-        setzeLaedt(false);
-      });
-    return () => {
-      abgebrochen = true;
-    };
-  }, [kvnr, zaehler, patientId, befugt, einlesungen, betriebsstand]);
-
-  /*
-   * AMTS-Prüfung: Allergien der Praxis, aus übernommenen Dokumenten und — in der
-   * Weiterentwicklung — aus der Allergienliste der ePA; Nierenfunktion aus Laborbefunden.
-   */
-  const epaAllergien = useMemo(() => {
-    if (listenlage.art !== 'bereit') return [];
-    const verknuepft = new Set(lokaleAllergien.map((a) => a.epaId).filter(Boolean));
-    return listenlage.listen.allergien
-      .filter(
-        (e) =>
-          !istKeineBekannteAllergie(e.eintrag) &&
-          !verknuepft.has(e.eintrag.id) &&
-          e.eintrag.klinischerStatus === 'aktiv' &&
-          e.eintrag.gewissheit !== 'irrtümlich',
-      )
-      .map((e) =>
-        allergieFuerAmts(
-          e.eintrag,
-          `Allergienliste der ePA, eingetragen von ${e.chronik.angelegtVon}`,
-        ),
-      );
-  }, [listenlage, lokaleAllergien]);
-
-  const umgebungOhnePlan = useMemo(() => {
-    const allergien: DokumentierteAllergie[] = [
-      ...lokaleAllergien.map((a) => allergieFuerAmts(a, 'Allergien der Praxis')),
-      ...epaAllergien,
-      ...lokaleDokumente.flatMap((d) =>
-        dokumentinhaltLesen(d.inhalt).allergien.map((r) =>
-          allergieAusFhir(r, `${d.titel} (übernommen)`),
-        ),
-      ),
-    ];
-    const egfr = laborwerteAusDokumenten(lokaleDokumente)
-      .filter((w) => w.loinc === '62238-1')
-      .sort((a, b) => b.erhobenAm.localeCompare(a.erhobenAm))[0];
-    return {
-      allergien,
-      egfr: egfr ? Number(egfr.wert.replace(',', '.')) : null,
-      egfrGrundlage: egfr
-        ? `Laborbefund ${egfr.herkunft.quelle} vom ${deutschesDatum(egfr.erhobenAm)}`
-        : null,
-    };
-  }, [lokaleAllergien, epaAllergien, lokaleDokumente]);
 
   const ohneBefugnis = fehler?.ohneBefugnis ?? false;
   const gesperrt = fehler?.status === 423 || aktenstatus.daten?.medikationGesperrt === true;
@@ -567,23 +142,10 @@ export function Medikation() {
    * Gruppen nach Status, aktive und pausierte zusätzlich nach Kategorie, wenn die Einstellung der
    * Zwischenüberschriften es vorsieht (IG-MED09759K35-01, Render API).
    */
-  const [ueberschriften, setzeUeberschriften] = useState(true);
-  useEffect(() => {
-    if (!mitEpa) return;
-    let gueltig = true;
-    zwischenueberschriftenLesen(kvnr)
-      .then((w) => gueltig && setzeUeberschriften(w))
-      .catch(() => undefined);
-    return () => {
-      gueltig = false;
-    };
-  }, [kvnr, mitEpa]);
-  function zwischenueberschriftenUmschalten(wert: boolean) {
-    setzeUeberschriften(wert);
-    void zwischenueberschriftenSetzen(kvnr, wert).then(setzeUeberschriften, () =>
-      setzeUeberschriften(!wert),
-    );
-  }
+  const [ueberschriften, zwischenueberschriftenUmschalten] = useZwischenueberschriften(
+    kvnr,
+    mitEpa,
+  );
   // Ohne ePA stellt das Praxissystem den Plan selbst dar, mit Zwischenüberschriften.
   const gruppen = useMemo(
     () => planGruppieren(zeilen, !mitEpa || ueberschriften),
@@ -606,27 +168,7 @@ export function Medikation() {
    * nach — der Fachdienst überträgt asynchron. Höchstens zwanzigmal je Rezept, dann bleibt es
    * beim Stand; ein später gesendetes Rezept bekommt seine eigenen Nachfragen.
    */
-  const [nachfragen, setzeNachfragen] = useState<ReadonlyMap<string, number>>(new Map());
-  const nachzufragen = rezepte
-    .filter(
-      (r) =>
-        rezeptInEpa(r, stand?.roh ?? null, gesperrt || !befugt).art === 'ausstehend' &&
-        (nachfragen.get(r.id) ?? 0) < 20,
-    )
-    .map((r) => r.id);
-  const nachzufragenSchluessel = nachzufragen.join('|');
-  useEffect(() => {
-    if (!nachzufragenSchluessel || laedt) return;
-    const z = setTimeout(() => {
-      setzeNachfragen((alt) => {
-        const neu = new Map(alt);
-        for (const id of nachzufragenSchluessel.split('|')) neu.set(id, (neu.get(id) ?? 0) + 1);
-        return neu;
-      });
-      neuLaden();
-    }, 1500);
-    return () => clearTimeout(z);
-  }, [nachzufragenSchluessel, laedt, nachfragen, neuLaden]);
+  useNachfragen(rezepte, stand, gesperrt || !befugt, laedt, neuLaden);
 
   /** Legt das Rezept an, nimmt das Mittel auf Wunsch in den Plan und sendet es, wenn gewünscht. */
   function rezeptAusVorlage(v: Rezeptvorlage, a: Rezeptangabe, senden: boolean) {
@@ -748,101 +290,9 @@ export function Medikation() {
     setzeMeldung({ art: 'gut', text: 'In den Plan aufgenommen.' });
   }
 
-  function vorlageAusPraxisplan(e: PraxisplanEintrag) {
+  function vorlageZeigen(v: Rezeptvorlage) {
     setzeNeuesRezept(false);
-    setzeVorlage({
-      arzneimittel: {
-        bezeichnung: e.bezeichnung,
-        pzn: e.pzn ?? arzneimittel.find((m) => m.atc === e.atc)?.pzn ?? '',
-        atc: e.atc,
-        atcVersion: e.atcVersion,
-      },
-      dosierung: e.dosierung,
-      dosis: e.dosis ?? null,
-      empId: null,
-      praxisplanId: e.id,
-      grund: e.grund,
-      herkunft: 'plan',
-      imPlan: true,
-      katalog: arzneimittel.find((m) => m.atc === e.atc) ?? null,
-    });
-  }
-
-  function vorlageAusPlan(z: Planzeile) {
-    const katalog =
-      arzneimittel.find((m) => m.atc === z.atc && z.bezeichnung.startsWith(m.bezeichnung)) ??
-      arzneimittel.find((m) => m.atc === z.atc) ??
-      null;
-    const mittel = stand?.plan.ressourcen.find(
-      (r) => r.resourceType === 'Medication' && r.id === referenz(z.eintrag),
-    );
-    setzeNeuesRezept(false);
-    setzeVorlage({
-      arzneimittel: {
-        bezeichnung: z.bezeichnung,
-        pzn: (mittel && codeVon(mittel, 'code', PZN)) ?? katalog?.pzn ?? '',
-        atc: z.atc,
-        atcVersion: katalog?.atcVersion ?? '2026',
-      },
-      dosierung: z.dosierung,
-      dosis: z.dosis ?? null,
-      empId: empKennung(z),
-      grund: z.grund,
-      herkunft: 'plan',
-      imPlan: true,
-      katalog,
-    });
-  }
-
-  function vorlageAusListe(z: Listenzeile) {
-    const katalog = arzneimittel.find((m) => m.atc === z.atc) ?? null;
-    setzeNeuesRezept(false);
-    setzeVorlage({
-      arzneimittel: {
-        bezeichnung: z.medikament ? textVon(z.medikament) : (katalog?.bezeichnung ?? ''),
-        pzn: (z.medikament && codeVon(z.medikament, 'code', PZN)) ?? katalog?.pzn ?? '',
-        atc: z.atc,
-        atcVersion: katalog?.atcVersion ?? '2026',
-      },
-      dosierung: z.dosierung,
-      dosis: dosierungAusFhir(z.aussage['dosage']),
-      empId: null,
-      grund: null,
-      herkunft: 'liste',
-      imPlan: z.planeintrag !== null,
-      wirkstoffImPlan: z.wirkstoffImPlan?.bezeichnung ?? null,
-      katalog,
-      ...(z.medikament
-        ? {
-            listeneintrag: {
-              aussageId: String(z.aussage.id),
-              medicationId: String(z.medikament.id),
-            },
-          }
-        : {}),
-    });
-  }
-
-  function vorlageNeu(m: ArzneimittelEintrag) {
-    setzeNeuesRezept(false);
-    setzeVorlage({
-      arzneimittel: {
-        bezeichnung: m.bezeichnung,
-        pzn: m.pzn,
-        atc: m.atc,
-        atcVersion: m.atcVersion,
-      },
-      dosierung: '1-0-0-0',
-      dosis: DOSIERUNG_VORGABE,
-      empId: null,
-      grund: null,
-      herkunft: 'neu',
-      imPlan: false,
-      wirkstoffImPlan:
-        zeilen.map((z) => z.lokal ?? z.epa!).find((e) => e.atc === m.atc && imGueltigenPlan(e))
-          ?.bezeichnung ?? null,
-      katalog: m,
-    });
+    setzeVorlage(v);
   }
 
   const mehrfachabgaben = (stand?.zeilen ?? [])
@@ -1241,8 +691,8 @@ export function Medikation() {
                                 className="knopf klein"
                                 onClick={() =>
                                   abgeglichen
-                                    ? vorlageAusPlan(z.epa!)
-                                    : vorlageAusPraxisplan(z.lokal!)
+                                    ? vorlageZeigen(vorlageAusPlan(z.epa!, stand))
+                                    : vorlageZeigen(vorlageAusPraxisplan(z.lokal!))
                                 }
                               >
                                 Rezept
@@ -1339,7 +789,7 @@ export function Medikation() {
                 zeilen={stand.liste}
                 neu={seit?.liste ?? new Set()}
                 darfVerordnen={darfVerordnen && mitEpa}
-                rezept={vorlageAusListe}
+                rezept={(z: Listenzeile) => vorlageZeigen(vorlageAusListe(z))}
                 umgebung={umgebung}
                 verknuepfen={(z) =>
                   void handlung(async () => {
@@ -1410,457 +860,9 @@ export function Medikation() {
       />
       {neuesRezept && (
         <Karte titel="Neues E-Rezept">
-          <NeuesRezept beiAuswahl={vorlageNeu} />
+          <NeuesRezept beiAuswahl={(m) => vorlageZeigen(vorlageNeu(m, zeilen))} />
         </Karte>
       )}
     </>
-  );
-}
-
-/** Letzte Verschreibung und Abgabe am Planeintrag. */
-function Spur({ spur }: { spur: Rezeptspur }) {
-  if (!spur.verordnetAm) return null;
-  return (
-    <div className="leise-klein">
-      verordnet {deutschesDatum(spur.verordnetAm)}
-      {spur.abgegebenAm ? ` · abgegeben ${deutschesDatum(spur.abgegebenAm)}` : ' · nicht eingelöst'}
-      {spur.mehrfach && (
-        <>
-          {' '}
-          <Marker ton="warn">{spur.mehrfach.length} Arzneimittel abgegeben</Marker>
-        </>
-      )}
-    </div>
-  );
-}
-
-/** Letzte Verordnung am Eintrag des Medikationsplans der Praxis — ohne ePA keine Abgabe. */
-function PraxisplanSpur({
-  eintrag,
-  rezepte,
-}: {
-  eintrag: PraxisplanEintrag;
-  rezepte: readonly Rezept[];
-}) {
-  const letzte = letzteVerordnung(eintrag, rezepte);
-  if (!letzte?.gesendetAm) return null;
-  return (
-    <div className="leise-klein">verordnet {deutschesDatum(letzte.gesendetAm.slice(0, 10))}</div>
-  );
-}
-
-/* ---------- Abgleich ---------- */
-
-function Abgleichband({
-  kvnr,
-  mitEpa,
-  grund,
-  zuletzt,
-  offen,
-  lesenachweis,
-  neuLaden,
-}: {
-  kvnr: string;
-  mitEpa: boolean;
-  /** Warum nicht abgeglichen wird. */
-  grund: string | null;
-  /** Letzter erfolgreicher Abgleich. */
-  zuletzt: string | null;
-  /** Unterschiede, die eine Handlung brauchen. */
-  offen: number;
-  lesenachweis: string | null;
-  neuLaden: () => void;
-}) {
-  const [pruefung, setzePruefung] = useState<string | null>(null);
-
-  async function pruefen() {
-    try {
-      const aktuell = await medikationsplanStand(kvnr);
-      const gleich = aktuell.lesenachweis === lesenachweis;
-      setzePruefung(gleich ? 'Plan unverändert' : 'Plan geändert — neu geladen');
-      // Die Liste hat keine Chronologie; Abgaben ändern sie auch bei unverändertem Plan.
-      neuLaden();
-    } catch (f) {
-      setzePruefung(f instanceof EpaFehler ? f.diagnose : 'keine Antwort');
-    }
-  }
-
-  return (
-    <div className={`abgleichband ${mitEpa && offen === 0 ? 'synchron' : 'veraltet'}`}>
-      <span className="abgleichband-punkt" aria-hidden="true" />
-      {mitEpa ? (
-        <span>
-          <b>Abgeglichen</b>
-          {zuletzt && ` · ${deutscherZeitpunkt(zuletzt)}`}
-          {offen > 0 && ` · ${offen} ${offen === 1 ? 'Unterschied' : 'Unterschiede'} offen`}
-        </span>
-      ) : (
-        <span>
-          <b>Nicht abgeglichen</b>
-          {grund && ` · ${grund}`}
-          {' · '}
-          {zuletzt
-            ? `Stand des letzten Abgleichs ${deutscherZeitpunkt(zuletzt)}`
-            : 'noch nie mit der ePA abgeglichen'}
-        </span>
-      )}
-      <button
-        type="button"
-        className="knopf klein rechts"
-        disabled={!mitEpa}
-        onClick={() => void pruefen()}
-      >
-        Stand prüfen
-      </button>
-      {pruefung && <span className="leise-klein">{pruefung}</span>}
-    </div>
-  );
-}
-
-/** Lage eines Eintrags im Abgleich mit dem eMP — ohne eMP, was der letzte Abgleich hinterließ. */
-function AbgleichMarker({ zeile: z }: { zeile: Ansichtszeile }) {
-  const lage =
-    z.lage ??
-    (z.lokal?.epaId ? (praxisGeaendert(z.lokal) ? 'praxis-geaendert' : 'stand') : 'nur-praxis');
-  switch (lage) {
-    case 'abgeglichen':
-    case 'epa-geaendert':
-      return <Marker ton="gut">abgeglichen</Marker>;
-    case 'stand':
-      return (
-        <Marker ton="neutral" titel="Stand des letzten Abgleichs">
-          verknüpft
-        </Marker>
-      );
-    case 'praxis-geaendert':
-      return <Marker ton="warn">lokal geändert</Marker>;
-    case 'beide-geaendert':
-      return <Marker ton="warn">in beiden geändert</Marker>;
-    case 'nur-praxis':
-      return <Marker ton="lokal">nur Praxis</Marker>;
-    case 'nur-epa':
-      return <Marker ton="akzent">nur ePA</Marker>;
-    case 'gleiches-mittel':
-      return <Marker ton="warn">gleiches Mittel in der ePA</Marker>;
-    case 'nicht-in-epa':
-      return <Marker ton="warn">nicht mehr in der ePA</Marker>;
-  }
-}
-
-/* ---------- Handlungen am Plan ---------- */
-
-function Planhandlungen({
-  zeile,
-  ausfuehren,
-}: {
-  zeile: Pick<SpiegelEintrag, 'status'>;
-  ausfuehren: (status: EmpStatus, text: string) => void;
-}) {
-  const [rueckfrage, setzeRueckfrage] = useState(false);
-  if (rueckfrage) {
-    return (
-      <div className="rueckfrage-inline" role="group" aria-label="Als fehlerhaft kennzeichnen?">
-        <span>Als fehlerhaft kennzeichnen?</span>
-        <button
-          type="button"
-          className="knopf klein stark"
-          onClick={() => {
-            setzeRueckfrage(false);
-            ausfuehren('entered-in-error', 'Als fehlerhaft gekennzeichnet.');
-          }}
-        >
-          ja
-        </button>
-        <button type="button" className="knopf klein" onClick={() => setzeRueckfrage(false)}>
-          nein
-        </button>
-      </div>
-    );
-  }
-  return (
-    <div className="reihe" style={{ gap: 5 }}>
-      {zeile.status === 'aktiv' ? (
-        <button
-          type="button"
-          className="knopf klein"
-          onClick={() => ausfuehren('pausiert', 'Pausiert.')}
-        >
-          pausieren
-        </button>
-      ) : (
-        <button
-          type="button"
-          className="knopf klein"
-          onClick={() => ausfuehren('aktiv', 'Fortgesetzt.')}
-        >
-          fortsetzen
-        </button>
-      )}
-      <button
-        type="button"
-        className="knopf klein"
-        onClick={() => ausfuehren('abgesetzt', 'Abgesetzt.')}
-      >
-        absetzen
-      </button>
-      <button type="button" className="knopf klein" onClick={() => setzeRueckfrage(true)}>
-        fehlerhaft …
-      </button>
-    </div>
-  );
-}
-
-/* ---------- eML ---------- */
-
-function EmlTabelle({
-  zeilen,
-  neu,
-  darfVerordnen,
-  rezept,
-  umgebung,
-  uebernehmen,
-  verknuepfen,
-}: {
-  zeilen: Listenzeile[];
-  /** Seit dem letzten Aufruf neu, von anderen Einrichtungen. */
-  neu: ReadonlySet<string>;
-  darfVerordnen: boolean;
-  rezept: (z: Listenzeile) => void;
-  umgebung: AmtsUmgebung;
-  uebernehmen: (z: Listenzeile) => void;
-  /** Verknüpft den Eintrag mit dem Planeintrag desselben Wirkstoffs (`$link-emp`). */
-  verknuepfen: (z: Listenzeile) => void;
-}) {
-  return (
-    <div className="tabelle-rahmen">
-      <table className="liste">
-        <thead>
-          <tr>
-            <th>Datum</th>
-            <th>Art</th>
-            <th>Arzneimittel</th>
-            <th>Einrichtung</th>
-            <th>Plan</th>
-            <th>
-              <span className="nur-fuer-screenreader">Aktionen</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {zeilen.map((z) => {
-            const katalog = arzneimittel.find((a) => a.atc === z.atc);
-            return (
-              <tr key={String(z.aussage.id)}>
-                <td>{deutschesDatum(z.datum)}</td>
-                <td>
-                  <Marker ton={z.art === 'Verordnung' ? 'akzent' : 'neutral'}>{z.art}</Marker>
-                </td>
-                <td>
-                  {z.medikament ? textVon(z.medikament) : '—'}
-                  {neu.has(String(z.aussage.id)) && <span className="neu-marke">neu</span>}
-                  <div className="leise-klein">ATC {z.atc || '—'}</div>
-                </td>
-                <td className="leise-klein">{z.einrichtung}</td>
-                <td>
-                  {!z.planeintrag ? (
-                    <Marker ton="warn">nicht im Plan</Marker>
-                  ) : imGueltigenPlan(z.planeintrag) ? (
-                    <Marker ton="gut">im Plan</Marker>
-                  ) : (
-                    <Marker ton="neutral">
-                      im Plan · {EMP_STATUS_BEZEICHNUNG[z.planeintrag.status]}
-                    </Marker>
-                  )}
-                  {z.wirkstoffImPlan && (
-                    <div className="leise-klein">
-                      Wirkstoff im Plan: {z.wirkstoffImPlan.bezeichnung}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <div className="reihe" style={{ gap: 5 }}>
-                    {z.art === 'Verordnung' && z.medikament && katalog && (
-                      <button type="button" className="knopf klein" onClick={() => rezept(z)}>
-                        Rezept
-                      </button>
-                    )}
-                    {darfVerordnen && z.wirkstoffImPlan && (
-                      <button
-                        type="button"
-                        className="knopf klein"
-                        aria-label={`verknüpfen mit ${z.wirkstoffImPlan.bezeichnung}`}
-                        onClick={() => verknuepfen(z)}
-                      >
-                        verknüpfen
-                      </button>
-                    )}
-                    {darfVerordnen && !z.planeintrag && z.medikament && katalog && (
-                      <UebernahmeKnopf
-                        mittel={katalog}
-                        umgebung={umgebung}
-                        beiUebernahme={() => uebernehmen(z)}
-                      />
-                    )}
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/* ---------- AMTS ---------- */
-
-function UebernahmeKnopf({
-  mittel,
-  umgebung,
-  beiUebernahme,
-}: {
-  mittel: ArzneimittelEintrag;
-  umgebung: AmtsUmgebung;
-  beiUebernahme: () => void;
-}) {
-  const [offen, setzeOffen] = useState(false);
-  const befunde = useMemo(() => amtsPruefen(mittel, umgebung), [mittel, umgebung]);
-  const schwere = schwersterBefund(befunde);
-  if (!offen) {
-    return (
-      <button type="button" className="knopf klein" onClick={() => setzeOffen(true)}>
-        in den Plan{schwere === 'kontraindiziert' ? ' ⚠' : ''}
-      </button>
-    );
-  }
-  return (
-    <div style={{ minWidth: 260 }}>
-      <Befundliste befunde={befunde} />
-      <div className="reihe" style={{ gap: 6 }}>
-        <button
-          type="button"
-          className={`knopf klein ${schwere === 'kontraindiziert' ? '' : 'stark'}`}
-          onClick={() => {
-            beiUebernahme();
-            setzeOffen(false);
-          }}
-        >
-          {schwere === 'kontraindiziert' ? 'trotzdem übernehmen' : 'übernehmen'}
-        </button>
-        <button type="button" className="knopf klein" onClick={() => setzeOffen(false)}>
-          abbrechen
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Angaben eines neuen Planeintrags aus dem Dialog. */
-interface Planangabe {
-  dosis: Dosierung;
-  text: string;
-  grund: string | null;
-  grundDiagnose: Diagnose | null;
-}
-
-function NeuerPlaneintrag({
-  umgebung,
-  diagnosen,
-  beiAnlage,
-  abbrechen,
-}: {
-  umgebung: AmtsUmgebung;
-  diagnosen: readonly Diagnose[];
-  beiAnlage: (mittel: ArzneimittelEintrag, angabe: Planangabe) => void;
-  abbrechen: () => void;
-}) {
-  const [mittel, setzeMittel] = useState<ArzneimittelEintrag | null>(null);
-  const [dosis, setzeDosis] = useState<Dosierung>(DOSIERUNG_VORGABE);
-  const [grund, setzeGrund] = useState('');
-  const [diagnoseId, setzeDiagnoseId] = useState('');
-  const gueltigeDiagnosen = diagnosen.filter(
-    (d) => d.diagnosesicherheit !== 'irrtümlich' && d.zusatzkennzeichen !== 'A',
-  );
-  const befunde = useMemo(() => (mittel ? amtsPruefen(mittel, umgebung) : []), [mittel, umgebung]);
-
-  return (
-    <Karte titel="Neuer Planeintrag">
-      {!mittel ? (
-        <Katalogsuche
-          beschriftung="Arzneimittel suchen"
-          eintraege={arzneimittel}
-          schluesselVon={(a) => a.atc}
-          bezeichnungVon={(a) => a.bezeichnung}
-          beiAuswahl={setzeMittel}
-          platzhalter="Wirkstoff oder ATC, z. B. Metformin oder J01C"
-        />
-      ) : (
-        <>
-          <div className="reihe" style={{ marginBottom: 8 }}>
-            <b>{mittel.bezeichnung}</b>
-            <span className="leise-klein">
-              ATC {mittel.atc} ({mittel.atcVersion}) · PZN {mittel.pzn}
-            </span>
-            <button type="button" className="knopf klein rechts" onClick={() => setzeMittel(null)}>
-              anderes Mittel
-            </button>
-          </div>
-          <Befundliste befunde={befunde} />
-          <DosierungEingabe wert={dosis} setze={setzeDosis} />
-          <div className="feldreihe">
-            <div className="feldzeile" style={{ flex: '2 1 240px' }}>
-              <label htmlFor="grund-diagnose">Behandlungsgrund (Diagnose)</label>
-              <select
-                id="grund-diagnose"
-                value={diagnoseId}
-                onChange={(e) => setzeDiagnoseId(e.target.value)}
-              >
-                <option value="">—</option>
-                {gueltigeDiagnosen.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.code} {d.bezeichnung}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="feldzeile" style={{ flex: '2 1 240px' }}>
-              <label htmlFor="grund">Behandlungsgrund für Patient:in</label>
-              <input
-                id="grund"
-                type="text"
-                value={grund}
-                placeholder="z. B. Blutdruck"
-                onChange={(e) => setzeGrund(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="reihe" style={{ gap: 6 }}>
-            <button
-              type="button"
-              className="knopf stark"
-              disabled={!dosierungGueltig(dosis)}
-              onClick={() =>
-                beiAnlage(mittel, {
-                  dosis,
-                  text: dosierungAlsText(dosis),
-                  grund: grund.trim() === '' ? null : grund.trim(),
-                  grundDiagnose: gueltigeDiagnosen.find((d) => d.id === diagnoseId) ?? null,
-                })
-              }
-            >
-              In den Plan aufnehmen
-            </button>
-            <button type="button" className="knopf" onClick={abbrechen}>
-              abbrechen
-            </button>
-          </div>
-        </>
-      )}
-      {!mittel && (
-        <button type="button" className="knopf klein" style={{ marginTop: 8 }} onClick={abbrechen}>
-          abbrechen
-        </button>
-      )}
-    </Karte>
   );
 }

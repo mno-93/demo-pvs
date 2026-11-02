@@ -15,13 +15,8 @@ import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import { usePatientId } from './Patientenkartei.js';
-import {
-  EINRICHTUNG,
-  EpaFehler,
-  dokumentAbrufen,
-  dokumenteMitStand,
-  dokumenteSeit,
-} from '../epa/klient.js';
+import { EINRICHTUNG, EpaFehler } from '../epa/klient.js';
+import { dokumentAbrufen, dokumenteMitStand, dokumenteSeit } from '../epa/dienste/dokumente.js';
 import { useLesezeichen } from '../epa/lesezeichen.js';
 import { Aenderungsband } from '../epa/gesehen.js';
 import {

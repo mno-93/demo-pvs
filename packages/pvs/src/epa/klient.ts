@@ -1,49 +1,29 @@
 import {
-  ITI41_INHALTSTYP,
   PRAXIS_STAMMDATEN,
   PROFIL,
   demoJetzt,
-  neueKennung,
   praxisNachFhir,
-  XDS_DOKUMENTENDIENST,
-  kimNachrichtErzeugen,
-  provideAndRegisterErzeugen,
   registryResponseLesen,
-  type KimNachricht,
-  type XdsEinreichung,
+  WEG,
 } from '@demo-pvs/kern';
-import type {
-  Lesart,
-  Lotsenantwort,
-  Lotsenkontext,
-  Lotsenvorschlaege,
-  Quellentext,
-  Ressource,
-} from '@demo-pvs/kern';
+import type { Ressource } from '@demo-pvs/kern';
 import { aufrufNotieren } from './protokoll.js';
 import { abrufen } from './transport.js';
 
 /**
- * Zugang zur elektronischen Patientenakte (ePA).
+ * Zugang zur elektronischen Patientenakte (ePA) — Grundlage aller Dienste.
  *
- * Jeder Zugriff des Praxissystems auf ePA-Daten läuft über diese Stelle (ADR 0002). Es gibt
- * nur Wege, die im Release ePA 3.1.3 und seinen Implementation Guides belegt sind (ADR 0013);
- * jeder Aufruf nennt seine Grundlage, das Aufrufprotokoll zeigt sie.
+ * Jeder Zugriff des Praxissystems auf ePA-Daten läuft über diese Stelle (ADR 0002): Kopfzeilen,
+ * Aufrufprotokoll, Fehler und Wiederholschutz. Es gibt nur Wege, die in den Implementation Guides
+ * belegt sind (ADR 0013); jeder Aufruf nennt seine Grundlage, das Aufrufprotokoll zeigt sie.
  *
- * - MHD Service (`de.gematik.epa.mhd` 1.1.3): ITI-67 suchen, auch im Volltext; ITI-68 abrufen.
- * - XDS Document Service (WSDL ePA 3.1.3): ITI-41 einstellen, SOAP 1.2 — der einzige Weg, auf
- *   dem ein Dokument in die Akte kommt.
- * - Medication Service (`de.gematik.epa.medication` 1.3.5): eML, eMP samt Chronologie,
- *   eMP-Einträge anlegen und ändern, eML-Einträge mit dem eMP verknüpfen. Schreibend immer mit
- *   Lesenachweis `acknowledgedChronologyId` und dem Header `X-Requesting-Organization`.
- * - Befugnis (ADR 0017): `setEntitlementPs` beim Einlesen der eGK; ohne sie 403 `notEntitled`.
- * - ✦ Diagnose-Service (ADR 0018): Vorschlag einer Weiterentwicklung, nur wenn das
- *   Aktensystem ihn anbietet (CapabilityStatement unter `metadata`).
- * - ✦ Patient Summary (ADR 0021): Sicht aus den Diensten der ePA, `Patient/$summary`.
- * - Information Service (`I_Information_Service` 1.5.1): Aktenstatus und Widersprüche, vor
- *   jedem Zugriff und ohne Befugnis (ADR 0023).
- * - E-Rezept-Fachdienst (gematik `api-erp`, ⚠ Demo-Ersatz): `Task/$create`, `$activate`,
- *   `$abort` (ADR 0024). Er ist kein Teil der ePA; die Verschreibung erreicht die ePA über ihn.
+ * Hier selbst: Befugnis (ADR 0017, `setEntitlementPs` beim Einlesen der eGK; ohne sie 403
+ * `notEntitled`) und Information Service (`I_Information_Service` 1.5.1: Aktenstatus und
+ * Widersprüche, vor jedem Zugriff und ohne Befugnis, ADR 0023). Die Dienste stehen je in einem
+ * Modul unter `dienste/`: `dokumente` (MHD, XDS), `medikation` (Medication Service),
+ * `erezept` (E-Rezept-Fachdienst, Demo-Ersatz), `listendienste` (✦ Diagnose-Service, ✦ Impfliste),
+ * `vorschlaege` (✦ Patient Summary, ✦ Aktenlotse) und `kim` (KIM-Clientmodul, Demo-Ersatz). Die
+ * Demo-Steuerung (`/verwaltung`) ist keine Schnittstelle der ePA; sie steht in `demo/steuerung.ts`.
  */
 
 /** Die zugreifende Einrichtung — aus den Stammdaten der Praxis. */
@@ -58,19 +38,30 @@ export const EINRICHTUNG = {
  */
 export const USER_AGENT = 'DEMOPVSFIKTIV0000001/0.4.0';
 
-const MHD = '/epa/mhd/api/v1/fhir';
-const MEDIKATION = '/epa/medication/api/v1/fhir';
+export const MHD = WEG.mhd;
+export const MEDIKATION = WEG.medikation;
 /** Common Query API (`de.gematik.epa` 1.4.0-ballot.1) — seit 1.4.0 auch für die Medikation. */
-const QUERY = '/epa/query/api/v1/fhir';
-const RENDER_EINSTELLUNG = '/epa/medication/render/v1/emp/settings';
-const BEFUGNIS = '/epa/basic/api/v1/ps/entitlements';
-const PATIENT_SUMMARY = '/epa/vorschlag/patient-summary/api/v1/fhir';
-const DIAGNOSEDIENST = '/epa/vorschlag/diagnosis/api/v1/fhir';
-const IMPFLISTE = '/epa/vorschlag/immunization/api/v1/fhir';
-const AKTENLOTSE = '/epa/vorschlag/aktenlotse/api/v1';
-const EMP_IDENTIFIER = 'https://gematik.de/fhir/sid/emp-identifier';
-const INFORMATION = '/information/api/v1/ehr';
-const ERP = '/erp';
+export const QUERY = WEG.query;
+export const RENDER_EINSTELLUNG = WEG.renderEinstellung;
+const BEFUGNIS = WEG.befugnis;
+export const PATIENT_SUMMARY = WEG.patientSummary;
+export const DIAGNOSEDIENST = WEG.diagnosedienst;
+export const IMPFLISTE = WEG.impfliste;
+export const AKTENLOTSE = WEG.aktenlotse;
+export const EMP_IDENTIFIER = 'https://gematik.de/fhir/sid/emp-identifier';
+const INFORMATION = WEG.information;
+export const ERP = WEG.erp;
+
+/**
+ * Was die Dienste über das Angebot des Aktensystems gemerkt haben (etwa die Antwort von
+ * `metadata`). Jeder Dienst meldet hier, wie er es vergisst; nach einer Umstellung der
+ * Betriebslage und beim Zurücksetzen fragt er neu.
+ */
+const vergessen = new Set<() => void>();
+
+export function angebotMerken(leeren: () => void): void {
+  vergessen.add(leeren);
+}
 
 export const GRUNDLAGE = {
   iti67: 'MHD ITI-67 · IG epa-mhd 1.1.3',
@@ -119,7 +110,7 @@ export const SITZUNG_KOPFZEILE = 'x-demo-sitzung';
  */
 export const ORGANISATION: Ressource = praxisNachFhir(PRAXIS_STAMMDATEN, PROFIL.organisation);
 
-function base64(text: string): string {
+export function base64(text: string): string {
   return btoa(unescape(encodeURIComponent(text)));
 }
 
@@ -175,12 +166,12 @@ interface Anfrage {
   leerBei?: readonly string[];
 }
 
-interface Antwort<T> {
+export interface Antwort<T> {
   inhalt: T;
   kopf: Headers;
 }
 
-function anfragekennung(): string {
+export function anfragekennung(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -193,7 +184,7 @@ function anfragekennung(): string {
  */
 const laufend = new Map<string, Promise<Antwort<unknown>>>();
 
-function anfragen<T>(anfrage: Anfrage): Promise<Antwort<T>> {
+export function anfragen<T>(anfrage: Anfrage): Promise<Antwort<T>> {
   if ((anfrage.methode ?? 'GET') !== 'GET') return senden<T>(anfrage);
   const schluessel = `${anfrage.pfad} ${anfrage.kvnr ?? ''}`;
   const vorhanden = laufend.get(schluessel);
@@ -393,7 +384,7 @@ async function rohSenden<T>({
   return { inhalt: text as T, kopf: antwort.headers };
 }
 
-interface Bundle {
+export interface Bundle {
   resourceType: 'Bundle';
   meta?: { lastUpdated?: string };
   type?: string;
@@ -402,15 +393,23 @@ interface Bundle {
   entry?: { resource: Ressource; search?: { mode?: string } }[];
 }
 
-function treffer(bundle: Bundle): Ressource[] {
+export function treffer(bundle: Bundle): Ressource[] {
   return (bundle.entry ?? []).filter((e) => e.search?.mode !== 'include').map((e) => e.resource);
 }
 
-function eingeschlossen(bundle: Bundle): Ressource[] {
+export function eingeschlossen(bundle: Bundle): Ressource[] {
   return (bundle.entry ?? []).filter((e) => e.search?.mode === 'include').map((e) => e.resource);
 }
 
-function parameterRessource(
+/**
+ * Zeitpunkt des Aktensystems aus einer Antwort — das Lesezeichen für eine spätere Abfrage
+ * „seit" (ADR 0030). Nie die Uhr der Praxis: Sie kann abweichen.
+ */
+export function serverzeit(b: Bundle): string {
+  return b.meta?.lastUpdated ?? b.timestamp ?? '';
+}
+
+export function parameterRessource(
   p: { parameter?: { name: string; resource?: Ressource }[] },
   name: string,
 ) {
@@ -418,408 +417,6 @@ function parameterRessource(
 }
 
 /* ---------- MHD Service ---------- */
-
-export async function dokumenteSuchen(
-  kvnr: string,
-  volltext?: string,
-  /**
-   * Gesetzt, wenn nicht die Praxis sucht, sondern die versicherte Person in ihrer eigenen
-   * Anwendung. Derselbe Weg, dieselbe Antwort — nur ein anderer Zugang (✦ Demo-Ersatz).
-   */
-  alsVersicherte?: string,
-): Promise<Ressource[]> {
-  const suche = new URLSearchParams({ status: 'current' });
-  if (volltext?.trim()) suche.set('_content', volltext.trim());
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MHD}/DocumentReference?${suche.toString()}`,
-    kvnr,
-    grundlage: GRUNDLAGE.iti67,
-    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
-  });
-  return treffer(inhalt);
-}
-
-/** Ob der Dokumentendienst die Volltextsuche (`_content`) anbietet — laut CapabilityStatement. */
-let volltextAngeboten: boolean | null = null;
-
-export async function volltextsucheVerfuegbar(): Promise<boolean> {
-  if (volltextAngeboten !== null) return volltextAngeboten;
-  const { inhalt } = await anfragen<{
-    rest?: { resource?: { type?: string; searchParam?: { name?: string }[] }[] }[];
-  }>({
-    pfad: `${MHD}/metadata`,
-    grundlage: GRUNDLAGE.iti67,
-  });
-  volltextAngeboten = (inhalt.rest ?? [])
-    .flatMap((r) => r.resource ?? [])
-    .filter((r) => r.type === 'DocumentReference')
-    .some((r) => (r.searchParam ?? []).some((p) => p.name === '_content'));
-  return volltextAngeboten;
-}
-
-/**
- * Zeitpunkt des Aktensystems aus einer Antwort — das Lesezeichen für eine spätere Abfrage
- * „seit" (ADR 0030). Nie die Uhr der Praxis: Sie kann abweichen.
- */
-function serverzeit(b: Bundle): string {
-  return b.meta?.lastUpdated ?? b.timestamp ?? '';
-}
-
-/** Dokumentliste mit dem Zeitpunkt des Aktensystems. */
-export async function dokumenteMitStand(
-  kvnr: string,
-): Promise<{ verweise: Ressource[]; stand: string }> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MHD}/DocumentReference?status=current`,
-    kvnr,
-    grundlage: GRUNDLAGE.iti67,
-  });
-  return { verweise: treffer(inhalt), stand: serverzeit(inhalt) };
-}
-
-/** Dokumente, die seit dem Lesezeichen eingestellt oder geändert wurden (`_lastUpdated`). */
-export async function dokumenteSeit(kvnr: string, seit: string): Promise<Ressource[]> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MHD}/DocumentReference?status=current&_lastUpdated=gt${encodeURIComponent(seit)}`,
-    kvnr,
-    grundlage: GRUNDLAGE.iti67Seit,
-  });
-  return treffer(inhalt);
-}
-
-/** Ein unstrukturiertes Dokument (PDF, XML) als Datei. */
-export interface EpaDatei {
-  datei: Blob;
-  mimeType: string;
-}
-
-export function istDatei(inhalt: unknown): inhalt is EpaDatei {
-  return typeof inhalt === 'object' && inhalt !== null && 'datei' in inhalt;
-}
-
-/** ITI-68 über die URL aus `DocumentReference.content.attachment.url`. */
-export async function dokumentAbrufen(
-  kvnr: string,
-  verweis: Ressource,
-  alsVersicherte?: string,
-): Promise<unknown> {
-  const url = (verweis['content'] as { attachment?: { url?: string } }[] | undefined)?.[0]
-    ?.attachment?.url;
-  if (!url) throw new EpaFehler(0, 'Der Dokumentverweis nennt keine Abrufadresse.');
-  const { inhalt } = await anfragen<unknown>({
-    pfad: url,
-    kvnr,
-    grundlage: GRUNDLAGE.iti68,
-    datei: true,
-    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
-  });
-  return inhalt;
-}
-
-/* ---------- Medication Service ---------- */
-
-export interface Medikationsliste {
-  /** Medikationsinformationen (MedicationStatement) — die Einträge der eML. */
-  eintraege: Ressource[];
-  /** Arzneimittel, Verordnungen, Abgaben, Änderungseinträge, Organisationen. */
-  einschluesse: Ressource[];
-  /** Zeitpunkt des Aktensystems beim Abruf; leer, wenn die Liste leer ist. */
-  abgerufen?: string;
-}
-
-/** Ist der Fehler die Antwort „nichts da“ des Medication Service (1.4.0)? */
-const leer = (f: unknown, code: string) =>
-  f instanceof EpaFehler && f.status === 404 && f.code === code;
-
-export async function medikationslisteLesen(kvnr: string): Promise<Medikationsliste> {
-  try {
-    const { inhalt } = await anfragen<Bundle>({
-      pfad: `${MEDIKATION}/$medication-list`,
-      kvnr,
-      grundlage: GRUNDLAGE.eml,
-      leerBei: ['MSG_NO_MATCH'],
-    });
-    return {
-      eintraege: treffer(inhalt),
-      einschluesse: eingeschlossen(inhalt),
-      abgerufen: serverzeit(inhalt),
-    };
-  } catch (f) {
-    // Ohne Treffer antwortet der Dienst 404 MSG_NO_MATCH (IG-MED16217P4A): eine leere Liste.
-    if (leer(f, 'MSG_NO_MATCH')) return { eintraege: [], einschluesse: [], abgerufen: '' };
-    throw f;
-  }
-}
-
-export interface Medikationsplan {
-  /** Kennung des Chronologieeintrags — der Lesenachweis für jede Änderung. */
-  lesenachweis: string | null;
-  stand: string;
-  /** Zeitpunkt des Aktensystems beim Abruf — Lesezeichen für die Abfrage „seit". */
-  abgerufen: string;
-  eintraege: Ressource[];
-  ressourcen: Ressource[];
-}
-
-/** Der Medikationsplan — aktuell oder, mit `chronologie`, der Stand zu diesem Eintrag. */
-export async function medikationsplanLesen(
-  kvnr: string,
-  frueherenStand?: string,
-): Promise<Medikationsplan> {
-  let inhalt: Bundle;
-  try {
-    inhalt = (
-      await anfragen<Bundle>({
-        pfad: frueherenStand
-          ? `${MEDIKATION}/$medication-plan?provenance=${encodeURIComponent(frueherenStand)}`
-          : `${MEDIKATION}/$medication-plan`,
-        kvnr,
-        grundlage: frueherenStand ? GRUNDLAGE.empFrueher : GRUNDLAGE.emp,
-        leerBei: ['MEDSVC_EMP_NO_EXIST'],
-      })
-    ).inhalt;
-  } catch (f) {
-    // Noch kein eMP: 404 MEDSVC_EMP_NO_EXIST (IG-MED35894UP4) — ein leerer Plan ohne Lesenachweis.
-    if (!frueherenStand && leer(f, 'MEDSVC_EMP_NO_EXIST'))
-      return { lesenachweis: null, stand: '', abgerufen: '', eintraege: [], ressourcen: [] };
-    throw f;
-  }
-  const alle = (inhalt.entry ?? []).map((e) => e.resource);
-  const chronologie = alle.find(
-    (r) =>
-      r.resourceType === 'Provenance' &&
-      (r.extension ?? []).some((e) => e.url.endsWith('is-emp-chronology-extension')),
-  );
-  return {
-    lesenachweis: chronologie ? String(chronologie.id) : null,
-    stand: String(chronologie?.['recorded'] ?? ''),
-    abgerufen: serverzeit(inhalt),
-    eintraege: alle.filter((r) => r.resourceType === 'MedicationRequest' && r['intent'] === 'plan'),
-    ressourcen: alle,
-  };
-}
-
-/**
- * Chronologieeinträge des Medikationsplans seit dem Lesezeichen, je mit der Einrichtung, die
- * geändert hat (`agent.who.identifier`).
- */
-/**
- * Einstellung der Zwischenüberschriften im eMP (Render API, IG 1.4.0-ballot.1). Ein Client, der
- * den eMP selbst darstellt, richtet seine Gruppierung danach (IG-MED09759K35-01).
- */
-export async function zwischenueberschriftenLesen(kvnr: string): Promise<boolean> {
-  const { inhalt } = await anfragen<{ subheadings?: boolean }>({
-    pfad: RENDER_EINSTELLUNG,
-    kvnr,
-    inhaltstyp: 'application/json',
-    grundlage: GRUNDLAGE.zwischenueberschriften,
-  });
-  return inhalt.subheadings !== false;
-}
-
-export async function zwischenueberschriftenSetzen(kvnr: string, wert: boolean): Promise<boolean> {
-  const { inhalt } = await anfragen<{ subheadings?: boolean }>({
-    methode: 'PUT',
-    pfad: RENDER_EINSTELLUNG,
-    kvnr,
-    koerper: { subheadings: wert },
-    inhaltstyp: 'application/json',
-    grundlage: GRUNDLAGE.zwischenueberschriften,
-  });
-  return inhalt.subheadings !== false;
-}
-
-export async function planaenderungenSeit(
-  kvnr: string,
-  seit: string,
-): Promise<{ id: string; telematikId: string | null; einrichtung: string }[]> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${QUERY}/Provenance?is-emp-chronology=true&recorded=gt${encodeURIComponent(seit)}`,
-    kvnr,
-    grundlage: GRUNDLAGE.empSeit,
-  });
-  return treffer(inhalt).map((p) => {
-    const wer = (
-      p['agent'] as { who?: { identifier?: { value?: string }; display?: string } }[] | undefined
-    )?.[0]?.who;
-    return {
-      id: String(p.id),
-      telematikId: wer?.identifier?.value ?? null,
-      einrichtung: wer?.display ?? '—',
-    };
-  });
-}
-
-/** Einträge der Medikationsliste seit dem Lesezeichen (`date`). */
-export async function medikationslisteSeit(kvnr: string, seit: string): Promise<string[]> {
-  try {
-    const { inhalt } = await anfragen<Bundle>({
-      pfad: `${MEDIKATION}/$medication-list?date=gt${encodeURIComponent(seit)}`,
-      kvnr,
-      grundlage: GRUNDLAGE.emlSeit,
-      leerBei: ['MSG_NO_MATCH'],
-    });
-    return treffer(inhalt).map((r) => String(r.id));
-  } catch (f) {
-    if (leer(f, 'MSG_NO_MATCH')) return [];
-    throw f;
-  }
-}
-
-/** Nur der neueste Chronologieeintrag — für die Frage „hat sich etwas geändert?". */
-export async function medikationsplanStand(
-  kvnr: string,
-): Promise<{ lesenachweis: string | null; stand: string }> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MEDIKATION}/$medication-plan-log?_count=1`,
-    kvnr,
-    grundlage: GRUNDLAGE.empLog,
-  });
-  const neueste = treffer(inhalt)[0];
-  return {
-    lesenachweis: neueste ? String(neueste.id) : null,
-    stand: String(neueste?.['recorded'] ?? ''),
-  };
-}
-
-interface EmpErgebnis {
-  eintrag: Ressource;
-  /** Der Chronologieeintrag nach der Schreibung; ohne neuen bleibt der bisherige. */
-  lesenachweis: string | null;
-}
-
-/** Ergebnis von `$update-emp-entry`: ohne Eintrag, wenn der Dienst ihn gelöscht hat (fehlerhaft). */
-export interface EmpAenderung {
-  eintrag: Ressource | null;
-  lesenachweis: string | null;
-}
-
-type Ausgabe = { parameter?: { name: string; resource?: Ressource }[] };
-
-function empAenderung(p: Ausgabe, vorher: string | null): EmpAenderung {
-  const chronologie = parameterRessource(p, 'relatedChronology');
-  return {
-    eintrag: parameterRessource(p, 'empEntry') ?? null,
-    lesenachweis: chronologie ? String(chronologie.id) : vorher,
-  };
-}
-
-function empErgebnis(p: Ausgabe, vorher: string | null): EmpErgebnis {
-  const { eintrag, lesenachweis } = empAenderung(p, vorher);
-  if (!eintrag) throw new EpaFehler(0, 'Die Antwort ist unvollständig.');
-  return { eintrag, lesenachweis };
-}
-
-/**
- * `$add-emp-entry` — neues Arzneimittel (EMPMedication) oder Verweis auf eines aus Verordnung
- * oder Abgabe, dazu der Eintrag (EMPMedicationRequest).
- */
-export async function empEintragAnlegen(
-  kvnr: string,
-  lesenachweis: string | null,
-  mittel: { resource: Ressource } | { reference: string },
-  eintrag: Ressource,
-  /** Behandlungsgründe nach `EMPReasonCondition` (Parameter `reasonCondition`, 1.4.0). */
-  gruende: readonly Ressource[] = [],
-): Promise<EmpErgebnis> {
-  // Der Eintrag verweist auf sein Arzneimittel (`medication[x]` 1..1, wie die Beispiele des IG).
-  const neu =
-    'resource' in mittel ? { ...mittel.resource, id: mittel.resource.id ?? neueKennung() } : null;
-  eintrag = eintrag['medicationReference']
-    ? eintrag
-    : {
-        ...eintrag,
-        medicationReference: {
-          reference: neu
-            ? `Medication/${String(neu.id)}`
-            : (mittel as { reference: string }).reference,
-        },
-      };
-  if (neu) mittel = { resource: neu };
-  const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
-    methode: 'POST',
-    pfad: `${MEDIKATION}/$add-emp-entry`,
-    kvnr,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
-        {
-          name: 'medication',
-          part: [
-            'resource' in mittel
-              ? { name: 'resource', resource: mittel.resource }
-              : { name: 'reference', valueReference: { reference: mittel.reference } },
-          ],
-        },
-        { name: 'empEntry', resource: eintrag },
-        ...gruende.map((g) => ({ name: 'reasonCondition', resource: g })),
-      ],
-    },
-    grundlage: GRUNDLAGE.empNeu,
-  });
-  return empErgebnis(inhalt, lesenachweis);
-}
-
-/**
- * `$update-emp-entry` — Dosierung, Grund, Status; beenden, absetzen, fehlerhaft. Einen
- * fehlerhaften Eintrag löscht der Dienst (IG-MED-BL-UPDATE-EMP-ENTRY-V3); dann fehlt er in der
- * Antwort.
- */
-export async function empEintragAendern(
-  kvnr: string,
-  lesenachweis: string | null,
-  eintrag: Ressource,
-  gruende: readonly Ressource[] = [],
-): Promise<EmpAenderung> {
-  const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
-    methode: 'POST',
-    pfad: `${MEDIKATION}/$update-emp-entry`,
-    kvnr,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
-        {
-          name: 'medicationPlanIdentifier',
-          valueIdentifier: { system: EMP_IDENTIFIER, value: String(eintrag.id) },
-        },
-        { name: 'empEntry', resource: eintrag },
-        ...gruende.map((g) => ({ name: 'reasonCondition', resource: g })),
-      ],
-    },
-    grundlage: GRUNDLAGE.empAendern,
-  });
-  return empAenderung(inhalt, lesenachweis);
-}
-
-/** `$link-emp` — eML-Eintrag mit einem eMP-Eintrag verknüpfen. */
-export async function empVerknuepfen(
-  kvnr: string,
-  lesenachweis: string | null,
-  emlEintragId: string,
-  empEintragId: string,
-): Promise<EmpErgebnis> {
-  const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
-    methode: 'POST',
-    pfad: `${MEDIKATION}/MedicationStatement/${emlEintragId}/$link-emp`,
-    kvnr,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
-        {
-          name: 'medicationPlanIdentifier',
-          valueIdentifier: { system: EMP_IDENTIFIER, value: empEintragId },
-        },
-      ],
-    },
-    grundlage: GRUNDLAGE.verknuepfen,
-  });
-  return empErgebnis(inhalt, lesenachweis);
-}
-
-/* ---------- Information Service ---------- */
 
 /**
  * Zustand der Akte, wie ihn das Aktensystem vor jedem Zugriff meldet: vorhanden und nutzbar,
@@ -867,105 +464,12 @@ export async function aktenstatusLesen(kvnr: string): Promise<Aktenstatus> {
 
 /* ---------- E-Rezept-Fachdienst (⚠ Demo-Ersatz) ---------- */
 
-export interface ErpAufgabe {
-  rezeptId: string;
-  accessCode: string;
-  status: string;
-}
-
-function aufgabeLesen(task: {
-  id?: string;
-  status?: string;
-  identifier?: { system?: string; value?: string }[];
-}): ErpAufgabe {
-  return {
-    rezeptId: String(task.id),
-    accessCode:
-      task.identifier?.find((i) => i.system?.endsWith('GEM_ERP_NS_AccessCode'))?.value ?? '',
-    status: String(task.status ?? ''),
-  };
-}
-
-/** `Task/$create` — Rezept-ID und AccessCode für ein neues E-Rezept (Flowtype 160, Muster 16). */
-export async function erezeptErstellen(flowtype = '160'): Promise<ErpAufgabe> {
-  const { inhalt } = await anfragen<Parameters<typeof aufgabeLesen>[0]>({
-    methode: 'POST',
-    pfad: `${ERP}/Task/$create`,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        {
-          name: 'workflowType',
-          valueCoding: {
-            system: 'https://gematik.de/fhir/erp/CodeSystem/GEM_ERP_CS_FlowType',
-            code: flowtype,
-          },
-        },
-      ],
-    },
-    grundlage: GRUNDLAGE.erpErstellen,
-  });
-  return aufgabeLesen(inhalt);
-}
-
-/**
- * `Task/{id}/$activate` mit dem Verordnungsdatensatz. ⚠ Im Wirkbetrieb qualifiziert signiert
- * (PKCS#7 über den Konnektor mit dem eHBA); die Demo überträgt ihn unsigniert.
- */
-export async function erezeptAktivieren(
-  aufgabe: ErpAufgabe,
-  datensatz: Ressource,
-): Promise<ErpAufgabe> {
-  const { inhalt } = await anfragen<Parameters<typeof aufgabeLesen>[0]>({
-    methode: 'POST',
-    pfad: `${ERP}/Task/${aufgabe.rezeptId}/$activate`,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        {
-          name: 'ePrescription',
-          resource: {
-            resourceType: 'Binary',
-            contentType: 'application/pkcs7-mime',
-            data: base64(JSON.stringify(datensatz)),
-          },
-        },
-      ],
-    },
-    zusatz: { 'X-AccessCode': aufgabe.accessCode },
-    grundlage: GRUNDLAGE.erpAktivieren,
-  });
-  return { ...aufgabe, status: aufgabeLesen(inhalt).status };
-}
-
-/** `Task/{id}/$abort` — ein noch nicht eingelöstes Rezept löschen. */
-export async function erezeptLoeschen(rezeptId: string, accessCode: string): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: `${ERP}/Task/${rezeptId}/$abort`,
-    koerper: {},
-    zusatz: { 'X-AccessCode': accessCode },
-    grundlage: GRUNDLAGE.erpLoeschen,
-  });
-}
-
-/* ---------- Demo-Steuerung ---------- */
-
-/** Gemerkte Antwort, ob das Aktensystem den Diagnose-Service anbietet. */
-let dienstAngeboten: boolean | null = null;
-/** Gemerkte Antwort, ob das Aktensystem die Patient Summary anbietet. */
-let summaryAngeboten: boolean | null = null;
-
 /** Zählt Umstellungen der Demo-Steuerung — Ansichten fragen danach neu. */
 let betriebsstand = 0;
 const betriebshoerer = new Set<() => void>();
 
-function betriebsstandErhoehen(): void {
-  volltextAngeboten = null;
-  impflisteAngeboten = null;
-  dienstAngeboten = null;
-  summaryAngeboten = null;
-  lotseAngeboten = null;
+export function betriebsstandErhoehen(): void {
+  vergessen.forEach((f) => f());
   betriebsstand += 1;
   betriebshoerer.forEach((h) => h());
 }
@@ -983,178 +487,9 @@ export function betriebsstandLesen(): number {
 
 /** Vergisst Gemerktes über das Aktensystem — beim Zurücksetzen der Anwendung. */
 export function klientZuruecksetzen(): void {
-  impflisteAngeboten = null;
-  dienstAngeboten = null;
-  summaryAngeboten = null;
-  lotseAngeboten = null;
+  vergessen.forEach((f) => f());
   laufend.clear();
 }
-
-/** Welche ePA der Simulator darstellt: das Release oder die Weiterentwicklung. */
-export type Ausbaustand =
-  | 'release-3.1.3'
-  | 'weiterentwicklung'
-  | 'weiterentwicklung-2'
-  | 'weiterentwicklung-3'
-  | 'weiterentwicklung-4';
-
-export interface Betriebslage {
-  verzoegerungMs: number;
-  ausbaustand: Ausbaustand;
-  fremdeAenderungVorSchreibzugriff: boolean;
-  /** ✦ Woraus die Patient Summary gebildet wird — ärztlich geführte Listen oder nur Automatik. */
-  patientSummaryQuellen: 'listen' | 'automatisch';
-  /** Dauer, bis der E-Rezept-Fachdienst Verschreibung oder Abgabe in die ePA übertragen hat. */
-  erezeptVerzoegerungMs: number;
-}
-
-export async function betriebslageLesen(): Promise<Betriebslage> {
-  return (
-    await anfragen<Betriebslage>({
-      pfad: '/verwaltung/betriebslage',
-      grundlage: GRUNDLAGE.verwaltung,
-    })
-  ).inhalt;
-}
-
-export async function betriebslageSetzen(teil: Partial<Betriebslage>): Promise<Betriebslage> {
-  const { inhalt } = await anfragen<Betriebslage>({
-    methode: 'POST',
-    pfad: '/verwaltung/betriebslage',
-    koerper: teil,
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-  if (teil.ausbaustand !== undefined || teil.patientSummaryQuellen !== undefined) {
-    betriebsstandErhoehen();
-  }
-  return inhalt;
-}
-
-/** Ein E-Rezept, wie es die Demo-Steuerung aus Sicht der Apotheke zeigt. */
-export interface ApothekenRezept {
-  id: string;
-  kvnr: string | null;
-  status: string;
-  arzneimittel: string;
-  authoredOn: string;
-  epa: string;
-  abgabe: string;
-  empId: string | null;
-}
-
-export async function apothekenRezepteLesen(): Promise<ApothekenRezept[]> {
-  return (
-    await anfragen<ApothekenRezept[]>({
-      pfad: '/verwaltung/erezepte',
-      grundlage: GRUNDLAGE.verwaltung,
-    })
-  ).inhalt;
-}
-
-export type Abgabeart = 'wie-verordnet' | 'austausch' | 'mehrfach';
-
-/** Die Apotheke gibt ab — die Abgabe erreicht die ePA über den E-Rezept-Fachdienst. */
-export async function apothekeGibtAb(id: string, art: Abgabeart): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: `/verwaltung/erezepte/${id}/abgabe`,
-    koerper: { art },
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-}
-
-export async function apothekeStorniertAbgabe(id: string): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: `/verwaltung/erezepte/${id}/abgabe-storno`,
-    koerper: {},
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-}
-
-export interface Aktenlage {
-  kvnr: string;
-  status: 'ACTIVATED' | 'SUSPENDED';
-  widersprueche: { medication: 'permit' | 'deny'; 'erp-submission': 'permit' | 'deny' };
-}
-
-export async function aktenLesen(): Promise<Aktenlage[]> {
-  return (
-    await anfragen<Aktenlage[]>({ pfad: '/verwaltung/bestand', grundlage: GRUNDLAGE.verwaltung })
-  ).inhalt;
-}
-
-/** Zustand oder Widerspruch einer Akte umstellen — wie es die versicherte Person täte. */
-export async function akteSetzen(
-  kvnr: string,
-  teil: { status?: 'ACTIVATED' | 'SUSPENDED'; medication?: 'permit' | 'deny' },
-): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: '/verwaltung/akte',
-    koerper: { kvnr, ...teil },
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-  betriebsstandErhoehen();
-}
-
-/** Eine andere Einrichtung trägt jetzt in die Listen ein — für „neu seit dem letzten Aufruf". */
-export async function fremdeEintraegeAnlegen(kvnr: string): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: '/verwaltung/fremde-eintraege',
-    koerper: { kvnr },
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-  betriebsstandErhoehen();
-}
-
-export async function aktensystemZuruecksetzen(): Promise<void> {
-  await anfragen({
-    methode: 'POST',
-    pfad: '/verwaltung/zuruecksetzen',
-    koerper: {},
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-  betriebsstandErhoehen();
-}
-
-export interface Aktenbefugnis {
-  kvnr: string;
-  befugnisse: {
-    telematikId: string;
-    anzeige: string;
-    gueltigBis: string;
-    erteiltAm: string;
-    weg: string;
-  }[];
-}
-
-export async function befugnisseLesen(): Promise<Aktenbefugnis[]> {
-  return (
-    await anfragen<Aktenbefugnis[]>({
-      pfad: '/verwaltung/befugnisse',
-      grundlage: GRUNDLAGE.verwaltung,
-    })
-  ).inhalt;
-}
-
-/** Wie nach Ablauf der 90 Tage: Die Praxis verliert alle Befugnisse. */
-export async function befugnisseEntziehen(): Promise<number> {
-  const { inhalt } = await anfragen<{ entzogen: number }>({
-    methode: 'POST',
-    pfad: '/verwaltung/befugnisse/entziehen',
-    koerper: { telematikId: EINRICHTUNG.telematikId },
-    grundlage: GRUNDLAGE.verwaltung,
-  });
-  // Wie jede Umstellung der Demo-Steuerung: Offene Ansichten fragen neu, bekommen 403
-  // `notEntitled` und berichtigen darüber den Stand des Praxissystems (ADR 0017). Ohne das
-  // stünde im Kopf noch „ePA-Befugnis bis …" neben Daten, die es nicht mehr geben dürfte.
-  betriebsstandErhoehen();
-  return inhalt.entzogen;
-}
-
-/* ---------- Befugnis ---------- */
 
 function base64url(text: string): string {
   return base64(text).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -1193,404 +528,3 @@ export async function befugnisRegistrieren(
 }
 
 /* ---------- ✦ Diagnose-Service (Vorschlag) ---------- */
-
-export type Listenart = 'Condition' | 'AllergyIntolerance';
-/** Alle zentral geführten Listen: dazu ✦ die Impfliste (Stufe 2). */
-export type Dienstliste = Listenart | 'Immunization';
-
-const LISTE: Record<
-  Dienstliste,
-  {
-    basis: string;
-    grundlage: string;
-    lesen: string;
-    anlegen: string;
-    aendern: string;
-    markieren: string;
-    parameter: string;
-  }
-> = {
-  Immunization: {
-    basis: IMPFLISTE,
-    grundlage: GRUNDLAGE.impfliste,
-    lesen: '$immunization-list',
-    anlegen: '$add-immunization-entry',
-    aendern: '$update-immunization-entry',
-    markieren: '',
-    parameter: 'immunizationEntry',
-  },
-  Condition: {
-    basis: DIAGNOSEDIENST,
-    grundlage: GRUNDLAGE.dienst,
-    lesen: '$condition-list',
-    anlegen: '$add-condition-entry',
-    aendern: '$update-condition-entry',
-    markieren: '$flag-condition-entry',
-    parameter: 'conditionEntry',
-  },
-  AllergyIntolerance: {
-    basis: DIAGNOSEDIENST,
-    grundlage: GRUNDLAGE.dienst,
-    lesen: '$allergy-list',
-    anlegen: '$add-allergy-entry',
-    aendern: '$update-allergy-entry',
-    markieren: '$flag-allergy-entry',
-    parameter: 'allergyEntry',
-  },
-};
-
-/** Bietet das Aktensystem den Diagnose-Service an? Antwort aus seinem CapabilityStatement. */
-export async function diagnosedienstVerfuegbar(): Promise<boolean> {
-  if (dienstAngeboten !== null) return dienstAngeboten;
-  try {
-    await anfragen({ pfad: `${DIAGNOSEDIENST}/metadata`, grundlage: GRUNDLAGE.dienst });
-    dienstAngeboten = true;
-  } catch (f) {
-    if (!(f instanceof EpaFehler && f.status === 404)) throw f;
-    dienstAngeboten = false;
-  }
-  return dienstAngeboten;
-}
-
-/** Gemerkte Antwort, ob das Aktensystem die Impfliste anbietet (✦ Stufe 2). */
-let impflisteAngeboten: boolean | null = null;
-
-export async function impflisteVerfuegbar(): Promise<boolean> {
-  if (impflisteAngeboten !== null) return impflisteAngeboten;
-  try {
-    await anfragen({ pfad: `${IMPFLISTE}/metadata`, grundlage: GRUNDLAGE.impfliste });
-    impflisteAngeboten = true;
-  } catch (f) {
-    if (!(f instanceof EpaFehler && f.status === 404)) throw f;
-    impflisteAngeboten = false;
-  }
-  return impflisteAngeboten;
-}
-
-export interface EpaListe {
-  eintraege: Ressource[];
-  provenance: Ressource[];
-  /** Kennung des aktuellen Chronologieeintrags — der Lesenachweis für Änderungen. */
-  lesenachweis: string | null;
-}
-
-export async function listeLesen(kvnr: string, art: Dienstliste): Promise<EpaListe> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${LISTE[art].basis}/${LISTE[art].lesen}`,
-    kvnr,
-    grundlage: LISTE[art].grundlage,
-  });
-  const dazu = eingeschlossen(inhalt).filter((r) => r.resourceType === 'Provenance');
-  const chronologie = dazu.find((r) =>
-    (r.extension ?? []).some((e) => /list-chronology$/.test(e.url) && e.valueBoolean === true),
-  );
-  return {
-    eintraege: treffer(inhalt),
-    provenance: dazu.filter((r) => r !== chronologie),
-    lesenachweis: chronologie ? String(chronologie.id) : null,
-  };
-}
-
-async function listenoperation(
-  kvnr: string,
-  art: Dienstliste,
-  op: 'anlegen' | 'aendern',
-  lesenachweis: string | null,
-  ressource: Ressource,
-): Promise<{ eintrag: Ressource; lesenachweis: string }> {
-  const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
-    methode: 'POST',
-    pfad: `${LISTE[art].basis}/${LISTE[art][op]}`,
-    kvnr,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
-        { name: LISTE[art].parameter, resource: ressource },
-      ],
-    },
-    grundlage: LISTE[art].grundlage,
-  });
-  const eintrag = parameterRessource(inhalt, 'entry');
-  const chronologie = parameterRessource(inhalt, 'relatedChronology');
-  if (!eintrag || !chronologie) throw new EpaFehler(0, 'Die Antwort ist unvollständig.');
-  return { eintrag, lesenachweis: String(chronologie.id) };
-}
-
-export function listeneintragAnlegen(
-  kvnr: string,
-  art: Dienstliste,
-  lesenachweis: string | null,
-  ressource: Ressource,
-) {
-  return listenoperation(kvnr, art, 'anlegen', lesenachweis, ressource);
-}
-
-export function listeneintragAendern(
-  kvnr: string,
-  art: Dienstliste,
-  lesenachweis: string | null,
-  ressource: Ressource,
-) {
-  return listenoperation(kvnr, art, 'aendern', lesenachweis, ressource);
-}
-
-/* ---------- Einstellen (ITI-41) und KIM ---------- */
-
-/**
- * Stellt Dokumente über ITI-41 in die Akte. Wirft bei einer RegistryResponse mit Fehlern; der
- * Fehlercode ist der des XDS-Dienstes, etwa `XDSRegistryMetadataError`.
- */
-export async function dokumenteEinstellen(einreichung: XdsEinreichung): Promise<void> {
-  const xml = provideAndRegisterErzeugen(einreichung, anfragekennung());
-  const { inhalt } = await anfragen<string>({
-    methode: 'POST',
-    pfad: XDS_DOKUMENTENDIENST,
-    kvnr: einreichung.kvnr,
-    grundlage: GRUNDLAGE.iti41,
-    roh: { inhaltstyp: ITI41_INHALTSTYP, text: xml },
-  });
-  const antwort = registryResponseLesen(inhalt);
-  if (!antwort.erfolg) {
-    const erster = antwort.fehler[0];
-    throw new EpaFehler(
-      200,
-      erster ? `${erster.code}: ${erster.text}` : 'Abgelehnt.',
-      erster?.code ?? null,
-    );
-  }
-  betriebsstandErhoehen();
-}
-
-/** ✦ Demo-Ersatz für SMTP an das KIM-Clientmodul — siehe `epa-sim/src/kim.ts`. */
-export const KIM_CLIENTMODUL = '/kim/demo/clientmodul/smtp';
-
-/** Übergibt eine Client-Mail an das Clientmodul. Antwort: die SMTP-Statuszeile. */
-export async function kimSenden(nachricht: KimNachricht): Promise<string> {
-  const { inhalt } = await anfragen<string>({
-    methode: 'POST',
-    pfad: KIM_CLIENTMODUL,
-    grundlage: GRUNDLAGE.kim,
-    roh: { inhaltstyp: 'message/rfc822', text: kimNachrichtErzeugen(nachricht) },
-  });
-  return inhalt;
-}
-
-/* ---------- ✦ Patient Summary ---------- */
-
-/** Bietet das Aktensystem die Patient Summary an? Antwort aus seinem CapabilityStatement. */
-export async function patientSummaryVerfuegbar(): Promise<boolean> {
-  if (summaryAngeboten !== null) return summaryAngeboten;
-  try {
-    await anfragen({ pfad: `${PATIENT_SUMMARY}/metadata`, grundlage: GRUNDLAGE.summary });
-    summaryAngeboten = true;
-  } catch (f) {
-    if (!(f instanceof EpaFehler && f.status === 404)) throw f;
-    summaryAngeboten = false;
-  }
-  return summaryAngeboten;
-}
-
-/**
- * Die ePA European Patient Summary des Aktensystems (Vorschau ePA 3.2, Ballots): ITI-67 nach
- * `type=http://loinc.org|60591-5` und `status=current` — die Suche erzeugt sie —, dann ITI-68 über
- * die Abrufadresse (IG-MHD35244MFP, SOLL). `null`, wenn das Aktensystem keine liefert, wie im
- * Release 3.1.3.
- */
-export async function epaPatientSummarySuchen(
-  kvnr: string,
-): Promise<{ verweis: Ressource; inhalt: unknown } | null> {
-  const suche = new URLSearchParams({
-    'patient.identifier': `http://fhir.de/sid/gkv/kvid-10|${kvnr}`,
-    type: 'http://loinc.org|60591-5',
-    status: 'current',
-  });
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MHD}/DocumentReference?${suche.toString()}`,
-    kvnr,
-    grundlage: GRUNDLAGE.iti67Eps,
-  });
-  const verweis = treffer(inhalt)[0];
-  if (!verweis) return null;
-  const url = (verweis['content'] as { attachment?: { url?: string } }[] | undefined)?.[0]
-    ?.attachment?.url;
-  if (!url) throw new EpaFehler(0, 'Der Dokumentverweis nennt keine Abrufadresse.');
-  const abruf = await anfragen<unknown>({
-    pfad: url,
-    kvnr,
-    grundlage: GRUNDLAGE.iti68Eps,
-    datei: true,
-  });
-  return { verweis, inhalt: abruf.inhalt };
-}
-
-/** Die Patient Summary — bei jeder Abfrage aus den Diensten der ePA gebildet. */
-export async function patientSummaryAbrufen(kvnr: string): Promise<unknown> {
-  const { inhalt } = await anfragen<unknown>({
-    pfad: `${PATIENT_SUMMARY}/Patient/$summary`,
-    kvnr,
-    grundlage: GRUNDLAGE.summary,
-  });
-  return inhalt;
-}
-
-/* ---------- ✦ Aktenlotse (Vorschlag, ab Ausbaustand „Weiterentwicklung 4") ---------- */
-
-/**
- * Der Lotse läuft über dieselbe Prüfkette wie jeder andere ePA-Weg: dieselbe Sitzung,
- * dieselbe Befugnis, dieselbe Akte. Er bekommt dadurch keine eigenen Rechte — er sieht
- * genau so viel wie das aufrufende System.
- */
-export async function lotseFragen(
-  kvnr: string,
-  frage: string,
-  lesart: Lesart = 'fach',
-  /** Gesetzt, wenn nicht die Praxis fragt, sondern die versicherte Person oder ihre Vertretung. */
-  alsVersicherte?: string,
-): Promise<Lotsenantwort> {
-  const { inhalt } = await anfragen<Lotsenantwort>({
-    methode: 'POST',
-    pfad: `${AKTENLOTSE}/frage`,
-    kvnr,
-    koerper: { frage, lesart },
-    inhaltstyp: 'application/json',
-    grundlage: alsVersicherte ? `${GRUNDLAGE.lotse} · Versichertenzugang` : GRUNDLAGE.lotse,
-    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
-  });
-  return inhalt;
-}
-
-/** Kontext zum Anlass des Kontakts, mit Hinweis auf auseinandergehende Angaben. */
-export async function lotseKontext(kvnr: string, anlass: string): Promise<Lotsenkontext> {
-  const { inhalt } = await anfragen<Lotsenkontext>({
-    pfad: `${AKTENLOTSE}/kontext?anlass=${encodeURIComponent(anlass)}`,
-    kvnr,
-    inhaltstyp: 'application/json',
-    grundlage: GRUNDLAGE.lotse,
-  });
-  return inhalt;
-}
-
-/** Was eine strukturierte Liste aus dem unstrukturierten Bestand aufnehmen könnte. */
-export async function lotseVorschlaege(kvnr: string): Promise<Lotsenvorschlaege> {
-  const { inhalt } = await anfragen<Lotsenvorschlaege>({
-    pfad: `${AKTENLOTSE}/vorschlaege`,
-    kvnr,
-    inhaltstyp: 'application/json',
-    grundlage: GRUNDLAGE.lotse,
-  });
-  return inhalt;
-}
-
-/** ✦ Ein Dokument, dessen Metadaten nicht sagen, worum es geht — und was laut Inhalt darin steht. */
-export interface Beschriftungsbefund {
-  quelleId: string;
-  titel: string;
-  gruende: string[];
-  lautInhalt: string | null;
-  datumLautInhalt: string | null;
-  beleg: string | null;
-}
-
-/** ✦ Unklar beschriftete Dokumente der Akte. */
-export async function lotseBeschriftung(
-  kvnr: string,
-  alsVersicherte?: string,
-): Promise<Beschriftungsbefund[]> {
-  const { inhalt } = await anfragen<Beschriftungsbefund[]>({
-    pfad: `${AKTENLOTSE}/beschriftung`,
-    kvnr,
-    inhaltstyp: 'application/json',
-    grundlage: alsVersicherte ? `${GRUNDLAGE.lotse} · Versichertenzugang` : GRUNDLAGE.lotse,
-    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
-  });
-  return inhalt;
-}
-
-/** ✦ Kontakt einer Einrichtung für eine Rückfrage. */
-export interface Kontakteintrag {
-  name: string;
-  telefon: string;
-  tiMessenger: boolean;
-}
-
-/**
- * ✦ Kontaktauskunft zu einer Einrichtung, gesucht über die Bezeichnung aus den Metadaten.
- * Kein Treffer ist eine Antwort, kein Fehler: `null`.
- */
-export async function kontaktSuchen(name: string): Promise<Kontakteintrag | null> {
-  try {
-    const { inhalt } = await anfragen<Kontakteintrag>({
-      pfad: `/epa/vorschlag/kontakt/api/v1/einrichtung?name=${encodeURIComponent(name)}`,
-      inhaltstyp: 'application/json',
-      grundlage: GRUNDLAGE.kontakt,
-    });
-    return inhalt;
-  } catch (f) {
-    if (f instanceof EpaFehler && f.status === 404) return null;
-    throw f;
-  }
-}
-
-/** Eine Unterlage öffnen und nachlesen — der Weg, auf den die Quellenangabe einer Antwort zeigt. */
-export async function lotseQuelle(
-  kvnr: string,
-  quelleId: string,
-  alsVersicherte?: string,
-): Promise<Quellentext> {
-  const { inhalt } = await anfragen<Quellentext>({
-    pfad: `${AKTENLOTSE}/quelle/${encodeURIComponent(quelleId)}`,
-    kvnr,
-    inhaltstyp: 'application/json',
-    grundlage: GRUNDLAGE.lotse,
-    ...(alsVersicherte ? { zusatz: { 'x-demo-versicherte': alsVersicherte } } : {}),
-  });
-  return inhalt;
-}
-
-/** Ob der Ausbaustand den Lotsen anbietet. */
-let lotseAngeboten: boolean | null = null;
-
-export async function lotseVorhanden(): Promise<boolean> {
-  if (lotseAngeboten !== null) return lotseAngeboten;
-  try {
-    await anfragen({
-      pfad: `${AKTENLOTSE}/metadata`,
-      inhaltstyp: 'application/json',
-      grundlage: GRUNDLAGE.lotse,
-    });
-    lotseAngeboten = true;
-  } catch (f) {
-    if (!(f instanceof EpaFehler && f.status === 404)) throw f;
-    lotseAngeboten = false;
-  }
-  return lotseAngeboten;
-}
-
-/** ✦ Markiert einen Listeneintrag als relevant für die Patient Summary oder hebt das auf. */
-export async function listeneintragMarkieren(
-  kvnr: string,
-  art: Listenart,
-  lesenachweis: string | null,
-  id: string,
-  psRelevant: boolean,
-): Promise<{ eintrag: Ressource; lesenachweis: string }> {
-  const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
-    methode: 'POST',
-    pfad: `${DIAGNOSEDIENST}/${LISTE[art].markieren}`,
-    kvnr,
-    koerper: {
-      resourceType: 'Parameters',
-      parameter: [
-        ...(lesenachweis ? [{ name: 'acknowledgedChronologyId', valueId: lesenachweis }] : []),
-        { name: 'entry', valueReference: { reference: `${art}/${id}` } },
-        { name: 'psRelevant', valueBoolean: psRelevant },
-      ],
-    },
-    grundlage: GRUNDLAGE.dienst,
-  });
-  const eintrag = parameterRessource(inhalt, 'entry');
-  const chronologie = parameterRessource(inhalt, 'relatedChronology');
-  if (!eintrag || !chronologie) throw new EpaFehler(0, 'Die Antwort ist unvollständig.');
-  return { eintrag, lesenachweis: String(chronologie.id) };
-}

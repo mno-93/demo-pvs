@@ -6,7 +6,8 @@ import {
   type Impfung,
   type Ressource,
 } from '@demo-pvs/kern';
-import { EINRICHTUNG, impflisteVerfuegbar, listeLesen, listeneintragAnlegen } from './klient.js';
+import { EINRICHTUNG } from './klient.js';
+import { impflisteVerfuegbar, listeLesen, listeneintragAnlegen } from './dienste/listendienste.js';
 
 /**
  * ✦ Impfliste der ePA (ADR 0026) — gelesen und geschrieben wie die Listen für Allergien und

@@ -11,6 +11,8 @@ export const CODESYSTEM = {
   alphaId: 'http://fhir.de/CodeSystem/bfarm/alpha-id',
   snomed: 'http://snomed.info/sct',
   atc: 'http://fhir.de/CodeSystem/bfarm/atc',
+  /** Pharmazentralnummer (IFA). */
+  pzn: 'http://fhir.de/CodeSystem/ifa/pzn',
   loinc: 'http://loinc.org',
   ops: 'http://fhir.de/CodeSystem/bfarm/ops',
 } as const;

@@ -32,7 +32,7 @@ import type { Ressource } from './typen.js';
  */
 
 export const EMP_PROFIL = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
-const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
+const PZN = CODESYSTEM.pzn;
 const KVID = 'http://fhir.de/sid/gkv/kvid-10';
 
 /** Arzneimittel, wie es Katalog, Rezept und Plan kennen. */

@@ -56,6 +56,11 @@ export interface SimAnwendung {
 /** Größte Anfrage, die der Simulator annimmt: KIM erlaubt 15 MiB, dazu Kopf und Kodierung. */
 export const KOERPER_GRENZE = 16 * 1024 * 1024;
 
+/** x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). */
+export const USER_AGENT_FORMAT = /^[a-zA-Z0-9-]{1,20}\/[a-zA-Z0-9\-.]{1,15}$/;
+/** x-insurantid: KVNR (OpenAPI ePA-Basic 3.1.3, `InsurantIdType`). */
+export const KVNR_FORMAT = /^[A-Z]\d{9}$/;
+
 /** Fehlerkörper der Basisdienste (OpenAPI ePA: `ErrorType`). */
 export function fehlerKoerper(errorCode: string, errorDetail: string) {
   return { errorCode, errorDetail };

@@ -13,12 +13,14 @@ import {
   type PsAbschnittSchluessel,
   type PsQuelle,
   type Ressource,
+  neueId,
+  WEG,
 } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import { abStufe, betriebslage } from './betrieb.ts';
 import { istChronologie } from './chronologie.ts';
 import { KEINE_BEKANNTE_ALLERGIE, LISTE } from './diagnosedienst.ts';
-import { jetzt, neueId } from './fhir-hilfen.ts';
+import { jetzt } from './fhir-hilfen.ts';
 import { EMP, istEmpEintrag } from './medikation.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
 import { uuidAus } from './plattform.ts';
@@ -48,7 +50,7 @@ import { patientFuer } from './schreibwege.ts';
  * geführte Listen nach: nur Medikationsliste und Laborwerte.
  */
 
-export const PATIENT_SUMMARY_BASIS = '/epa/vorschlag/patient-summary/api/v1/fhir';
+export const PATIENT_SUMMARY_BASIS = WEG.patientSummary;
 
 const AUTOR = {
   resourceType: 'Device',

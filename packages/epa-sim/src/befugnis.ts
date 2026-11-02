@@ -1,7 +1,8 @@
 import type { SimAnwendung } from './schnittstelle.ts';
-import { demoJetzt, mitZeitzone, ortszeitDeutschland } from '@demo-pvs/kern';
+import { demoJetzt, mitZeitzone, ortszeitDeutschland, WEG } from '@demo-pvs/kern';
 import { base64ZuText } from './plattform.ts';
 import { bestandVorhanden } from './bestand.ts';
+import { fehlerKoerper } from './schnittstelle.ts';
 
 /**
  * Befugnismanagement nach dem Konzept 3.1.3 (`ePA-Basic`, `entitlement_management.adoc`)
@@ -24,7 +25,7 @@ import { bestandVorhanden } from './bestand.ts';
  * Vertretungen, Blockliste, Mengenbegrenzung je Stunde und Monat.
  */
 
-export const BEFUGNIS_WEG = '/epa/basic/api/v1/ps/entitlements';
+export const BEFUGNIS_WEG = WEG.befugnis;
 
 export interface Befugnis {
   telematikId: string;
@@ -149,10 +150,6 @@ export function befugnisseLeeren(): void {
   verbrauchteNachweise.clear();
 }
 
-function fehler(errorCode: string, errorDetail: string) {
-  return { errorCode, errorDetail };
-}
-
 function base64urlJson(teil: string): Record<string, unknown> | null {
   try {
     return JSON.parse(base64ZuText(teil));
@@ -182,10 +179,12 @@ export function befugnisEinhaengen(
     if (typeof jwt !== 'string' || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt)) {
       return antwort
         .code(400)
-        .send(fehler('malformedRequest', 'Das Feld jwt fehlt oder ist kein JWT.'));
+        .send(fehlerKoerper('malformedRequest', 'Das Feld jwt fehlt oder ist kein JWT.'));
     }
     if (!bestandVorhanden(kvnr)) {
-      return antwort.code(404).send(fehler('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
+      return antwort
+        .code(404)
+        .send(fehlerKoerper('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
     }
     const nutzlast = base64urlJson(jwt.split('.')[1] ?? '');
     const nachweisRoh =
@@ -199,14 +198,14 @@ export function befugnisEinhaengen(
     if (!nachweis?.kennung || !nachweis.kvnr) {
       return antwort
         .code(403)
-        .send(fehler('invalidToken', 'Der Prüfungsnachweis ist nicht lesbar.'));
+        .send(fehlerKoerper('invalidToken', 'Der Prüfungsnachweis ist nicht lesbar.'));
     }
     if (nachweis.kvnr !== kvnr) {
       // Im Wirkbetrieb prüft das HSM (Regel rr3) die KVNR aus dem Nachweis gegen x-insurantid.
       return antwort
         .code(403)
         .send(
-          fehler(
+          fehlerKoerper(
             'invalidToken',
             'Der Prüfungsnachweis gehört zu einer anderen Akte als x-insurantid.',
           ),
@@ -215,7 +214,7 @@ export function befugnisEinhaengen(
     if (verbrauchteNachweise.has(nachweis.kennung)) {
       return antwort
         .code(403)
-        .send(fehler('tokenReuse', 'Der Prüfungsnachweis wurde bereits verwendet.'));
+        .send(fehlerKoerper('tokenReuse', 'Der Prüfungsnachweis wurde bereits verwendet.'));
     }
     verbrauchteNachweise.add(nachweis.kennung);
     const befugnis = befugnisErteilen(kvnr, telematikId, demoJetzt(), 'eGK');

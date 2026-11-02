@@ -1,17 +1,20 @@
 import type { SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import { base64ZuText, zufallHex } from './plattform.ts';
 import {
+  CODESYSTEM,
   TEXT_EXTENSION,
   dosierungAusFhir,
   dosierungAusText,
   dosierungNachFhir,
   textErweiterungen,
   type Ressource,
+  neueId,
+  WEG,
 } from '@demo-pvs/kern';
 import { bestandFuer, bestandVorhanden } from './bestand.ts';
 import { betriebslage } from './betrieb.ts';
 import { chronologieAnlegen } from './chronologie.ts';
-import { jetzt, neueId, operationOutcome, parameterLesen } from './fhir-hilfen.ts';
+import { jetzt, operationOutcome, parameterLesen } from './fhir-hilfen.ts';
 import {
   EMP,
   EMP_IDENTIFIER,
@@ -59,7 +62,7 @@ import {
  * Die Abgabe selbst löst die Demo-Steuerung aus („Apotheke gibt ab").
  */
 
-export const ERP_BASIS = '/erp';
+export const ERP_BASIS = WEG.erp;
 
 const NS = 'https://gematik.de/fhir/erp/NamingSystem/';
 const PRESCRIPTION_ID = `${NS}GEM_ERP_NS_PrescriptionId`;
@@ -71,8 +74,8 @@ const RX_EXTENSION =
 const VERARBEITUNGSEREIGNIS =
   'https://gematik.de/fhir/epa-medication/StructureDefinition/epa-medicationstatement-processing-event-extension';
 const KVID = 'http://fhir.de/sid/gkv/kvid-10';
-const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
-const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
+const ATC = CODESYSTEM.atc;
+const PZN = CODESYSTEM.pzn;
 
 const FLOWTYPEN: Record<string, string> = {
   '160': 'Muster 16 (Apothekenpflichtige Arzneimittel)',

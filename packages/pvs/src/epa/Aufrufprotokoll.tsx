@@ -4,8 +4,8 @@ import { deutschesDatum } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
 import { befugnisseAblaufenLassen, useEinlesungen } from './befugnis.js';
 import { useBetriebsstand } from './epa-bestand.js';
+import { EINRICHTUNG } from './klient.js';
 import {
-  EINRICHTUNG,
   akteSetzen,
   aktenLesen,
   fremdeEintraegeAnlegen,
@@ -22,7 +22,7 @@ import {
   type ApothekenRezept,
   type Ausbaustand,
   type Betriebslage,
-} from './klient.js';
+} from '../demo/steuerung.js';
 import {
   pfadKurz,
   protokollLeeren,

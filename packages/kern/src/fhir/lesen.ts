@@ -252,7 +252,7 @@ export function chronikLesen(r: Ressource, provenance: readonly Ressource[]): Ch
 export function impfungAusFhir(r: Ressource, patientId: string, herkunft: Herkunft): Impfung {
   const impfstoff = (r['vaccineCode'] as Konzept | undefined) ?? {};
   const atc = impfstoff.coding?.find((k) => k.system === CODESYSTEM.atc);
-  const pzn = impfstoff.coding?.find((k) => k.system === 'http://fhir.de/CodeSystem/ifa/pzn');
+  const pzn = impfstoff.coding?.find((k) => k.system === CODESYSTEM.pzn);
   const protokoll = (
     r['protocolApplied'] as
       { targetDisease?: Konzept[]; doseNumberPositiveInt?: number }[] | undefined

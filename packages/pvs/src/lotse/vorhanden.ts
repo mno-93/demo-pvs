@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useBetriebsstand } from '../epa/epa-bestand.js';
-import { lotseVorhanden } from '../epa/klient.js';
+import { lotseVorhanden } from '../epa/dienste/vorschlaege.js';
 
 export function useLotseVorhanden(): boolean | null {
   const stand = useBetriebsstand();

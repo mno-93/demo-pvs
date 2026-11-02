@@ -20,16 +20,10 @@ import {
   type Impfung,
   type Rezeptfreigabe,
   type Terminstatus,
+  neueId,
 } from '@demo-pvs/kern';
 import type { Vorgang } from './speicher.js';
 import type { EpaGesehen, EpaLesezeichen, Listenordnung, Zustand } from './zustand.js';
-
-/** Erzeugt eine im Ablauf eindeutige Kennung. Reicht für eine Demo ohne Nebenläufigkeit. */
-let zaehler = 0;
-export function neueId(praefix: string): string {
-  zaehler += 1;
-  return `${praefix}-${Date.now().toString(36)}-${zaehler}`;
-}
 
 /** Zeitpunkt eines Vorgangs nach der Demo-Uhr des Kerns, auf die Sekunde. */
 function jetzt(): string {

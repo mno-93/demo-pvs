@@ -26,13 +26,9 @@ import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { Seitenansicht } from '../bausteine/Seitenansicht.js';
 import { usePatientId } from './Patientenkartei.js';
-import {
-  EINRICHTUNG,
-  EpaFehler,
-  USER_AGENT,
-  dokumenteEinstellen,
-  kimSenden,
-} from '../epa/klient.js';
+import { EINRICHTUNG, EpaFehler, USER_AGENT } from '../epa/klient.js';
+import { kimSenden } from '../epa/dienste/kim.js';
+import { dokumenteEinstellen } from '../epa/dienste/dokumente.js';
 import { fehlerTitel } from '../epa/epa-bestand.js';
 import { istGueltig, useBefugnis } from '../epa/befugnis.js';
 import { useBriefangebote, type Abschnitt, type Angebot } from './arztbrief/angebote.js';

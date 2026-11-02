@@ -1,5 +1,5 @@
 import type { SimAnwendung } from './schnittstelle.ts';
-import { PRAXIS_STAMMDATEN } from '@demo-pvs/kern';
+import { PRAXIS_STAMMDATEN, type Kontakteintrag, WEG } from '@demo-pvs/kern';
 
 /**
  * ✦ VORSCHLAG — Kontaktauskunft für Rückfragen von Versicherten. Keine ePA-Schnittstelle.
@@ -17,14 +17,9 @@ import { PRAXIS_STAMMDATEN } from '@demo-pvs/kern';
  * Alle Einträge sind erfunden; die Telefonnummern beginnen mit 0000.
  */
 
-export const KONTAKT_BASIS = '/epa/vorschlag/kontakt/api/v1';
+export const KONTAKT_BASIS = WEG.kontakt;
 
-export interface Kontakteintrag {
-  name: string;
-  telefon: string;
-  /** Die Einrichtung ist für Versicherte über den TI-Messenger erreichbar (✦, Annahme). */
-  tiMessenger: boolean;
-}
+export type { Kontakteintrag };
 
 const VERZEICHNIS: Kontakteintrag[] = [
   { name: PRAXIS_STAMMDATEN.name, telefon: PRAXIS_STAMMDATEN.telefon, tiMessenger: true },

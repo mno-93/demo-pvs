@@ -37,18 +37,15 @@ import { ERP_BASIS, erezeptEinhaengen } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
 import { operationOutcome } from './fhir-hilfen.ts';
-import {
-  MEDIKATION_BASIS,
-  QUERY_BASIS,
-  RENDER_EINSTELLUNG,
-  medikationEinhaengen,
-} from './medikation.ts';
+import { MEDIKATION_BASIS, QUERY_BASIS, RENDER_EINSTELLUNG } from './medikation.ts';
+import { medikationEinhaengen } from './medikation-wege.ts';
 import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
 import { xdsEinhaengen } from './xds.ts';
 import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen } from './kim.ts';
 import { XDS_DOKUMENTENDIENST, zeitzonenErgaenzen } from '@demo-pvs/kern';
 import { fremdeEintraegeAnlegen } from './startbestand.ts';
 import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
+import { fehlerKoerper, USER_AGENT_FORMAT, KVNR_FORMAT } from './schnittstelle.ts';
 
 const istEpaWeg = (url: string) => url.startsWith('/epa/');
 /** Wege des Aktensystems und des Fachdienstes, deren Antworten nicht zwischengespeichert werden. */
@@ -97,20 +94,11 @@ function versichertenzugang(anfrage: { headers: Record<string, unknown> }): stri
 const RELEASE =
   'ePA 3.1.3 · Medikation nach Ballot ePA 3.2 (de.gematik.epa.medication 1.4.0-ballot.1)';
 
-/** x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). */
-const USER_AGENT = /^[a-zA-Z0-9-]{1,20}\/[a-zA-Z0-9\-.]{1,15}$/;
 /**
  * Der Medication Service verlangt eine ClientId aus genau 20 Buchstaben und Ziffern
  * (CapabilityStatement `epa-medication-service-server` 1.4.0-ballot.1).
  */
 const USER_AGENT_MEDIKATION = /^[a-zA-Z0-9]{20}\/[a-zA-Z0-9\-.]{1,15}$/;
-/** x-insurantid: KVNR (OpenAPI ePA-Basic 3.1.3, `InsurantIdType`). */
-const KVNR_FORMAT = /^[A-Z]\d{9}$/;
-
-/** Fehlerkörper der Basisdienste und für `notEntitled` (OpenAPI: `ErrorType`). */
-function fehler(errorCode: string, errorDetail: string) {
-  return { errorCode, errorDetail };
-}
 
 /** Hängt Prüfkette, Dienste und Demo-Steuerung an eine Anwendung. */
 export function wegeEinhaengen(app: SimAnwendung): void {
@@ -146,13 +134,13 @@ export function wegeEinhaengen(app: SimAnwendung): void {
 
     const agent = String(anfrage.headers['x-useragent'] ?? '');
     if (
-      !USER_AGENT.test(agent) ||
+      !USER_AGENT_FORMAT.test(agent) ||
       (pfad.startsWith('/epa/medication/') && !USER_AGENT_MEDIKATION.test(agent))
     ) {
       return antwort
         .code(400)
         .send(
-          fehler(
+          fehlerKoerper(
             'malformedRequest',
             'Die Kopfzeile x-useragent fehlt oder ist nicht im Format ClientId/Version.',
           ),
@@ -162,7 +150,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       return antwort
         .code(403)
         .send(
-          fehler(
+          fehlerKoerper(
             'invalAuth',
             'Keine Sitzung mit gültigem ID-Token (Demo: Kopfzeile x-demo-sitzung fehlt).',
           ),
@@ -173,22 +161,29 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       return antwort
         .code(400)
         .send(
-          fehler('malformedRequest', 'Die Kopfzeile x-insurantid fehlt. Sie adressiert die Akte.'),
+          fehlerKoerper(
+            'malformedRequest',
+            'Die Kopfzeile x-insurantid fehlt. Sie adressiert die Akte.',
+          ),
         );
     }
     if (!KVNR_FORMAT.test(kvnr)) {
       return antwort
         .code(400)
-        .send(fehler('malformedRequest', 'Die Kopfzeile x-insurantid ist keine KVNR.'));
+        .send(fehlerKoerper('malformedRequest', 'Die Kopfzeile x-insurantid ist keine KVNR.'));
     }
     if (!bestandVorhanden(kvnr)) {
-      return antwort.code(404).send(fehler('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
+      return antwort
+        .code(404)
+        .send(fehlerKoerper('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
     }
     // Eine vorübergehend gesperrte Akte antwortet auf jedem Weg gleich (I_Information_Service).
     if (bestandFuer(kvnr).status !== 'ACTIVATED') {
       return antwort
         .code(409)
-        .send(fehler('statusMismatch', 'Die Akte ist vorübergehend nicht nutzbar (SUSPENDED).'));
+        .send(
+          fehlerKoerper('statusMismatch', 'Die Akte ist vorübergehend nicht nutzbar (SUSPENDED).'),
+        );
     }
     // Die Befugnis selbst entsteht ohne bestehende Befugnis — dafür ist sie da.
     if (pfad === BEFUGNIS_WEG) return;
@@ -203,7 +198,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       return antwort
         .code(403)
         .send(
-          fehler(
+          fehlerKoerper(
             'notEntitled',
             'Für diese Einrichtung besteht keine gültige Befugnis. Sie entsteht durch das Stecken der eGK und gilt 90 Tage.',
           ),
@@ -225,7 +220,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       return antwort
         .code(423)
         .send(
-          fehler(
+          fehlerKoerper(
             'locked',
             'Die versicherte Person hat dem digital gestützten Medikationsprozess widersprochen.',
           ),
@@ -307,7 +302,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       'erp-submission'?: 'permit' | 'deny';
     };
     if (!k?.kvnr || !bestandVorhanden(k.kvnr)) {
-      return antwort.code(404).send(fehler('noHealthRecord', 'Keine Akte.'));
+      return antwort.code(404).send(fehlerKoerper('noHealthRecord', 'Keine Akte.'));
     }
     const b = bestandFuer(k.kvnr);
     if (k.status === 'ACTIVATED' || k.status === 'SUSPENDED') b.status = k.status;
@@ -338,7 +333,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
   app.post('/verwaltung/fremde-eintraege', async (anfrage, antwort) => {
     const kvnr = String((anfrage.body as { kvnr?: string } | undefined)?.kvnr ?? '');
     if (!bestandVorhanden(kvnr)) {
-      return antwort.code(409).send(fehler('conflict', 'Keine Akte.'));
+      return antwort.code(409).send(fehlerKoerper('conflict', 'Keine Akte.'));
     }
     const stufe = STUFE[betriebslage.ausbaustand];
     return { angelegt: fremdeEintraegeAnlegen(kvnr, stufe) };

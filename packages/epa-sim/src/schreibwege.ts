@@ -2,7 +2,8 @@ import type { SimAntwort } from './schnittstelle.ts';
 import { base64ZuText } from './plattform.ts';
 import type { Ressource } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
-import { EPA_DETAILS, TI_DETAILS, jetzt, neueId, operationOutcome } from './fhir-hilfen.ts';
+import { EPA_DETAILS, TI_DETAILS, jetzt, operationOutcome } from './fhir-hilfen.ts';
+import { neueId } from '@demo-pvs/kern';
 
 /**
  * Gemeinsame Bausteine der schreibenden Wege der FHIR Data Services.

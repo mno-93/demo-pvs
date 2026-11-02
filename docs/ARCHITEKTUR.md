@@ -34,7 +34,10 @@ im Quelltext. Über HTTP ist sie überprüfbar — was das PVS nicht abruft, hat
 Daraus folgen drei Regeln, die beim Weiterbauen einzuhalten sind:
 
 1. **Das PVS greift nie direkt auf den Datenbestand des Simulators zu.** Jeder Zugriff läuft über den
-   ePA-Client in `packages/pvs/src/epa/`.
+   ePA-Client in `packages/pvs/src/epa/` (`klient.ts`, je Dienst ein Modul unter `dienste/`). Die
+   Demo-Steuerung (`/verwaltung`) ist keine Schnittstelle der ePA und steht getrennt in
+   `packages/pvs/src/demo/steuerung.ts`; gemeinsame Wege beider Seiten liefert der Kern (`WEG`) —
+   [0059](entscheidungen/0059-module-nach-fachlichen-teilen.md).
 2. **`kern` kennt weder React noch Fastify.** Alles, was in beiden Anwendungen gilt — Typen, Kataloge,
    Fachlogik, FHIR-Abbildung — liegt dort und ist ohne Oberfläche testbar.
 3. **Jede Ansicht sagt, welchen Bestand sie zeigt.** Lokale Daten und ePA-Daten werden nie stillschweigend
@@ -51,8 +54,8 @@ allen Stufen dem Ballot ePA 3.2 (ADR 0047, 0054, 0055) —
 [0019](entscheidungen/0019-konformitaet-mit-den-implementation-guides.md). Dokumente über den
 MHD Service (`epa-sim/src/mhd.ts`: ITI-67 mit Volltext, ITI-68; in der Vorschau auf ePA 3.2 die
 leere ePS des Aktensystems aus `epa-sim/src/epa-eps.ts`, ADR 0042), Medikation über den Medication
-Service (`epa-sim/src/medikation.ts`: Liste, Plan, Plan-Log, EMP-Operationen, Nachtrag,
-Verknüpfung). Gemeinsame Schreibmechanik in `epa-sim/src/schreibwege.ts`
+Service (`epa-sim/src/medikation-*.ts` je Abschnitt: Lesen, Common Query API, Schreiben im eMP
+und in der eML; gemeinsame Fachlogik in `medikation.ts`). Gemeinsame Schreibmechanik in `epa-sim/src/schreibwege.ts`
 (`X-Requesting-Organization`, `EPAActivityProvenance`, Versionierung) und
 `epa-sim/src/chronologie.ts` (Chronologieeinträge, Lesenachweis, 409). Einzelne Diagnosen,
 Allergien oder Laborwerte gibt es im Release nur in Dokumenten; das Praxissystem zerlegt sie
@@ -155,10 +158,11 @@ Person und Sicht im Zustand (`epaGesehen`) und zeichnet Band und Marke —
 [0028](entscheidungen/0028-verlauf-nach-besuchen.md).
 
 **Abfrage „seit".** Medikation und Dokumente fragen Änderungen mit den spezifizierten Parametern
-ab (`epa/klient.ts`: `planaenderungenSeit`, `medikationslisteSeit`, `dokumenteSeit`); das
+ab (`epa/dienste/medikation.ts`: `planaenderungenSeit`, `medikationslisteSeit`;
+`epa/dienste/dokumente.ts`: `dokumenteSeit`); das
 Lesezeichen merkt `epa/lesezeichen.ts` je Person und Bestand, den Vergleich zweier Planstände
 `kern/fachlogik/aenderungen.ts` (`staendeVergleichen`). Im Simulator stehen die Parameter in
-`medikation.ts` und `mhd.ts`, der Datumsvergleich in `fhir-hilfen.ts` (`imZeitraum`) —
+`medikation-query.ts` und `mhd.ts`, der Datumsvergleich in `fhir-hilfen.ts` (`imZeitraum`) —
 [0030](entscheidungen/0030-abfrage-seit-nach-spezifikation.md).
 
 **Ordnung der Listen.** `kern/fachlogik/listenordnung.ts` ordnet Einträge nach Einstellung,

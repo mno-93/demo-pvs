@@ -29,7 +29,7 @@ export const KBV_ERP = 'https://fhir.kbv.de/StructureDefinition/';
 export const REZEPT_ID_SYSTEM =
   'https://gematik.de/fhir/erp/NamingSystem/GEM_ERP_NS_PrescriptionId';
 export const EMP_IDENTIFIER_SYSTEM = 'https://gematik.de/fhir/sid/emp-identifier';
-const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
+const PZN = CODESYSTEM.pzn;
 /** Abschnittsarten der Verordnung (KBV). ⚠ Codesystem nicht gegen das Paket geprüft. */
 const SECTION_TYPE = 'https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type';
 

@@ -7,10 +7,10 @@ import { Marker } from '../bausteine/Bausteine.js';
 import {
   EpaFehler,
   befugnisRegistrieren,
-  befugnisseEntziehen,
   beiFehlenderBefugnis,
   pruefungsnachweisBilden,
 } from './klient.js';
+import { befugnisseEntziehen } from '../demo/steuerung.js';
 import { beimEinlesenAbgleichen } from '../module/medikation/planabgleich.js';
 
 /**

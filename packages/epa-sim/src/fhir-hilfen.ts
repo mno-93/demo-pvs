@@ -101,12 +101,6 @@ export function ausgabe(teile: [string, Ressource | undefined][]) {
   };
 }
 
-let zaehler = 0;
-export function neueId(praefix: string): string {
-  zaehler += 1;
-  return `${praefix}-${Date.now().toString(36)}-${zaehler}`;
-}
-
 /**
  * Zeitpunkt für Einträge nach der Demo-Uhr des Kerns (`demoZeitpunkt`): Demo-Tag und deutsche
  * Uhrzeit, mit Millisekunden und streng steigend, wie in einem Aktensystem. Ein Lesezeichen aus

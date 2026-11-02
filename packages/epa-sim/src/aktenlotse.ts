@@ -17,6 +17,7 @@ import {
   type Ressource,
   dosierungsanzeige,
   grundanzeige,
+  WEG,
 } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { jetzt } from './fhir-hilfen.ts';
@@ -54,7 +55,7 @@ import { eintragsUuid, sichtbar } from './mhd.ts';
  * kein FHIR: Der Dienst bildet keine Ressource ab, sondern eine Auskunft über vorhandene.
  */
 
-export const AKTENLOTSE_BASIS = '/epa/vorschlag/aktenlotse/api/v1';
+export const AKTENLOTSE_BASIS = WEG.aktenlotse;
 
 /* ---------- Quellen aus dem Aktenbestand ---------- */
 

@@ -5,6 +5,7 @@ import {
   KIM_GRENZE_BYTES,
   KIM_PRAXIS,
   kimNachrichtLesen,
+  WEG,
 } from '@demo-pvs/kern';
 import { jetzt } from './fhir-hilfen.ts';
 
@@ -28,7 +29,7 @@ import { jetzt } from './fhir-hilfen.ts';
  * Eingangsbestätigung. Zugestellte Nachrichten liegen in einem Postausgang der Demo-Steuerung.
  */
 
-export const KIM_WEG = '/kim/demo/clientmodul/smtp';
+export const KIM_WEG = WEG.kim;
 export const KIM_POSTAUSGANG = '/verwaltung/kim/postausgang';
 
 export interface Zustellung {

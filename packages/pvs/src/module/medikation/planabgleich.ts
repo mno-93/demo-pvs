@@ -12,7 +12,7 @@ import {
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen } from '../../speicher/speicher.js';
 import { vorgaenge, type PlanausEpa } from '../../speicher/vorgaenge.js';
-import { medikationsplanLesen, type Medikationsplan } from '../../epa/klient.js';
+import { medikationsplanLesen, type Medikationsplan } from '../../epa/dienste/medikation.js';
 import { codeVon, textVon } from '../../epa/epa-bestand.js';
 
 /**
@@ -26,7 +26,7 @@ import { codeVon, textVon } from '../../epa/epa-bestand.js';
  */
 
 const ATC = CODESYSTEM.atc;
-const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
+const PZN = CODESYSTEM.pzn;
 
 const STATUS_AUS_CODE: Record<string, EmpStatus> = Object.fromEntries(
   Object.entries(EMP_STATUS_CODE).map(([k, v]) => [v, k as EmpStatus]),

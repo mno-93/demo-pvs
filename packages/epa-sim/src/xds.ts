@@ -14,10 +14,11 @@ import {
   registryResponseErzeugen,
   type GeleseneEinreichung,
   type XdsFehler,
+  neueId,
 } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
 import { AB_STUFE, abStufe } from './betrieb.ts';
-import { jetzt, neueId } from './fhir-hilfen.ts';
+import { jetzt } from './fhir-hilfen.ts';
 import { base64ZuText } from './plattform.ts';
 
 /**

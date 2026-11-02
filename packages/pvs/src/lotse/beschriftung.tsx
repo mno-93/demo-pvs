@@ -7,7 +7,7 @@
  * zweite Wahrheit über dieselbe Akte.
  */
 import { useEffect, useState } from 'react';
-import { lotseBeschriftung, type Beschriftungsbefund } from '../epa/klient.js';
+import { lotseBeschriftung, type Beschriftungsbefund } from '../epa/dienste/vorschlaege.js';
 import { useBetriebsstand } from '../epa/epa-bestand.js';
 import { useEinlesungen } from '../epa/befugnis.js';
 import { useLotseVorhanden } from './vorhanden.js';

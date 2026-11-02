@@ -7,13 +7,9 @@ import {
 } from '@demo-pvs/kern';
 import { ausfuehren, lesen } from '../../speicher/speicher.js';
 import { vorgaenge } from '../../speicher/vorgaenge.js';
-import {
-  EpaFehler,
-  erezeptAktivieren,
-  erezeptErstellen,
-  erezeptLoeschen,
-  type Medikationsliste,
-} from '../../epa/klient.js';
+import { EpaFehler } from '../../epa/klient.js';
+import { erezeptAktivieren, erezeptErstellen, erezeptLoeschen } from '../../epa/dienste/erezept.js';
+import { type Medikationsliste } from '../../epa/dienste/medikation.js';
 
 /**
  * E-Rezept aus Sicht des Praxissystems (ADR 0024).

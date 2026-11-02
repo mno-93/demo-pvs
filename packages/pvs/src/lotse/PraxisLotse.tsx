@@ -40,15 +40,14 @@ import {
   useBetriebsstand,
   type Dokumentverweis,
 } from '../epa/epa-bestand.js';
+import { EpaFehler } from '../epa/klient.js';
 import {
-  EpaFehler,
-  dokumentAbrufen,
-  dokumenteSuchen,
   lotseFragen,
   lotseKontext,
   lotseQuelle,
   lotseVorschlaege,
-} from '../epa/klient.js';
+} from '../epa/dienste/vorschlaege.js';
+import { dokumentAbrufen, dokumenteSuchen } from '../epa/dienste/dokumente.js';
 import { DokumentBetrachter } from '../bausteine/DokumentBetrachter.js';
 import {
   Absaetze,

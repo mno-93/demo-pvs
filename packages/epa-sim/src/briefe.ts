@@ -1,4 +1,5 @@
 import {
+  CODESYSTEM,
   SNOMED_VERSION,
   vollUrl,
   zeitzonenErgaenzen,
@@ -32,7 +33,7 @@ import { uuidAus } from './plattform.ts';
 const SCT = 'http://snomed.info/sct';
 const ICD = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm';
 const OPS = 'http://fhir.de/CodeSystem/bfarm/ops';
-const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
+const ATC = CODESYSTEM.atc;
 const LOINC = 'http://loinc.org';
 
 const u = (text: string): Briefbaustein => ({ art: 'ueberschrift', text });

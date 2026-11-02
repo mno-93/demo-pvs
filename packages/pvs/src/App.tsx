@@ -22,7 +22,8 @@ import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
 import { protokollUmschalten, useProtokollSichtbar } from './epa/protokoll.js';
-import { EpaFehler, aktensystemZuruecksetzen, klientZuruecksetzen } from './epa/klient.js';
+import { EpaFehler, klientZuruecksetzen } from './epa/klient.js';
+import { aktensystemZuruecksetzen } from './demo/steuerung.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
 
 /** Spezifikation, Entscheidungen und Anleitung der Demo — im öffentlichen Repository. */

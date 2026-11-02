@@ -24,14 +24,9 @@ import {
   type Ressource,
 } from '@demo-pvs/kern';
 import { useZustand } from '../speicher/speicher.js';
-import {
-  EpaFehler,
-  dokumentAbrufen,
-  dokumenteSuchen,
-  lotseFragen,
-  lotseQuelle,
-  type Beschriftungsbefund,
-} from '../epa/klient.js';
+import { EpaFehler } from '../epa/klient.js';
+import { lotseFragen, lotseQuelle, type Beschriftungsbefund } from '../epa/dienste/vorschlaege.js';
+import { dokumentAbrufen, dokumenteSuchen } from '../epa/dienste/dokumente.js';
 import {
   dokumenteSortieren,
   dokumentverweisLesen,

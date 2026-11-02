@@ -1,6 +1,6 @@
 import type { SimAnwendung } from './schnittstelle.ts';
 import { bytesAus, sha256Hex, uuidV7 } from './plattform.ts';
-import { vollUrl, type Ressource } from '@demo-pvs/kern';
+import { vollUrl, type Ressource, WEG } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument, type Kodewert } from './bestand.ts';
 import { TELEMATIK_ID } from './schreibwege.ts';
 import { AB_STUFE, abStufe, STUFE } from './betrieb.ts';
@@ -35,8 +35,8 @@ import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen
  * anderen Suche. Alle übrigen Wege und Kennungen bleiben bei 1.1.3.
  */
 
-export const MHD_BASIS = '/epa/mhd/api/v1/fhir';
-export const MHD_ABRUF = '/epa/mhd/retrieve/v1/content';
+export const MHD_BASIS = WEG.mhd;
+export const MHD_ABRUF = WEG.mhdAbruf;
 
 const ENDUNG: Record<string, string> = {
   'application/fhir+json': 'json',

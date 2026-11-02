@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { WEG } from '@demo-pvs/kern';
 
 /**
  * Protokoll der Aufrufe an die ePA.
@@ -30,9 +31,9 @@ export interface Aufruf {
 /** Pfad für enge Anzeigen: die langen Basispfade der Fachdienste gekürzt, der Vorschlag markiert. */
 export function pfadKurz(pfad: string): string {
   return pfad
-    .replace('/epa/medication/api/v1/fhir', '…/fhir')
-    .replace('/epa/vorschlag/diagnosis/api/v1/fhir', '✦ …/diagnosis')
-    .replace('/information/api/v1/ehr', '…/ehr');
+    .replace(WEG.medikation, '…/fhir')
+    .replace(WEG.diagnosedienst, '✦ …/diagnosis')
+    .replace(WEG.information, '…/ehr');
 }
 
 let aufrufe: Aufruf[] = [];

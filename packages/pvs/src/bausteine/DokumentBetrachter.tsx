@@ -11,7 +11,7 @@ import { Leer, Marker } from './Bausteine.js';
 import { Befundansicht } from './Befundansicht.js';
 import { Seitenansicht } from './Seitenansicht.js';
 import { codeVon, datumVon, textVon } from '../epa/epa-bestand.js';
-import { istDatei, type EpaDatei } from '../epa/klient.js';
+import { istDatei, type EpaDatei } from '../epa/dienste/dokumente.js';
 
 /**
  * Zeigt den Inhalt eines Dokuments so, wie ihn ein Praxissystem darstellen würde: einen

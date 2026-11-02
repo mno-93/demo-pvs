@@ -25,6 +25,7 @@ import {
   type Diagnose,
   type Impfung,
   type Ressource,
+  neueId,
 } from '@demo-pvs/kern';
 import { sha256Hex } from './plattform.ts';
 import { SCAN_KARDIOLOGIE_2019 } from './scanbild.ts';
@@ -45,7 +46,7 @@ import { chronologieAnlegen } from './chronologie.ts';
 import { eintragAnlegen, listeFortschreiben } from './diagnosedienst.ts';
 import { EMP, EMP_IDENTIFIER, EXT, PROFIL, empVerweis } from './medikation.ts';
 import { eintragsUuid } from './mhd.ts';
-import { jetzt, neueId } from './fhir-hilfen.ts';
+import { jetzt } from './fhir-hilfen.ts';
 import {
   aktivitaetAnlegen,
   subjektFuer,
@@ -183,7 +184,7 @@ function alsRelevantMarkieren(kvnr: string, ...kennungen: string[]): void {
   });
 }
 
-const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
+const ATC = CODESYSTEM.atc;
 
 /* ---------- Medikation ---------- */
 

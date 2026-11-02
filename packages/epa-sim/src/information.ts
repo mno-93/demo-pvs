@@ -1,5 +1,7 @@
 import type { SimAnwendung } from './schnittstelle.ts';
 import { bestandFuer, bestandVorhanden } from './bestand.ts';
+import { WEG } from '@demo-pvs/kern';
+import { fehlerKoerper, USER_AGENT_FORMAT, KVNR_FORMAT } from './schnittstelle.ts';
 
 /**
  * Information Service des Aktensystems — nach OpenAPI `I_Information_Service` 1.5.1
@@ -15,14 +17,7 @@ import { bestandFuer, bestandVorhanden } from './bestand.ts';
  * Damit kann das Praxissystem den Zustand der Akte zeigen, bevor es etwas aus ihr liest.
  */
 
-export const INFORMATION_BASIS = '/information/api/v1/ehr';
-
-const USER_AGENT = /^[a-zA-Z0-9-]{1,20}\/[a-zA-Z0-9\-.]{1,15}$/;
-const KVNR = /^[A-Z]\d{9}$/;
-
-function fehler(errorCode: string, errorDetail: string) {
-  return { errorCode, errorDetail };
-}
+export const INFORMATION_BASIS = WEG.information;
 
 export function informationEinhaengen(app: SimAnwendung): void {
   /** Gemeinsame Prüfung: Kopfzeilen, Akte, Zustand. Gibt die KVNR zurück oder antwortet selbst. */
@@ -31,20 +26,30 @@ export function informationEinhaengen(app: SimAnwendung): void {
     antwort: { code: (c: number) => { send: (k: unknown) => unknown } },
   ): string | null {
     const kvnr = String(anfrage.headers['x-insurantid'] ?? '');
-    if (!USER_AGENT.test(String(anfrage.headers['x-useragent'] ?? '')) || !KVNR.test(kvnr)) {
+    if (
+      !USER_AGENT_FORMAT.test(String(anfrage.headers['x-useragent'] ?? '')) ||
+      !KVNR_FORMAT.test(kvnr)
+    ) {
       antwort
         .code(400)
-        .send(fehler('malformedRequest', 'x-useragent oder x-insurantid fehlt oder ist ungültig.'));
+        .send(
+          fehlerKoerper(
+            'malformedRequest',
+            'x-useragent oder x-insurantid fehlt oder ist ungültig.',
+          ),
+        );
       return null;
     }
     if (!bestandVorhanden(kvnr)) {
-      antwort.code(404).send(fehler('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
+      antwort.code(404).send(fehlerKoerper('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
       return null;
     }
     if (bestandFuer(kvnr).status !== 'ACTIVATED') {
       antwort
         .code(409)
-        .send(fehler('statusMismatch', 'Die Akte ist vorübergehend nicht nutzbar (SUSPENDED).'));
+        .send(
+          fehlerKoerper('statusMismatch', 'Die Akte ist vorübergehend nicht nutzbar (SUSPENDED).'),
+        );
       return null;
     }
     return kvnr;

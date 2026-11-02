@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  CODESYSTEM,
   allergiezeile,
   deutschesDatum,
   diagnosezeile,
@@ -17,12 +18,8 @@ import {
   grundanzeige,
 } from '@demo-pvs/kern';
 import { useAuswahl, useZustand } from '../../speicher/speicher.js';
-import {
-  dokumentAbrufen,
-  dokumenteSuchen,
-  medikationslisteLesen,
-  medikationsplanLesen,
-} from '../../epa/klient.js';
+import { medikationslisteLesen, medikationsplanLesen } from '../../epa/dienste/medikation.js';
+import { dokumentAbrufen, dokumenteSuchen } from '../../epa/dienste/dokumente.js';
 import {
   codeVon,
   dokumentverweisLesen,
@@ -90,7 +87,7 @@ export interface Abschnittsangebot {
   quellen: Quelle[];
 }
 
-const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
+const ATC = CODESYSTEM.atc;
 
 function zustandAus<T>(befugt: boolean, abfrage: Ladezustand<T>): string | null {
   if (!befugt) return 'Keine Befugnis für die ePA dieser Person.';

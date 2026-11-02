@@ -1,3 +1,5 @@
+import { type Ausbaustand } from '@demo-pvs/kern';
+
 /**
  * Betriebsschalter des Simulators — Demo-Steuerung, keine ePA-Schnittstelle.
  *
@@ -15,12 +17,7 @@
  *   und Patient Summary (ADR 0021);
  * - `weiterentwicklung-4` (4): ✦ Aktenlotse (ADR 0032).
  */
-export type Ausbaustand =
-  | 'release-3.1.3'
-  | 'weiterentwicklung'
-  | 'weiterentwicklung-2'
-  | 'weiterentwicklung-3'
-  | 'weiterentwicklung-4';
+export type { Ausbaustand };
 
 /** Stufen in aufsteigender Reihenfolge; jede enthält die vorige. */
 export const STUFE: Record<Ausbaustand, number> = {

@@ -14,7 +14,8 @@
  *    die Demo bereitet eine Nachricht nur vor und versendet nichts.
  */
 import { useEffect, useState } from 'react';
-import { EINRICHTUNG, kontaktSuchen, type Kontakteintrag } from '../epa/klient.js';
+import { EINRICHTUNG } from '../epa/klient.js';
+import { kontaktSuchen, type Kontakteintrag } from '../epa/dienste/vorschlaege.js';
 import { tag } from './bausteine.js';
 
 export type Anliegen = 'bedeutung' | 'stimmt' | 'fehlt';

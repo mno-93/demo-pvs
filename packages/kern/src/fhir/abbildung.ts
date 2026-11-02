@@ -411,9 +411,7 @@ export function impfungNachFhir(impfung: Impfung, kvnr: string): Ressource {
               },
             ]
           : []),
-        ...(impfung.impfstoff.pzn
-          ? [{ system: 'http://fhir.de/CodeSystem/ifa/pzn', code: impfung.impfstoff.pzn }]
-          : []),
+        ...(impfung.impfstoff.pzn ? [{ system: CODESYSTEM.pzn, code: impfung.impfstoff.pzn }] : []),
       ],
       text: impfung.impfstoff.bezeichnung,
     },
