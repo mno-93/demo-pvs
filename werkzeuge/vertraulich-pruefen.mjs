@@ -6,15 +6,26 @@
  * - eingebaute, die nichts über das Projekt verraten: lokale Pfade, Schlüssel und Token,
  *   Verweise auf Ordner außerhalb des Repositorys;
  * - projektbezogene, die selbst nicht ins Repository gehören. Sie kommen aus der Umgebungsvariable
- *   `VERTRAULICH_MUSTER` (im Workflow aus einer Repository-Variable) oder aus der Datei
+ *   `VERTRAULICH_MUSTER` (im Workflow aus dem Secret gleichen Namens) oder aus der Datei
  *   `.vertraulich-muster` im Wurzelverzeichnis, die Git ignoriert. Ein Muster je Zeile, als
  *   regulärer Ausdruck ohne Groß- und Kleinschreibung; Zeilen mit # sind Kommentare.
+ *
+ * Ist `VERTRAULICH_MUSTER` gesetzt, aber leer, bricht die Prüfung ab: So liefert der Workflow ein
+ * fehlendes Secret, etwa bei Pull Requests aus Forks. Ohne Projektmuster „keine Funde“ zu melden,
+ * wäre eine falsche Entwarnung.
  *
  * Geprüft werden alle Dateien, die Git verfolgt oder die zum Commit vorgemerkt sind.
  * Aufruf: npm run pruefen:vertraulich
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+
+if (process.env.VERTRAULICH_MUSTER !== undefined && !process.env.VERTRAULICH_MUSTER.trim()) {
+  console.error(
+    'VERTRAULICH_MUSTER ist gesetzt, aber leer — im Workflow fehlt das Secret. Ohne Projektmuster keine Prüfung.',
+  );
+  process.exit(1);
+}
 
 const EINGEBAUT = [
   ['lokaler Pfad', /\/Users\/[^/\s]+\/|[A-Z]:\\Users\\/],

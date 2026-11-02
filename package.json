@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22.6"
   },
   "workspaces": [
     "packages/*"
@@ -17,7 +17,7 @@
     "dev:pvs": "npm run dev --workspace @demo-pvs/pvs",
     "dev:epa": "npm run dev --workspace @demo-pvs/epa-sim",
     "build": "npm run build --workspaces --if-present",
-    "build:gehostet": "VITE_SIMULATOR=browser npm run build && cp packages/pvs/dist/index.html packages/pvs/dist/404.html",
+    "build:gehostet": "node werkzeuge/gehostet-bauen.mjs",
     "vorschau:gehostet": "npm run vorschau --workspace @demo-pvs/pvs",
     "test": "vitest run",
     "test:watch": "vitest",

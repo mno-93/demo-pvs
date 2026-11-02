@@ -40,9 +40,16 @@ jobs:
       - run: npm run build --workspace @demo-pvs/kern
       - name: Format, Lint, Typen, Tests und Vertraulichkeit
         env:
-          # Projektmuster liegen nicht im Repository, sondern in einer Repository-Variable.
+          # Projektmuster liegen nicht im Repository, sondern im Secret VERTRAULICH_MUSTER; GitHub
+          # zeigt es im Log nur maskiert. Fehlt es (etwa bei Pull Requests aus Forks), bricht die
+          # Prüfung ab, statt ohne Projektmuster „keine Funde“ zu melden.
           VERTRAULICH_MUSTER: ${{ secrets.VERTRAULICH_MUSTER }}
         run: npm run pruefen
+      - name: Erzeugte Kataloge entsprechen den JSON-Quellen
+        # Die Module unter packages/kern/src/kataloge entstehen aus daten/kataloge (ADR 0005).
+        run: |
+          node werkzeuge/kataloge-erzeugen.mjs
+          git diff --exit-code -- packages/kern/src/kataloge
 
   fhir-validator:
     name: FHIR-Validator

@@ -2,7 +2,8 @@
 
 ## Voraussetzungen
 
-Node ab Version 20. Prüfen mit `node -v`.
+Node ab Version 22.6 — der Simulator startet mit `--experimental-strip-types`. Prüfen mit `node -v`.
+Unter Windows laufen alle Befehle ebenso: `npm run dev` startet die Dienste über die Shell, `build:gehostet` ist ein Node-Skript, und `.gitattributes` hält die Zeilenenden bei LF, die Prettier verlangt.
 
 ## Befehle
 
@@ -17,7 +18,7 @@ Node ab Version 20. Prüfen mit `node -v`.
 | `npm run pruefen`             | Format, Lint, Typen, Tests — vor jedem Commit                                                                             |
 | `npm run pruefen:vertraulich` | Sucht nach vertraulichen Inhalten; Projektmuster aus `.vertraulich-muster` oder `VERTRAULICH_MUSTER` (Teil von `pruefen`) |
 | `npm run fhir:validieren`     | Legt die FHIR-Ausgaben der Tests dem HL7 FHIR Validator vor (Java ab 17, `validator_cli.jar`; Abschnitt „FHIR-Validator“) |
-| `npm run build:gehostet`      | Baut die gehostete Fassung mit Simulator im Browser; Unterpfad über `BASIS`, etwa `BASIS=/demo-pvs/`                      |
+| `npm run build:gehostet`      | Baut die gehostete Fassung mit Simulator im Browser; Unterpfad mit `-- --basis demo-pvs` oder über `BASIS`                |
 | `npm run vorschau:gehostet`   | Zeigt das Gebaute lokal an (Port 4173)                                                                                    |
 
 ## Gehostete Fassung und Workflow
@@ -35,7 +36,7 @@ braucht, das es nur in Node gibt, legt es in `epa-sim/src/plattform.ts` an — s
 gehostete Fassung nicht mehr. Wer einen neuen Weg anlegt, hängt ihn in `wege.ts` ein; er gilt
 dann für Server und Browser.
 
-Prüfliste für die gehostete Fassung: `npm run build:gehostet` mit `BASIS=/demo-pvs/`, Vorschau mit
+Prüfliste für die gehostete Fassung: `npm run build:gehostet -- --basis demo-pvs`, Vorschau mit
 `--base /demo-pvs/`, eine tiefe Adresse direkt aufrufen, eGK einlesen, ein Rezept senden, im
 Netzwerkprotokoll des Browsers dürfen nur statische Dateien erscheinen.
 
@@ -54,6 +55,16 @@ erzeugen:
 Die Übernahmen lesen die Repositories nur und schreiben die Herkunft in den Kopf jeder Datei.
 Ohne die Umgebungsvariable brechen sie mit einem Hinweis ab; für den Betrieb der Demo sind sie
 nicht nötig, die Ergebnisse liegen im Repository.
+
+### Erzeugte Dateien
+
+Drei Dateien im Repository sind erzeugt; keine wird von Hand geändert.
+
+| Datei                                                    | Erzeugt mit                                     | Geprüft                                                                                                                                                      |
+| -------------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/kern/src/kataloge/*.ts`                        | `node werkzeuge/kataloge-erzeugen.mjs`          | in der CI: neu erzeugen, `git diff --exit-code`                                                                                                              |
+| `packages/kern/src/fhir/profilregeln.json`               | `node werkzeuge/profilregeln-erzeugen.mjs`      | lokal mit `--pruefen`; braucht die Pakete aus dem Kopf des Skripts im Paketcache (`FHIR_PAKETE`), die der Prüfjob der CI nicht hat                           |
+| `packages/kern/src/fachlogik/dosierungstext.faelle.json` | `python werkzeuge/dosierungsfaelle-erzeugen.py` | lokal mit `--pruefen` gegen die Referenzimplementierung von HL7 Deutschland (`DOSIERUNG_REFERENZ` = Klon von `hl7germany/dgMP-DosageTextgenerierung-Skript`) |
 
 ## ePA-Wege
 

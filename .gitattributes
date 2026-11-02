@@ -1,0 +1,10 @@
+# Zeilenenden: LF auf allen Plattformen. Prettier prüft auf LF (endOfLine, Standard „lf“);
+# ohne diese Datei setzt Git unter Windows mit core.autocrlf CRLF und „npm run pruefen“ scheitert.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.tgz binary
+*.jar binary

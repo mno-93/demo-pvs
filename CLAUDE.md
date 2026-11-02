@@ -70,7 +70,7 @@ Meldet die Prüfung einen Fund: Stelle umformulieren, nicht das Muster abschwäc
 2. `README.md` nachziehen, wenn sich Umfang oder Einstieg ändern.
 3. Architekturentscheidung? Neue ADR in `docs/entscheidungen/` mit verworfener Alternative.
 4. `npm run pruefen` und, wenn Simulator oder Build berührt sind,
-   `BASIS=/demo-pvs/ npm run build:gehostet`.
+   `npm run build:gehostet -- --basis demo-pvs`.
 5. **Im Browser prüfen**, nicht nur Tests: Vorschau `demo-pvs` (`.claude/launch.json`), die
    betroffenen Abläufe und die Prüfliste in `docs/ENTWICKLUNG.md`; neue Funktionen bekommen dort
    eine Zeile. Konsole ohne Fehler.

@@ -42,7 +42,7 @@ jeweils mit Begründung und der Stelle, an der sie in der Demo zu sehen sind
 
 ## Schnellstart
 
-Node ab Version 20.
+Node ab Version 22.6 (der Simulator läuft mit `--experimental-strip-types`). Unter Windows funktionieren alle Befehle ebenso; Git hält die Zeilenenden über `.gitattributes` bei LF.
 
 ```bash
 npm install

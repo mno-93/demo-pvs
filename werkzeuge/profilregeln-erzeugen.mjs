@@ -16,6 +16,8 @@
  * (werkzeuge/fhir-validator.json).
  *
  * Aufruf: node werkzeuge/profilregeln-erzeugen.mjs
+ * Nur prüfen: node werkzeuge/profilregeln-erzeugen.mjs --pruefen — endet mit Fehler, wenn die
+ * eingecheckte Datei nicht dem entspricht, was die Pakete ergeben (ENTWICKLUNG, „Erzeugte Dateien“).
  */
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -182,16 +184,21 @@ for (const url of PROFILE) {
   );
 }
 
-writeFileSync(
-  'packages/kern/src/fhir/profilregeln.json',
-  `${JSON.stringify(
-    {
-      $kommentar:
-        'Erzeugt mit werkzeuge/profilregeln-erzeugen.mjs aus den FHIR-Paketen — nicht von Hand ändern.',
-      pakete: PAKETE,
-      profile,
-    },
-    null,
-    1,
-  )}\n`,
-);
+const ZIEL = 'packages/kern/src/fhir/profilregeln.json';
+const inhalt = `${JSON.stringify(
+  {
+    $kommentar:
+      'Erzeugt mit werkzeuge/profilregeln-erzeugen.mjs aus den FHIR-Paketen — nicht von Hand ändern.',
+    pakete: PAKETE,
+    profile,
+  },
+  null,
+  1,
+)}\n`;
+
+if (process.argv.includes('--pruefen')) {
+  const gleich = existsSync(ZIEL) && readFileSync(ZIEL, 'utf8') === inhalt;
+  console.log(gleich ? `${ZIEL} entspricht den Paketen.` : `${ZIEL} weicht von den Paketen ab.`);
+  process.exit(gleich ? 0 : 1);
+}
+writeFileSync(ZIEL, inhalt);

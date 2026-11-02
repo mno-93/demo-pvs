@@ -5,8 +5,13 @@
  * npm führt Workspace-Skripte nacheinander aus; für zwei dauerhaft laufende Dienste
  * taugt das nicht. Statt dafür eine Abhängigkeit aufzunehmen, übernimmt dieses Skript
  * das Starten, kennzeichnet die Ausgaben mit einem Präfix und beendet beide gemeinsam.
+ *
+ * Unter Windows heißt npm `npm.cmd`; Node startet solche Skripte nur über eine Shell. Beendet
+ * wird dort mit `taskkill /T`, weil ein Signal an die Shell Vite und Simulator nicht erreicht.
  */
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
+
+const WINDOWS = process.platform === 'win32';
 
 const dienste = [
   { name: 'pvs', paket: '@demo-pvs/pvs' },
@@ -17,6 +22,7 @@ const kinder = dienste.map(({ name, paket }) => {
   const kind = spawn('npm', ['run', 'dev', '--workspace', paket], {
     stdio: ['ignore', 'pipe', 'pipe'],
     env: process.env,
+    shell: WINDOWS,
   });
   const ausgeben = (strom) => {
     strom.setEncoding('utf8');
@@ -35,7 +41,10 @@ const kinder = dienste.map(({ name, paket }) => {
 });
 
 const beenden = () => {
-  for (const kind of kinder) kind.kill('SIGTERM');
+  for (const kind of kinder) {
+    if (WINDOWS && kind.pid) spawnSync('taskkill', ['/pid', String(kind.pid), '/T', '/F']);
+    else kind.kill('SIGTERM');
+  }
   process.exit(0);
 };
 process.on('SIGINT', beenden);
