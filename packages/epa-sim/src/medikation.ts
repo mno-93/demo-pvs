@@ -13,6 +13,7 @@ import {
   type Ressource,
 } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
+import { uuidV7 } from './plattform.ts';
 import { suchen } from './suche.ts';
 import {
   aktuelleChronologie,
@@ -29,6 +30,7 @@ import {
   jetzt,
   neueId,
   operationOutcome,
+  parameterAlle,
   parameterLesen,
   suchergebnis,
   type Detailcode,
@@ -39,9 +41,11 @@ import {
   archivierteKennungen,
   archivWiederherstellen,
   fassung,
+  fassungenSichern,
   fassungZum,
   fassungen,
   fortschreiben,
+  identitaetAbweisen,
   istGeloescht,
   loeschen,
   organisationAusKopf,
@@ -522,17 +526,28 @@ function aktivitaetsverweise(r: Ressource): string[] {
     .map((x) => referenzId(x.extension?.find((y) => y.url === 'reference')?.valueReference));
 }
 
+/** Ergebnis des Lösens: ob sich der eMP-Eintrag änderte und welche Verordnung ihren Verweis verlor. */
+export interface Loesung {
+  eintragGeaendert: boolean;
+  verordnung: Ressource | null;
+}
+
 /**
- * Löst einen eML-Eintrag von seinem eMP-Eintrag (IG 1.4.0-ballot.1, Geschäftslogik von
- * `$unlink-emp`; `$cancel-eml-entry` verfährt ebenso). Die Instanzhistorie des eMP-Eintrags wird
- * zurückverfolgt, solange Arzneimittel und Dosierung denen des eML-Eintrags gleichen und dieser
- * noch im Aktivitätsnachweis steht. Erst wenn die erste abweichende Fassung („stop version")
- * beides nicht mehr erfüllt, werden Dosierung, Arzneimittel und Dosierungstext auf sie
- * zurückgesetzt und die Kategorie neu bestimmt. Eine zwischenzeitliche manuelle Änderung und ein
- * schon verknüpft angelegter Eintrag setzen nichts zurück. Liefert, ob der eMP-Eintrag geändert
- * wurde.
+ * Löst einen eML-Eintrag von seinem eMP-Eintrag (IG 1.4.0-ballot.1, IG-MED-BL-UNLINK-EMP-ENTRY-V3;
+ * `$cancel-eml-entry` und die E-Rezept-Operationen verfahren ebenso). Die Instanzhistorie des
+ * eMP-Eintrags wird zurückverfolgt, solange Arzneimittel und Dosierung denen des eML-Eintrags
+ * gleichen und dieser noch im Aktivitätsnachweis steht. Erst wenn die erste abweichende Fassung
+ * („stop version") beides nicht mehr erfüllt, werden Dosierung, Arzneimittel und Dosierungstext auf
+ * sie zurückgesetzt und die Kategorie neu bestimmt. Eine zwischenzeitliche manuelle Änderung und
+ * ein schon verknüpft angelegter Eintrag setzen nichts zurück. Die Verordnung verliert ihren
+ * logischen Verweis auf den eMP-Eintrag.
  */
-function empZuruecksetzen(kvnr: string, eintrag: Ressource, aussage: Ressource): boolean {
+export function empZuruecksetzen(
+  kvnr: string,
+  eintrag: Ressource,
+  aussage: Ressource,
+  zeit: string = jetzt(),
+): Loesung {
   const gleich = (f: Ressource) =>
     referenzId(f['medicationReference']) === referenzId(aussage['medicationReference']) &&
     JSON.stringify(f['dosageInstruction'] ?? []) === JSON.stringify(aussage['dosage'] ?? []);
@@ -564,25 +579,227 @@ function empZuruecksetzen(kvnr: string, eintrag: Ressource, aussage: Ressource):
   );
   eintrag.extension = uebrig;
   if (uebrig.length !== bisher.length) geaendert = true;
+  return {
+    eintragGeaendert: geaendert,
+    verordnung: verknuepfungLoesen(kvnr, aussage, eintrag, zeit),
+  };
+}
+
+/**
+ * Löst nur die Verknüpfung: `basedOn` des eML-Eintrags und den logischen Verweis der Verordnung.
+ * Liefert die Verordnung, wenn sie sich änderte (neue Fassung).
+ */
+export function verknuepfungLoesen(
+  kvnr: string,
+  aussage: Ressource,
+  eintrag: Ressource,
+  zeit: string,
+): Ressource | null {
   const basis = ((aussage['basedOn'] as { reference?: string }[] | undefined) ?? []).filter(
     (v) => v.reference !== `MedicationRequest/${String(eintrag.id)}`,
   );
   if (basis.length > 0) aussage['basedOn'] = basis;
   else delete aussage['basedOn'];
-  // Die Verordnung verliert ihren logischen Verweis auf den eMP-Eintrag.
+  const verordnung = verordnungZu(kvnr, aussage);
+  if (!verordnung) return null;
+  const verweise =
+    (verordnung['basedOn'] as { identifier?: { value?: string } }[] | undefined) ?? [];
+  const rest = verweise.filter((v) => v.identifier?.value !== empKennung(eintrag));
+  if (rest.length === verweise.length) return null;
+  if (rest.length > 0) verordnung['basedOn'] = rest;
+  else delete verordnung['basedOn'];
+  fortschreiben(verordnung, zeit);
+  return verordnung;
+}
+
+/** Der eMP-Eintrag, mit dem ein eML-Eintrag verknüpft ist (`basedOn` mit `isEMP`), sonst null. */
+export function verknuepfterEintrag(aussage: Ressource): string | null {
+  const verweis = (
+    (aussage['basedOn'] as
+      | { reference?: string; extension?: { url: string; valueBoolean?: boolean }[] }[]
+      | undefined) ?? []
+  ).find((v) => v.extension?.some((e) => e.url === EXT.istEmp && e.valueBoolean === true));
+  return verweis ? referenzId(verweis) || null : null;
+}
+
+/** Die Verordnung, aus der ein eML-Eintrag stammt (`derivedFrom` auf eine EPAMedicationRequest). */
+export function verordnungZu(kvnr: string, aussage: Ressource): Ressource | undefined {
   for (const q of (aussage['derivedFrom'] as { reference?: string }[] | undefined) ?? []) {
     const [typ, id] = String(q.reference ?? '').split('/');
-    const verordnung = typ === 'MedicationRequest' ? finden(kvnr, typ, String(id)) : undefined;
-    const bisher =
-      (verordnung?.['basedOn'] as { identifier?: { value?: string } }[] | undefined) ?? [];
-    const rest = bisher.filter((v) => v.identifier?.value !== String(eintrag.id));
-    if (verordnung && rest.length !== bisher.length) {
-      if (rest.length > 0) verordnung['basedOn'] = rest;
-      else delete verordnung['basedOn'];
-      fortschreiben(verordnung);
+    if (typ === 'MedicationRequest') return finden(kvnr, typ, String(id));
+  }
+  return undefined;
+}
+
+/** Die Kennung des eMP-Eintrags (MedicationPlanIdentifier). */
+export function empKennung(eintrag: Ressource): string {
+  return (
+    (eintrag['identifier'] as { system?: string; value?: string }[] | undefined)?.find(
+      (i) => i.system === EMP_IDENTIFIER,
+    )?.value ?? String(eintrag.id)
+  );
+}
+
+/** Kombipackung: Ihr Arzneimittel übernimmt ein eMP-Eintrag beim Verknüpfen nicht (V2). */
+function kombipackung(m: Ressource | undefined): boolean {
+  return ((m?.['form'] as { coding?: { code?: string }[] } | undefined)?.coding ?? []).some(
+    (k) => k.code === 'KPG',
+  );
+}
+
+/** Zeitpunkte, zu denen der eMP-Eintrag eML-Einträge aufgenommen hat (`activity.addedOn`). */
+function aufgenommenAm(eintrag: Ressource): string[] {
+  return ((eintrag.extension ?? []) as { url: string; extension?: Json[] }[])
+    .filter((x) => x.url === EXT.aktivitaet)
+    .map((x) => String(x.extension?.find((y) => y['url'] === 'addedOn')?.['valueDateTime'] ?? ''));
+}
+
+/**
+ * Verknüpft einen eML-Eintrag mit einem eMP-Eintrag (IG-MED-BL-LINK-EMP-ENTRY-V2; ebenso das
+ * automatische Verknüpfen in `$add-emp-entry` und bei der Abgabe): `basedOn` mit `isEMP`,
+ * Aktivitätsnachweis am Eintrag mit `addedOn`, logischer Verweis der Verordnung auf den
+ * MedicationPlanIdentifier. Mit `uebernehmen` übernimmt der Eintrag Dosierung samt Text und —
+ * außer bei einer Kombipackung — das Arzneimittel, wenn er nicht schon einen späteren eML-Eintrag
+ * aufgenommen hat. Liefert die Verordnung, wenn sie sich änderte. Fassungen schreibt der Aufrufer
+ * fort.
+ */
+export function verknuepfen(
+  kvnr: string,
+  aussage: Ressource,
+  eintrag: Ressource,
+  zeit: string,
+  uebernehmen: boolean,
+): Ressource | null {
+  aussage['basedOn'] = [
+    ...((aussage['basedOn'] as unknown[] | undefined) ?? []),
+    empVerweis(String(eintrag.id)),
+  ];
+  if (uebernehmen) {
+    const spaeter = aufgenommenAm(eintrag).some((t) => t > String(aussage.meta?.lastUpdated ?? ''));
+    const dosierung = aussage['dosage'] as Json[] | undefined;
+    if (!spaeter && dosierung && dosierung.length > 0) {
+      eintrag['dosageInstruction'] = structuredClone(dosierung);
+      const gerendert = TEXT_EXTENSION.gerendert('MedicationRequest');
+      const text = gerenderterText(aussage);
+      const meta = ((aussage.extension ?? []) as { url: string }[]).find(
+        (x) => x.url === TEXT_EXTENSION.generiert,
+      );
+      eintrag.extension = [
+        ...((eintrag.extension ?? []) as { url: string }[]).filter(
+          (x) => x.url !== gerendert && x.url !== TEXT_EXTENSION.generiert,
+        ),
+        ...(text ? [{ url: gerendert, valueMarkdown: text }] : []),
+        ...(meta ? [meta] : []),
+      ];
+      kategorieSetzen(eintrag, { resourceType: 'MedicationRequest' }, kategorieVon(eintrag));
+    }
+    if (
+      !spaeter &&
+      !kombipackung(finden(kvnr, 'Medication', referenzId(aussage['medicationReference'])))
+    )
+      eintrag['medicationReference'] = structuredClone(aussage['medicationReference']);
+  }
+  eintrag.extension = [
+    ...((eintrag.extension ?? []) as { url: string }[]),
+    {
+      url: EXT.aktivitaet,
+      extension: [
+        {
+          url: 'reference',
+          valueReference: { reference: `MedicationStatement/${String(aussage.id)}` },
+        },
+        { url: 'addedOn', valueDateTime: zeit },
+      ],
+    },
+  ];
+  const verordnung = verordnungZu(kvnr, aussage);
+  if (!verordnung) return null;
+  verordnung['basedOn'] = [{ identifier: { system: EMP_IDENTIFIER, value: empKennung(eintrag) } }];
+  fortschreiben(verordnung, zeit);
+  return verordnung;
+}
+
+/** Wird ein Arzneimittel noch gebraucht — von eMP-Eintrag, Verordnung, Abgabe oder eML-Eintrag? */
+function mittelInGebrauch(kvnr: string, mittelId: string): boolean {
+  return ablage(kvnr).some(
+    (r) =>
+      ['MedicationRequest', 'MedicationStatement', 'MedicationDispense'].includes(r.resourceType) &&
+      (referenzId(r['medicationReference']) === mittelId ||
+        ((r.extension ?? []) as { url: string; valueReference?: unknown }[]).some(
+          (e) => e.url === EXT.herkunftsmittel && referenzId(e.valueReference) === mittelId,
+        )),
+  );
+}
+
+/** Löscht ein Arzneimittel, das niemand mehr braucht; seine letzte Fassung bleibt in der Historie. */
+function mittelLoeschenWennFrei(kvnr: string, mittelId: string): void {
+  const mittel = finden(kvnr, 'Medication', mittelId);
+  if (!mittel || mittelInGebrauch(kvnr, mittelId)) return;
+  fassungenSichern(ablage(kvnr), [versionierterVerweis(mittel)]);
+  loeschen(ablage(kvnr), mittel);
+}
+
+/**
+ * Status der Arzneimittel eines eMP-Eintrags (IG 1.4.0-ballot.1, `$update-emp-entry`): aktiv nur
+ * bei aktivem Eintrag — für `medicationReference` und `originMedication`, als neue Fassung.
+ */
+function mittelstatusSetzen(kvnr: string, eintrag: Ressource, zeit: string): Ressource[] {
+  const ids = new Set([
+    referenzId(eintrag['medicationReference']),
+    ...((eintrag.extension ?? []) as { url: string; valueReference?: unknown }[])
+      .filter((e) => e.url === EXT.herkunftsmittel)
+      .map((e) => referenzId(e.valueReference)),
+  ]);
+  const soll = eintrag['status'] === 'active' ? 'active' : 'inactive';
+  const geaendert: Ressource[] = [];
+  for (const id of ids) {
+    const m = id ? finden(kvnr, 'Medication', id) : undefined;
+    if (m && m['status'] !== soll && m['status'] !== 'entered-in-error') {
+      m['status'] = soll;
+      fortschreiben(m, zeit);
+      geaendert.push(m);
     }
   }
   return geaendert;
+}
+
+/** Der jüngste Änderungseintrag (keine Chronologie) zu einer Instanz. */
+function letzteAktivitaet(kvnr: string, typ: string, id: string): Ressource | undefined {
+  return ablage(kvnr)
+    .filter(
+      (r) =>
+        r.resourceType === 'Provenance' &&
+        !istChronologie(r, EMP) &&
+        ((r['target'] as { reference?: string }[] | undefined) ?? []).some((t) =>
+          String(t.reference ?? '').startsWith(`${typ}/${id}/`),
+        ),
+    )
+    .pop();
+}
+
+/** Wert mit sortierten Schlüsseln und ohne leere Angaben — für Vergleiche des Inhalts. */
+function kanonisch(v: unknown, schluessel = ''): unknown {
+  if (Array.isArray(v)) {
+    const werte = v.map((x) => kanonisch(x));
+    // Die Reihenfolge von Extensions trägt keine Bedeutung.
+    return /extension$/i.test(schluessel)
+      ? werte.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+      : werte;
+  }
+  if (v && typeof v === 'object')
+    return Object.fromEntries(
+      Object.keys(v)
+        .filter((k) => (v as Json)[k] !== undefined)
+        .sort()
+        .map((k) => [k, kanonisch((v as Json)[k], k)]),
+    );
+  return v;
+}
+
+/** Gleicher Inhalt ohne `meta` — zum Erkennen, ob eine Schreibung etwas ändert. */
+function inhaltGleich(a: Ressource, b: Ressource): boolean {
+  const ohne = (r: Ressource) => JSON.stringify(kanonisch({ ...r, meta: undefined }));
+  return ohne(a) === ohne(b);
 }
 
 function mitKontext(r: Ressource, wert: string): Ressource {
@@ -959,10 +1176,13 @@ export function medikationEinhaengen(
   /* ---------- Schreiben: eMP ---------- */
 
   interface Ergebnis {
-    eintrag: Ressource;
+    /** Fehlt nach dem Löschen eines fehlerhaften Eintrags (IG-MED-BL-UPDATE-EMP-ENTRY-V3). */
+    eintrag?: Ressource;
     medication?: Ressource;
     gruende: Ressource[];
     aktivitaet: Ressource;
+    /** Ohne Änderung entsteht keine Fassung und kein Chronologieeintrag. */
+    geaendert: boolean;
   }
 
   const statusUngueltig = (antwort: SimAntwort, text: string) =>
@@ -977,73 +1197,108 @@ export function medikationEinhaengen(
         ),
       );
 
-  /** Kern von `$add-emp-entry`, ohne Chronologie — auch für den Stapel. */
+  /**
+   * Prüfungen vor der Transaktion, ohne etwas zu ändern (Diagramme IG-MED-BL-ADD-EMP-ENTRY-V2 und
+   * IG-MED-BL-UPDATE-EMP-ENTRY-V3): Person (403), Struktur der Eingabe (422), Status (400),
+   * Dosierungstext (400). Danach prüft der Aufrufer den Lesenachweis (409).
+   */
+  function eingangPruefen(
+    kvnr: string,
+    koerper: unknown,
+    art: 'add' | 'update',
+    antwort: SimAntwort,
+  ): boolean {
+    const eingang = parameterLesen(koerper, 'empEntry')?.resource;
+    if (identitaetAbweisen(kvnr, eingang, antwort)) return false;
+    const fehler = empEintragPruefen(eingang);
+    if (fehler) {
+      void ungueltig(antwort, fehler);
+      return false;
+    }
+    if (art === 'add') {
+      const teile = parameterLesen(koerper, 'medication')?.part ?? [];
+      const resource = teile.find((p) => p.name === 'resource')?.resource;
+      const reference = teile.find((p) => p.name === 'reference')?.valueReference?.reference;
+      if (!resource === !reference) {
+        void ungueltig(
+          antwort,
+          'Der Parameter „medication“ braucht genau eines: resource oder reference.',
+        );
+        return false;
+      }
+      const mittelfehler = resource ? medicationPruefen(resource) : null;
+      if (mittelfehler) {
+        void ungueltig(antwort, mittelfehler);
+        return false;
+      }
+      if (reference && /\/_history\//.test(reference)) {
+        // ⚠ Eigenregel der Demo: Der Verweis zielt auf die Instanz, nicht auf eine Fassung.
+        void ungueltig(antwort, 'Der Verweis auf das Arzneimittel darf keine Fassung nennen.');
+        return false;
+      }
+      if (
+        profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
+        (resource && profilAbweisen(resource, PROFIL.empMedication, antwort)) ||
+        gruendeAbweisen(koerper, antwort)
+      )
+        return false;
+      if (eingang!['status'] === 'entered-in-error') {
+        void statusUngueltig(antwort, 'Ein neuer eMP-Eintrag kann nicht fehlerhaft sein.');
+        return false;
+      }
+    } else {
+      if (!parameterLesen(koerper, 'medicationPlanIdentifier')?.valueIdentifier?.value) {
+        void ungueltig(antwort, 'Der Parameter „medicationPlanIdentifier“ fehlt.');
+        return false;
+      }
+      // `medication` darf ein EMPMedication oder ein EPAMedication sein.
+      const mittel = parameterLesen(koerper, 'medication')?.resource;
+      const mittelfehler = mittel ? medicationPruefen(mittel) : null;
+      if (mittelfehler) {
+        void ungueltig(antwort, mittelfehler);
+        return false;
+      }
+      const mittelprofil = ((mittel?.meta?.profile ?? []) as string[]).some((p) =>
+        p.startsWith(PROFIL.medication.split('|')[0]!),
+      )
+        ? PROFIL.medication
+        : PROFIL.empMedication;
+      if (
+        profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
+        (mittel && profilAbweisen(mittel, mittelprofil, antwort)) ||
+        gruendeAbweisen(koerper, antwort)
+      )
+        return false;
+    }
+    return !dosierungAbweisen(eingang!, antwort);
+  }
+
+  /** Kern von `$add-emp-entry` nach dem Lesenachweis — auch für den Stapel. */
   function empEintragAnlegen(
     kvnr: string,
     koerper: unknown,
     wer: Handelnde,
     antwort: SimAntwort,
   ): Ergebnis | null {
-    const eingang = parameterLesen(koerper, 'empEntry')?.resource;
-    const fehler = empEintragPruefen(eingang);
-    if (fehler) {
-      void ungueltig(antwort, fehler);
-      return null;
-    }
-    if (
-      profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
-      profilAbweisen(
-        parameterLesen(koerper, 'medication')?.part?.find((p) => p.name === 'resource')?.resource,
-        PROFIL.empMedication,
-        antwort,
-      ) ||
-      gruendeAbweisen(koerper, antwort)
-    )
-      return null;
-    if (eingang!['status'] === 'entered-in-error') {
-      void statusUngueltig(antwort, 'Ein neuer eMP-Eintrag kann nicht fehlerhaft sein.');
-      return null;
-    }
-    if (dosierungAbweisen(eingang!, antwort)) return null;
+    const eingang = parameterLesen(koerper, 'empEntry')!.resource!;
     const mittelteil = parameterLesen(koerper, 'medication')?.part ?? [];
     const neuesMittel = mittelteil.find((p) => p.name === 'resource')?.resource;
     const verweis = mittelteil.find((p) => p.name === 'reference')?.valueReference?.reference;
+
+    // Erst alle Prüfungen am Arzneimittel, dann die erste Änderung.
     let medication: Ressource | undefined;
-    const zeit = jetzt();
     if (neuesMittel) {
-      const f = medicationPruefen(neuesMittel);
-      if (f) {
-        void ungueltig(antwort, f);
-        return null;
-      }
       if (neuesMittel['status'] === 'entered-in-error') {
         void statusUngueltig(antwort, 'Das Arzneimittel ist als fehlerhaft gekennzeichnet.');
         return null;
       }
-      medication = mitKontext(
-        {
-          ...neuesMittel,
-          id: neueId('med'),
-          meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.empMedication] },
-          status: 'active',
-        },
-        'EMP',
-      );
-      ablage(kvnr).push(medication);
-    } else if (verweis) {
-      if (/\/_history\//.test(verweis)) {
-        void ungueltig(
-          antwort,
-          'Der Verweis auf das Arzneimittel darf keine Versionsangabe tragen.',
-        );
-        return null;
-      }
-      const mittelId = verweis.split('/')[1] ?? '';
+    } else {
+      const mittelId = String(verweis).split('/')[1] ?? '';
       medication = finden(kvnr, 'Medication', mittelId);
       if (!medication) {
         void (istGeloescht(ablage(kvnr), 'Medication', mittelId)
-          ? melden(antwort, 410, 'processing', `Gelöscht: ${verweis}`, MSG.geloescht)
-          : melden(antwort, 404, 'not-found', `Nicht gefunden: ${verweis}`, MSG.unbekannt));
+          ? melden(antwort, 410, 'processing', `Gelöscht: ${String(verweis)}`, MSG.geloescht)
+          : melden(antwort, 404, 'not-found', `Nicht gefunden: ${String(verweis)}`, MSG.unbekannt));
         return null;
       }
       if (medication['status'] === 'entered-in-error') {
@@ -1071,16 +1326,14 @@ export function medikationEinhaengen(
         );
         return null;
       }
-      // Gehört das Arzneimittel zu einem eML-Eintrag, der schon verknüpft ist — ablehnen.
-      const verknuepft = ablage(kvnr).find(
-        (r) =>
-          r.resourceType === 'MedicationStatement' &&
-          referenzId(r['medicationReference']) === medication!.id &&
-          ((r['basedOn'] as { extension?: { url: string }[] }[] | undefined) ?? []).some((v) =>
-            v.extension?.some((e) => e.url === EXT.istEmp),
-          ),
-      );
-      if (verknuepft) {
+      if (
+        ablage(kvnr).some(
+          (r) =>
+            r.resourceType === 'MedicationStatement' &&
+            referenzId(r['medicationReference']) === mittelId &&
+            verknuepfterEintrag(r) !== null,
+        )
+      ) {
         void antwort
           .code(400)
           .send(
@@ -1093,52 +1346,82 @@ export function medikationEinhaengen(
           );
         return null;
       }
-    } else {
-      void ungueltig(antwort, 'Der Parameter „medication" fehlt (resource oder reference).');
-      return null;
     }
-    const id = neueId('emp');
+
+    const zeit = jetzt();
+    if (neuesMittel) {
+      medication = mitKontext(
+        {
+          ...neuesMittel,
+          id: neueId('med'),
+          meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.empMedication] },
+          status: 'active',
+        },
+        'EMP',
+      );
+      ablage(kvnr).push(medication);
+    }
+    // Kennung und MedicationPlanIdentifier: derselbe UUID-Wert (IG-MED17706LL3).
+    const id = uuidV7();
     const eintrag: Ressource = mitKontext(
       {
-        ...eingang!,
+        ...eingang,
         id,
         meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.empEintrag] },
-        // Der Dienst setzt den MedicationPlanIdentifier gleich der Ressourcenkennung.
         identifier: [{ system: EMP_IDENTIFIER, value: id }],
-        status: eingang!['status'] ?? 'active',
-        medicationReference: { reference: `Medication/${String(medication.id)}` },
+        status: eingang['status'] ?? 'active',
+        medicationReference: { reference: `Medication/${String(medication!.id)}` },
         subject: subjektFuer(kvnr),
         extension: [
-          ...((eingang!.extension ?? []) as { url: string }[]).filter(
-            (e) => e.url !== EXT.herkunftsmittel,
+          ...((eingang.extension ?? []) as { url: string }[]).filter(
+            (e) => e.url !== EXT.herkunftsmittel && e.url !== EXT.aktivitaet,
           ),
           {
             url: EXT.herkunftsmittel,
-            valueReference: { reference: `Medication/${String(medication.id)}` },
+            valueReference: { reference: `Medication/${String(medication!.id)}` },
           },
         ],
       },
       'EMP',
     );
     const gruende = gruendeAnlegen(kvnr, koerper, eintrag, zeit);
-    kategorieSetzen(eintrag, eingang!, null);
-    mittelstatus(medication, eintrag);
+    kategorieSetzen(eintrag, eingang, null);
+    if (neuesMittel) mittelstatus(medication, eintrag);
+    else mittelstatusSetzen(kvnr, eintrag, zeit);
     ablage(kvnr).push(eintrag);
+    // Verweist der Eintrag auf das Arzneimittel eines eML-Eintrags, verknüpft der Dienst beide
+    // selbst („link eMP element“) — ohne dessen Dosierung zu übernehmen.
+    const zuVerknuepfen = neuesMittel
+      ? []
+      : ablage(kvnr).filter(
+          (r) =>
+            r.resourceType === 'MedicationStatement' &&
+            r['status'] !== 'entered-in-error' &&
+            kontext(r) !== 'EMP' &&
+            referenzId(r['medicationReference']) === medication!.id &&
+            verknuepfterEintrag(r) === null,
+        );
+    const verordnungen: Ressource[] = [];
+    for (const a of zuVerknuepfen) {
+      const v = verknuepfen(kvnr, a, eintrag, zeit, false);
+      if (v) verordnungen.push(v);
+      fortschreiben(a, zeit);
+    }
     const aktivitaet = aktivitaetAnlegen(
       ablage(kvnr),
       [
         versionierterVerweis(eintrag),
-        ...(neuesMittel ? [versionierterVerweis(medication)] : []),
-        ...gruende.map(versionierterVerweis),
+        ...zuVerknuepfen.map(versionierterVerweis),
+        ...verordnungen.map(versionierterVerweis),
       ],
       wer,
       'CREATE',
       zeit,
     );
-    return { eintrag, medication, gruende, aktivitaet };
+    return { eintrag, medication, gruende, aktivitaet, geaendert: true };
   }
 
-  /** Kern von `$update-emp-entry`. */
+  /** Kern von `$update-emp-entry` nach dem Lesenachweis — auch für den Stapel. */
   function empEintragAendern(
     kvnr: string,
     koerper: unknown,
@@ -1146,34 +1429,19 @@ export function medikationEinhaengen(
     antwort: SimAntwort,
   ): Ergebnis | null {
     const kennung = parameterLesen(koerper, 'medicationPlanIdentifier')?.valueIdentifier?.value;
-    const eingang = parameterLesen(koerper, 'empEntry')?.resource;
+    const eingang = parameterLesen(koerper, 'empEntry')!.resource!;
     const vorhanden = ablage(kvnr).find(
       (r) =>
         istEmpEintrag(r) &&
         (r['identifier'] as { value?: string }[] | undefined)?.some((i) => i.value === kennung),
     );
-    const fehler = empEintragPruefen(eingang);
-    if (fehler) {
-      void ungueltig(antwort, fehler);
-      return null;
-    }
-    if (
-      profilAbweisen(eingang, PROFIL.empEintrag, antwort) ||
-      profilAbweisen(
-        parameterLesen(koerper, 'medication')?.resource,
-        PROFIL.empMedication,
-        antwort,
-      ) ||
-      gruendeAbweisen(koerper, antwort)
-    )
-      return null;
     // Geschäftslogik IG 1.4.0-ballot.1: unbekannt 404, Fassung nicht aktuell 409, Kontext nicht
-    // EMP 405, fehlerhafter Eintrag und fehlerhaftes Arzneimittel 400.
+    // EMP 405, fehlerhaftes Arzneimittel 400 — alles vor der ersten Änderung.
     if (!vorhanden) {
       void melden(antwort, 404, 'not-found', `Kein eMP-Eintrag ${kennung ?? ''}.`, MSG.unbekannt);
       return null;
     }
-    const fassungEingang = eingang!.meta?.versionId;
+    const fassungEingang = eingang.meta?.versionId;
     if (fassungEingang !== vorhanden.meta?.versionId) {
       void melden(
         antwort,
@@ -1188,116 +1456,162 @@ export function medikationEinhaengen(
       void melden(antwort, 405, 'forbidden', 'Kein eMP-Eintrag (Kontext).', MSG.nichtErlaubt);
       return null;
     }
-    if (dosierungAbweisen(eingang!, antwort)) return null;
-    if (vorhanden['status'] === 'entered-in-error') {
-      void statusUngueltig(antwort, 'Ein fehlerhafter Eintrag wird nicht mehr geändert.');
-      return null;
-    }
-    if (parameterLesen(koerper, 'medication')?.resource?.['status'] === 'entered-in-error') {
+    const neuesMittel = parameterLesen(koerper, 'medication')?.resource;
+    if (neuesMittel?.['status'] === 'entered-in-error') {
       void statusUngueltig(antwort, 'Das Arzneimittel ist als fehlerhaft gekennzeichnet.');
       return null;
     }
-    // Arzneimittel, Kennung, Herkunft und Verknüpfungen führt der Dienst; der Rest kommt vom Primärsystem.
-    const kategorieBisher = kategorieVon(vorhanden);
-    for (const feld of [
-      'status',
-      'statusReason',
-      'dosageInstruction',
-      'reasonReference',
-      'requester',
-      'note',
-      'authoredOn',
-    ]) {
-      if (feld in eingang!) vorhanden[feld] = eingang![feld];
-      else if (feld !== 'authoredOn') delete vorhanden[feld];
-    }
-    delete vorhanden['reasonCode'];
-    const behalten = new Set<string>([
+
+    const zeit = jetzt();
+    // Der neue Stand: alles aus der Eingabe — außer dem, was der Dienst führt.
+    const geschuetzt = new Set<string>([
       EXT.kontext,
       EXT.herkunftsmittel,
       EXT.aktivitaet,
       EXT.kategorie,
     ]);
-    vorhanden.extension = [
-      ...((vorhanden.extension ?? []) as { url: string }[]).filter((e) => behalten.has(e.url)),
-      ...((eingang!.extension ?? []) as { url: string }[]).filter((e) => !behalten.has(e.url)),
-    ];
-    const zeit = jetzt();
-    // 1.4.0: Das Arzneimittel lässt sich über den Parameter `medication` austauschen.
-    const neuesMittel = parameterLesen(koerper, 'medication')?.resource;
+    const neu: Ressource = {
+      ...eingang,
+      id: vorhanden.id,
+      meta: vorhanden.meta,
+      identifier: vorhanden['identifier'],
+      subject: vorhanden['subject'],
+      medicationReference: vorhanden['medicationReference'],
+      extension: [
+        ...((vorhanden.extension ?? []) as { url: string }[]).filter((e) => geschuetzt.has(e.url)),
+        ...((eingang.extension ?? []) as { url: string }[]).filter((e) => !geschuetzt.has(e.url)),
+      ],
+    };
+    delete neu['reasonCode'];
+    delete neu['reasonReference'];
+    if (vorhanden['reasonReference'] !== undefined)
+      neu['reasonReference'] = vorhanden['reasonReference'];
+    // Behandlungsgründe: Neue Gründe ersetzen die alten; ohne Gründe und ohne Verweis entfallen sie.
+    const neueGruende = parameterAlle(koerper, 'reasonCondition').length > 0;
+    const alteGruende = (
+      (vorhanden['reasonReference'] as { reference?: string }[] | undefined) ?? []
+    ).map((v) => finden(kvnr, 'Condition', referenzId(v)));
+    const gruendeEntfallen =
+      neueGruende ||
+      (eingang['reasonReference'] === undefined && vorhanden['reasonReference'] !== undefined);
+    if (gruendeEntfallen) delete neu['reasonReference'];
+    if (neueGruende) neu['reasonReference'] = eingang['reasonReference'];
+    // Kategorie: neu nur bei strukturierter Dosierung, sonst unverändert.
+    const auto = automatischeKategorie(neu['dosageInstruction']);
+    if (auto)
+      neu.extension = [
+        ...((neu.extension ?? []) as { url: string }[]).filter((e) => e.url !== EXT.kategorie),
+        { url: EXT.kategorie, valueCode: auto },
+      ];
+
+    // Keine Änderung: keine neue Fassung, der letzte Änderungseintrag gilt weiter.
+    if (!neuesMittel && !neueGruende && !gruendeEntfallen && inhaltGleich(neu, vorhanden)) {
+      const aktivitaet = letzteAktivitaet(kvnr, 'MedicationRequest', String(vorhanden.id));
+      if (aktivitaet) return { eintrag: vorhanden, gruende: [], aktivitaet, geaendert: false };
+    }
+
+    // Fehlerhaft: verknüpfte eML-Einträge lösen (je eigener Änderungseintrag), den Eintrag löschen.
+    if (neu['status'] === 'entered-in-error') {
+      for (const a of ablage(kvnr).filter(
+        (r) => r.resourceType === 'MedicationStatement' && verknuepfterEintrag(r) === vorhanden.id,
+      )) {
+        const verordnung = verknuepfungLoesen(kvnr, a, vorhanden, zeit);
+        fortschreiben(a, zeit);
+        aktivitaetAnlegen(
+          ablage(kvnr),
+          [versionierterVerweis(a), ...(verordnung ? [versionierterVerweis(verordnung)] : [])],
+          wer,
+          'UPDATE',
+          zeit,
+        );
+      }
+      const aktivitaet = aktivitaetAnlegen(
+        ablage(kvnr),
+        [versionierterVerweis(vorhanden)],
+        wer,
+        'DELETE',
+        zeit,
+      );
+      loeschen(ablage(kvnr), vorhanden);
+      const mittelId = referenzId(vorhanden['medicationReference']);
+      const mittel = finden(kvnr, 'Medication', mittelId);
+      if (mittel && kontext(mittel) === 'EMP') mittelLoeschenWennFrei(kvnr, mittelId);
+      return { gruende: [], aktivitaet, geaendert: true };
+    }
+
+    for (const feld of Object.keys(vorhanden)) if (!(feld in neu)) delete vorhanden[feld];
+    Object.assign(vorhanden, neu);
+    // 1.4.0: Das Arzneimittel lässt sich über den Parameter `medication` austauschen; das alte
+    // wird gelöscht, wenn es niemand mehr braucht.
     let ausgetauscht: Ressource | undefined;
     if (neuesMittel) {
-      const f = medicationPruefen(neuesMittel);
-      if (f) {
-        void ungueltig(antwort, f);
-        return null;
-      }
+      const altesMittel = referenzId(vorhanden['medicationReference']);
+      const istEpa = ((neuesMittel.meta?.profile ?? []) as string[]).some((p) =>
+        p.startsWith(PROFIL.medication.split('|')[0]!),
+      );
       ausgetauscht = mitKontext(
         {
           ...neuesMittel,
           id: neueId('med'),
-          meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.empMedication] },
+          meta: {
+            versionId: '1',
+            lastUpdated: zeit,
+            profile: [istEpa ? PROFIL.medication : PROFIL.empMedication],
+          },
         },
         'EMP',
       );
       ablage(kvnr).push(ausgetauscht);
       vorhanden['medicationReference'] = { reference: `Medication/${String(ausgetauscht.id)}` };
+      mittelLoeschenWennFrei(kvnr, altesMittel);
     }
-    const gruende = gruendeAnlegen(kvnr, koerper, vorhanden, zeit);
-    kategorieSetzen(vorhanden, eingang!, kategorieBisher);
+    if (gruendeEntfallen) for (const g of alteGruende) if (g) loeschen(ablage(kvnr), g);
+    const gruende = neueGruende ? gruendeAnlegen(kvnr, koerper, vorhanden, zeit) : [];
     fortschreiben(vorhanden, zeit);
-    const medication = finden(kvnr, 'Medication', referenzId(vorhanden['medicationReference']));
-    mittelstatus(medication, vorhanden);
+    mittelstatusSetzen(kvnr, vorhanden, zeit);
     const aktivitaet = aktivitaetAnlegen(
       ablage(kvnr),
-      [
-        versionierterVerweis(vorhanden),
-        ...(ausgetauscht ? [versionierterVerweis(ausgetauscht)] : []),
-        ...gruende.map(versionierterVerweis),
-      ],
+      [versionierterVerweis(vorhanden)],
       wer,
       'UPDATE',
       zeit,
     );
-    return { eintrag: vorhanden, medication, gruende, aktivitaet };
+    const medication = finden(kvnr, 'Medication', referenzId(vorhanden['medicationReference']));
+    return { eintrag: vorhanden, medication, gruende, aktivitaet, geaendert: true };
   }
 
   const bestaetigt = (koerper: unknown) =>
     parameterLesen(koerper, 'acknowledgedChronologyId')?.valueId;
 
-  app.post(`${b}/$add-emp-entry`, async (anfrage, antwort) => {
-    const kvnr = kvnrAus(anfrage);
-    const wer = organisation(anfrage, antwort);
-    if (!wer || !lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(anfrage.body), antwort))
-      return antwort;
-    const e = empEintragAnlegen(kvnr, anfrage.body, wer, antwort);
-    if (!e) return antwort;
-    const chronologie = chronologieAnlegen(ablage(kvnr), EMP, wer);
-    return ausgabe([
+  /** Ausgabe nach `EPAOpEMPEntryOutputParameters`; die Chronologie nur, wenn es eine gibt. */
+  const empAusgabe = (e: Ergebnis, chronologie: Ressource | null) =>
+    ausgabe([
       ['empEntry', e.eintrag],
       ['medication', e.medication],
       ...e.gruende.map((g) => ['reasonCondition', g] as [string, Ressource]),
       ['relatedActivity', e.aktivitaet],
-      ['relatedChronology', chronologie],
+      ['relatedChronology', chronologie ?? undefined],
     ]);
-  });
 
-  app.post(`${b}/$update-emp-entry`, async (anfrage, antwort) => {
-    const kvnr = kvnrAus(anfrage);
-    const wer = organisation(anfrage, antwort);
-    if (!wer || !lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(anfrage.body), antwort))
-      return antwort;
-    const e = empEintragAendern(kvnr, anfrage.body, wer, antwort);
-    if (!e) return antwort;
-    const chronologie = chronologieAnlegen(ablage(kvnr), EMP, wer);
-    return ausgabe([
-      ['empEntry', e.eintrag],
-      ['medication', e.medication],
-      ...e.gruende.map((g) => ['reasonCondition', g] as [string, Ressource]),
-      ['relatedActivity', e.aktivitaet],
-      ['relatedChronology', chronologie],
-    ]);
-  });
+  for (const [art, weg, kern] of [
+    ['add', `${b}/$add-emp-entry`, empEintragAnlegen],
+    ['update', `${b}/$update-emp-entry`, empEintragAendern],
+  ] as const) {
+    app.post(weg, async (anfrage, antwort) => {
+      const kvnr = kvnrAus(anfrage);
+      const wer = organisation(anfrage, antwort);
+      if (!wer || !eingangPruefen(kvnr, anfrage.body, art, antwort)) return antwort;
+      if (!lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(anfrage.body), antwort))
+        return antwort;
+      const e = kern(kvnr, anfrage.body, wer, antwort);
+      if (!e) return antwort;
+      // Ein Chronologieeintrag nur, wenn sich die Menge der gültigen Einträge ändert.
+      const chronologie = e.geaendert
+        ? chronologieAnlegen(ablage(kvnr), EMP, wer)
+        : aktuelleChronologie(ablage(kvnr), EMP);
+      return empAusgabe(e, chronologie);
+    });
+  }
 
   /** `$emp-commit` gibt es nur im Stapel. */
   app.post(`${b}/$emp-commit`, async (_anfrage, antwort) =>
@@ -1317,9 +1631,10 @@ export function medikationEinhaengen(
   );
 
   /**
-   * `$batch-emp` — mehrere Änderungen in einem Aufruf, abgeschlossen mit `$emp-commit`, der
-   * genau eine neue Fassung erzeugt. Die Demo verarbeitet atomar: Scheitert ein Eintrag,
-   * bleibt der Plan unverändert.
+   * `$batch-emp` — mehrere Änderungen in einem Aufruf, abgeschlossen mit genau einem
+   * `$emp-commit` (Profil EPABatchEmpRequestBundle). Der Dienst führt alle Anlagen, dann alle
+   * Änderungen, dann den Abschluss aus — gleich in welcher Reihenfolge das Bundle sie nennt
+   * (IG-MED35195DPV). Atomar: Scheitert ein Eintrag, bleibt der Plan unverändert.
    */
   app.post(`${b}/$batch-emp`, async (anfrage, antwort) => {
     const kvnr = kvnrAus(anfrage);
@@ -1327,49 +1642,68 @@ export function medikationEinhaengen(
     if (!wer) return antwort;
     const bundle = (parameterLesen(anfrage.body, 'resource')?.resource ?? anfrage.body) as {
       type?: string;
-      entry?: { request?: { url?: string }; resource?: unknown }[];
+      entry?: { request?: { method?: string; url?: string }; resource?: unknown }[];
     };
     const eintraege = bundle.entry ?? [];
-    const letzter = eintraege[eintraege.length - 1];
+    const art = (e: (typeof eintraege)[number]) => {
+      const url = String(e.request?.url ?? '');
+      return url.includes('$add-emp-entry')
+        ? 'add'
+        : url.includes('$update-emp-entry')
+          ? 'update'
+          : url.includes('$emp-commit')
+            ? 'commit'
+            : null;
+    };
+    const abschluss = eintraege.filter((e) => art(e) === 'commit');
     if (
       bundle.type !== 'transaction' ||
-      !String(letzter?.request?.url ?? '').includes('$emp-commit')
+      abschluss.length !== 1 ||
+      eintraege.some((e) => !art(e) || (e.request?.method ?? 'POST') !== 'POST')
     ) {
       return ungueltig(
         antwort,
-        'Erwartet wird ein Bundle vom Typ transaction, das mit $emp-commit endet.',
+        'Erwartet wird ein Bundle vom Typ transaction mit POST-Einträgen für $add-emp-entry und $update-emp-entry und genau einem $emp-commit.',
       );
     }
-    if (!lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(letzter?.resource), antwort))
+    for (const e of eintraege) {
+      const a = art(e);
+      if (a !== 'commit' && !eingangPruefen(kvnr, e.resource, a!, antwort)) return antwort;
+    }
+    if (!lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(abschluss[0]!.resource), antwort))
       return antwort;
     const sicherung = JSON.parse(JSON.stringify(ablage(kvnr))) as Ressource[];
     const archiv = archivSichern(ablage(kvnr));
-    const antworten: unknown[] = [];
-    for (const e of eintraege.slice(0, -1)) {
-      const url = String(e.request?.url ?? '');
-      const erg = url.includes('$add-emp-entry')
-        ? empEintragAnlegen(kvnr, e.resource, wer, antwort)
-        : url.includes('$update-emp-entry')
-          ? empEintragAendern(kvnr, e.resource, wer, antwort)
-          : null;
+    const antworten = new Map<number, unknown>();
+    const reihenfolge = [
+      ...eintraege.map((e, i) => [e, i] as const).filter(([e]) => art(e) === 'add'),
+      ...eintraege.map((e, i) => [e, i] as const).filter(([e]) => art(e) === 'update'),
+    ];
+    for (const [e, i] of reihenfolge) {
+      const erg =
+        art(e) === 'add'
+          ? empEintragAnlegen(kvnr, e.resource, wer, antwort)
+          : empEintragAendern(kvnr, e.resource, wer, antwort);
       if (!erg) {
         ablage(kvnr).splice(0, ablage(kvnr).length, ...sicherung);
         archivWiederherstellen(ablage(kvnr), archiv);
-        return antwort.sent ? antwort : ungueltig(antwort, `Im Stapel nicht zulässig: ${url}`);
+        return antwort;
       }
-      antworten.push({
+      antworten.set(i, {
         response: { status: '200 OK' },
-        resource: ausgabe([
-          ['empEntry', erg.eintrag],
-          ['medication', erg.medication],
-          ...erg.gruende.map((g) => ['reasonCondition', g] as [string, Ressource]),
-          ['relatedActivity', erg.aktivitaet],
-        ]),
+        resource: empAusgabe(erg, null),
       });
     }
     const chronologie = chronologieAnlegen(ablage(kvnr), EMP, wer);
-    antworten.push({ response: { status: '200 OK' }, resource: chronologie });
-    return { resourceType: 'Bundle', type: 'transaction-response', entry: antworten };
+    return {
+      resourceType: 'Bundle',
+      type: 'transaction-response',
+      entry: eintraege.map((e, i) =>
+        art(e) === 'commit'
+          ? { response: { status: '200 OK' }, resource: chronologie }
+          : antworten.get(i),
+      ),
+    };
   });
 
   /* ---------- Schreiben: eML ---------- */
@@ -1381,6 +1715,7 @@ export function medikationEinhaengen(
     if (!wer) return antwort;
     const aussage = parameterLesen(anfrage.body, 'medicationStatement')?.resource;
     const mittel = parameterLesen(anfrage.body, 'medication')?.resource;
+    if (identitaetAbweisen(kvnr, aussage, antwort)) return antwort;
     const f = medicationPruefen(mittel);
     if (f) return ungueltig(antwort, f);
     if (!aussage || aussage.resourceType !== 'MedicationStatement') {
@@ -1416,9 +1751,10 @@ export function medikationEinhaengen(
       'MANUAL',
     );
     ablage(kvnr).push(medication, neu);
+    // Ziel des Änderungseintrags ist nur der Nachtrag (IG-MED-BL-ADD-EML-ENTRY-V3).
     const aktivitaet = aktivitaetAnlegen(
       ablage(kvnr),
-      [versionierterVerweis(neu), versionierterVerweis(medication)],
+      [versionierterVerweis(neu)],
       wer,
       'CREATE',
       zeit,
@@ -1453,26 +1789,25 @@ export function medikationEinhaengen(
         MSG.nichtErlaubt,
       );
     const zeit = jetzt();
-    // 1.4.0: Ein verknüpfter eMP-Eintrag wird wie bei `$unlink-emp` gelöst und gegebenenfalls
-    // zurückgesetzt; dann entsteht ein neuer Stand des eMP (`systemNotice` `empChanged`).
-    const planId = referenzId(
-      (
-        (aussage['basedOn'] as
-          { reference?: string; extension?: { url: string }[] }[] | undefined) ?? []
-      ).find((v) => v.extension?.some((e) => e.url === EXT.istEmp)),
-    );
+    // 1.4.0 (IG-MED-BL-CANCEL-EML-ENTRY-V4): Ein verknüpfter eMP-Eintrag wird wie bei
+    // `$unlink-emp` gelöst und gegebenenfalls zurückgesetzt — mit eigenem Änderungseintrag; dann
+    // entsteht ein neuer Stand des eMP (`systemNotice` `empChanged`).
+    const planId = verknuepfterEintrag(aussage);
     const eintrag = planId ? finden(kvnr, 'MedicationRequest', planId) : undefined;
-    const empGeaendert = eintrag ? empZuruecksetzen(kvnr, eintrag, aussage) : false;
+    let empGeaendert = false;
+    if (eintrag) {
+      empGeaendert = empZuruecksetzen(kvnr, eintrag, aussage, zeit).eintragGeaendert;
+      fortschreiben(aussage, zeit);
+      if (empGeaendert) {
+        fortschreiben(eintrag, zeit);
+        aktivitaetAnlegen(ablage(kvnr), [versionierterVerweis(eintrag)], wer, 'UPDATE', zeit);
+      }
+    }
     // Der Nachtrag wird gelöscht (bleibt über die Historie abrufbar), sein Arzneimittel ebenso,
     // sofern kein eMP-Eintrag mehr darauf verweist.
-    if (empGeaendert || eintrag) fortschreiben(aussage, zeit);
-    if (eintrag && empGeaendert) fortschreiben(eintrag, zeit);
     const aktivitaet = aktivitaetAnlegen(
       ablage(kvnr),
-      [
-        versionierterVerweis(aussage),
-        ...(eintrag && empGeaendert ? [versionierterVerweis(eintrag)] : []),
-      ],
+      [versionierterVerweis(aussage)],
       wer,
       'DELETE',
       zeit,
@@ -1499,19 +1834,24 @@ export function medikationEinhaengen(
       : ergebnis;
   });
 
-  /** `$link-emp` / `$unlink-emp` — eML-Eintrag mit einem eMP-Eintrag verknüpfen oder lösen. */
+  /**
+   * `$link-emp` / `$unlink-emp` — eML-Eintrag mit einem eMP-Eintrag verknüpfen oder lösen
+   * (Diagramme IG-MED-BL-LINK-EMP-ENTRY-V2 und IG-MED-BL-UNLINK-EMP-ENTRY-V3).
+   */
   for (const art of ['link', 'unlink'] as const) {
     app.post(`${b}/MedicationStatement/:id/$${art}-emp`, async (anfrage, antwort) => {
       const kvnr = kvnrAus(anfrage);
       const wer = organisation(anfrage, antwort);
-      if (!wer || !lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(anfrage.body), antwort))
+      if (!wer) return antwort;
+      const kennung = parameterLesen(anfrage.body, 'medicationPlanIdentifier')?.valueIdentifier
+        ?.value;
+      if (!kennung) return ungueltig(antwort, 'Der Parameter „medicationPlanIdentifier“ fehlt.');
+      if (!lesenachweisPruefen(ablage(kvnr), EMP, bestaetigt(anfrage.body), antwort))
         return antwort;
       const msId = (anfrage.params as { id: string }).id;
       const aussage = finden(kvnr, 'MedicationStatement', msId);
-      const kennung = parameterLesen(anfrage.body, 'medicationPlanIdentifier')?.valueIdentifier
-        ?.value;
-      // Geschäftslogik IG 1.4.0-ballot.1: eML-Eintrag gelöscht 410, unbekannt 404; eMP-Eintrag
-      // über die Kennung mit Kontext EMP, sonst 400 (UN)LINKING_NOT_SUCCESSFUL.
+      // eML-Eintrag gelöscht 410, unbekannt 404; eMP-Eintrag über die Kennung mit Kontext EMP,
+      // sonst 400 (UN)LINKING_NOT_SUCCESSFUL.
       if (!aussage)
         return istGeloescht(ablage(kvnr), 'MedicationStatement', msId)
           ? melden(antwort, 410, 'processing', 'Der eML-Eintrag wurde gelöscht.', MSG.geloescht)
@@ -1537,7 +1877,7 @@ export function medikationEinhaengen(
           antwort,
           400,
           'processing',
-          `Kein eMP-Eintrag ${kennung ?? ''}.`,
+          `Kein eMP-Eintrag ${kennung}.`,
           art === 'link'
             ? {
                 system: VERARBEITUNG,
@@ -1552,18 +1892,34 @@ export function medikationEinhaengen(
         );
       if (art === 'link' && eintrag['status'] === 'entered-in-error')
         return statusUngueltig(antwort, 'Der eMP-Eintrag ist als fehlerhaft gekennzeichnet.');
-      const basis =
-        (aussage['basedOn'] as
-          | { reference?: string; extension?: { url: string; valueBoolean?: boolean }[] }[]
-          | undefined) ?? [];
+      const bisher = verknuepfterEintrag(aussage);
       const zeit = jetzt();
-      if (art === 'unlink') {
-        const verknuepft = basis.some(
-          (v) =>
-            v.reference === `MedicationRequest/${String(eintrag.id)}` &&
-            v.extension?.some((e) => e.url === EXT.istEmp && e.valueBoolean === true),
-        );
-        if (!verknuepft)
+      let verordnung: Ressource | null = null;
+      if (art === 'link') {
+        if (bisher && bisher !== eintrag.id)
+          return melden(
+            antwort,
+            400,
+            'business-rule',
+            'Der eML-Eintrag ist bereits mit einem anderen eMP-Eintrag verknüpft.',
+            detail('MEDSVC_ALREADY_LINKED', 'Already linked to another instance'),
+          );
+        // Schon mit diesem Eintrag verknüpft: keine Änderung, der letzte Änderungseintrag gilt.
+        if (bisher === eintrag.id) {
+          const aktivitaet =
+            letzteAktivitaet(kvnr, 'MedicationStatement', msId) ??
+            letzteAktivitaet(kvnr, 'MedicationRequest', String(eintrag.id));
+          return ausgabe([
+            ['medicationStatement', aussage],
+            ['empEntry', eintrag],
+            ['relatedActivity', aktivitaet],
+            ['relatedChronology', aktuelleChronologie(ablage(kvnr), EMP) ?? undefined],
+          ]);
+        }
+        verordnung = verknuepfen(kvnr, aussage, eintrag, zeit, true);
+        fortschreiben(eintrag, zeit);
+      } else {
+        if (bisher !== eintrag.id)
           return melden(
             antwort,
             405,
@@ -1571,68 +1927,19 @@ export function medikationEinhaengen(
             'Der eML-Eintrag ist nicht mit diesem eMP-Eintrag verknüpft.',
             MSG.nichtErlaubt,
           );
-      }
-      if (art === 'link') {
-        if (basis.some((v) => v.extension?.some((e) => e.url === EXT.istEmp))) {
-          return melden(
-            antwort,
-            400,
-            'business-rule',
-            'Der eML-Eintrag ist bereits verknüpft.',
-            detail('MEDSVC_ALREADY_LINKED', 'Already linked to another instance'),
-          );
-        }
-        aussage['basedOn'] = [...basis, empVerweis(String(eintrag.id))];
-        // 1.4.0: Dosierung samt Text übernehmen, wenn der eMP-Eintrag nicht neuer ist als der
-        // eML-Eintrag; danach die Kategorie neu bestimmen.
-        const neuer = ((eintrag.extension ?? []) as { url: string; extension?: Json[] }[])
-          .filter((x) => x.url === EXT.aktivitaet)
-          .some(
-            (x) =>
-              String(x.extension?.find((y) => y['url'] === 'addedOn')?.['valueDateTime'] ?? '') >
-              String(aussage.meta?.lastUpdated ?? ''),
-          );
-        const dosierung = aussage['dosage'] as Json[] | undefined;
-        if (!neuer && dosierung && dosierung.length > 0) {
-          eintrag['dosageInstruction'] = dosierung;
-          const gerendert = TEXT_EXTENSION.gerendert('MedicationRequest');
-          const text = gerenderterText(aussage);
-          const meta = ((aussage.extension ?? []) as { url: string }[]).find(
-            (x) => x.url === TEXT_EXTENSION.generiert,
-          );
-          eintrag.extension = [
-            ...((eintrag.extension ?? []) as { url: string }[]).filter(
-              (x) => x.url !== gerendert && x.url !== TEXT_EXTENSION.generiert,
-            ),
-            ...(text ? [{ url: gerendert, valueMarkdown: text }] : []),
-            ...(meta ? [meta] : []),
-          ];
-          kategorieSetzen(eintrag, { resourceType: 'MedicationRequest' }, kategorieVon(eintrag));
-        }
-        eintrag.extension = [
-          ...((eintrag.extension ?? []) as { url: string }[]),
-          {
-            url: EXT.aktivitaet,
-            extension: [
-              {
-                url: 'reference',
-                valueReference: { reference: `MedicationStatement/${String(aussage.id)}` },
-              },
-              { url: 'addedOn', valueDateTime: zeit },
-            ],
-          },
-        ];
-        eintrag['medicationReference'] = aussage['medicationReference'];
-      } else {
-        if (eintrag['status'] === 'entered-in-error')
-          return statusUngueltig(antwort, 'Ein fehlerhafter eMP-Eintrag wird nicht gelöst.');
-        empZuruecksetzen(kvnr, eintrag, aussage);
+        const loesung = empZuruecksetzen(kvnr, eintrag, aussage, zeit);
+        verordnung = loesung.verordnung;
+        if (loesung.eintragGeaendert) fortschreiben(eintrag, zeit);
       }
       fortschreiben(aussage, zeit);
-      fortschreiben(eintrag, zeit);
+      const eintragGeaendert = art === 'link' || String(eintrag.meta?.lastUpdated) === zeit;
       const aktivitaet = aktivitaetAnlegen(
         ablage(kvnr),
-        [versionierterVerweis(aussage), versionierterVerweis(eintrag)],
+        [
+          versionierterVerweis(aussage),
+          ...(eintragGeaendert ? [versionierterVerweis(eintrag)] : []),
+          ...(verordnung ? [versionierterVerweis(verordnung)] : []),
+        ],
         wer,
         'UPDATE',
         zeit,
@@ -1641,6 +1948,7 @@ export function medikationEinhaengen(
       return ausgabe([
         ['medicationStatement', aussage],
         ['empEntry', eintrag],
+        ['prescription', verordnung ?? undefined],
         ['relatedActivity', aktivitaet],
         ['relatedChronology', chronologie],
       ]);

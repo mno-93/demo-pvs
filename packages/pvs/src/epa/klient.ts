@@ -684,14 +684,30 @@ export async function medikationsplanStand(
 
 interface EmpErgebnis {
   eintrag: Ressource;
-  lesenachweis: string;
+  /** Der Chronologieeintrag nach der Schreibung; ohne neuen bleibt der bisherige. */
+  lesenachweis: string | null;
 }
 
-function empErgebnis(p: { parameter?: { name: string; resource?: Ressource }[] }): EmpErgebnis {
-  const eintrag = parameterRessource(p, 'empEntry');
+/** Ergebnis von `$update-emp-entry`: ohne Eintrag, wenn der Dienst ihn gelöscht hat (fehlerhaft). */
+export interface EmpAenderung {
+  eintrag: Ressource | null;
+  lesenachweis: string | null;
+}
+
+type Ausgabe = { parameter?: { name: string; resource?: Ressource }[] };
+
+function empAenderung(p: Ausgabe, vorher: string | null): EmpAenderung {
   const chronologie = parameterRessource(p, 'relatedChronology');
-  if (!eintrag || !chronologie) throw new EpaFehler(0, 'Die Antwort ist unvollständig.');
-  return { eintrag, lesenachweis: String(chronologie.id) };
+  return {
+    eintrag: parameterRessource(p, 'empEntry') ?? null,
+    lesenachweis: chronologie ? String(chronologie.id) : vorher,
+  };
+}
+
+function empErgebnis(p: Ausgabe, vorher: string | null): EmpErgebnis {
+  const { eintrag, lesenachweis } = empAenderung(p, vorher);
+  if (!eintrag) throw new EpaFehler(0, 'Die Antwort ist unvollständig.');
+  return { eintrag, lesenachweis };
 }
 
 /**
@@ -742,16 +758,20 @@ export async function empEintragAnlegen(
     },
     grundlage: GRUNDLAGE.empNeu,
   });
-  return empErgebnis(inhalt);
+  return empErgebnis(inhalt, lesenachweis);
 }
 
-/** `$update-emp-entry` — Dosierung, Grund, Status; beenden, absetzen, fehlerhaft. */
+/**
+ * `$update-emp-entry` — Dosierung, Grund, Status; beenden, absetzen, fehlerhaft. Einen
+ * fehlerhaften Eintrag löscht der Dienst (IG-MED-BL-UPDATE-EMP-ENTRY-V3); dann fehlt er in der
+ * Antwort.
+ */
 export async function empEintragAendern(
   kvnr: string,
   lesenachweis: string | null,
   eintrag: Ressource,
   gruende: readonly Ressource[] = [],
-): Promise<EmpErgebnis> {
+): Promise<EmpAenderung> {
   const { inhalt } = await anfragen<{ parameter?: { name: string; resource?: Ressource }[] }>({
     methode: 'POST',
     pfad: `${MEDIKATION}/$update-emp-entry`,
@@ -770,7 +790,7 @@ export async function empEintragAendern(
     },
     grundlage: GRUNDLAGE.empAendern,
   });
-  return empErgebnis(inhalt);
+  return empAenderung(inhalt, lesenachweis);
 }
 
 /** `$link-emp` — eML-Eintrag mit einem eMP-Eintrag verknüpfen. */
@@ -796,7 +816,7 @@ export async function empVerknuepfen(
     },
     grundlage: GRUNDLAGE.verknuepfen,
   });
-  return empErgebnis(inhalt);
+  return empErgebnis(inhalt, lesenachweis);
 }
 
 /* ---------- Information Service ---------- */

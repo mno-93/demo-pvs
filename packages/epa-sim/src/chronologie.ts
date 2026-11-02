@@ -3,8 +3,9 @@ import type { Ressource } from '@demo-pvs/kern';
 import { betriebslage } from './betrieb.ts';
 import { jetzt, neueId, operationOutcome, type Detailcode } from './fhir-hilfen.ts';
 import {
-  TELEMATIK_ID,
-  organisationSpeichern,
+  aktivitaetAnlegen,
+  fortschreiben,
+  urheber,
   versionierterVerweis,
   type Handelnde,
 } from './schreibwege.ts';
@@ -55,28 +56,44 @@ export function aktuelleChronologie(
   return alle[alle.length - 1] ?? null;
 }
 
+const DATA_ABSENT_REASON = 'http://hl7.org/fhir/StructureDefinition/data-absent-reason';
+
+/**
+ * Legt einen Chronologieeintrag an — nur, wenn sich die Menge der gültigen Einträge (mit ihren
+ * Fassungen) gegenüber dem aktuellen geändert hat; sonst gilt der aktuelle weiter (IG
+ * `de.gematik.epa.medication` 1.4.0-ballot.1, Diagramme der schreibenden Operationen). Eine leere
+ * Liste nennt ihr Ziel mit `data-absent-reason` (`Provenance.target` 1..*). Die Tätigkeit ist
+ * immer UPDATE.
+ */
 export function chronologieAnlegen(
   ablage: Ressource[],
   art: Chronologieart,
   wer: Handelnde,
   zeitpunkt: string = jetzt(),
 ): Ressource {
-  const orgId = organisationSpeichern(ablage, wer);
-  const erste = !aktuelleChronologie(ablage, art);
+  const ziele = ablage.filter(art.gueltig).map(versionierterVerweis).sort();
+  const aktuell = aktuelleChronologie(ablage, art);
+  if (aktuell) {
+    const bisher = ((aktuell['target'] as { reference?: string }[] | undefined) ?? [])
+      .map((t) => t.reference)
+      .filter((v): v is string => !!v)
+      .sort();
+    if (bisher.length === ziele.length && bisher.every((v, i) => v === ziele[i])) return aktuell;
+  }
   const eintrag: Ressource = {
     resourceType: 'Provenance',
     id: neueId('chron'),
     meta: { versionId: '1', lastUpdated: zeitpunkt, profile: [art.profil] },
     extension: [{ url: art.kennzeichen, valueBoolean: true }],
-    target: ablage.filter(art.gueltig).map((r) => ({ reference: versionierterVerweis(r) })),
+    target:
+      ziele.length > 0
+        ? ziele.map((reference) => ({ reference }))
+        : [{ extension: [{ url: DATA_ABSENT_REASON, valueCode: 'not-applicable' }] }],
     occurredDateTime: zeitpunkt,
     recorded: zeitpunkt,
     activity: {
       coding: [
-        {
-          system: 'http://terminology.hl7.org/CodeSystem/v3-DataOperation',
-          code: erste ? 'CREATE' : 'UPDATE',
-        },
+        { system: 'http://terminology.hl7.org/CodeSystem/v3-DataOperation', code: 'UPDATE' },
       ],
     },
     agent: [
@@ -89,16 +106,29 @@ export function chronologieAnlegen(
             },
           ],
         },
-        who: {
-          reference: `Organization/${orgId}`,
-          identifier: { system: TELEMATIK_ID, value: wer.telematikId },
-          display: wer.anzeige,
-        },
+        who: urheber(ablage, wer),
       },
     ],
   };
   ablage.push(eintrag);
   return eintrag;
+}
+
+/**
+ * Die andere Einrichtung ändert tatsächlich etwas — eine Notiz am ersten gültigen Eintrag —, damit
+ * eine neue Fassung und ein neuer Chronologieeintrag entstehen (ohne Änderung entstünde keiner).
+ */
+function fremdAendern(ablage: Ressource[], art: Chronologieart): void {
+  const zeit = jetzt();
+  const r = ablage.find(art.gueltig);
+  if (!r) return;
+  r['note'] = [
+    ...((r['note'] as unknown[] | undefined) ?? []),
+    { text: `Durchgesehen von ${ANDERE_EINRICHTUNG.anzeige}`, time: zeit },
+  ];
+  fortschreiben(r, zeit);
+  aktivitaetAnlegen(ablage, [versionierterVerweis(r)], ANDERE_EINRICHTUNG, 'UPDATE', zeit);
+  chronologieAnlegen(ablage, art, ANDERE_EINRICHTUNG, zeit);
 }
 
 /** Eine andere Einrichtung, die in der Demo „zwischendurch" ändert. */
@@ -119,7 +149,7 @@ export function lesenachweisPruefen(
 ): boolean {
   if (betriebslage.fremdeAenderungVorSchreibzugriff && aktuelleChronologie(ablage, art)) {
     betriebslage.fremdeAenderungVorSchreibzugriff = false;
-    chronologieAnlegen(ablage, art, ANDERE_EINRICHTUNG);
+    fremdAendern(ablage, art);
   }
   const aktuell = aktuelleChronologie(ablage, art);
   if (aktuell && bestaetigt !== aktuell.id) {

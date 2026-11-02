@@ -27,6 +27,32 @@ export interface Handelnde {
   anzeige: string;
   /** Die übermittelte Organization, so wie sie der Dienst dedupliziert speichert. */
   organisation?: Ressource;
+  /** Der Dienst selbst (logischer Bezeichner statt Organisation), etwa `MEDICATIONSVC`. */
+  dienst?: boolean;
+}
+
+/** Bezeichner der FHIR Data Services als Urheber (Beispiele `de.gematik.epa` 1.4.0-ballot.1). */
+export const DATENDIENST = 'https://gematik.de/fhir/sid/epa-fhir-data-service';
+
+/** Der Medication Service als Urheber seiner Änderungen aus den E-Rezept-Operationen. */
+export const MEDIKATIONSDIENST: Handelnde = {
+  telematikId: 'MEDICATIONSVC',
+  anzeige: 'ePA Medication Service',
+  dienst: true,
+};
+
+/**
+ * `agent.who` eines Änderungs- oder Chronologieeintrags: die Organisation mit Verweis,
+ * Telematik-ID und Namen — oder der Dienst mit seinem logischen Bezeichner.
+ */
+export function urheber(ablage: Ressource[], wer: Handelnde) {
+  if (wer.dienst)
+    return { identifier: { system: DATENDIENST, value: wer.telematikId }, display: wer.anzeige };
+  return {
+    reference: `Organization/${organisationSpeichern(ablage, wer)}`,
+    identifier: { system: TELEMATIK_ID, value: wer.telematikId },
+    display: wer.anzeige,
+  };
 }
 
 /**
@@ -106,6 +132,36 @@ export function organisationAusKopf(
   return { telematikId: kennung, anzeige: name, organisation: org };
 }
 
+/**
+ * Die Person einer Eingabe muss die Person der Akte sein: KVNR in `subject` bzw. `patient`
+ * gegen `x-insurantid`, sonst 403 `SVC_IDENTITY_MISMATCH` (IG `de.gematik.epa` 1.4.0-ballot.1,
+ * Diagramme der schreibenden Operationen).
+ */
+export function identitaetAbweisen(
+  kvnr: string,
+  r: Ressource | undefined,
+  antwort: SimAntwort,
+): boolean {
+  const person = (r?.['subject'] ?? r?.['patient']) as
+    { identifier?: { value?: string } } | undefined;
+  const angabe = person?.identifier?.value;
+  if (!angabe || angabe === kvnr) return false;
+  void antwort.code(403).send(
+    operationOutcome(
+      'error',
+      'forbidden',
+      'Die KVNR in der Eingabe stimmt nicht mit x-insurantid überein.',
+      {
+        system: TI_DETAILS,
+        code: 'SVC_IDENTITY_MISMATCH',
+        display:
+          'Identity mismatch: Access token or x-insurantid header does not match FHIR data (Telematik-ID / KVNR)',
+      },
+    ),
+  );
+  return true;
+}
+
 /** Speichert die Organization dedupliziert — je Telematik-ID eine Instanz. */
 export function organisationSpeichern(ablage: Ressource[], wer: Handelnde): string {
   const vorhanden = ablage.find(
@@ -140,7 +196,6 @@ export function aktivitaetAnlegen(
   taetigkeit: 'CREATE' | 'UPDATE' | 'DELETE',
   zeitpunkt: string = jetzt(),
 ): Ressource {
-  const orgId = organisationSpeichern(ablage, wer);
   const provenance: Ressource = {
     resourceType: 'Provenance',
     id: neueId('prov'),
@@ -163,11 +218,7 @@ export function aktivitaetAnlegen(
             },
           ],
         },
-        who: {
-          reference: `Organization/${orgId}`,
-          identifier: { system: TELEMATIK_ID, value: wer.telematikId },
-          display: wer.anzeige,
-        },
+        who: urheber(ablage, wer),
       },
     ],
   };

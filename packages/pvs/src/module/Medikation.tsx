@@ -632,6 +632,8 @@ export function Medikation() {
         let empId = v.empId;
         if (a.auchInPlan) {
           if (v.listeneintrag) {
+            // Mit Verweis auf das Arzneimittel des Listeneintrags verknüpft der Dienst beide
+            // selbst (IG-MED-BL-ADD-EMP-ENTRY-V2) — ein eigenes $link-emp braucht es nicht.
             const neu = await empEintragAnlegen(
               kvnr,
               lesenachweis,
@@ -641,12 +643,6 @@ export function Medikation() {
                 dosis: a.dosis,
                 grund: a.grund,
               }),
-            );
-            await empVerknuepfen(
-              kvnr,
-              neu.lesenachweis,
-              v.listeneintrag.aussageId,
-              String(neu.eintrag.id),
             );
             empId = String(neu.eintrag.id);
           } else {
@@ -931,7 +927,7 @@ export function Medikation() {
             ? { code: grundDiagnose.code, bezeichnung: grundDiagnose.bezeichnung }
             : null,
           status: l.status,
-          fassung: neu.eintrag.meta?.versionId ?? e.fassung,
+          fassung: neu.eintrag?.meta?.versionId ?? e.fassung,
         }),
       );
     }, `Änderung an „${l.bezeichnung}" in den Medikationsplan der ePA übertragen.`);
@@ -940,7 +936,13 @@ export function Medikation() {
   /** Status ändern: im eMP, wenn der Eintrag abgeglichen ist — sonst im Plan der Praxis. */
   function statusAendern(z: Ansichtszeile, status: EmpStatus, text: string) {
     if (mitEpa && z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert')) {
-      void handlung(statusSetzen(z.epa, status), text);
+      void handlung(async () => {
+        await statusSetzen(z.epa!, status)();
+        // Einen fehlerhaften Eintrag löscht der Dienst (IG-MED-BL-UPDATE-EMP-ENTRY-V3); im Plan
+        // der Praxis bleibt er als fehlerhaft stehen.
+        if (status === 'entered-in-error' && z.lokal)
+          ausfuehren(vorgaenge.praxisplanStatusSetzen(z.lokal.id, status));
+      }, text);
     } else if (z.lokal) {
       ausfuehren(vorgaenge.praxisplanStatusSetzen(z.lokal.id, status));
       setzeMeldung({ art: 'gut', text });
@@ -1341,7 +1343,8 @@ export function Medikation() {
                 }
                 uebernehmen={(z) =>
                   void handlung(async () => {
-                    const neu = await empEintragAnlegen(
+                    // Der Dienst verknüpft den Listeneintrag selbst (IG-MED-BL-ADD-EMP-ENTRY-V2).
+                    await empEintragAnlegen(
                       kvnr,
                       lesenachweis,
                       { reference: `Medication/${String(z.medikament?.id)}` },
@@ -1351,12 +1354,6 @@ export function Medikation() {
                         dosage: z.aussage['dosage'],
                         grund: null,
                       }),
-                    );
-                    await empVerknuepfen(
-                      kvnr,
-                      neu.lesenachweis,
-                      String(z.aussage.id),
-                      String(neu.eintrag.id),
                     );
                   }, 'In den Plan übernommen.')
                 }
