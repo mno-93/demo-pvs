@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import { PRAXIS_STAMMDATEN } from '@demo-pvs/kern';
 
 /**
@@ -58,7 +58,7 @@ export function kontaktSuchen(name: string): Kontakteintrag | null {
   return VERZEICHNIS.find((e) => normal(e.name) === normal(name)) ?? null;
 }
 
-export function kontaktEinhaengen(app: FastifyInstance): void {
+export function kontaktEinhaengen(app: SimAnwendung): void {
   app.get(`${KONTAKT_BASIS}/einrichtung`, async (anfrage, antwort) => {
     const { name } = anfrage.query as { name?: string };
     const eintrag = kontaktSuchen(String(name ?? ''));

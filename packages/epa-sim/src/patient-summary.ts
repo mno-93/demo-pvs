@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import {
   CODESYSTEM,
   EPS,
@@ -430,7 +430,7 @@ export function patientSummaryBilden(kvnr: string): Ressource {
 }
 
 export function patientSummaryEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   const b = PATIENT_SUMMARY_BASIS;

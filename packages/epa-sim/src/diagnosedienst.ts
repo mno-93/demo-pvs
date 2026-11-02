@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import { psRelevanzSetzen, type Ressource } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import {
@@ -204,7 +204,7 @@ function pruefen(r: Ressource | undefined, art: Art): string | null {
   return null;
 }
 
-function ungueltig(antwort: FastifyReply, text: string, code = 'invalid') {
+function ungueltig(antwort: SimAntwort, text: string, code = 'invalid') {
   return antwort.code(422).send(operationOutcome('error', code, text));
 }
 
@@ -301,12 +301,12 @@ const AENDERBAR: Record<Art, string[]> = {
 };
 
 export function diagnosedienstEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
   sitzungAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   const b = DIAGNOSEDIENST_BASIS;
-  const organisation = (anfrage: FastifyRequest, antwort: FastifyReply) =>
+  const organisation = (anfrage: SimAnfrage, antwort: SimAntwort) =>
     organisationAusKopf(anfrage.headers as Record<string, unknown>, sitzungAus(anfrage), antwort);
 
   /** Fähigkeiten des Dienstes — so erkennt ein Primärsystem, ob es ihn gibt. */
@@ -407,11 +407,11 @@ export function diagnosedienstEinhaengen(
 
 /** Lesen, Log, Anlegen und Ändern einer Liste — gleich für Diagnosen, Allergien und Impfungen. */
 function listenwegeEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   b: string,
   art: Art,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
-  organisation: (anfrage: FastifyRequest, antwort: FastifyReply) => Handelnde | null,
+  organisation: (anfrage: SimAnfrage, antwort: SimAntwort) => Handelnde | null,
 ): void {
   const op = OPERATION[art];
   const liste = LISTE[art];
@@ -561,12 +561,12 @@ function listenwegeEinhaengen(
 export const IMPFLISTE_BASIS = '/epa/vorschlag/immunization/api/v1/fhir';
 
 export function impflisteEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
   sitzungAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   const b = IMPFLISTE_BASIS;
-  const organisation = (anfrage: FastifyRequest, antwort: FastifyReply) =>
+  const organisation = (anfrage: SimAnfrage, antwort: SimAntwort) =>
     organisationAusKopf(anfrage.headers as Record<string, unknown>, sitzungAus(anfrage), antwort);
   const op = OPERATION.Immunization;
   app.get(`${b}/metadata`, async () => ({

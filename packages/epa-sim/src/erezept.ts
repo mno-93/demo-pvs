@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import { base64ZuText, zufallHex } from './plattform.ts';
 import {
   TEXT_EXTENSION,
@@ -525,7 +525,7 @@ function einreihen(r: Rezept, auftrag: Auftrag, stornierung = false): void {
 
 /* ---------- Schnittstelle des Fachdienstes ---------- */
 
-function fehlerAntwort(antwort: FastifyReply, status: number, code: string, text: string) {
+function fehlerAntwort(antwort: SimAntwort, status: number, code: string, text: string) {
   return antwort.code(status).send(operationOutcome('error', code, text));
 }
 
@@ -548,7 +548,7 @@ function eintraegeAus(bundle: Ressource): Ressource[] {
 }
 
 export function erezeptEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   sitzungAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ): void {
   const b = ERP_BASIS;
@@ -607,7 +607,7 @@ export function erezeptEinhaengen(
   /** Gemeinsam für `$activate` und `$abort`: Rezept finden und AccessCode prüfen. */
   function rezeptMitZugang(
     anfrage: { params: unknown; headers: Record<string, unknown> },
-    antwort: FastifyReply,
+    antwort: SimAntwort,
   ): Rezept | null {
     const r = rezepte.get((anfrage.params as { id: string }).id);
     if (!r) {

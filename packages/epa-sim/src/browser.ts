@@ -2,32 +2,37 @@
  * ePA-Simulator im Browser — für die gehostete Demo (ADR 0025).
  *
  * Statische Hosts wie GitHub Pages liefern nur Dateien aus; einen Server für den Simulator gibt
- * es dort nicht. Dieser Adapter hängt dieselben Wege (`wege.ts`) an eine kleine Nachbildung
- * der benutzten Fastify-Schnittstelle und beantwortet damit `Request`-Objekte im Browser. Das
- * Praxissystem ruft ihn an der Stelle auf, an der es sonst `fetch` benutzt — Kopfzeilen,
- * Statuscodes und Körper bleiben dieselben, das Aufrufprotokoll ebenso.
+ * es dort nicht. Dieser Adapter erfüllt dieselbe Schnittstelle wie die Hülle um Fastify
+ * (`schnittstelle.ts`, ADR 0050), hängt dieselben Wege (`wege.ts`) daran und beantwortet damit
+ * `Request`-Objekte im Browser. Das Praxissystem ruft ihn an der Stelle auf, an der es sonst
+ * `fetch` benutzt — Kopfzeilen, Statuscodes und Körper bleiben dieselben, das Aufrufprotokoll
+ * ebenso. Wo Fastify etwas selbst erledigt (Wegvorrang, Körper lesen, Grenzen, Fehler, Inhaltstyp),
+ * bildet der Adapter es nach; `browser-paritaet.test.ts` vergleicht beide Seiten.
  *
  * Der Bestand liegt im Speicher der Seite: Neu laden setzt ihn zurück, jede Besucherin hat ihren
  * eigenen.
  */
-import type { FastifyInstance } from 'fastify';
-import { betriebslage, STANDARD_BETRIEBSLAGE } from './betrieb.ts';
-import { erezepteLeeren } from './erezept.ts';
-import { startbestandAufbauen } from './startbestand.ts';
+import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
+import {
+  KOERPER_GRENZE,
+  fehlerKoerper,
+  type Kopfwert,
+  type SimAnfrage,
+  type SimAntwort,
+  type SimAnwendung,
+  type SimHandler,
+  type SimSendeHaken,
+} from './schnittstelle.ts';
 import { wegeEinhaengen } from './wege.ts';
 
 type Kopf = Record<string, string>;
 
-interface Anfrage {
-  method: string;
-  url: string;
-  headers: Kopf;
+interface Anfrage extends SimAnfrage {
   params: Record<string, string>;
-  query: Record<string, string | string[]>;
   body: unknown;
 }
 
-class Antwort {
+class Antwort implements SimAntwort {
   statusCode = 200;
   kopf: Kopf = {};
   koerper: unknown = undefined;
@@ -38,13 +43,17 @@ class Antwort {
     return this;
   }
 
-  header(name: string, wert: string): this {
+  header(name: string, wert: string | number): this {
     this.kopf[name.toLowerCase()] = String(wert);
     return this;
   }
 
   getHeader(name: string): string | undefined {
     return this.kopf[name.toLowerCase()];
+  }
+
+  type(inhaltstyp: string): this {
+    return this.header('content-type', inhaltstyp);
   }
 
   send(koerper?: unknown): this {
@@ -54,73 +63,75 @@ class Antwort {
   }
 }
 
-type Handler = (anfrage: Anfrage, antwort: Antwort) => unknown;
-type SendeHaken = (anfrage: Anfrage, antwort: Antwort, koerper: unknown) => unknown;
-
 interface Weg {
   methode: string;
   teile: string[];
-  platzhalter: number;
-  handler: Handler;
+  handler: SimHandler;
 }
 
-/** Die Teile der Fastify-Schnittstelle, die `wege.ts` und die Dienste benutzen. */
-class BrowserAnwendung {
-  wege: Weg[] = [];
-  anfrageHaken: Handler[] = [];
-  sendeHaken: SendeHaken[] = [];
-  nichtGefunden: Handler = (a, r) => r.code(404).send({ fehler: `${a.method} ${a.url}` });
+/** Vorrang wie in Fastify (find-my-way): Segment für Segment schlägt ein fester Teil einen Platzhalter. */
+function vorrang(a: Weg, b: Weg): number {
+  for (let i = 0; i < a.teile.length; i++) {
+    const pa = a.teile[i]!.startsWith(':');
+    const pb = b.teile[i]!.startsWith(':');
+    if (pa !== pb) return pa ? 1 : -1;
+  }
+  return 0;
+}
 
-  private weg(methode: string, pfad: string, handler: Handler) {
-    const teile = pfad.split('/');
-    this.wege.push({
-      methode,
-      teile,
-      platzhalter: teile.filter((t) => t.startsWith(':')).length,
-      handler,
-    });
+class BrowserAnwendung implements SimAnwendung {
+  wege: Weg[] = [];
+  anfrageHakenListe: SimHandler[] = [];
+  sendeHakenListe: SimSendeHaken[] = [];
+  nichtGefundenHandler: SimHandler = (a, r) =>
+    r.code(404).send(fehlerKoerper('notFound', `${a.method} ${a.url}`));
+
+  private weg(methode: string, pfad: string, handler: SimHandler) {
+    this.wege.push({ methode, teile: pfad.split('/'), handler });
   }
 
-  get(pfad: string, handler: Handler) {
+  get(pfad: string, handler: SimHandler) {
     this.weg('GET', pfad, handler);
   }
 
-  post(pfad: string, handler: Handler) {
+  post(pfad: string, handler: SimHandler) {
     this.weg('POST', pfad, handler);
   }
 
-  put(pfad: string, handler: Handler) {
+  put(pfad: string, handler: SimHandler) {
     this.weg('PUT', pfad, handler);
   }
 
-  addHook(art: 'onRequest' | 'onSend', haken: Handler | SendeHaken) {
-    if (art === 'onRequest') this.anfrageHaken.push(haken as Handler);
-    else this.sendeHaken.push(haken as SendeHaken);
+  anfrageHaken(haken: SimHandler) {
+    this.anfrageHakenListe.push(haken);
   }
 
-  setNotFoundHandler(handler: Handler) {
-    this.nichtGefunden = handler;
+  sendeHaken(haken: SimSendeHaken) {
+    this.sendeHakenListe.push(haken);
   }
 
-  /** Feste Wege vor solchen mit Platzhaltern, wie in Fastify. */
+  nichtGefunden(handler: SimHandler) {
+    this.nichtGefundenHandler = handler;
+  }
+
+  /** Wirft `URIError`, wenn ein Platzhalter nicht dekodierbar ist (wie Fastify: 400). */
   finden(methode: string, pfad: string): { weg: Weg; params: Record<string, string> } | null {
     const teile = pfad.split('/');
     const passend = this.wege
-      .filter((w) => w.methode === methode && w.teile.length === teile.length)
-      .map((w) => {
-        const params: Record<string, string> = {};
-        const ok = w.teile.every((t, i) => {
-          if (t.startsWith(':')) {
-            params[t.slice(1)] = decodeURIComponent(teile[i]!);
-            return true;
-          }
-          return t === teile[i];
-        });
-        return ok ? { weg: w, params } : null;
-      })
-      .filter((x): x is { weg: Weg; params: Record<string, string> } => x !== null)
-      .sort((a, b) => a.weg.platzhalter - b.weg.platzhalter);
-    return passend[0] ?? null;
+      .filter(
+        (w) =>
+          w.methode === methode &&
+          w.teile.length === teile.length &&
+          w.teile.every((t, i) => t.startsWith(':') || t === teile[i]),
+      )
+      .sort(vorrang);
+    const weg = passend[0];
+    if (!weg) return null;
+    const params: Record<string, string> = {};
+    weg.teile.forEach((t, i) => {
+      if (t.startsWith(':')) params[t.slice(1)] = decodeURIComponent(teile[i]!);
+    });
+    return { weg, params };
   }
 }
 
@@ -133,14 +144,57 @@ function abfrageLesen(suche: URLSearchParams): Record<string, string | string[]>
   return aus;
 }
 
-function koerperLesen(text: string, typ: string): unknown {
-  if (!text) return typ.includes('json') ? {} : undefined;
-  if (typ.startsWith('application/x-www-form-urlencoded')) {
+/** Inhaltstypen mit Leser — dieselben wie in `anwendung.ts` samt den Vorgaben von Fastify. */
+const TEXTTYPEN = [
+  'application/soap+xml',
+  'message/rfc822',
+  'application/xml',
+  'text/xml',
+  'text/plain',
+];
+
+class KoerperFehler extends Error {
+  constructor(
+    readonly status: number,
+    text: string,
+  ) {
+    super(text);
+  }
+}
+
+function koerperLesen(text: string, kopf: string | undefined): unknown {
+  if (kopf === undefined) return text === '' ? undefined : text;
+  const typ = kopf.split(';')[0]!.trim().toLowerCase();
+  if (typ === 'application/json' || typ === 'application/fhir+json') {
+    if (text.trim() === '') return {};
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new KoerperFehler(400, 'Körper nicht lesbar.');
+    }
+  }
+  if (typ === 'application/x-www-form-urlencoded') {
     return Object.fromEntries(new URLSearchParams(text));
   }
-  if (typ.includes('json')) return JSON.parse(text);
-  return text;
+  if (TEXTTYPEN.includes(typ)) return text;
+  throw new KoerperFehler(415, `Inhaltstyp ${typ} wird nicht unterstützt.`);
 }
+
+/** Wie Fastify: `charset=utf-8` an Text- und JSON-Typen, Vorgaben für Text und Binärinhalt. */
+function inhaltstypVervollstaendigen(antwort: Antwort, koerper: unknown): void {
+  const typ = antwort.getHeader('content-type');
+  if (!typ) {
+    if (typeof koerper === 'string') antwort.header('content-type', 'text/plain; charset=utf-8');
+    else if (koerper instanceof Uint8Array)
+      antwort.header('content-type', 'application/octet-stream');
+    return;
+  }
+  if (!/charset=/i.test(typ) && (/json/i.test(typ) || /^text\//i.test(typ))) {
+    antwort.header('content-type', `${typ}; charset=utf-8`);
+  }
+}
+
+const KOERPERLOS = new Set(['GET', 'HEAD']);
 
 /** Ein Simulator im Speicher der Seite; `abrufen` beantwortet Anfragen wie der Server. */
 export interface BrowserSimulator {
@@ -148,11 +202,36 @@ export interface BrowserSimulator {
 }
 
 export function simulatorImBrowser(): BrowserSimulator {
-  startbestandAufbauen();
-  erezepteLeeren();
-  Object.assign(betriebslage, STANDARD_BETRIEBSLAGE);
+  simulatorZuruecksetzen();
   const app = new BrowserAnwendung();
-  wegeEinhaengen(app as unknown as FastifyInstance);
+  wegeEinhaengen(app);
+
+  async function beantworten(anfrage: Anfrage, antwort: Antwort, pfad: string, text: string) {
+    try {
+      anfrage.body = KOERPERLOS.has(anfrage.method)
+        ? undefined
+        : koerperLesen(text, firstHeader(anfrage.headers['content-type']));
+    } catch (f) {
+      const status = f instanceof KoerperFehler ? f.status : 400;
+      antwort.code(status).send(fehlerKoerper('malformedRequest', (f as Error).message));
+      return;
+    }
+    for (const haken of app.anfrageHakenListe) {
+      await haken(anfrage, antwort);
+      if (antwort.sent) return;
+    }
+    let treffer: ReturnType<BrowserAnwendung['finden']>;
+    try {
+      treffer = app.finden(anfrage.method, pfad);
+    } catch {
+      antwort.code(400).send(fehlerKoerper('malformedRequest', 'Pfad nicht lesbar.'));
+      return;
+    }
+    const handler = treffer?.weg.handler ?? app.nichtGefundenHandler;
+    anfrage.params = treffer?.params ?? {};
+    const ergebnis = await handler(anfrage, antwort);
+    if (!antwort.sent && ergebnis !== antwort && ergebnis !== undefined) antwort.send(ergebnis);
+  }
 
   async function abrufen(eingang: Request): Promise<Response> {
     const url = new URL(eingang.url, 'http://simulator.local');
@@ -160,7 +239,6 @@ export function simulatorImBrowser(): BrowserSimulator {
     eingang.headers.forEach((wert, name) => {
       kopf[name.toLowerCase()] = wert;
     });
-    const text = eingang.method === 'GET' ? '' : await eingang.text();
     const anfrage: Anfrage = {
       method: eingang.method,
       url: url.pathname + url.search,
@@ -170,26 +248,21 @@ export function simulatorImBrowser(): BrowserSimulator {
       body: undefined,
     };
     const antwort = new Antwort();
-    try {
-      anfrage.body = koerperLesen(text, kopf['content-type'] ?? '');
-    } catch {
+    const bytes = KOERPERLOS.has(eingang.method)
+      ? new Uint8Array()
+      : new Uint8Array(await eingang.arrayBuffer());
+    if (bytes.byteLength > KOERPER_GRENZE) {
       antwort
-        .code(400)
-        .send({ errorCode: 'malformedRequest', errorDetail: 'Körper nicht lesbar.' });
-    }
-
-    if (!antwort.sent) {
-      for (const haken of app.anfrageHaken) {
-        await haken(anfrage, antwort);
-        if (antwort.sent) break;
+        .code(413)
+        .send(fehlerKoerper('payloadTooLarge', `Körper größer als ${KOERPER_GRENZE} Byte.`));
+    } else {
+      try {
+        await beantworten(anfrage, antwort, url.pathname, new TextDecoder().decode(bytes));
+      } catch (f) {
+        // Wie die Fehlerbehandlung des Servers: eine Ausnahme im Weg ist ein 500, kein Abbruch.
+        antwort.kopf = {};
+        antwort.code(500).send(fehlerKoerper('internalError', (f as Error).message));
       }
-    }
-    if (!antwort.sent) {
-      const treffer = app.finden(eingang.method, url.pathname);
-      const handler = treffer?.weg.handler ?? app.nichtGefunden;
-      anfrage.params = treffer?.params ?? {};
-      const ergebnis = await handler(anfrage, antwort);
-      if (!antwort.sent && ergebnis !== antwort && ergebnis !== undefined) antwort.send(ergebnis);
     }
 
     // Wie Fastify: Objekte als JSON, Binärinhalt unverändert.
@@ -201,9 +274,10 @@ export function simulatorImBrowser(): BrowserSimulator {
         antwort.header('content-type', 'application/json; charset=utf-8');
       }
     }
-    for (const haken of app.sendeHaken) {
+    for (const haken of app.sendeHakenListe) {
       koerper = await haken(anfrage, antwort, koerper);
     }
+    inhaltstypVervollstaendigen(antwort, koerper);
     const ohneKoerper = antwort.statusCode === 204 || koerper === undefined;
     return new Response(
       ohneKoerper ? null : (koerper as ConstructorParameters<typeof Response>[0]),
@@ -215,4 +289,8 @@ export function simulatorImBrowser(): BrowserSimulator {
   }
 
   return { abrufen };
+}
+
+function firstHeader(wert: Kopfwert): string | undefined {
+  return Array.isArray(wert) ? wert[0] : wert;
 }

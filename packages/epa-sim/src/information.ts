@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import { bestandFuer, bestandVorhanden } from './bestand.ts';
 
 /**
@@ -24,7 +24,7 @@ function fehler(errorCode: string, errorDetail: string) {
   return { errorCode, errorDetail };
 }
 
-export function informationEinhaengen(app: FastifyInstance): void {
+export function informationEinhaengen(app: SimAnwendung): void {
   /** Gemeinsame Prüfung: Kopfzeilen, Akte, Zustand. Gibt die KVNR zurück oder antwortet selbst. */
   function pruefen(
     anfrage: { headers: Record<string, unknown> },

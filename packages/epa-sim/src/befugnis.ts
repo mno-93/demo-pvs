@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import { demoJetzt, mitZeitzone, ortszeitDeutschland } from '@demo-pvs/kern';
 import { base64ZuText } from './plattform.ts';
 import { bestandVorhanden } from './bestand.ts';
@@ -171,7 +171,7 @@ function base64urlJson(teil: string): Record<string, unknown> | null {
  * nachgestellt. ⚠ Signatur und `hcv` werden nicht geprüft.
  */
 export function befugnisEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
   sitzungAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {

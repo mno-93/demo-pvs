@@ -34,7 +34,10 @@ Im Hosting-Build leitet `pvs/src/epa/transport.ts` die Wege `/epa`, `/informatio
 `/verwaltung` an `simulatorImBrowser()` aus `@demo-pvs/epa-sim/browser`. Wer im Simulator etwas
 braucht, das es nur in Node gibt, legt es in `epa-sim/src/plattform.ts` an — sonst läuft die
 gehostete Fassung nicht mehr. Wer einen neuen Weg anlegt, hängt ihn in `wege.ts` ein; er gilt
-dann für Server und Browser.
+dann für Server und Browser. Wege benutzen nur die Schnittstelle aus `epa-sim/src/schnittstelle.ts`
+(ADR 0050) — was dort fehlt, meldet die Typprüfung; der Differenztest `browser-paritaet.test.ts`
+vergleicht beide Seiten. Neue Fälle (andere Körper, Fehler, Inhaltstypen) gehören dort als Schritt
+dazu.
 
 Prüfliste für die gehostete Fassung: `npm run build:gehostet -- --basis demo-pvs`, Vorschau mit
 `--base /demo-pvs/`, eine tiefe Adresse direkt aufrufen, eGK einlesen, ein Rezept senden, im
@@ -316,7 +319,8 @@ nicht ablaufen, liefert `dauerhafteBefugnis`.
 Der Simulator wird über `simulatorBauen()` und Fastify `inject` getestet
 (`epa-sim/src/anwendung.test.ts`: Kopfzeilen, MHD, Lesenachweis und Konflikt, Diagnose-Service;
 `epa-sim/src/erezept.test.ts`: Information Service, Widerspruch, E-Rezept mit Zulieferung,
-Austausch, Mehrfachabgabe, Löschen, Verzögerung).
+Austausch, Mehrfachabgabe, Löschen, Verzögerung). `epa-sim/src/browser-paritaet.test.ts` schickt
+dieselbe Folge von Anfragen an Server und Browser-Adapter und vergleicht die Antworten.
 
 ## Konventionen
 

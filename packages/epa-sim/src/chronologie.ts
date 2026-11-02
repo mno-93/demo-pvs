@@ -1,4 +1,4 @@
-import type { FastifyReply } from 'fastify';
+import type { SimAntwort } from './schnittstelle.ts';
 import type { Ressource } from '@demo-pvs/kern';
 import { betriebslage } from './betrieb.ts';
 import { jetzt, neueId, operationOutcome, type Detailcode } from './fhir-hilfen.ts';
@@ -115,7 +115,7 @@ export function lesenachweisPruefen(
   ablage: Ressource[],
   art: Chronologieart,
   bestaetigt: string | undefined,
-  antwort: FastifyReply,
+  antwort: SimAntwort,
 ): boolean {
   if (betriebslage.fremdeAenderungVorSchreibzugriff && aktuelleChronologie(ablage, art)) {
     betriebslage.fremdeAenderungVorSchreibzugriff = false;

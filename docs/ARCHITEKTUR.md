@@ -60,8 +60,13 @@ selbst (`kern/fachlogik/dokumentinhalt.ts`).
 Der Simulator wird in `epa-sim/src/anwendung.ts` aufgebaut (`simulatorBauen()`), `server.ts`
 startet ihn. Prüfkette und Wege stehen in `wege.ts`; sie hängen lokal am Fastify-Server und in
 der gehosteten Demo an einem Browser-Adapter (`browser.ts`), der `Request`-Objekte beantwortet —
-[0025](entscheidungen/0025-gehostete-demo-mit-simulator-im-browser.md). Tests prüfen den
-Simulator über `inject` und den Adapter über `Request` ohne laufenden Dienst.
+[0025](entscheidungen/0025-gehostete-demo-mit-simulator-im-browser.md). Beide erfüllen dieselbe
+schmale Schnittstelle (`schnittstelle.ts`); die Wege kennen nur sie, nicht Fastify, und behandeln
+Körper, Grenzen und Fehler gleich —
+[0050](entscheidungen/0050-eine-schnittstelle-fuer-server-und-browser.md). Tests prüfen den
+Simulator über `inject`, den Adapter über `Request` und beide gegeneinander
+(`browser-paritaet.test.ts`), ohne laufenden Dienst. Zurückgesetzt wird überall mit
+`simulatorZuruecksetzen()`.
 
 Im PVS sieht man die ePA in einem eigenen Fenster über der Kartei, nicht als Reiter —
 [0014](entscheidungen/0014-epa-als-fenster.md).

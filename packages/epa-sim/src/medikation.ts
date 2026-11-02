@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import {
   DOSIERUNGSTEXT_SPRACHE,
   DOSIERUNGSTEXT_VERSION,
@@ -144,7 +144,7 @@ const MSG = {
 
 /** Antwort mit Detailcode; `code` ist der Issue-Typ nach FHIR. */
 function melden(
-  antwort: FastifyReply,
+  antwort: SimAntwort,
   status: number,
   code: string,
   text: string,
@@ -160,7 +160,7 @@ function melden(
 function operationsparameterAbweisen(
   anfrage: { query: unknown },
   erlaubt: Record<string, RegExp>,
-  antwort: FastifyReply,
+  antwort: SimAntwort,
 ): boolean {
   for (const [name, werte] of Object.entries(anfrage.query as Record<string, unknown>)) {
     const muster = erlaubt[name];
@@ -230,7 +230,7 @@ function referenzId(verweis: unknown): string {
   );
 }
 
-function fehlt(antwort: FastifyReply, code: string, display: string, text: string, status = 404) {
+function fehlt(antwort: SimAntwort, code: string, display: string, text: string, status = 404) {
   return antwort
     .code(status)
     .send(
@@ -243,7 +243,7 @@ function fehlt(antwort: FastifyReply, code: string, display: string, text: strin
     );
 }
 
-function ungueltig(antwort: FastifyReply, text: string) {
+function ungueltig(antwort: SimAntwort, text: string) {
   return antwort
     .code(422)
     .send(
@@ -292,7 +292,7 @@ type Json = Record<string, unknown>;
  * profile"): die Regeln der Profile, ausgewertet im Kern (`profilPruefen`). Jeder Befund wird ein
  * Eintrag im OperationOutcome mit dem Element als `expression`.
  */
-function profilAbweisen(r: Ressource | undefined, profil: string, antwort: FastifyReply): boolean {
+function profilAbweisen(r: Ressource | undefined, profil: string, antwort: SimAntwort): boolean {
   if (!r) return false;
   const befunde = profilPruefen(r, profil);
   if (befunde.length === 0) return false;
@@ -319,7 +319,7 @@ function profilAbweisen(r: Ressource | undefined, profil: string, antwort: Fasti
  * selbst neu und vergleicht ihn mit `renderedDosageInstruction`; bei Freitext muss derselbe Text
  * dort stehen. Nur de-DE mit Algorithmusversion 2.0.0 (general-principles).
  */
-function dosierungAbweisen(r: Ressource, antwort: FastifyReply): boolean {
+function dosierungAbweisen(r: Ressource, antwort: SimAntwort): boolean {
   const feld = r.resourceType === 'MedicationStatement' ? 'dosage' : 'dosageInstruction';
   const dosierungen = (r[feld] as Json[] | undefined) ?? [];
   if (dosierungen.length === 0) return false;
@@ -388,7 +388,7 @@ function dosierungAbweisen(r: Ressource, antwort: FastifyReply): boolean {
   return true;
 }
 
-function gruendeAbweisen(koerper: unknown, antwort: FastifyReply): boolean {
+function gruendeAbweisen(koerper: unknown, antwort: SimAntwort): boolean {
   return ((koerper as { parameter?: { name: string; resource?: Ressource }[] }).parameter ?? [])
     .filter((p) => p.name === 'reasonCondition')
     .some((p) => profilAbweisen(p.resource, PROFIL.grund, antwort));
@@ -544,16 +544,16 @@ function mitKontext(r: Ressource, wert: string): Ressource {
   };
 }
 
-type Anfrage = FastifyRequest;
+type Anfrage = SimAnfrage;
 
 export function medikationEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
   sitzungAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   const b = MEDIKATION_BASIS;
 
-  const organisation = (anfrage: Anfrage, antwort: FastifyReply): Handelnde | null =>
+  const organisation = (anfrage: Anfrage, antwort: SimAntwort): Handelnde | null =>
     organisationAusKopf(anfrage.headers as Record<string, unknown>, sitzungAus(anfrage), antwort);
 
   /* ---------- Lesen ---------- */
@@ -736,7 +736,7 @@ export function medikationEinhaengen(
    * Einstellung der Zwischenüberschriften (eMP)"): je Aktenkonto, PUT setzt, GET liefert den
    * anwendbaren Wert; JSON und XML mit dem Feld `subheadings`, Standard `true`. Kein FHIR.
    */
-  const einstellung = (wert: boolean, anfrage: Anfrage, antwort: FastifyReply) =>
+  const einstellung = (wert: boolean, anfrage: Anfrage, antwort: SimAntwort) =>
     String(anfrage.headers['accept'] ?? '').includes('xml')
       ? antwort
           .type('application/xml')
@@ -796,7 +796,7 @@ export function medikationEinhaengen(
       const anzahl = Number(([] as string[]).concat(p['_count'] ?? [])[0] ?? ergebnis.length);
       return { ...suchergebnis(ergebnis.slice(ab, ab + anzahl)), total: ergebnis.length };
     });
-    const unbekannt = (antwort: FastifyReply) =>
+    const unbekannt = (antwort: SimAntwort) =>
       antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`));
     app.get(`${q}/${typ}/:id`, async (anfrage, antwort) => {
       const r = finden(kvnrAus(anfrage), typ, (anfrage.params as { id: string }).id);
@@ -847,7 +847,7 @@ export function medikationEinhaengen(
     aktivitaet: Ressource;
   }
 
-  const statusUngueltig = (antwort: FastifyReply, text: string) =>
+  const statusUngueltig = (antwort: SimAntwort, text: string) =>
     antwort
       .code(400)
       .send(
@@ -864,7 +864,7 @@ export function medikationEinhaengen(
     kvnr: string,
     koerper: unknown,
     wer: Handelnde,
-    antwort: FastifyReply,
+    antwort: SimAntwort,
   ): Ergebnis | null {
     const eingang = parameterLesen(koerper, 'empEntry')?.resource;
     const fehler = empEintragPruefen(eingang);
@@ -1025,7 +1025,7 @@ export function medikationEinhaengen(
     kvnr: string,
     koerper: unknown,
     wer: Handelnde,
-    antwort: FastifyReply,
+    antwort: SimAntwort,
   ): Ergebnis | null {
     const kennung = parameterLesen(koerper, 'medicationPlanIdentifier')?.valueIdentifier?.value;
     const eingang = parameterLesen(koerper, 'empEntry')?.resource;

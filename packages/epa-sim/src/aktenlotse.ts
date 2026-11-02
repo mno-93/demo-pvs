@@ -1,4 +1,4 @@
-import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { SimAnfrage, SimAnwendung } from './schnittstelle.ts';
 import {
   VORSCHLAGSFRAGEN,
   beschriftungPruefen,
@@ -314,7 +314,7 @@ export function beschriftungenBilden(kvnr: string): Beschriftungsbefund[] {
 
 /* ---------- Wege ---------- */
 
-function kvnrAus(anfrage: FastifyRequest): string {
+function kvnrAus(anfrage: SimAnfrage): string {
   return String(anfrage.headers['x-insurantid'] ?? '');
 }
 
@@ -329,11 +329,11 @@ export function anspracheFuer(kvnr: string, alsVersicherte: boolean): Ansprache 
   return { art: 'praxis', name: name || 'Die versicherte Person' };
 }
 
-function ansprache(anfrage: FastifyRequest): Ansprache {
+function ansprache(anfrage: SimAnfrage): Ansprache {
   return anspracheFuer(kvnrAus(anfrage), Boolean(anfrage.headers['x-demo-versicherte']));
 }
 
-export function aktenlotseEinhaengen(app: FastifyInstance): void {
+export function aktenlotseEinhaengen(app: SimAnwendung): void {
   app.get(`${AKTENLOTSE_BASIS}/metadata`, async () => ({
     dienst: 'Aktenlotse (Vorschlag)',
     stand: '✦ nicht spezifiziert, regelbasiert',

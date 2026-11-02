@@ -1,4 +1,4 @@
-import type { FastifyReply } from 'fastify';
+import type { SimAntwort } from './schnittstelle.ts';
 import { base64ZuText } from './plattform.ts';
 import type { Ressource } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
@@ -43,7 +43,7 @@ export interface Handelnde {
 export function organisationAusKopf(
   kopf: Record<string, unknown>,
   sitzung: string,
-  antwort: FastifyReply,
+  antwort: SimAntwort,
 ): Handelnde | null {
   const roh = kopf['x-requesting-organization'];
   const wert = typeof roh === 'string' ? roh : '';

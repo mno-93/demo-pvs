@@ -15,7 +15,7 @@
  * Laborbefunde und Volltextsuche, strukturierte Briefe, Listen mit Patient Summary,
  * Aktenlotse. Fachliche Wege antworten nur mit gültiger Befugnis (ADR 0017).
  */
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import { alleBestaende, bestandFuer, bestandVorhanden } from './bestand.ts';
 import {
   BEFUGNIS_WEG,
@@ -24,7 +24,7 @@ import {
   befugnisseEntziehen,
   gueltigeBefugnis,
 } from './befugnis.ts';
-import { AB_STUFE, STANDARD_BETRIEBSLAGE, STUFE, abStufe, betriebslage } from './betrieb.ts';
+import { AB_STUFE, STUFE, abStufe, betriebslage } from './betrieb.ts';
 import {
   DIAGNOSEDIENST_BASIS,
   IMPFLISTE_BASIS,
@@ -33,7 +33,7 @@ import {
 } from './diagnosedienst.ts';
 import { AKTENLOTSE_BASIS, aktenlotseEinhaengen } from './aktenlotse.ts';
 import { KONTAKT_BASIS, kontaktEinhaengen } from './kontakt.ts';
-import { ERP_BASIS, erezeptEinhaengen, erezepteLeeren } from './erezept.ts';
+import { ERP_BASIS, erezeptEinhaengen } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
 import { operationOutcome } from './fhir-hilfen.ts';
@@ -45,9 +45,10 @@ import {
 } from './medikation.ts';
 import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
 import { xdsEinhaengen } from './xds.ts';
-import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen, postausgangLeeren } from './kim.ts';
+import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen } from './kim.ts';
 import { XDS_DOKUMENTENDIENST, zeitzonenErgaenzen } from '@demo-pvs/kern';
-import { fremdeEintraegeAnlegen, startbestandAufbauen } from './startbestand.ts';
+import { fremdeEintraegeAnlegen } from './startbestand.ts';
+import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 
 const istEpaWeg = (url: string) => url.startsWith('/epa/');
 /** Wege des Aktensystems und des Fachdienstes, deren Antworten nicht zwischengespeichert werden. */
@@ -101,8 +102,8 @@ function fehler(errorCode: string, errorDetail: string) {
 }
 
 /** Hängt Prüfkette, Dienste und Demo-Steuerung an eine Anwendung. */
-export function wegeEinhaengen(app: FastifyInstance): void {
-  app.addHook('onRequest', async (anfrage, antwort) => {
+export function wegeEinhaengen(app: SimAnwendung): void {
+  app.anfrageHaken(async (anfrage, antwort) => {
     if (betriebslage.verzoegerungMs > 0) {
       await new Promise((fertig) => setTimeout(fertig, betriebslage.verzoegerungMs));
     }
@@ -216,7 +217,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
    * X-Request-ID: vom Client je Anfrage vergeben, vom Dienst unverändert zurückzugeben
    * (OpenAPI ePA 3.1.3; CapabilityStatement Medication Service 1.3.5).
    */
-  app.addHook('onSend', async (anfrage, antwort, koerper) => {
+  app.sendeHaken(async (anfrage, antwort, koerper) => {
     const kennung = anfrage.headers['x-request-id'];
     if (typeof kennung === 'string') void antwort.header('X-Request-ID', kennung);
     // Personenbezogene Gesundheitsdaten werden nicht zwischengespeichert. Ohne diese Angabe
@@ -301,10 +302,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
   });
 
   app.post('/verwaltung/zuruecksetzen', async () => {
-    startbestandAufbauen();
-    erezepteLeeren();
-    postausgangLeeren();
-    Object.assign(betriebslage, STANDARD_BETRIEBSLAGE);
+    simulatorZuruecksetzen();
     return { zurueckgesetzt: true, bestaende: alleBestaende().length };
   });
 
@@ -484,7 +482,7 @@ export function wegeEinhaengen(app: FastifyInstance): void {
     ],
   }));
 
-  app.setNotFoundHandler(async (anfrage, antwort) => {
+  app.nichtGefunden(async (anfrage, antwort) => {
     await antwort
       .code(404)
       .send(

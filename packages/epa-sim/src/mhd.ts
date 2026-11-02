@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import { bytesAus, sha256Hex, uuidV7 } from './plattform.ts';
 import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
@@ -175,7 +175,7 @@ function epsSuchergebnis(kvnr: string, aktuell: boolean) {
 }
 
 export function mhdEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   /** ITI-67 Find Document References — GET mit Suchparametern oder POST als Formular. */

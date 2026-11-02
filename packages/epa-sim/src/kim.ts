@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import {
   ADRESSBUCH,
   KIM_DIENSTKENNUNG,
@@ -50,7 +50,7 @@ export function postausgangLeeren(): void {
 
 const adresse = (t: string) => /<([^>]+)>/.exec(t)?.[1] ?? t.trim();
 
-export function kimEinhaengen(app: FastifyInstance): void {
+export function kimEinhaengen(app: SimAnwendung): void {
   app.post(KIM_WEG, async (anfrage, antwort) => {
     const roh = typeof anfrage.body === 'string' ? anfrage.body : '';
     const smtp = (code: number, http: number, text: string) =>

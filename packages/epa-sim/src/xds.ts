@@ -1,4 +1,4 @@
-import type { FastifyInstance } from 'fastify';
+import type { SimAnwendung } from './schnittstelle.ts';
 import {
   ARZTBRIEF_XDS,
   DEMO_HEUTE,
@@ -173,7 +173,7 @@ function alsDokument(d: GeleseneEinreichung['dokumente'][number]): Dokument {
 }
 
 export function xdsEinhaengen(
-  app: FastifyInstance,
+  app: SimAnwendung,
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ): void {
   app.post(XDS_DOKUMENTENDIENST, async (anfrage, antwort) => {
