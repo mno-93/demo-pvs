@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRAXIS_STAMMDATEN } from '../beispiele.js';
 import type { Patient } from '../typen/person.js';
 import type { Rezept } from '../typen/rezept.js';
+import { STUECK, dosierungNachFhir } from '../fachlogik/dosierung.js';
 import {
   EMP_IDENTIFIER_SYSTEM,
   REZEPT_ID_SYSTEM,
@@ -68,10 +69,43 @@ describe('E-Rezept', () => {
     expect(dosierungStrukturiert('bei Bedarf 1 Hub')).toEqual([{ text: 'bei Bedarf 1 Hub' }]);
   });
 
-  it('rechnet die Reichweite nur bei Viererschema', () => {
+  it('rechnet die Reichweite aus Text nur bei Viererschema', () => {
     expect(reichweiteTage('1-0-1-0', 1, 'N3')).toBe(50);
     expect(reichweiteTage('0,5-0-0-0', 2, 'N1')).toBe(80);
+    expect(reichweiteTage('täglich: 1-0-0-0 Stück', 1, 'N3')).toBe(100);
     expect(reichweiteTage('bei Bedarf', 1, 'N1')).toBeNull();
+  });
+
+  it('rechnet die Reichweite aus der strukturierten Dosierung, nur in Stück', () => {
+    const intervall = {
+      schema: { art: 'intervall', alle: 12, einheit: 'h', menge: 1 },
+      einheit: STUECK,
+    } as const;
+    expect(reichweiteTage(intervall, 1, 'N2')).toBe(25);
+    expect(
+      reichweiteTage({ ...intervall, einheit: { code: '5', anzeige: 'Hub' } }, 1, 'N2'),
+    ).toBeNull();
+  });
+
+  it('übernimmt die strukturierte Dosierung des Rezepts in den Datensatz', () => {
+    const dosis = {
+      schema: { art: 'wochentage', gaben: [{ tag: 'mon', menge: 1 }] },
+      einheit: STUECK,
+    } as const;
+    const bundle = verordnungsdatensatzBauen(
+      { ...REZEPT, dosierung: 'montags — je 1 Stück', dosis },
+      {
+        patient: PATIENTIN,
+        arzt: { name: 'Dr. med. Anna Brandt', lanr: '999999901' },
+        praxis: PRAXIS_STAMMDATEN,
+        rezeptId: '160.000.000.000.001.53',
+        authoredOn: '2026-09-29',
+      },
+    );
+    const verordnung = (bundle['entry'] as { resource: Record<string, unknown> }[])
+      .map((e) => e.resource)
+      .find((r) => r['resourceType'] === 'MedicationRequest')!;
+    expect(verordnung['dosageInstruction']).toEqual(dosierungNachFhir(dosis));
   });
 
   it('trägt Rezept-ID und eMP-Identifier im Datensatz', () => {

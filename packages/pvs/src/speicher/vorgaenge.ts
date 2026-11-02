@@ -5,6 +5,7 @@ import {
   type Allergie,
   type Behandlungsfall,
   type Diagnose,
+  type Dosierung,
   type Karteikarteneintrag,
   type Kuerzel,
   type Leistungsziffer,
@@ -763,7 +764,7 @@ export const vorgaenge = {
     angabe: Pick<
       Rezept,
       'patientId' | 'arzneimittel' | 'dosierung' | 'packungen' | 'normgroesse' | 'empId' | 'grund'
-    > & { freigabe?: Rezeptfreigabe; hinweis?: string | null },
+    > & { dosis?: Dosierung | null; freigabe?: Rezeptfreigabe; hinweis?: string | null },
     id: string = neueId('rezept'),
   ): Vorgang {
     return {

@@ -941,6 +941,32 @@ describe('Medication Service — Ballot 1.4.0', () => {
     });
   });
 
+  it('rechnet den Text mit der Schreibweise der Zahlen nach (1.0 ergibt „1,0“)', async () => {
+    /** Körper als Text, damit `1.0` nicht schon beim Bauen zu `1` wird. */
+    async function alsText(text: string) {
+      const p = neuerEintrag(await planLesen());
+      const koerper = JSON.stringify({
+        ...p,
+        parameter: p.parameter.map((x) =>
+          x.name === 'empEntry' ? { ...x, resource: eintrag(dosierungAusText('1-0-0-0')) } : x,
+        ),
+      })
+        .replace('"value":1,"unit":"Stück"', '"value":1.0,"unit":"Stück"')
+        .replace('"valueMarkdown":"täglich: 1-0-0-0 Stück"', `"valueMarkdown":"${text}"`);
+      expect(koerper).toContain('"value":1.0');
+      return app.inject({
+        method: 'POST',
+        url: `${MEDIKATION}/$add-emp-entry`,
+        headers: { ...kopf(), 'content-type': 'application/fhir+json' },
+        payload: koerper,
+      });
+    }
+    const ohneKomma = await alsText('täglich: 1-0-0-0 Stück');
+    expect(ohneKomma.statusCode).toBe(400);
+    expect(ohneKomma.json().issue[0].extension[0].valueString).toBe('täglich: 1,0-0-0-0 Stück');
+    expect((await alsText('täglich: 1,0-0-0-0 Stück')).statusCode).toBe(200);
+  });
+
   it('lehnt eine andere Algorithmusversion ab', async () => {
     const alt = eintrag();
     alt.extension = alt.extension!.map((e) =>

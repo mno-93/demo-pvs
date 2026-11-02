@@ -12,9 +12,11 @@
  * ⚠ Der Dienst akzeptiert nur die Algorithmusversion `2.0.0`; veröffentlicht sind bisher nur
  * Release Candidates. Die Demo setzt `2.0.0` und bildet 2.0.0-rc.2 nach (SPEZIFIKATION 5.14).
  *
- * Abweichung von der Referenz: JSON-Zahlen verlieren in JavaScript nachfolgende Nullen (`1.0`
- * wird `1`). Die Demo erzeugt solche Werte nicht; die Referenz liest sie als Dezimalzahl.
+ * Zahlen schreibt der Text wie die Referenz in ihrer Schreibweise (`1.0` → „1,0“), soweit das
+ * JSON mit `jsonMitSchreibweise` gelesen wurde (`fhir/schreibweise.ts`); sonst wie JavaScript sie
+ * kennt (`1`). Die Demo selbst erzeugt solche Werte nicht.
  */
+import { schreibweise } from '../fhir/schreibweise.js';
 
 type Json = Record<string, unknown>;
 
@@ -103,6 +105,14 @@ export function zahlText(v: number): string {
   return s.replace('.', ',');
 }
 
+/** Zahl eines Feldes in der Schreibweise, in der sie gelesen wurde (`2.50` → „2,50“). */
+function zahlTextVon(objekt: Json, feld: string, wert: number): string {
+  const quelle = schreibweise(objekt, feld);
+  return quelle !== undefined && /^\d+\.\d+$/.test(quelle)
+    ? quelle.replace('.', ',')
+    : zahlText(wert);
+}
+
 function zeiteinheit(code: string, bezug: number): string {
   const e = ZEITEINHEIT[code] ?? fehler(`Nicht unterstützte Zeiteinheit: '${code}'.`);
   return bezug === 1 ? e[0] : e[1];
@@ -135,7 +145,7 @@ function dosisVon(el: Json): Dosis {
     if (wert === undefined) fehler('doseQuantity.value ist für die Textgenerierung erforderlich.');
     if (leer(einheit)) fehler('doseQuantity.unit ist für die Textgenerierung erforderlich.');
     if (wert! < 0) fehler('doseQuantity.value darf nicht negativ sein.');
-    return { wert: zahlText(wert!), einheit: einheit!, bereich: false };
+    return { wert: zahlTextVon(menge, 'value', wert!), einheit: einheit!, bereich: false };
   }
   const bereich = objekt(erster['doseRange'], 'doseRange');
   if (!bereich) fehler('Dosisangabe in doseAndRate[0] fehlt.');
@@ -148,14 +158,19 @@ function dosisVon(el: Json): Dosis {
   if (hw === undefined) fehler('doseRange.high.value ist für die Textgenerierung erforderlich.');
   if (leer(he)) fehler('doseRange.high.unit ist für die Textgenerierung erforderlich.');
   if (hw! < 0) fehler('doseRange.high.value darf nicht negativ sein.');
-  if (!tief) return { wert: `bis zu ${zahlText(hw!)}`, einheit: he!, bereich: true };
+  if (!tief)
+    return { wert: `bis zu ${zahlTextVon(hoch!, 'value', hw!)}`, einheit: he!, bereich: true };
   const tw = zahlFeld(tief['value'], 'doseRange.low.value');
   const te = zeichen(tief['unit'], 'doseRange.low.unit');
   if (tw === undefined) fehler('doseRange.low.value ist für die Textgenerierung erforderlich.');
   if (tw! < 0) fehler('doseRange.low.value darf nicht negativ sein.');
   if (te !== undefined && te !== he)
     fehler('doseRange.low.unit und doseRange.high.unit müssen übereinstimmen.');
-  return { wert: `${zahlText(tw!)} bis ${zahlText(hw!)}`, einheit: he!, bereich: true };
+  return {
+    wert: `${zahlTextVon(tief, 'value', tw!)} bis ${zahlTextVon(hoch!, 'value', hw!)}`,
+    einheit: he!,
+    bereich: true,
+  };
 }
 
 function wiederholung(el: Json): Json {
@@ -206,7 +221,7 @@ function zeitrahmen(el: Json): string | null {
     const c = zeichen(dauer['code'], 'timing.repeat.boundsDuration.code');
     if (w === undefined) fehler('boundsDuration.value ist für die Textgenerierung erforderlich.');
     if (c === undefined) fehler('boundsDuration.code ist für die Textgenerierung erforderlich.');
-    return `für ${zahlText(w!)} ${zeiteinheit(c!, w!)}`;
+    return `für ${zahlTextVon(dauer, 'value', w!)} ${zeiteinheit(c!, w!)}`;
   }
   if (zeitraum) {
     const hatStart = zeitraum['start'] !== undefined;
@@ -234,7 +249,10 @@ function rhythmus(r: Json, mitFrequenz: boolean): string {
     if (!mitFrequenz || eins) return kurz[einheit]!;
     return `${frequenz} x ${kurz[einheit]!}`;
   }
-  const periode = pmax !== undefined ? `${zahlText(p)} bis ${zahlText(pmax)}` : zahlText(p);
+  const periode =
+    pmax !== undefined
+      ? `${zahlTextVon(r, 'period', p)} bis ${zahlTextVon(r, 'periodMax', pmax)}`
+      : zahlTextVon(r, 'period', p);
   const alle = `alle ${periode} ${zeiteinheit(einheit, pmax ?? p)}`;
   return !mitFrequenz || eins ? alle : `${frequenz} x ${alle}`;
 }
@@ -282,7 +300,7 @@ function mindestabstandText(ext: Json): string {
     fehler(
       'MinimumIntervalBetweenAdministrations.valueDuration.code ist für die Textgenerierung erforderlich.',
     );
-  return `im Abstand von mindestens ${zahlText(w!)} ${zeiteinheit(c!, w!)}`;
+  return `im Abstand von mindestens ${zahlTextVon(d!, 'value', w!)} ${zeiteinheit(c!, w!)}`;
 }
 
 function maximalmengeText(el: Json): string | null {
@@ -305,7 +323,7 @@ function maximalmengeText(el: Json): string | null {
   const zeitraum =
     nw === 24 && nc === 'h' ? 'in 24 Stunden' : nw === 1 && nc === 'd' ? 'pro Tag' : null;
   if (!zeitraum) fehler('maxDosePerPeriod.denominator muss 1 d oder 24 h sein.');
-  return `nicht mehr als ${zahlText(zw!)} ${ze!} ${zeitraum!}`;
+  return `nicht mehr als ${zahlTextVon(zaehler!, 'value', zw!)} ${ze!} ${zeitraum!}`;
 }
 
 /* ---------- Schema-Erkennung ---------- */

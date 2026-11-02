@@ -12,6 +12,7 @@
  * Der Bestand liegt im Speicher der Seite: Neu laden setzt ihn zurück, jede Besucherin hat ihren
  * eigenen.
  */
+import { jsonMitSchreibweise } from '@demo-pvs/kern';
 import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 import {
   KOERPER_GRENZE,
@@ -168,7 +169,7 @@ function koerperLesen(text: string, kopf: string | undefined): unknown {
   if (typ === 'application/json' || typ === 'application/fhir+json') {
     if (text.trim() === '') return {};
     try {
-      return JSON.parse(text);
+      return jsonMitSchreibweise(text);
     } catch {
       throw new KoerperFehler(400, 'Körper nicht lesbar.');
     }

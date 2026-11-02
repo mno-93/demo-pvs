@@ -246,11 +246,43 @@ export function gerenderterText(r: Json): string | null {
 
 const zahl = (v: unknown) => (typeof v === 'number' ? v : 0);
 
+const istObjekt = (v: unknown): v is Json =>
+  typeof v === 'object' && v !== null && !Array.isArray(v);
+
+/** Gleicher Inhalt, unabhängig von der Reihenfolge der Schlüssel. */
+function gleicherInhalt(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b))
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((x, i) => gleicherInhalt(x, b[i]))
+    );
+  if (!istObjekt(a) || !istObjekt(b)) return false;
+  const schluessel = (o: Json) => Object.keys(o).filter((k) => o[k] !== undefined);
+  const ka = schluessel(a);
+  return ka.length === schluessel(b).length && ka.every((k) => gleicherInhalt(a[k], b[k]));
+}
+
 /**
- * Schema zu `Dosage`-Elementen — für die Formen, die das Praxissystem selbst erzeugt. Andere
- * Formen ergeben `null`; dann bleibt nur der Text.
+ * Schema zu `Dosage`-Elementen — nur, wenn es die Elemente **verlustfrei** wiedergibt: Aus dem
+ * Schema müssen genau dieselben Elemente entstehen. Andere Formen — etwa mit `frequency`,
+ * `boundsDuration`, Höchstmenge in 24 Stunden, gemischten Einheiten oder einem zweiten Anlass —
+ * ergeben `null`; dann bleibt der Text, und wer den Eintrag fortschreibt, lässt die Dosierung
+ * unverändert. Sonst würde eine verkürzte Dosierung in einen fremden eMP-Eintrag zurückgeschrieben.
  */
 export function dosierungAusFhir(dosierungen: unknown): Dosierung | null {
+  const d = dosierungLesen(dosierungen);
+  try {
+    return d && gleicherInhalt(dosierungNachFhir(d), dosierungen) ? d : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Das Schema, das die Elemente nahelegt — noch ohne Prüfung, ob es sie ganz wiedergibt. */
+function dosierungLesen(dosierungen: unknown): Dosierung | null {
   if (!Array.isArray(dosierungen) || dosierungen.length === 0) return null;
   const els = dosierungen as Json[];
   const erstes = els[0]!;
@@ -431,19 +463,87 @@ export function alsTabelle(dosierungen: unknown): number[] | null {
   return werte;
 }
 
+/* ---------- Reichweite ---------- */
+
+/** Tage je Intervalleinheit. ⚠ Ein Monat zählt 30 Tage. */
+const TAGE_JE: Record<Intervalleinheit, number> = { h: 1 / 24, d: 1, wk: 7, mo: 30 };
+
+/**
+ * Menge pro Tag in der Dosiereinheit — für die Reichweite einer Verordnung. Wochentage und
+ * Intervalle gemittelt; `null` bei Bedarf und bei Freitext, der kein Viererschema ist.
+ */
+export function tagesmengeVon(d: Dosierung): number | null {
+  const s = d.schema;
+  const summe = (werte: readonly number[]) => werte.reduce((a, b) => a + b, 0);
+  let menge: number;
+  switch (s.art) {
+    case 'tageszeiten':
+      menge = summe(s.mengen);
+      break;
+    case 'uhrzeiten':
+      menge = summe(s.gaben.map((g) => g.menge));
+      break;
+    case 'wochentage':
+      menge = summe(s.gaben.map((g) => g.menge)) / 7;
+      break;
+    case 'intervall':
+      menge = s.alle > 0 ? s.menge / (s.alle * TAGE_JE[s.einheit]) : 0;
+      break;
+    case 'freitext': {
+      const strukturiert = dosierungAusText(s.text, d.einheit);
+      return strukturiert.schema.art === 'freitext' ? null : tagesmengeVon(strukturiert);
+    }
+    case 'bedarf':
+      return null;
+  }
+  return menge > 0 ? menge : null;
+}
+
 /* ---------- Übernahme aus Text ---------- */
 
-const VIERER = /^\s*(\d+(?:[,.]\d+)?)-(\d+(?:[,.]\d+)?)-(\d+(?:[,.]\d+)?)-(\d+(?:[,.]\d+)?)\s*$/;
+/** Brüche, die `DosageDoseQuantityAllowedFractions` als Nachkommaanteil kennt. */
+const BRUCH: Record<string, number> = {
+  '1/4': 0.25,
+  '1/3': 0.33,
+  '1/2': 0.5,
+  '2/3': 0.66,
+  '3/4': 0.75,
+};
+const MENGE = String.raw`(\d+(?:[.,]\d{1,2})?|\d\s*/\s*\d)`;
+const TRENNER = String.raw`\s*[-–]\s*`;
+/** „1-0-1-0“, „1 - 0 - 1/2 - 0“, „täglich: 1-0-1-0 Stück“ — Einheit wahlweise. */
+const VIERER = new RegExp(
+  String.raw`^\s*(?:täglich:\s*)?${MENGE}${TRENNER}${MENGE}${TRENNER}${MENGE}${TRENNER}${MENGE}(?:\s+(\S.*?))?\s*$`,
+  'i',
+);
+
+function mengeAusText(t: string): number | null {
+  const bruch = t.replace(/\s/g, '');
+  if (bruch.includes('/')) return BRUCH[bruch] ?? null;
+  return Number(t.replace(',', '.'));
+}
 
 /**
  * Dosierung aus einer Textangabe, wie sie Rezept und ältere Bestände führen: Ein Viererschema
- * wird strukturiert, alles andere bleibt Freitext.
+ * wird strukturiert — auch mit Leerzeichen, Brüchen und einer Dosiereinheit aus
+ * `KBV_CS_SFHIR_BMP_DOSIEREINHEIT`. Alles andere bleibt Freitext, ebenso ein Viererschema mit
+ * unbekannter Einheit oder einem Bruch, den das Profil nicht kennt.
  */
 export function dosierungAusText(text: string, einheit: Dosiereinheit = STUECK): Dosierung {
+  const freitext: Dosierung = { schema: { art: 'freitext', text }, einheit };
   const m = VIERER.exec(text);
-  if (!m) return { schema: { art: 'freitext', text }, einheit };
-  const n = (i: number) => Number(m[i]!.replace(',', '.'));
-  return { schema: { art: 'tageszeiten', mengen: [n(1), n(2), n(3), n(4)] }, einheit };
+  if (!m) return freitext;
+  const mengen = [m[1]!, m[2]!, m[3]!, m[4]!].map(mengeAusText);
+  if (mengen.some((x) => x === null || Number.isNaN(x))) return freitext;
+  const angabe = m[5]?.trim();
+  const genannt = angabe
+    ? DOSIEREINHEITEN.find((e) => e.anzeige.toLowerCase() === angabe.toLowerCase())
+    : einheit;
+  if (!genannt) return freitext;
+  return {
+    schema: { art: 'tageszeiten', mengen: mengen as [number, number, number, number] },
+    einheit: genannt,
+  };
 }
 
 /* ---------- Prüfung bei der Eingabe ---------- */
@@ -476,10 +576,21 @@ export function dosierungPruefen(d: Dosierung): string[] {
   if (mengen.length === 0) befunde.push('Keine Gabe angegeben');
   if (mengen.some((m) => !(m > 0) && !(s.art === 'bedarf' && s.mengeBis && m === 0)))
     befunde.push('Dosis größer als 0 (DosageDoseValuePositive)');
-  if (mengen.some((m) => !ERLAUBTE_ANTEILE.includes(Math.round((m % 1) * 100) / 100)))
+  // Höchstens zwei Nachkommastellen; der Anteil exakt einer der erlaubten (keine Rundung).
+  if (mengen.some((m) => !/^\d+(\.\d{1,2})?$/.test(String(m))))
+    befunde.push('Höchstens zwei Nachkommastellen (DosageDoseValueDecimalNotation)');
+  else if (mengen.some((m) => !ERLAUBTE_ANTEILE.includes((Math.round(m * 100) % 100) / 100)))
     befunde.push(
       'Nachkommaanteil nur ,25 · ,33 · ,5 · ,66 · ,75 (DosageDoseQuantityAllowedFractions)',
     );
+  if (s.art === 'wochentage' && new Set(s.gaben.map((g) => g.tag)).size !== s.gaben.length)
+    befunde.push('Wochentag doppelt (TimingOnlyOneDayOfWeek)');
+  if (
+    s.art === 'bedarf' &&
+    s.hoechstensProTag &&
+    s.hoechstensProTag < Math.max(s.menge, s.mengeBis ?? 0)
+  )
+    befunde.push('Höchstmenge pro Tag kleiner als die Einzeldosis');
   if (s.art === 'uhrzeiten') {
     if (s.gaben.some((g) => !/^([01]\d|2[0-3]):[0-5]\d$/.test(g.uhrzeit)))
       befunde.push('Uhrzeit fehlt');

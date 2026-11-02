@@ -116,7 +116,7 @@ export function Rezeptstapel() {
               </thead>
               <tbody>
                 {offen.map((r) => {
-                  const tage = reichweiteTage(r.dosierung, r.packungen, r.normgroesse);
+                  const tage = reichweiteTage(r.dosis ?? r.dosierung, r.packungen, r.normgroesse);
                   return (
                     <tr key={r.id}>
                       <td>

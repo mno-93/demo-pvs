@@ -35,6 +35,7 @@ export * from './fhir/vollurl.js';
 export * from './fhir/pruefung.js';
 export * from './fhir/profilpruefung.js';
 export * from './fhir/zeit.js';
+export * from './fhir/schreibweise.js';
 export * from './fhir/medikation.js';
 export * from './fhir/abbildung.js';
 export * from './fhir/lesen.js';

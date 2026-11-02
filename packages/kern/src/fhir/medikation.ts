@@ -99,6 +99,11 @@ export function planeintragNachFhir(e: {
   kvnr: string;
   datum: string;
   dosierung: Dosierung;
+  /**
+   * `Dosage`-Elemente, unverändert übernommen — etwa aus einem eML-Eintrag, dessen Dosierung das
+   * Praxissystem nicht verlustfrei als Schema lesen kann (`dosierungAusFhir`). Gehen `dosierung` vor.
+   */
+  dosageUebernommen?: readonly Ressource[] | null;
   /** Behandlungsgrund in Worten der Patient:innen (`reasonPatientInstruction`). */
   grund: string | null;
   /** Diagnose der Praxis als Behandlungsgrund (`reasonReference`). */
@@ -114,7 +119,9 @@ export function planeintragNachFhir(e: {
    */
   mittel?: { reference: string } | null;
 }): Ressource {
-  const dosageInstruction = dosierungNachFhir(e.dosierung);
+  const dosageInstruction = e.dosageUebernommen?.length
+    ? [...e.dosageUebernommen]
+    : dosierungNachFhir(e.dosierung);
   return {
     resourceType: 'MedicationRequest',
     id: neueKennung(),
@@ -258,34 +265,42 @@ export function planeintragLesen(e: Ressource, ressourcen: readonly Ressource[] 
 /**
  * Schreibt Dosierung und Grund eines bestehenden eMP-Eintrags fort — Eingabe für
  * `$update-emp-entry`. Entfernt, was der Ballot nicht mehr kennt (`reasonCode`).
+ *
+ * Was die Praxis nicht ändert, bleibt, wie es im eMP steht: `dosierung: null` lässt Dosierung
+ * und erzeugten Text unverändert — auch eine, die das Praxissystem nicht verlustfrei lesen kann
+ * (`dosierungAusFhir`). Ohne `grundDiagnose` bleibt der Behandlungsgrund (`reasonReference`)
+ * einer anderen Einrichtung erhalten; `null` entfernt ihn.
  */
 export function planeintragFortschreiben(
   e: Ressource,
   angabe: {
-    dosierung: Dosierung;
+    dosierung: Dosierung | null;
     grund: string | null;
     grundDiagnose?: Pick<Diagnose, 'id' | 'code' | 'bezeichnung'> | null;
   },
 ): Ressource {
-  const dosageInstruction = dosierungNachFhir(angabe.dosierung);
+  const dosageInstruction = angabe.dosierung
+    ? dosierungNachFhir(angabe.dosierung)
+    : (e['dosageInstruction'] as Ressource[] | undefined);
   const ersetzt = new Set<string>([
     EMP_EXTENSION.grundFuerPatienten,
-    TEXT_EXTENSION.gerendert('MedicationRequest'),
-    TEXT_EXTENSION.generiert,
+    ...(angabe.dosierung
+      ? [TEXT_EXTENSION.gerendert('MedicationRequest'), TEXT_EXTENSION.generiert]
+      : []),
   ]);
   const neu: Ressource = {
     ...e,
     extension: [
       ...((e.extension ?? []) as { url: string }[]).filter((x) => !ersetzt.has(x.url)),
-      ...textErweiterungen('MedicationRequest', dosageInstruction),
+      ...(angabe.dosierung ? textErweiterungen('MedicationRequest', dosageInstruction) : []),
       ...(angabe.grund
         ? [{ url: EMP_EXTENSION.grundFuerPatienten, valueString: angabe.grund }]
         : []),
     ],
-    dosageInstruction,
+    ...(dosageInstruction ? { dosageInstruction } : {}),
   };
   delete neu['reasonCode'];
-  delete neu['reasonReference'];
+  if (angabe.grundDiagnose !== undefined) delete neu['reasonReference'];
   if (angabe.grundDiagnose)
     neu['reasonReference'] = [
       {

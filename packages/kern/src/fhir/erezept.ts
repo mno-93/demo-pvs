@@ -1,4 +1,10 @@
-import { dosierungAusText, dosierungNachFhir } from '../fachlogik/dosierung.js';
+import {
+  STUECK,
+  dosierungAusText,
+  dosierungNachFhir,
+  tagesmengeVon,
+  type Dosierung,
+} from '../fachlogik/dosierung.js';
 import type { Praxisstammdaten } from '../beispiele.js';
 import { CODESYSTEM } from '../typen/kodierung.js';
 import type { Patient } from '../typen/person.js';
@@ -13,8 +19,8 @@ import { zeitzonenErgaenzen } from './zeit.js';
  * Organization, Coverage).
  *
  * Belegt übernommen: Rezept-ID als Bundle-Kennung, eMP-Identifier des Planeintrags unter
- * `MedicationRequest.basedOn.identifier`, strukturierte Dosierung nach dem Muster des
- * Medikationsplans (Viererschema als Tageszeiten). ⚠ Vereinfacht: Pflichtangaben zu
+ * `MedicationRequest.basedOn.identifier`, strukturierte Dosierung wie im Medikationsplan
+ * (`DosageDgMP`, aus dem Planeintrag übernommen). ⚠ Vereinfacht: Pflichtangaben zu
  * Zuzahlung, Unfall, BVG, Abgabehinweisen und Kostenträger sind nur angedeutet; die ATC-Angabe
  * am Arzneimittel ist ein Zusatz der Demo, damit Plan und Liste denselben Wirkstoff erkennen.
  */
@@ -27,34 +33,33 @@ const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
 /** Abschnittsarten der Verordnung (KBV). ⚠ Codesystem nicht gegen das Paket geprüft. */
 const SECTION_TYPE = 'https://fhir.kbv.de/CodeSystem/KBV_CS_ERP_Section_Type';
 
-const VIERERSCHEMA = /^(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)-(\d+(?:,\d+)?)$/;
-
-const zahl = (s: string) => Number(s.replace(',', '.'));
-
 /**
- * Dosierung nach dem Muster `KBV_PR_ERP_Dosage_DailyFourScheme` (Viererschema) oder als
- * Freitext. Die erste Angabe trägt den Text, damit Leser ohne Strukturauswertung ihn finden.
+ * Dosierung aus einer Textangabe — dieselbe Abbildung wie im Medikationsplan (`DosageDgMP`,
+ * Medication IG DE 2.0.0-ballot): ein Viererschema strukturiert, sonst Freitext. Für Rezepte
+ * ohne strukturierte Dosierung (ältere Bestände).
  */
 export function dosierungStrukturiert(text: string): Record<string, unknown>[] {
-  // Dieselbe Abbildung wie im Medikationsplan: DosageDgMP (Medication IG DE 2.0.0-ballot).
   return dosierungNachFhir(dosierungAusText(text));
 }
 
-/** Tagesmenge aus einem Viererschema, sonst `null`. */
+/** Tagesmenge aus einer Textangabe, sonst `null`. */
 export function tagesmenge(dosierung: string): number | null {
-  const schema = VIERERSCHEMA.exec(dosierung.trim());
-  if (!schema) return null;
-  const summe = schema.slice(1).reduce((s, x) => s + zahl(x), 0);
-  return summe > 0 ? summe : null;
+  return tagesmengeVon(dosierungAusText(dosierung));
 }
 
-/** Reichweite in Tagen — nur bei Viererschema; ⚠ Stückzahl je Normgröße angenähert. */
+/**
+ * Reichweite in Tagen aus der strukturierten Dosierung — oder aus einer Textangabe, wenn sie ein
+ * Viererschema ist. Nur in Stück, weil die Normgrößen in Stück angenommen sind; ⚠ Stückzahl je
+ * Normgröße angenähert.
+ */
 export function reichweiteTage(
-  dosierung: string,
+  dosierung: Dosierung | string,
   packungen: number,
   normgroesse: Normgroesse,
 ): number | null {
-  const menge = tagesmenge(dosierung);
+  const d = typeof dosierung === 'string' ? dosierungAusText(dosierung) : dosierung;
+  if (d.einheit.code !== STUECK.code) return null;
+  const menge = tagesmengeVon(d);
   if (!menge || packungen <= 0) return null;
   return Math.floor((NORMGROESSE_STUECK[normgroesse] * packungen) / menge);
 }
@@ -111,7 +116,7 @@ export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext)
         { system: PZN, code: rezept.arzneimittel.pzn },
         {
           system: CODESYSTEM.atc,
-          version: rezept.arzneimittel.atcVersion,
+          ...(rezept.arzneimittel.atcVersion ? { version: rezept.arzneimittel.atcVersion } : {}),
           code: rezept.arzneimittel.atc,
         },
       ],
@@ -147,7 +152,11 @@ export function verordnungsdatensatzBauen(rezept: Rezept, k: Verordnungskontext)
     authoredOn: k.authoredOn,
     requester: { reference: `Practitioner/${String(arzt.id)}` },
     insurance: [{ reference: `Coverage/${String(versicherung.id)}` }],
-    dosageInstruction: dosierungStrukturiert(rezept.dosierung),
+    // Die strukturierte Dosierung des Rezepts — aus dem Planeintrag übernommen oder im Formular
+    // erfasst; nur ältere Rezepte ohne sie werden aus dem Text gebildet.
+    dosageInstruction: rezept.dosis
+      ? dosierungNachFhir(rezept.dosis)
+      : dosierungStrukturiert(rezept.dosierung),
     dispenseRequest: {
       quantity: { value: rezept.packungen, system: 'http://unitsofmeasure.org', code: '{Package}' },
     },

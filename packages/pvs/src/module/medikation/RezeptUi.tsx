@@ -4,9 +4,12 @@ import {
   amtsPruefen,
   arzneimittel,
   deutschesDatum,
+  dosierungAlsText,
+  dosierungAusText,
   reichweiteTage,
   type AmtsUmgebung,
   type ArzneimittelEintrag,
+  type Dosierung,
   type Normgroesse,
   type Rezept,
   type Rezeptfreigabe,
@@ -15,12 +18,19 @@ import { Karte, Leer, Marker } from '../../bausteine/Bausteine.js';
 import { Befundliste } from '../../bausteine/Befundliste.js';
 import { Katalogsuche } from '../../bausteine/Katalogsuche.js';
 import type { Medikationsliste } from '../../epa/klient.js';
+import { DosierungEingabe, dosierungGueltig } from './DosierungEingabe.js';
 import { rezeptInEpa, type RezeptInEpa } from './rezepte.js';
 
 /** Woraus ein Rezept entsteht: aus dem Plan, aus der Liste oder neu. */
 export interface Rezeptvorlage {
   arzneimittel: Rezept['arzneimittel'];
+  /** Text der Dosierung, wie er am Eintrag steht. */
   dosierung: string;
+  /**
+   * Strukturierte Dosierung des Planeintrags oder Listeneintrags (ADR 0052). Fehlt sie, wird der
+   * Text strukturiert, wenn er ein Viererschema ist, sonst als Freitext angeboten.
+   */
+  dosis?: Dosierung | null;
   empId: string | null;
   /** Eintrag im Medikationsplan der Praxis, aus dem ohne Akte verordnet wird (ADR 0045). */
   praxisplanId?: string;
@@ -37,7 +47,9 @@ export interface Rezeptvorlage {
 }
 
 export interface Rezeptangabe {
+  /** Text der Dosierung — erzeugt nach Algorithmus 2.0.0 oder Freitext. */
   dosierung: string;
+  dosis: Dosierung;
   packungen: number;
   normgroesse: Normgroesse;
   auchInPlan: boolean;
@@ -51,6 +63,16 @@ const PLUS_TAGE = (heute: string, tage: number) => {
   d.setDate(d.getDate() + tage);
   return d.toISOString().slice(0, 10);
 };
+
+/**
+ * Startwert der Dosierung im Formular: die strukturierte Dosierung der Vorlage. Ein Viererschema,
+ * das nur als Freitext vorliegt (ältere Einträge), wird zum Schema — als Freitext verbietet es das
+ * Profil (`DosageFourSlotPatternInText`).
+ */
+function dosierungFuerRezept(v: Rezeptvorlage): Dosierung {
+  const d = v.dosis ?? dosierungAusText(v.dosierung);
+  return d.schema.art === 'freitext' ? dosierungAusText(d.schema.text, d.einheit) : d;
+}
 
 /** Rezept aus einer Vorlage — für Ärztin (signieren) und MFA (vorbereiten). */
 export function RezeptFormular({
@@ -73,7 +95,8 @@ export function RezeptFormular({
   beiSenden: (a: Rezeptangabe) => void;
   abbrechen: () => void;
 }) {
-  const [dosierung, setzeDosierung] = useState(vorlage.dosierung);
+  const [dosis, setzeDosis] = useState<Dosierung>(() => dosierungFuerRezept(vorlage));
+  const gueltig = dosierungGueltig(dosis);
   const [packungen, setzePackungen] = useState(1);
   const [normgroesse, setzeNormgroesse] = useState<Normgroesse>('N3');
   const [grund, setzeGrund] = useState(vorlage.grund ?? '');
@@ -95,18 +118,19 @@ export function RezeptFormular({
       vorlage.katalog && vorlage.herkunft !== 'plan' ? amtsPruefen(vorlage.katalog, umgebung) : [],
     [vorlage, umgebung],
   );
-  const reichweite = reichweiteTage(dosierung, packungen, normgroesse);
+  const reichweite = gueltig ? reichweiteTage(dosis, packungen, normgroesse) : null;
   // Das Formular öffnet oberhalb des Plans; der Blick und der Fokus folgen ihm.
   const rahmen = useRef<HTMLDivElement>(null);
   useEffect(() => {
     rahmen.current?.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
     rahmen.current
-      ?.querySelector<HTMLInputElement>('#rz-dosierung')
+      ?.querySelector<HTMLSelectElement>('fieldset select')
       ?.focus({ preventScroll: true });
   }, [vorlage]);
 
   const angabe = (): Rezeptangabe => ({
-    dosierung: dosierung.trim(),
+    dosierung: dosis.schema.art === 'freitext' ? dosis.schema.text.trim() : dosierungAlsText(dosis),
+    dosis,
     packungen,
     normgroesse,
     auchInPlan: angeboten && auchInPlan,
@@ -135,16 +159,8 @@ export function RezeptFormular({
           )}
         </div>
         {vorlage.herkunft !== 'plan' && vorlage.katalog && <Befundliste befunde={befunde} />}
+        <DosierungEingabe wert={dosis} setze={setzeDosis} />
         <div className="feldreihe">
-          <div className="feldzeile">
-            <label htmlFor="rz-dosierung">Dosierung</label>
-            <input
-              id="rz-dosierung"
-              type="text"
-              value={dosierung}
-              onChange={(e) => setzeDosierung(e.target.value)}
-            />
-          </div>
           <div className="feldzeile" style={{ flex: '0 1 110px' }}>
             <label htmlFor="rz-packungen">Packungen</label>
             <input
@@ -185,7 +201,9 @@ export function RezeptFormular({
         <div className="leise-klein" style={{ margin: '2px 0 8px' }} role="status">
           {reichweite !== null
             ? `Reichweite ${reichweite} Tage · bis ${deutschesDatum(PLUS_TAGE(heute, reichweite))}`
-            : 'Reichweite: keine Tagesmenge'}
+            : dosis.einheit.code !== '1'
+              ? `Reichweite: nicht in ${dosis.einheit.anzeige}`
+              : 'Reichweite: keine Tagesmenge'}
         </div>
         {angeboten && (
           <label className="relevanzwahl">
@@ -232,7 +250,7 @@ export function RezeptFormular({
               <button
                 type="button"
                 className="knopf stark"
-                disabled={!dosierung.trim()}
+                disabled={!gueltig}
                 onClick={() => beiSenden(angabe())}
               >
                 Signieren und senden
@@ -240,7 +258,7 @@ export function RezeptFormular({
               <button
                 type="button"
                 className="knopf"
-                disabled={!dosierung.trim()}
+                disabled={!gueltig}
                 onClick={() => beiVorbereiten(angabe())}
               >
                 In den Signaturstapel
@@ -250,7 +268,7 @@ export function RezeptFormular({
             <button
               type="button"
               className="knopf stark"
-              disabled={!dosierung.trim()}
+              disabled={!gueltig}
               onClick={() => beiVorbereiten(angabe())}
             >
               Zur Signatur vorbereiten

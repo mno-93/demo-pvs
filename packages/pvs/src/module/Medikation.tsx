@@ -368,7 +368,8 @@ function empKennung(z: Planzeile): string {
 
 /**
  * Planeintrag und Behandlungsgründe für `$add-emp-entry` — Abbildung im Kern
- * (fhir/medikation.ts). Ohne strukturierte Dosierung wird der Text übernommen: ein Viererschema
+ * (fhir/medikation.ts). Ohne strukturierte Dosierung gehen die `Dosage`-Elemente der Quelle
+ * unverändert in den Eintrag (ADR 0052); ohne beides wird der Text übernommen: ein Viererschema
  * strukturiert, sonst Freitext.
  */
 function planeintrag(
@@ -377,16 +378,23 @@ function planeintrag(
   angabe: {
     dosierung: string;
     dosis?: Dosierung | null;
+    /** `Dosage`-Elemente der Quelle, etwa des eML-Eintrags. */
+    dosage?: unknown;
     grund: string | null;
     grundDiagnose?: Diagnose | null;
   },
 ): [Ressource, Ressource[]] {
   const dosis = angabe.dosis ?? dosierungAusText(angabe.dosierung);
+  const uebernommen =
+    !angabe.dosis && Array.isArray(angabe.dosage) && angabe.dosage.length > 0
+      ? (angabe.dosage as Ressource[])
+      : null;
   return [
     planeintragNachFhir({
       kvnr,
       datum,
       dosierung: dosis,
+      dosageUebernommen: uebernommen,
       grund: angabe.grund,
       grundDiagnose: angabe.grundDiagnose ?? null,
     }),
@@ -628,7 +636,11 @@ export function Medikation() {
               kvnr,
               lesenachweis,
               { reference: `Medication/${v.listeneintrag.medicationId}` },
-              ...planeintrag(kvnr, heute, { dosierung: a.dosierung, grund: a.grund }),
+              ...planeintrag(kvnr, heute, {
+                dosierung: a.dosierung,
+                dosis: a.dosis,
+                grund: a.grund,
+              }),
             );
             await empVerknuepfen(
               kvnr,
@@ -642,7 +654,11 @@ export function Medikation() {
               kvnr,
               lesenachweis,
               { resource: planmittelNachFhir(v.arzneimittel) },
-              ...planeintrag(kvnr, heute, { dosierung: a.dosierung, grund: a.grund }),
+              ...planeintrag(kvnr, heute, {
+                dosierung: a.dosierung,
+                dosis: a.dosis,
+                grund: a.grund,
+              }),
             );
             empId = String(neu.eintrag.id);
           }
@@ -654,6 +670,7 @@ export function Medikation() {
               patientId,
               arzneimittel: v.arzneimittel,
               dosierung: a.dosierung,
+              dosis: a.dosis,
               packungen: a.packungen,
               normgroesse: a.normgroesse,
               empId,
@@ -685,6 +702,7 @@ export function Medikation() {
           patientId,
           arzneimittel: v.arzneimittel,
           dosierung: a.dosierung,
+          dosis: a.dosis,
           packungen: a.packungen,
           normgroesse: a.normgroesse,
           empId: null,
@@ -733,6 +751,7 @@ export function Medikation() {
         atcVersion: e.atcVersion,
       },
       dosierung: e.dosierung,
+      dosis: e.dosis ?? null,
       empId: null,
       praxisplanId: e.id,
       grund: e.grund,
@@ -759,6 +778,7 @@ export function Medikation() {
         atcVersion: katalog?.atcVersion ?? '2026',
       },
       dosierung: z.dosierung,
+      dosis: z.dosis ?? null,
       empId: empKennung(z),
       grund: z.grund,
       herkunft: 'plan',
@@ -778,6 +798,7 @@ export function Medikation() {
         atcVersion: katalog?.atcVersion ?? '2026',
       },
       dosierung: z.dosierung,
+      dosis: dosierungAusFhir(z.aussage['dosage']),
       empId: null,
       grund: null,
       herkunft: 'liste',
@@ -805,6 +826,7 @@ export function Medikation() {
         atcVersion: m.atcVersion,
       },
       dosierung: '1-0-0-0',
+      dosis: DOSIERUNG_VORGABE,
       empId: null,
       grund: null,
       herkunft: 'neu',
@@ -879,13 +901,18 @@ export function Medikation() {
     }, `„${l.bezeichnung}" in den Medikationsplan der ePA aufgenommen.`);
   }
 
-  /** „Änderung in die ePA →": Dosierung, Grund und Status der Praxis in den eMP-Eintrag. */
+  /**
+   * „Änderung in die ePA →": Dosierung, Grund und Status der Praxis in den eMP-Eintrag. Was die
+   * Praxis nicht geändert hat, bleibt, wie es im eMP steht — die Dosierung samt Text und der
+   * Behandlungsgrund einer anderen Einrichtung (ADR 0052).
+   */
   function aenderungUebertragen(l: PraxisplanEintrag, e: Planzeile) {
     const grundDiagnose = diagnosen.find((d) => d.id === l.grundDiagnoseId) ?? null;
+    const dosierungGeaendert = !l.epaStand || l.dosierung !== l.epaStand.dosierung;
     const fortgeschrieben = planeintragFortschreiben(e.eintrag, {
-      dosierung: l.dosis ?? dosierungAusText(l.dosierung),
+      dosierung: dosierungGeaendert ? (l.dosis ?? dosierungAusText(l.dosierung)) : null,
       grund: l.grund,
-      grundDiagnose,
+      ...(grundDiagnose ? { grundDiagnose } : {}),
     });
     void handlung(async () => {
       const neu = await empEintragAendern(
@@ -1321,6 +1348,7 @@ export function Medikation() {
                       ...planeintrag(kvnr, heute, {
                         dosierung: z.dosierung,
                         dosis: dosierungAusFhir(z.aussage['dosage']),
+                        dosage: z.aussage['dosage'],
                         grund: null,
                       }),
                     );

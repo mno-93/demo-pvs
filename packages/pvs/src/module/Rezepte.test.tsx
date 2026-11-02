@@ -1,7 +1,13 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { Rezept } from '@demo-pvs/kern';
+import {
+  STUECK,
+  dosierungNachFhir,
+  textErweiterungen,
+  type Dosierung,
+  type Rezept,
+} from '@demo-pvs/kern';
 import { App } from '../App.js';
 import { nutzerliste, startzustand } from '../daten/startdaten.js';
 import { lesen, speicherStarten } from '../speicher/speicher.js';
@@ -65,10 +71,10 @@ const PLAN = {
   ],
 };
 
-function medikationsAttrappe() {
+function medikationsAttrappe(plan: unknown = PLAN) {
   return epaAttrappe((a) => {
     if (a.pfad === `${MS}/$medication-list`) return { status: 200, inhalt: suchergebnis([]) };
-    if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: PLAN };
+    if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: plan };
     if (a.pfad === '/erp/Task/$create') {
       return {
         status: 201,
@@ -175,6 +181,39 @@ describe('E-Rezept', () => {
     expect(rezept.status).toBe('gesendet');
     expect(rezept.rezeptId).toBe('160.000.000.000.001.53');
     expect(rezept.empId).toBe('emp-1');
+  });
+
+  it('übernimmt die strukturierte Dosierung des Planeintrags samt Reichweite (ADR 0052)', async () => {
+    const woechentlich: Dosierung = {
+      schema: { art: 'wochentage', gaben: [{ tag: 'mon', menge: 1 }] },
+      einheit: STUECK,
+    };
+    const dosage = dosierungNachFhir(woechentlich);
+    const plan = structuredClone(PLAN);
+    const eintrag = plan.entry[1]!.resource as Record<string, unknown>;
+    eintrag['dosageInstruction'] = dosage;
+    eintrag['extension'] = textErweiterungen('MedicationRequest', dosage);
+    const aufrufe = medikationsAttrappe(plan);
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+    fireEvent.click(await screen.findByRole('button', { name: 'Rezept' }));
+    expect(screen.getAllByText(/montags — je 1 Stück/).length).toBeGreaterThan(1);
+    expect(screen.getByText(/Reichweite 700 Tage/)).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Signieren und senden' }));
+    expect(await screen.findByText('E-Rezept signiert und gesendet.')).toBeDefined();
+    const aktivierung = aufrufe.find((a) => a.pfad.endsWith('/$activate'))!;
+    const binary = (aktivierung.koerper as { parameter: { resource: { data: string } }[] })
+      .parameter[0]!.resource;
+    const bundle = JSON.parse(decodeURIComponent(escape(atob(binary.data)))) as {
+      entry: { resource: { resourceType: string; dosageInstruction?: unknown } }[];
+    };
+    expect(
+      bundle.entry.find((e) => e.resource.resourceType === 'MedicationRequest')!.resource
+        .dosageInstruction,
+    ).toEqual(dosage);
+    const rezept = lesen().rezepte[0]!;
+    expect(rezept.dosierung).toBe('montags — je 1 Stück');
+    expect(rezept.dosis).toMatchObject(woechentlich);
   });
 
   it('lässt die MFA vorbereiten, ohne den Fachdienst anzusprechen; der Stapel zählt mit', async () => {

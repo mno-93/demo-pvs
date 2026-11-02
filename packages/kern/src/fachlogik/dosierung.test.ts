@@ -8,6 +8,7 @@ import {
   dosierungAusText,
   dosierungNachFhir,
   dosierungPruefen,
+  tagesmengeVon,
   textErweiterungen,
   type Dosierung,
 } from './dosierung.js';
@@ -153,5 +154,164 @@ describe('Prüfung bei der Eingabe', () => {
     expect(
       dosierungPruefen({ ...dosierungAusText('1-0-0-0'), von: '2026-11-01', bis: '2026-10-01' }),
     ).toEqual(['Ende vor Beginn']);
+  });
+});
+
+describe('Rückweg aus FHIR nur verlustfrei', () => {
+  const stueck = (value: number) => ({ value, unit: 'Stück', system: BMP, code: '1' });
+  const ucum = 'http://unitsofmeasure.org';
+
+  it('liest nur, was sich genauso zurückbilden lässt', () => {
+    const fremd: [string, unknown[]][] = [
+      [
+        '3 x täglich',
+        [
+          {
+            timing: { repeat: { frequency: 3, period: 1, periodUnit: 'd' } },
+            doseAndRate: [{ doseQuantity: stueck(1) }],
+          },
+        ],
+      ],
+      [
+        'für 5 Tage',
+        [
+          {
+            timing: {
+              repeat: {
+                frequency: 1,
+                period: 1,
+                periodUnit: 'd',
+                when: ['MORN'],
+                boundsDuration: { value: 5, unit: 'Tage', system: ucum, code: 'd' },
+              },
+            },
+            doseAndRate: [{ doseQuantity: stueck(1) }],
+          },
+        ],
+      ],
+      [
+        'Höchstmenge in 24 Stunden',
+        [
+          {
+            asNeededBoolean: true,
+            doseAndRate: [{ doseQuantity: stueck(1) }],
+            maxDosePerPeriod: {
+              numerator: stueck(6),
+              denominator: { value: 24, unit: 'Stunden', system: ucum, code: 'h' },
+            },
+          },
+        ],
+      ],
+      [
+        'gemischte Einheiten',
+        [
+          {
+            timing: { repeat: { frequency: 1, period: 1, periodUnit: 'd', when: ['MORN'] } },
+            doseAndRate: [{ doseQuantity: stueck(1) }],
+          },
+          {
+            timing: { repeat: { frequency: 1, period: 1, periodUnit: 'd', when: ['EVE'] } },
+            doseAndRate: [
+              { doseQuantity: { value: 2, unit: 'Messlöffel', system: BMP, code: '#' } },
+            ],
+          },
+        ],
+      ],
+      [
+        'Bedarf zur Tageszeit',
+        [
+          {
+            asNeededBoolean: true,
+            timing: { repeat: { frequency: 1, period: 1, periodUnit: 'd', when: ['EVE'] } },
+            doseAndRate: [{ doseQuantity: stueck(1) }],
+          },
+        ],
+      ],
+    ];
+    for (const [name, dosage] of fremd) {
+      expect({ name, dosis: dosierungAusFhir(dosage) }).toEqual({ name, dosis: null });
+    }
+  });
+
+  it('liest die eigenen Formen weiter', () => {
+    const d: Dosierung = {
+      schema: { art: 'bedarf', menge: 1, mengeBis: 2, anlass: 'Schmerzen', hoechstensProTag: 6 },
+      einheit: STUECK,
+    };
+    expect(dosierungAlsText(dosierungAusFhir(dosierungNachFhir(d))!)).toBe(dosierungAlsText(d));
+  });
+});
+
+describe('Viererschema aus Text', () => {
+  it('erkennt Leerzeichen, Brüche, Einheit und den erzeugten Text', () => {
+    const mengen = (t: string) => {
+      const d = dosierungAusText(t);
+      return d.schema.art === 'tageszeiten' ? [...d.schema.mengen, d.einheit.anzeige] : null;
+    };
+    expect(mengen('1-0-1-0 Stück')).toEqual([1, 0, 1, 0, 'Stück']);
+    expect(mengen('1 - 0 - 1 - 0')).toEqual([1, 0, 1, 0, 'Stück']);
+    expect(mengen('1/2-0-0-0')).toEqual([0.5, 0, 0, 0, 'Stück']);
+    expect(mengen('täglich: 1-0-0,5-0 Stück')).toEqual([1, 0, 0.5, 0, 'Stück']);
+    expect(mengen('2-0-2-0 Hub')).toEqual([2, 0, 2, 0, 'Hub']);
+  });
+
+  it('lässt unbekannte Einheiten und Brüche als Freitext', () => {
+    expect(dosierungAusText('1-0-1-0 Tabl.').schema.art).toBe('freitext');
+    expect(dosierungAusText('1/5-0-0-0').schema.art).toBe('freitext');
+    expect(dosierungAusText('morgens eine').schema.art).toBe('freitext');
+  });
+});
+
+describe('Tagesmenge', () => {
+  it('rechnet Schemata in eine Menge pro Tag um', () => {
+    expect(tagesmengeVon(dosierungAusText('1-0-1-0'))).toBe(2);
+    expect(
+      tagesmengeVon({
+        schema: { art: 'intervall', alle: 8, einheit: 'h', menge: 1 },
+        einheit: STUECK,
+      }),
+    ).toBe(3);
+    expect(
+      tagesmengeVon({
+        schema: {
+          art: 'wochentage',
+          gaben: [
+            { tag: 'mon', menge: 7 },
+            { tag: 'thu', menge: 7 },
+          ],
+        },
+        einheit: STUECK,
+      }),
+    ).toBe(2);
+    expect(tagesmengeVon({ schema: { art: 'bedarf', menge: 1 }, einheit: STUECK })).toBeNull();
+  });
+});
+
+describe('Prüfung: Profilregeln ohne Rundung', () => {
+  it('meldet drei Nachkommastellen, doppelte Wochentage und eine zu kleine Höchstmenge', () => {
+    expect(
+      dosierungPruefen({
+        schema: { art: 'tageszeiten', mengen: [1.333, 0, 0, 0] },
+        einheit: STUECK,
+      }),
+    ).toEqual(['Höchstens zwei Nachkommastellen (DosageDoseValueDecimalNotation)']);
+    expect(
+      dosierungPruefen({
+        schema: {
+          art: 'wochentage',
+          gaben: [
+            { tag: 'mon', menge: 1 },
+            { tag: 'mon', menge: 1 },
+          ],
+        },
+        einheit: STUECK,
+      }),
+    ).toContain('Wochentag doppelt (TimingOnlyOneDayOfWeek)');
+    expect(
+      dosierungPruefen({
+        schema: { art: 'bedarf', menge: 4, hoechstensProTag: 2 },
+        einheit: STUECK,
+      }),
+    ).toContain('Höchstmenge pro Tag kleiner als die Einzeldosis');
   });
 });

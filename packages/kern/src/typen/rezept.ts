@@ -1,3 +1,5 @@
+import type { Dosierung } from '../fachlogik/dosierung.js';
+
 /**
  * E-Rezept im Praxissystem.
  *
@@ -39,8 +41,13 @@ export interface Rezept {
     atc: string;
     atcVersion: string;
   };
-  /** Viererschema oder Freitext, wie im Plan. */
+  /** Text der Dosierung — erzeugt nach Algorithmus 2.0.0 oder Freitext. */
   dosierung: string;
+  /**
+   * Strukturierte Dosierung nach `DosageDgMP` — aus dem Planeintrag übernommen oder im Formular
+   * erfasst. Fehlt sie (ältere Rezepte), gilt der Text.
+   */
+  dosis?: Dosierung | null;
   packungen: number;
   normgroesse: Normgroesse;
   /** eMP-Identifier des Planeintrags, aus dem verordnet wird — verknüpft Liste und Plan. */

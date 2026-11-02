@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PraxisplanEintrag } from '../typen/medikation.js';
 import type { Rezept } from '../typen/rezept.js';
+import { dosierungAusText } from './dosierung.js';
 import {
   imGueltigenPlan,
   letzteVerordnung,
@@ -109,7 +110,10 @@ describe('Medikationsplan der Praxis', () => {
       atcVersion: '2026',
       pzn: '90900020',
       dosierung: '1-0-0-0',
+      dosis: null,
       grund: 'Hypertonie',
     });
+    const dosis = dosierungAusText('1-0-1-0');
+    expect(planangabeAusRezept(rezept({ dosis })).dosis).toBe(dosis);
   });
 });

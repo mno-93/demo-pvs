@@ -8,6 +8,7 @@
  */
 import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
+import { jsonMitSchreibweise } from '@demo-pvs/kern';
 import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 import {
   KOERPER_GRENZE,
@@ -72,11 +73,14 @@ function alsSimAnwendung(app: FastifyInstance): SimAnwendung {
   };
 }
 
-/** JSON-Körper wie im Browser-Adapter: leer ergibt `{}`, unlesbar 400. */
+/**
+ * JSON-Körper wie im Browser-Adapter: leer ergibt `{}`, unlesbar 400. Dezimalzahlen behalten
+ * ihre Schreibweise für den Dosierungstext (`1.0` → „1,0“, `fhir/schreibweise.ts` im Kern).
+ */
 function jsonLesen(text: string): unknown {
   if (text.trim() === '') return {};
   try {
-    return JSON.parse(text);
+    return jsonMitSchreibweise(text);
   } catch {
     throw Object.assign(new Error('Körper nicht lesbar.'), { statusCode: 400 });
   }

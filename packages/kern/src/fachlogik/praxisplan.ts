@@ -48,14 +48,18 @@ export function letzteVerordnung(
 
 /** Angaben für einen neuen Planeintrag aus einem Rezept — Mittel, Dosierung und Grund. */
 export function planangabeAusRezept(
-  rezept: Pick<Rezept, 'arzneimittel' | 'dosierung' | 'grund'>,
-): Pick<PraxisplanEintrag, 'bezeichnung' | 'atc' | 'atcVersion' | 'pzn' | 'dosierung' | 'grund'> {
+  rezept: Pick<Rezept, 'arzneimittel' | 'dosierung' | 'dosis' | 'grund'>,
+): Pick<
+  PraxisplanEintrag,
+  'bezeichnung' | 'atc' | 'atcVersion' | 'pzn' | 'dosierung' | 'dosis' | 'grund'
+> {
   return {
     bezeichnung: rezept.arzneimittel.bezeichnung,
     atc: rezept.arzneimittel.atc,
     atcVersion: rezept.arzneimittel.atcVersion,
     pzn: rezept.arzneimittel.pzn || null,
     dosierung: rezept.dosierung,
+    dosis: rezept.dosis ?? null,
     grund: rezept.grund,
   };
 }

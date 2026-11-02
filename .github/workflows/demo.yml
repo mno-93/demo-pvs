@@ -51,6 +51,29 @@ jobs:
           node werkzeuge/kataloge-erzeugen.mjs
           git diff --exit-code -- packages/kern/src/kataloge
 
+  dosierungstexte:
+    name: Dosierungstexte gegen die Referenz
+    # Die erwarteten Texte der Falldatei stammen aus der Referenzimplementierung von HL7
+    # Deutschland, Commit fest wie in der Falldatei (docs/ENTWICKLUNG.md, „Erzeugte Dateien“).
+    # Eigener Job ohne Secrets und ohne gespeichertes Token, weil er fremden Code ausführt.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Referenzimplementierung holen
+        uses: actions/checkout@v7
+        with:
+          repository: hl7germany/dgMP-DosageTextgenerierung-Skript
+          ref: 8977b31853c9e33781fa83541b668b83f8575968
+          path: dosierung-referenz
+          persist-credentials: false
+      - name: Falldatei entspricht der Referenz
+        env:
+          DOSIERUNG_REFERENZ: dosierung-referenz
+        run: python3 werkzeuge/dosierungsfaelle-erzeugen.py --pruefen
+
   fhir-validator:
     name: FHIR-Validator
     needs: pruefen
