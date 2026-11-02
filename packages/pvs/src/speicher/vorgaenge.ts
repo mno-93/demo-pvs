@@ -1,4 +1,5 @@
 import {
+  demoZeitpunktSekunden,
   epaStandVon,
   quartalVon,
   type Allergie,
@@ -29,9 +30,9 @@ export function neueId(praefix: string): string {
   return `${praefix}-${Date.now().toString(36)}-${zaehler}`;
 }
 
-function jetzt(zustand: Zustand): string {
-  const uhrzeit = new Date().toTimeString().slice(0, 8);
-  return `${zustand.heute}T${uhrzeit}`;
+/** Zeitpunkt eines Vorgangs nach der Demo-Uhr des Kerns, auf die Sekunde. */
+function jetzt(): string {
+  return demoZeitpunktSekunden();
 }
 
 /** Ein eMP-Eintrag mit den Angaben, die der Plan der Praxis zusätzlich führt. */
@@ -98,7 +99,7 @@ export const vorgaenge = {
           id: neueId('kk'),
           patientId,
           fallId: fall.id,
-          zeitpunkt: jetzt(z),
+          zeitpunkt: jetzt(),
           kuerzel,
           text: text.trim(),
           verfasser: z.nutzer.name,
@@ -125,7 +126,7 @@ export const vorgaenge = {
           herkunft: {
             bestand: 'lokal',
             quelle: 'Hausarztpraxis am Stadtgarten',
-            zeitpunkt: jetzt(z),
+            zeitpunkt: jetzt(),
             verantwortlich: z.nutzer.name,
             dokumentId: null,
           },
@@ -158,7 +159,7 @@ export const vorgaenge = {
                   ...d.herkunft,
                   bestand: 'lokal',
                   quelle: 'Hausarztpraxis am Stadtgarten',
-                  zeitpunkt: jetzt(z),
+                  zeitpunkt: jetzt(),
                   verantwortlich: z.nutzer.name,
                 },
               }
@@ -184,7 +185,7 @@ export const vorgaenge = {
                   ...a.herkunft,
                   bestand: 'lokal',
                   quelle: 'Hausarztpraxis am Stadtgarten',
-                  zeitpunkt: jetzt(z),
+                  zeitpunkt: jetzt(),
                   verantwortlich: z.nutzer.name,
                 },
               }
@@ -268,8 +269,8 @@ export const vorgaenge = {
             status: 'aktiv',
             verantwortlich: z.nutzer.name,
             fassung: '1',
-            angelegtAm: jetzt(z),
-            geaendertAm: jetzt(z),
+            angelegtAm: jetzt(),
+            geaendertAm: jetzt(),
             epaId: epa?.id ?? null,
             epaStand: epa ? epaStandVon(epa) : null,
           },
@@ -295,7 +296,7 @@ export const vorgaenge = {
                 ...teil,
                 verantwortlich: z.nutzer.name,
                 fassung: String(Number(e.fassung) + 1),
-                geaendertAm: jetzt(z),
+                geaendertAm: jetzt(),
               }
             : e,
         ),
@@ -383,7 +384,7 @@ export const vorgaenge = {
           herkunft: {
             bestand: 'lokal',
             quelle: 'Hausarztpraxis am Stadtgarten',
-            zeitpunkt: jetzt(z),
+            zeitpunkt: jetzt(),
             verantwortlich: z.nutzer.name,
             dokumentId: null,
           },
@@ -472,7 +473,7 @@ export const vorgaenge = {
           herkunft: {
             bestand: 'epa',
             quelle,
-            zeitpunkt: jetzt(z),
+            zeitpunkt: jetzt(),
             verantwortlich: z.nutzer.name,
             dokumentId: epa.herkunft.dokumentId,
           },
@@ -494,7 +495,7 @@ export const vorgaenge = {
           herkunft: {
             bestand: 'epa',
             quelle,
-            zeitpunkt: jetzt(z),
+            zeitpunkt: jetzt(),
             verantwortlich: z.nutzer.name,
             dokumentId: epa.herkunft.dokumentId,
           },
@@ -596,7 +597,7 @@ export const vorgaenge = {
         ...z,
         patienten: z.patienten.map((p) =>
           p.id === patientId
-            ? { ...p, versicherung: { ...p.versicherung, zuletztEingelesen: jetzt(z) } }
+            ? { ...p, versicherung: { ...p.versicherung, zuletztEingelesen: jetzt() } }
             : p,
         ),
       }),
@@ -638,7 +639,7 @@ export const vorgaenge = {
           dateiname: `${angabe.epaId}.${(angabe.inhaltstyp ?? 'application/fhir+json').endsWith('xml') ? 'xml' : 'json'}`,
           inhaltstyp: angabe.inhaltstyp ?? 'application/fhir+json',
           groesseBytes: new TextEncoder().encode(inhaltstext).length,
-          gespeichertAm: jetzt(z),
+          gespeichertAm: jetzt(),
           gespeichertVon: z.nutzer.name,
           inhalt: angabe.inhalt,
           notiz: null,
@@ -671,7 +672,7 @@ export const vorgaenge = {
           inhaltstyp: 'application/pdf',
           // Die Demo legt beim Einscannen keine Bilddaten an — also auch keine erfundene Größe.
           groesseBytes: 0,
-          gespeichertAm: jetzt(z),
+          gespeichertAm: jetzt(),
           gespeichertVon: z.nutzer.name,
           inhalt: null,
           notiz: angabe.notiz,
@@ -708,7 +709,7 @@ export const vorgaenge = {
           dateiname: `arztbrief_${angabe.datum.slice(0, 10)}.json`,
           inhaltstyp: 'application/fhir+json',
           groesseBytes: new TextEncoder().encode(text).length,
-          gespeichertAm: jetzt(z),
+          gespeichertAm: jetzt(),
           gespeichertVon: z.nutzer.name,
           inhalt: angabe.inhalt,
           notiz: null,
@@ -773,7 +774,7 @@ export const vorgaenge = {
             status: 'vorbereitet',
             freigabe: angabe.freigabe ?? 'freigegeben',
             hinweis: angabe.hinweis ?? null,
-            erstelltAm: jetzt(z),
+            erstelltAm: jetzt(),
             vorbereitetVon: z.nutzer.name,
             rezeptId: null,
             accessCode: null,
@@ -812,7 +813,7 @@ export const vorgaenge = {
                 rezeptId,
                 accessCode,
                 signiertVon: z.nutzer.name,
-                gesendetAm: jetzt(z),
+                gesendetAm: jetzt(),
               }
             : r,
         ),
@@ -827,7 +828,7 @@ export const vorgaenge = {
       anwenden: (z) => ({
         ...z,
         rezepte: z.rezepte.map((r) =>
-          r.id === id ? { ...r, status: 'geloescht', geloeschtAm: jetzt(z) } : r,
+          r.id === id ? { ...r, status: 'geloescht', geloeschtAm: jetzt() } : r,
         ),
       }),
     };
@@ -864,7 +865,7 @@ export const vorgaenge = {
             herkunft: {
               bestand: 'lokal',
               quelle: 'Hausarztpraxis am Stadtgarten',
-              zeitpunkt: jetzt(z),
+              zeitpunkt: jetzt(),
               verantwortlich: z.nutzer.name,
               dokumentId: null,
             },
@@ -904,7 +905,7 @@ export const vorgaenge = {
             herkunft: {
               bestand: 'epa',
               quelle,
-              zeitpunkt: jetzt(z),
+              zeitpunkt: jetzt(),
               verantwortlich: z.nutzer.name,
               dokumentId: epa.herkunft.dokumentId,
             },

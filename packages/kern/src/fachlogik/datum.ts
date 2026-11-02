@@ -47,19 +47,3 @@ export function deutscherZeitpunkt(isoZeitpunkt: string): string {
   if (isoZeitpunkt.length < 16) return deutschesDatum(isoZeitpunkt);
   return `${deutschesDatum(isoZeitpunkt.slice(0, 10))}, ${isoZeitpunkt.slice(11, 16)} Uhr`;
 }
-
-/**
- * Aktueller Zeitpunkt als ISO-Zeichenkette in **Ortszeit**.
- *
- * `toISOString()` liefert UTC. In einer Anwendung, die Zeitpunkte anzeigt und dabei die
- * Zeichenkette zerlegt, führt das zu Uhrzeiten, die um den Zeitzonenversatz danebenliegen —
- * in Deutschland um ein bis zwei Stunden. Der Fehler fällt erst auf, wenn jemand auf die Uhr
- * sieht, und ist dann schwer zuzuordnen.
- */
-export function jetztAlsIsoOrtszeit(zeitpunkt: Date = new Date()): string {
-  const zweistellig = (wert: number) => String(wert).padStart(2, '0');
-  return (
-    `${zeitpunkt.getFullYear()}-${zweistellig(zeitpunkt.getMonth() + 1)}-${zweistellig(zeitpunkt.getDate())}` +
-    `T${zweistellig(zeitpunkt.getHours())}:${zweistellig(zeitpunkt.getMinutes())}:${zweistellig(zeitpunkt.getSeconds())}`
-  );
-}

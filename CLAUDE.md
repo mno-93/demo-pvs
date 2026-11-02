@@ -56,8 +56,8 @@ Meldet die Prüfung einen Fund: Stelle umformulieren, nicht das Muster abschwäc
 
 - Der Simulator läuft auch im Browser (gehostete Fassung, ADR 0025): keine Node-only-APIs im
   Simulator außer über `packages/epa-sim/src/plattform.ts`; neue Wege in `wege.ts`.
-- Zeitpunkte über die Demo-Uhr (`DEMO_HEUTE`, `demoJetzt()`), nie direkt `new Date()` für
-  fachliche Daten.
+- Zeitpunkte über die Demo-Uhr des Kerns (`uhr.ts`: `demoZeitpunkt()`, `demoZeitpunktSekunden()`,
+  `demoJetzt()`), nie direkt `new Date()` für fachliche Daten (ADR 0049).
 - Fachliche Regeln im Kern (`packages/kern`) mit Tests. Abläufe, an denen die Aussage der Demo
   hängt, mit Oberflächentest.
 - Sprache: Oberfläche, Kommentare, Commits und Doku auf Deutsch; Bezeichner der Domäne deutsch,

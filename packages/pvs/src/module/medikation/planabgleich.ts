@@ -3,7 +3,7 @@ import {
   EMP_STATUS_CODE,
   automatischerAbgleich,
   chronikLesen,
-  jetztAlsIsoOrtszeit,
+  demoZeitpunktSekunden,
   planAbgleichen,
   type EmpStatus,
   type Ressource,
@@ -105,7 +105,7 @@ export function eindeutigesAbgleichen(patientId: string, plan: Medikationsplan):
     vorgaenge.planAbgleichen(
       patientId,
       plan.lesenachweis ?? '',
-      jetztAlsIsoOrtszeit(),
+      demoZeitpunktSekunden(),
       neu,
       uebernehmen,
     ),

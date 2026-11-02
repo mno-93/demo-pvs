@@ -4,7 +4,6 @@ import {
   deutscherZeitpunkt,
   deutschesDatum,
   gleichesQuartal,
-  jetztAlsIsoOrtszeit,
   quartalVon,
 } from './datum.js';
 
@@ -39,17 +38,9 @@ describe('Darstellung', () => {
     expect(deutschesDatum('2026-08-30')).toBe('30.08.2026');
     expect(deutschesDatum(null)).toBe('');
   });
-});
 
-describe('Zeitpunkt in Ortszeit', () => {
-  it('gibt die Ortszeit wieder, nicht UTC', () => {
-    // 09.09.2026, 14:45 Ortszeit. toISOString() läge je nach Zone daneben.
-    const zeitpunkt = new Date(2026, 8, 9, 14, 45, 30);
-    expect(jetztAlsIsoOrtszeit(zeitpunkt)).toBe('2026-09-09T14:45:30');
-    expect(deutscherZeitpunkt(jetztAlsIsoOrtszeit(zeitpunkt))).toBe('09.09.2026, 14:45 Uhr');
-  });
-
-  it('füllt einstellige Werte auf', () => {
-    expect(jetztAlsIsoOrtszeit(new Date(2026, 0, 5, 7, 3, 9))).toBe('2026-01-05T07:03:09');
+  it('setzt Zeitpunkte ohne Zone deutsch, mit Uhrzeit auf die Minute', () => {
+    expect(deutscherZeitpunkt('2026-09-09T14:45:30')).toBe('09.09.2026, 14:45 Uhr');
+    expect(deutscherZeitpunkt('2026-09-09')).toBe('09.09.2026');
   });
 });

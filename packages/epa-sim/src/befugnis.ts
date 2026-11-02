@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { demoJetzt } from '@demo-pvs/kern';
+import { demoJetzt, mitZeitzone, ortszeitDeutschland } from '@demo-pvs/kern';
 import { base64ZuText } from './plattform.ts';
 import { bestandVorhanden } from './bestand.ts';
 
@@ -56,14 +56,12 @@ export const EINRICHTUNGEN: Record<string, { anzeige: string; rolle: string; tag
 const befugnisse = new Map<string, Map<string, Befugnis>>();
 const verbrauchteNachweise = new Set<string>();
 
-/** Zeitpunkt mit Zeitzonenangabe, ohne Millisekunden (RFC 3339, wie `ValidToResponseType`). */
+/**
+ * Zeitpunkt mit Zeitzonenangabe, ohne Millisekunden (RFC 3339, wie `ValidToResponseType`): die
+ * deutsche Uhrzeit mit dem deutschen Versatz, gleich in welcher Zone der Rechner läuft.
+ */
 export function mitZone(d: Date): string {
-  const z = (n: number) => String(n).padStart(2, '0');
-  const versatz = -d.getTimezoneOffset();
-  const vorzeichen = versatz >= 0 ? '+' : '-';
-  const stunden = z(Math.floor(Math.abs(versatz) / 60));
-  const minuten = z(Math.abs(versatz) % 60);
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}${vorzeichen}${stunden}:${minuten}`;
+  return mitZeitzone(ortszeitDeutschland(d));
 }
 
 const BERLIN = 'Europe/Berlin';

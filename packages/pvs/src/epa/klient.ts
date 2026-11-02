@@ -2,6 +2,7 @@ import {
   ITI41_INHALTSTYP,
   PRAXIS_STAMMDATEN,
   PROFIL,
+  demoJetzt,
   neueKennung,
   praxisNachFhir,
   XDS_DOKUMENTENDIENST,
@@ -1105,7 +1106,7 @@ export function pruefungsnachweisBilden(kvnr: string): string {
       ? crypto.randomUUID()
       : String(Date.now());
   return btoa(
-    JSON.stringify({ kvnr, kennung, zeitpunkt: new Date().toISOString(), demo: 'ohne VSDM' }),
+    JSON.stringify({ kvnr, kennung, zeitpunkt: demoJetzt().toISOString(), demo: 'ohne VSDM' }),
   );
 }
 

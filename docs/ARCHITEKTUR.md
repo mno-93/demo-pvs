@@ -158,8 +158,11 @@ Beginn, Bezeichnung oder eigener Reihenfolge; `pvs/src/module/diagnosen/ordnung.
 Person und Liste im Zustand (`listenordnung`), `Splitscreen.tsx` stellt kompakte, aufklappbare
 Zeilen bereit — [0029](entscheidungen/0029-kompakte-listen-und-ordnung.md).
 
-**Demo-Uhr.** `DEMO_HEUTE` und `demoJetzt()` im Kern sind das „heute" beider Seiten: Zeitpunkte
-von Einträgen, Befugnisende und Ablaufprüfung rechnen damit, im PVS wie im Simulator.
+**Demo-Uhr.** `kern/src/uhr.ts` ist die einzige Quelle für „jetzt“ beider Seiten: Demo-Tag
+`DEMO_HEUTE` mit der Uhrzeit, die gerade in Deutschland gilt, unabhängig von der Zone des Rechners;
+streng steigend, über Mitternacht auf den nächsten Tag. Zeitpunkte von Einträgen, Befugnisende und
+Ablaufprüfung rechnen damit, im PVS wie im Simulator —
+[0049](entscheidungen/0049-eine-demo-uhr-im-kern.md).
 
 Der Ausbaustand ist Demo-Steuerung (`POST /verwaltung/betriebslage`). Im Release 3.1.3 antwortet
 der Dienst mit 404; das PVS erkennt das am CapabilityStatement und sagt es.

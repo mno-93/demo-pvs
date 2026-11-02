@@ -3,6 +3,7 @@ import {
   aenderungenSeit,
   anzahlAenderungen,
   chronikLesen,
+  demoZeitpunktSekunden,
   deutscherZeitpunkt,
   fassungsstandBilden,
   KEINE_AENDERUNGEN,
@@ -81,13 +82,11 @@ export function useSeitLetztemAufruf(
   );
   useEffect(() => {
     if (!eintraege) return;
-    const heute = lesen().heute;
-    const uhrzeit = new Date().toTimeString().slice(0, 8);
     ausfuehren(
       vorgaenge.epaGesehenMerken({
         patientId,
         sicht,
-        ...fassungsstandBilden(eintraege, `${heute}T${uhrzeit}`),
+        ...fassungsstandBilden(eintraege, demoZeitpunktSekunden()),
       }),
     );
   }, [eintraege, patientId, sicht]);

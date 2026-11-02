@@ -665,19 +665,19 @@ export function startbestandAufbauen(): void {
   befugnisErteilen(
     KVNR.hoffmann,
     KLINIKUM.telematikId,
-    new Date('2026-07-12T10:00:00'),
+    new Date('2026-07-12T10:00:00+02:00'),
     'Startbestand',
   );
   befugnisErteilen(
     KVNR.krueger,
     PRAXIS.telematikId,
-    new Date('2026-07-14T09:02:00'),
+    new Date('2026-07-14T09:02:00+02:00'),
     'Startbestand',
   );
   befugnisErteilen(
     KVNR.yildiz,
     PRAXIS.telematikId,
-    new Date('2026-07-02T08:40:00'),
+    new Date('2026-07-02T08:40:00+02:00'),
     'Startbestand',
   );
 

@@ -94,6 +94,7 @@ export function EpaZugang({
 }
 
 const UHRZEIT = new Intl.DateTimeFormat('de-DE', {
+  timeZone: 'Europe/Berlin',
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',

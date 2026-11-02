@@ -8,6 +8,7 @@ import {
   briefAusFhir,
   briefTextzeilen,
   kvnrAusPatientId,
+  ortszeitDeutschland,
   nachrichtIdLesen,
   provideAndRegisterLesen,
   registryResponseErzeugen,
@@ -136,12 +137,10 @@ function pruefen(e: GeleseneEinreichung, kvnr: string): XdsFehler[] {
   return fehler;
 }
 
-/** Die XDS-Metadaten tragen UTC; der Bestand der Demo führt Ortszeit ohne Zone (`jetzt()`). */
+/** Die XDS-Metadaten tragen UTC; der Bestand der Demo führt deutsche Ortszeit ohne Zone (`jetzt()`). */
 function ortszeit(iso: string): string {
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const z = (w: number) => String(w).padStart(2, '0');
-  return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+  return Number.isNaN(d.getTime()) ? iso : ortszeitDeutschland(d);
 }
 
 function alsDokument(d: GeleseneEinreichung['dokumente'][number]): Dokument {

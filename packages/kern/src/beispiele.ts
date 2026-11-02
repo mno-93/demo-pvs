@@ -8,22 +8,6 @@ import type { Befundangabe } from './fachlogik/laborbefund.js';
  * und über die ePA —, als ein und dasselbe Dokument.
  */
 
-/**
- * Der Tag, den Praxis und Aktensystem der Demo als „heute" führen. Beide schreiben Zeitpunkte
- * mit diesem Datum und der tatsächlichen Uhrzeit — so fallen Einträge der Praxis und der ePA in
- * denselben Besuch. Auch Befugnisse laufen nach dieser Uhr ab — sonst veraltete der Startbestand
- * mit dem Kalender.
- */
-export const DEMO_HEUTE = '2026-09-09';
-
-/** „Jetzt" der Demo: der Tag `DEMO_HEUTE` mit der tatsächlichen Uhrzeit. */
-export function demoJetzt(): Date {
-  const d = new Date();
-  const [jahr, monat, tag] = DEMO_HEUTE.split('-').map(Number);
-  d.setFullYear(jahr!, monat! - 1, tag!);
-  return d;
-}
-
 /** Frau Hoffmann: von der Vorbehandlung beauftragt, liegt nur in der ePA. */
 export const BEFUND_HOFFMANN: Befundangabe = {
   uuid: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6',

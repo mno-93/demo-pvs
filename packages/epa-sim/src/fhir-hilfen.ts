@@ -1,4 +1,4 @@
-import { DEMO_HEUTE, ohneZeitzone, vollUrl, type Ressource } from '@demo-pvs/kern';
+import { demoZeitpunkt, ohneZeitzone, vollUrl, type Ressource } from '@demo-pvs/kern';
 
 /** Hilfen für FHIR-Antworten und `Parameters`-Ressourcen. */
 
@@ -108,18 +108,13 @@ export function neueId(praefix: string): string {
 }
 
 /**
- * Zeitpunkt für Einträge: das Demo-Datum der Praxis (`DEMO_HEUTE`) mit der Ortszeit — so gehören
- * Einträge von Praxis und Akte zum selben Tag und damit zum selben Besuch.
+ * Zeitpunkt für Einträge nach der Demo-Uhr des Kerns (`demoZeitpunkt`): Demo-Tag und deutsche
+ * Uhrzeit, mit Millisekunden und streng steigend, wie in einem Aktensystem. Ein Lesezeichen aus
+ * einer Antwort darf nie mit einer späteren Änderung zusammenfallen (Abfrage „seit", ADR 0030).
  */
 export function jetzt(): string {
-  // Millisekunden und streng steigend, wie in einem Aktensystem: Ein Lesezeichen aus einer
-  // Antwort darf nie mit einer späteren Änderung zusammenfallen (Abfrage „seit", ADR 0030).
-  zuletzt = Math.max(Date.now(), zuletzt + 1);
-  const d = new Date(zuletzt);
-  const z = (w: number, n = 2) => String(w).padStart(n, '0');
-  return `${DEMO_HEUTE}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}.${z(d.getMilliseconds(), 3)}`;
+  return demoZeitpunkt();
 }
-let zuletzt = 0;
 
 /**
  * Prüft einen Zeitpunkt gegen FHIR-Datumsparameter (`gt`, `ge`, `lt`, `le`, `eq`; ohne Präfix

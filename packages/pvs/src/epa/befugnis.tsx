@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from 'react';
-import { demoJetzt, deutschesDatum, jetztAlsIsoOrtszeit } from '@demo-pvs/kern';
+import { demoJetzt, demoZeitpunktSekunden, deutschesDatum } from '@demo-pvs/kern';
 import { ausfuehren, lesen, useAuswahl } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import type { EpaBefugnis } from '../speicher/zustand.js';
@@ -91,7 +91,7 @@ export async function egkEinlesen(patientId: string): Promise<Einleseergebnis> {
   const kvnr = patient.versicherung.kvnr;
   try {
     const { validTo } = await befugnisRegistrieren(kvnr, pruefungsnachweisBilden(kvnr));
-    ausfuehren(vorgaenge.befugnisErhalten(patientId, validTo, jetztAlsIsoOrtszeit(demoJetzt())));
+    ausfuehren(vorgaenge.befugnisErhalten(patientId, validTo, demoZeitpunktSekunden()));
     // Mit der Befugnis gleicht das Praxissystem seinen Medikationsplan mit dem eMP ab (ADR 0046).
     void beimEinlesenAbgleichen(patientId);
     einlesungen += 1;

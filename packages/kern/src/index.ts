@@ -41,3 +41,4 @@ export * from './fhir/lesen.js';
 export * from './fhir/patient-summary.js';
 export * from './fhir/erezept.js';
 export * from './beispiele.js';
+export * from './uhr.js';

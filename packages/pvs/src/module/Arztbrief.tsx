@@ -8,8 +8,11 @@ import {
   base64AusBytes,
   briefAusFhir,
   briefPdfErzeugen,
+  demoJetzt,
+  demoZeitpunktSekunden,
   deutschesDatum,
   istKeineBekannteAllergie,
+  mitZeitzone,
   pdfSeitenLesen,
   uuidAlsOid,
   type Allergie,
@@ -127,7 +130,8 @@ function base64Utf8(text: string): string {
   return btoa(bin);
 }
 
-const zeitpunktJetzt = (heute: string) => `${heute}T${new Date().toTimeString().slice(0, 8)}`;
+/** Zeitpunkt nach der Demo-Uhr des Kerns. */
+const zeitpunktJetzt = () => demoZeitpunktSekunden();
 
 export function Arztbrief() {
   const patientId = usePatientId();
@@ -137,7 +141,7 @@ export function Arztbrief() {
   const kvnr = patient?.versicherung.kvnr ?? '';
   const befugt = istGueltig(useBefugnis(patientId));
 
-  const entwurf = useEntwurf(patientId, zeitpunktJetzt(heute));
+  const entwurf = useEntwurf(patientId, zeitpunktJetzt());
   const epaListen = useEpaListen(patient);
   const angebote = useBriefangebote(patientId, entwurf.beginn, epaListen.lage);
   const [pflegeziel, setzePflegeziel] = useState<Pflegeziel | null>(null);
@@ -195,7 +199,7 @@ export function Arztbrief() {
 
   function unterschreiben() {
     const uuid = crypto.randomUUID();
-    const zeitpunkt = zeitpunktJetzt(heute);
+    const zeitpunkt = zeitpunktJetzt();
     const a = angabe(zeitpunkt, uuid);
     if (!a) return;
     const bundle = arztbriefBauen(a);
@@ -222,7 +226,7 @@ export function Arztbrief() {
         kvnr,
         uniqueId: oidAusUuid(crypto.randomUUID()),
         quelle: QUELLE_OID,
-        zeitpunkt: new Date().toISOString(),
+        zeitpunkt: demoJetzt().toISOString(),
         autor: {
           person: nutzer.name,
           einrichtung: EINRICHTUNG.anzeige,
@@ -234,7 +238,7 @@ export function Arztbrief() {
             uniqueId: oidAusUuid(brief.uuid),
             titel,
             mimeType: 'application/fhir+json',
-            erstellt: new Date(brief.zeitpunkt).toISOString(),
+            erstellt: new Date(mitZeitzone(brief.zeitpunkt)).toISOString(),
             ...ARZTBRIEF_XDS,
             inhaltBase64: base64Utf8(JSON.stringify(brief.bundle)),
           },
@@ -261,7 +265,7 @@ export function Arztbrief() {
         von: PRAXIS_STAMMDATEN.kim,
         an: [empfaenger.kim],
         betreff: `Arztbrief — ${name}, geb. ${deutschesDatum(patient.geburtsdatum)}`,
-        datum: new Date().toISOString(),
+        datum: demoJetzt().toISOString(),
         nachrichtId: `${crypto.randomUUID()}@demo-pvs`,
         dienstkennung: KIM_DIENSTKENNUNG.arztbrief,
         sendersystem: SENDERSYSTEM,
@@ -411,7 +415,7 @@ export function Arztbrief() {
                 <button
                   type="button"
                   className="knopf rechts"
-                  onClick={() => entwurfVerwerfen(patientId, zeitpunktJetzt(heute))}
+                  onClick={() => entwurfVerwerfen(patientId, zeitpunktJetzt())}
                 >
                   Entwurf verwerfen
                 </button>
@@ -435,7 +439,7 @@ export function Arztbrief() {
               <button
                 type="button"
                 className="knopf rechts"
-                onClick={() => entwurfVerwerfen(patientId, zeitpunktJetzt(heute))}
+                onClick={() => entwurfVerwerfen(patientId, zeitpunktJetzt())}
               >
                 Neuer Brief
               </button>
