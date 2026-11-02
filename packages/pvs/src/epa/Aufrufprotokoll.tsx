@@ -161,7 +161,7 @@ export function Aufrufprotokoll() {
                 <option value="weiterentwicklung">
                   Weiterentwicklung 1 · ePA 3.2: Labor, Volltext, leere ePS
                 </option>
-                <option value="release-3.1.3">Release 3.1.3</option>
+                <option value="release-3.1.3">Release 3.1.3 · Medikation nach Ballot 3.2</option>
               </select>
             </div>
             {/* ✦ Die App der Versicherten gehört nicht ins Praxissystem — sie wird von hier aus

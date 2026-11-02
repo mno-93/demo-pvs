@@ -90,6 +90,13 @@ function versichertenzugang(anfrage: { headers: Record<string, unknown> }): stri
   return String(anfrage.headers['x-demo-versicherte'] ?? '');
 }
 
+/**
+ * Release-Angabe der Selbstauskunft: Basisdienste, MHD und XDS nach Release 3.1.3, der Medication
+ * Service in allen Stufen nach dem Ballot ePA 3.2 (ADR 0047).
+ */
+const RELEASE =
+  'ePA 3.1.3 · Medikation nach Ballot ePA 3.2 (de.gematik.epa.medication 1.4.0-ballot.1)';
+
 /** x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). */
 const USER_AGENT = /^[a-zA-Z0-9-]{1,20}\/[a-zA-Z0-9\-.]{1,15}$/;
 /**
@@ -129,7 +136,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
           operationOutcome(
             'error',
             'not-found',
-            `Diesen Dienst gibt es im Release 3.1.3 nicht. Er ist ein Vorschlag und antwortet erst ab dem Ausbaustand „Weiterentwicklung ${noetigeStufe}".`,
+            `Diesen Dienst gibt es im eingestellten Ausbaustand nicht. Er ist ein Vorschlag und antwortet erst ab „Weiterentwicklung ${noetigeStufe}".`,
           ),
         );
     }
@@ -353,14 +360,14 @@ export function wegeEinhaengen(app: SimAnwendung): void {
   app.get('/health', async () => ({
     dienst: 'ePA-Simulator',
     hinweis: 'Fiktiv. Keine Anbindung an die Telematikinfrastruktur.',
-    release: 'ePA 3.1.3',
+    release: RELEASE,
     betriebslage,
   }));
 
   /** Übersicht der Wege, jeweils mit ihrer Grundlage. */
   app.get('/', async () => ({
     dienst: 'ePA-Simulator',
-    release: 'ePA 3.1.3',
+    release: RELEASE,
     ausbaustand: betriebslage.ausbaustand,
     grundlagen: [
       'Konzept und OpenAPI ePA-Basic, Release 3.1.3',
@@ -408,7 +415,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       wege: [`POST ${KIM_WEG}`, `GET ${KIM_POSTAUSGANG}`],
     },
     mhd: [
-      `GET ${MHD_BASIS}/DocumentReference — ITI-67; _content (Volltext) ab Weiterentwicklung 1`,
+      `GET ${MHD_BASIS}/DocumentReference — ITI-67 mit den Suchparametern des Responders; _content (Volltext) ab Weiterentwicklung 1; unbekannte Parameter 400`,
       `GET ${MHD_BASIS}/metadata — CapabilityStatement mit den Suchparametern`,
       `GET ${MHD_ABRUF}/{entryUUID}.{Endung} — ITI-68`,
     ],
@@ -427,7 +434,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       .map((w) => `${MEDIKATION_BASIS}/${w}`)
       .concat([
         `GET/PUT ${RENDER_EINSTELLUNG} — Render API: Zwischenüberschriften im eMP`,
-        `${QUERY_BASIS}/{Typ}, /{id}, /{id}/_history, /{id}/_history/{vid} — Common Query API: Medication, MedicationRequest, MedicationDispense, MedicationStatement, Condition, Organization, Provenance`,
+        `${QUERY_BASIS}/{Typ}, /{Typ}/_history, /{id}, /{id}/_history, /{id}/_history/{vid} — Common Query API (nur GET, sonst 405): Medication, MedicationRequest, MedicationDispense, MedicationStatement, Condition, Organization; Provenance nur Suche und Lesen`,
       ]),
     vorschlaege: [
       {
@@ -476,9 +483,9 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       },
     ],
     nichtNachgebildet: [
-      'Einstellen von Dokumenten (XDS ITI-41, SOAP), XDS ITI-18 und ITI-43',
+      'XDS ITI-18 und ITI-43 (Suchen und Abrufen über XDS; dafür gibt es MHD)',
       'Operationen des E-Rezept-Fachdienstes am Medication Service ($provide-prescription-erp und Verwandte) als Schnittstelle — der Fachdienst-Ersatz ruft sie intern auf',
-      'Render API des Medication Service',
+      'Render API des Medication Service für eML und eMP als PDF/A und XHTML (die Einstellung der Zwischenüberschriften ist nachgebildet)',
       'Anmeldung (ID-Token, VAU), VSDM, QES und Signaturprüfung, PoPP, Befugnisse durch Versicherte, Widerspruch gegen einzelne Dokumente, Protokollierung',
     ],
     demoSteuerung: [

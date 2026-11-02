@@ -45,7 +45,8 @@ Daraus folgen drei Regeln, die beim Weiterbauen einzuhalten sind:
 
 ## Schnittstellen nach Release 3.1.3
 
-Der Simulator folgt den Implementation Guides des Release ePA 3.1.3 —
+Der Simulator folgt den Implementation Guides des Release ePA 3.1.3 — der Medication Service in
+allen Stufen dem Ballot ePA 3.2 (ADR 0047, 0054, 0055) —
 [0013](entscheidungen/0013-epa-zugriffe-nach-release-3-1-3.md),
 [0019](entscheidungen/0019-konformitaet-mit-den-implementation-guides.md). Dokumente über den
 MHD Service (`epa-sim/src/mhd.ts`: ITI-67 mit Volltext, ITI-68; in der Vorschau auf ePA 3.2 die
