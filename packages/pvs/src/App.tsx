@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ROLLE_BEZEICHNUNG } from '@demo-pvs/kern';
 import { ausfuehren, useZustand, zuruecksetzen } from './speicher/speicher.js';
@@ -22,7 +22,7 @@ import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
 import { protokollUmschalten, useProtokollSichtbar } from './epa/protokoll.js';
-import { aktensystemZuruecksetzen, klientZuruecksetzen } from './epa/klient.js';
+import { EpaFehler, aktensystemZuruecksetzen, klientZuruecksetzen } from './epa/klient.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
 
 /** Spezifikation, Entscheidungen und Anleitung der Demo — im öffentlichen Repository. */
@@ -97,6 +97,45 @@ export function App() {
   );
 }
 
+/**
+ * Praxis und Aktensystem gemeinsam zurücksetzen — sonst stünden in der ePA Einträge, die die
+ * Praxis nicht mehr kennt, und umgekehrt. Erst das Aktensystem: Scheitert es, bleibt auch die
+ * Praxis, wie sie war, und der Kopf meldet den Fehler.
+ */
+function ZuruecksetzenKnopf() {
+  const [lage, setzeLage] = useState<'bereit' | 'laeuft' | { fehler: string }>('bereit');
+  async function zuruecksetzenBeide() {
+    setzeLage('laeuft');
+    try {
+      await aktensystemZuruecksetzen();
+    } catch (f) {
+      setzeLage({ fehler: f instanceof EpaFehler ? f.diagnose : 'Aktensystem nicht erreichbar' });
+      return;
+    }
+    zuruecksetzen();
+    klientZuruecksetzen();
+    entwuerfeLeeren();
+    setzeLage('bereit');
+  }
+  return (
+    <>
+      {typeof lage === 'object' && (
+        <span className="marker fehler" role="alert">
+          Zurücksetzen fehlgeschlagen · {lage.fehler}
+        </span>
+      )}
+      <button
+        type="button"
+        className="knopf"
+        disabled={lage === 'laeuft'}
+        onClick={() => void zuruecksetzenBeide()}
+      >
+        {lage === 'laeuft' ? 'setzt zurück …' : 'Zurücksetzen'}
+      </button>
+    </>
+  );
+}
+
 function Kopf() {
   const nutzer = useZustand((z) => z.nutzer);
   const stapel = useStapelzahl();
@@ -149,20 +188,7 @@ function Kopf() {
           >
             Dokumentation ↗
           </a>
-          <button
-            type="button"
-            className="knopf"
-            onClick={() => {
-              // Praxis und Aktensystem gemeinsam: sonst stünden in der ePA Einträge, die die
-              // Praxis nicht mehr kennt, und umgekehrt.
-              zuruecksetzen();
-              klientZuruecksetzen();
-              entwuerfeLeeren();
-              void aktensystemZuruecksetzen().catch(() => undefined);
-            }}
-          >
-            Zurücksetzen
-          </button>
+          <ZuruecksetzenKnopf />
         </div>
       </div>
 
