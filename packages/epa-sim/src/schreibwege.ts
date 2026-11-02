@@ -209,6 +209,13 @@ export function fassungenSichern(ablage: Ressource[], verweise: readonly string[
   }
 }
 
+/** Kennungen aller Instanzen eines Typs mit gesicherten Fassungen — auch gelöschter. */
+export function archivierteKennungen(ablage: Ressource[], typ: string): string[] {
+  return [...archivVon(ablage).keys()]
+    .filter((k) => k.startsWith(`${typ}/`))
+    .map((k) => k.slice(typ.length + 1));
+}
+
 /** Alle gesicherten Fassungen einer Instanz, älteste zuerst. */
 export function fassungen(ablage: Ressource[], typ: string, id: string): Ressource[] {
   return [...(archivVon(ablage).get(`${typ}/${id}`) ?? [])].sort((x, y) => version(x) - version(y));

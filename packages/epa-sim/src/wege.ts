@@ -90,11 +90,15 @@ function versichertenzugang(anfrage: { headers: Record<string, unknown> }): stri
   return String(anfrage.headers['x-demo-versicherte'] ?? '');
 }
 
-/**
- * x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). Der Medication
- * Service verlangt eine ClientId von genau 20 Zeichen (CapabilityStatement, IG 1.3.5).
- */
+/** x-useragent: ClientId und Version (OpenAPI ePA-Basic 3.1.3, `UserAgentType`). */
 const USER_AGENT = /^[a-zA-Z0-9-]{1,20}\/[a-zA-Z0-9\-.]{1,15}$/;
+/**
+ * Der Medication Service verlangt eine ClientId aus genau 20 Buchstaben und Ziffern
+ * (CapabilityStatement `epa-medication-service-server` 1.4.0-ballot.1).
+ */
+const USER_AGENT_MEDIKATION = /^[a-zA-Z0-9]{20}\/[a-zA-Z0-9\-.]{1,15}$/;
+/** x-insurantid: KVNR (OpenAPI ePA-Basic 3.1.3, `InsurantIdType`). */
+const KVNR_FORMAT = /^[A-Z]\d{9}$/;
 
 /** Fehlerkörper der Basisdienste und für `notEntitled` (OpenAPI: `ErrorType`). */
 function fehler(errorCode: string, errorDetail: string) {
@@ -133,7 +137,11 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     // Kontaktauskunft: Ein Verzeichnis braucht keine Akte.
     if (pfad.endsWith('/metadata') || pfad.startsWith(KONTAKT_BASIS)) return;
 
-    if (!USER_AGENT.test(String(anfrage.headers['x-useragent'] ?? ''))) {
+    const agent = String(anfrage.headers['x-useragent'] ?? '');
+    if (
+      !USER_AGENT.test(agent) ||
+      (pfad.startsWith('/epa/medication/') && !USER_AGENT_MEDIKATION.test(agent))
+    ) {
       return antwort
         .code(400)
         .send(
@@ -160,6 +168,11 @@ export function wegeEinhaengen(app: SimAnwendung): void {
         .send(
           fehler('malformedRequest', 'Die Kopfzeile x-insurantid fehlt. Sie adressiert die Akte.'),
         );
+    }
+    if (!KVNR_FORMAT.test(kvnr)) {
+      return antwort
+        .code(400)
+        .send(fehler('malformedRequest', 'Die Kopfzeile x-insurantid ist keine KVNR.'));
     }
     if (!bestandVorhanden(kvnr)) {
       return antwort.code(404).send(fehler('noHealthRecord', `Für ${kvnr} besteht keine Akte.`));
@@ -483,6 +496,19 @@ export function wegeEinhaengen(app: SimAnwendung): void {
   }));
 
   app.nichtGefunden(async (anfrage, antwort) => {
+    // Common Query API: nur GET; jede andere Methode 405 (IG-EPA01205PWT).
+    if (anfrage.url.startsWith(`${QUERY_BASIS}/`) && anfrage.method !== 'GET') {
+      await antwort
+        .code(405)
+        .send(
+          operationOutcome(
+            'error',
+            'not-supported',
+            `Die Common Query API erlaubt nur GET, nicht ${anfrage.method}.`,
+          ),
+        );
+      return;
+    }
     await antwort
       .code(404)
       .send(

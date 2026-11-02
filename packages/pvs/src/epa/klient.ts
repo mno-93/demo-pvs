@@ -168,6 +168,11 @@ interface Anfrage {
   zusatz?: Record<string, string>;
   /** Ein Körper, der kein JSON ist — SOAP oder eine Mail —, mit seinem Inhaltstyp. */
   roh?: { inhaltstyp: string; text: string };
+  /**
+   * Fehlercodes, die nur „nichts da“ heißen, etwa 404 `MSG_NO_MATCH` (1.4.0). Das Protokoll führt
+   * sie nicht als Fehler; der Aufrufer fängt sie ab.
+   */
+  leerBei?: readonly string[];
 }
 
 interface Antwort<T> {
@@ -212,6 +217,7 @@ async function senden<T>({
   datei = false,
   zusatz = {},
   roh,
+  leerBei = [],
 }: Anfrage): Promise<Antwort<T>> {
   if (roh) return rohSenden<T>({ methode, pfad, kvnr, grundlage, zusatz, roh });
   const beginn = performance.now();
@@ -290,7 +296,8 @@ async function senden<T>({
       inhalt?.errorDetail ??
       `Die ePA antwortete mit ${antwort.status}.`;
     const diagnose = code ? `${code}: ${text}` : text;
-    notieren(antwort.status, diagnose.slice(0, 90), diagnose);
+    if (code && leerBei.includes(code)) notieren(antwort.status, `kein Treffer (${code})`, null);
+    else notieren(antwort.status, diagnose.slice(0, 90), diagnose);
     const fehler = new EpaFehler(antwort.status, diagnose, code);
     if (fehler.ohneBefugnis && kvnr) befugnisFehlt(kvnr);
     throw fehler;
@@ -516,15 +523,32 @@ export interface Medikationsliste {
   eintraege: Ressource[];
   /** Arzneimittel, Verordnungen, Abgaben, Änderungseinträge, Organisationen. */
   einschluesse: Ressource[];
+  /** Zeitpunkt des Aktensystems beim Abruf; leer, wenn die Liste leer ist. */
+  abgerufen?: string;
 }
 
+/** Ist der Fehler die Antwort „nichts da“ des Medication Service (1.4.0)? */
+const leer = (f: unknown, code: string) =>
+  f instanceof EpaFehler && f.status === 404 && f.code === code;
+
 export async function medikationslisteLesen(kvnr: string): Promise<Medikationsliste> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MEDIKATION}/$medication-list`,
-    kvnr,
-    grundlage: GRUNDLAGE.eml,
-  });
-  return { eintraege: treffer(inhalt), einschluesse: eingeschlossen(inhalt) };
+  try {
+    const { inhalt } = await anfragen<Bundle>({
+      pfad: `${MEDIKATION}/$medication-list`,
+      kvnr,
+      grundlage: GRUNDLAGE.eml,
+      leerBei: ['MSG_NO_MATCH'],
+    });
+    return {
+      eintraege: treffer(inhalt),
+      einschluesse: eingeschlossen(inhalt),
+      abgerufen: serverzeit(inhalt),
+    };
+  } catch (f) {
+    // Ohne Treffer antwortet der Dienst 404 MSG_NO_MATCH (IG-MED16217P4A): eine leere Liste.
+    if (leer(f, 'MSG_NO_MATCH')) return { eintraege: [], einschluesse: [], abgerufen: '' };
+    throw f;
+  }
 }
 
 export interface Medikationsplan {
@@ -542,13 +566,24 @@ export async function medikationsplanLesen(
   kvnr: string,
   frueherenStand?: string,
 ): Promise<Medikationsplan> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: frueherenStand
-      ? `${MEDIKATION}/$medication-plan?provenance=${encodeURIComponent(frueherenStand)}`
-      : `${MEDIKATION}/$medication-plan`,
-    kvnr,
-    grundlage: frueherenStand ? GRUNDLAGE.empFrueher : GRUNDLAGE.emp,
-  });
+  let inhalt: Bundle;
+  try {
+    inhalt = (
+      await anfragen<Bundle>({
+        pfad: frueherenStand
+          ? `${MEDIKATION}/$medication-plan?provenance=${encodeURIComponent(frueherenStand)}`
+          : `${MEDIKATION}/$medication-plan`,
+        kvnr,
+        grundlage: frueherenStand ? GRUNDLAGE.empFrueher : GRUNDLAGE.emp,
+        leerBei: ['MEDSVC_EMP_NO_EXIST'],
+      })
+    ).inhalt;
+  } catch (f) {
+    // Noch kein eMP: 404 MEDSVC_EMP_NO_EXIST (IG-MED35894UP4) — ein leerer Plan ohne Lesenachweis.
+    if (!frueherenStand && leer(f, 'MEDSVC_EMP_NO_EXIST'))
+      return { lesenachweis: null, stand: '', abgerufen: '', eintraege: [], ressourcen: [] };
+    throw f;
+  }
   const alle = (inhalt.entry ?? []).map((e) => e.resource);
   const chronologie = alle.find(
     (r) =>
@@ -617,12 +652,18 @@ export async function planaenderungenSeit(
 
 /** Einträge der Medikationsliste seit dem Lesezeichen (`date`). */
 export async function medikationslisteSeit(kvnr: string, seit: string): Promise<string[]> {
-  const { inhalt } = await anfragen<Bundle>({
-    pfad: `${MEDIKATION}/$medication-list?date=gt${encodeURIComponent(seit)}`,
-    kvnr,
-    grundlage: GRUNDLAGE.emlSeit,
-  });
-  return treffer(inhalt).map((r) => String(r.id));
+  try {
+    const { inhalt } = await anfragen<Bundle>({
+      pfad: `${MEDIKATION}/$medication-list?date=gt${encodeURIComponent(seit)}`,
+      kvnr,
+      grundlage: GRUNDLAGE.emlSeit,
+      leerBei: ['MSG_NO_MATCH'],
+    });
+    return treffer(inhalt).map((r) => String(r.id));
+  } catch (f) {
+    if (leer(f, 'MSG_NO_MATCH')) return [];
+    throw f;
+  }
 }
 
 /** Nur der neueste Chronologieeintrag — für die Frage „hat sich etwas geändert?". */

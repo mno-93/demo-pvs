@@ -307,6 +307,153 @@ describe('Common Query API — Suchparameter nach dem CapabilityStatement', () =
   });
 });
 
+describe('Medication Service 1.4.0 — Lesen nach der Geschäftslogik', () => {
+  type Seite = {
+    entry?: { resource: Record<string, unknown> }[];
+    link?: { relation: string; url: string }[];
+  };
+  const bezug = (r: Record<string, unknown>) =>
+    String(
+      r['effectiveDateTime'] ??
+        (r['effectivePeriod'] as { start?: string } | undefined)?.start ??
+        (r['meta'] as { lastUpdated?: string } | undefined)?.lastUpdated ??
+        '',
+    );
+
+  it('$medication-list: absteigend, die Person zuerst, mit Seitenverweisen; leer 404', async () => {
+    const a = await lesen(`${MS}/$medication-list?_count=2`);
+    const seite = a.json() as Seite;
+    expect(seite.entry![0]!.resource['resourceType']).toBe('Patient');
+    const aussagen = seite
+      .entry!.map((e) => e.resource)
+      .filter((r) => r['resourceType'] === 'MedicationStatement');
+    expect(aussagen).toHaveLength(2);
+    const daten = aussagen.map(bezug);
+    expect([...daten].sort().reverse()).toEqual(daten);
+    expect(seite.link!.map((l) => l.relation)).toEqual(['self', 'next']);
+    // Die zweite Seite trägt die Person nicht noch einmal.
+    const weiter = (await lesen(`${MS}/$medication-list?_count=2&_offset=2`)).json() as Seite;
+    expect(weiter.entry!.some((e) => e.resource['resourceType'] === 'Patient')).toBe(false);
+
+    const leer = await lesen(`${MS}/$medication-list?date=gt2099-01-01`);
+    expect([leer.statusCode, detail(leer)]).toEqual([404, 'MSG_NO_MATCH']);
+    const ungefaehr = await lesen(`${MS}/$medication-list?date=ap2026-07-18`);
+    expect([ungefaehr.statusCode, detail(ungefaehr)]).toEqual([400, 'MSG_BAD_SYNTAX']);
+    const doppelt = await lesen(`${MS}/$medication-list?_count=1&_count=2`);
+    expect([doppelt.statusCode, detail(doppelt)]).toEqual([400, 'MSG_BAD_SYNTAX']);
+    // `ne`: Alle Einträge des Startbestands beginnen am 18.07.2026.
+    const nicht = await lesen(`${MS}/$medication-list?date=ne2026-07-18`);
+    expect([nicht.statusCode, detail(nicht)]).toEqual([404, 'MSG_NO_MATCH']);
+    const anderer = (await lesen(`${MS}/$medication-list?date=ne2026-07-19`)).json() as Seite & {
+      total?: number;
+    };
+    expect(anderer.total).toBe((a.json() as Seite & { total?: number }).total);
+  });
+
+  it('$medication-plan: Einträge nach authoredOn; unbekannter Stand MSG_RESOURCE_ID_FAIL', async () => {
+    const plan = (await lesen(`${MS}/$medication-plan`)).json() as Seite;
+    const eintraege = plan
+      .entry!.map((e) => e.resource)
+      .filter((r) => r['resourceType'] === 'MedicationRequest' && r['intent'] === 'plan');
+    const reihenfolge = eintraege.map((r) => `${String(r['authoredOn'])}|${String(r['id'])}`);
+    expect([...reihenfolge].sort()).toEqual(reihenfolge);
+    const unbekannt = await lesen(`${MS}/$medication-plan?provenance=gibt-es-nicht`);
+    expect([unbekannt.statusCode, detail(unbekannt)]).toEqual([404, 'MSG_RESOURCE_ID_FAIL']);
+  });
+
+  it('$medication-plan ohne eMP: 404 MEDSVC_EMP_NO_EXIST', async () => {
+    const KRUEGER = 'K876543217';
+    // Herr Krüger widerspricht im Startbestand; ohne Widerspruch hat er eine Akte ohne eMP.
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/akte',
+      headers: { 'content-type': 'application/json' },
+      payload: { kvnr: KRUEGER, medication: 'permit' },
+    });
+    befugnisErteilen(KRUEGER, PRAXIS, new Date(), 'eGK');
+    const a = (await app.inject({
+      method: 'GET',
+      url: `${MS}/$medication-plan`,
+      headers: { ...kopf(), 'x-insurantid': KRUEGER },
+    })) as Antwort;
+    expect([a.statusCode, detail(a)]).toEqual([404, 'MEDSVC_EMP_NO_EXIST']);
+  });
+
+  it('prüft x-useragent nach dem CapabilityStatement und x-insurantid nach dem Format', async () => {
+    const kurz = await app.inject({
+      method: 'GET',
+      url: `${MS}/$medication-list`,
+      headers: { ...kopf(), 'x-useragent': 'DEMO-PVS/0.4.0' },
+    });
+    expect(kurz.statusCode).toBe(400);
+    const keineKvnr = await app.inject({
+      method: 'GET',
+      url: `${MS}/$medication-list`,
+      headers: { ...kopf(), 'x-insurantid': 'a12345678' },
+    });
+    expect(keineKvnr.statusCode).toBe(400);
+  });
+});
+
+describe('Common Query API — Lesen, Historie, Sortierung', () => {
+  it('sortiert nach _lastUpdated absteigend', async () => {
+    const a = (await lesen(`${QUERY}/MedicationRequest`)).json();
+    const zeiten = a.entry!.map((e) =>
+      String((e.resource['meta'] as { lastUpdated?: string }).lastUpdated),
+    );
+    expect([...zeiten].sort().reverse()).toEqual(zeiten);
+  });
+
+  it('antwortet für gelöschte Instanzen 410 und behält ihre Historie; Nicht-GET 405', async () => {
+    const nachtrag = await post(`${MS}/MedicationStatement/$add-eml-entry`, [
+      {
+        name: 'medicationStatement',
+        resource: {
+          resourceType: 'MedicationStatement',
+          status: 'unknown',
+          medicationReference: { reference: 'Medication/nachtrag-2' },
+          subject: { identifier: { system: 'http://fhir.de/sid/gkv/kvid-10', value: HOFFMANN } },
+          dosage: [{ text: 'nach Bedarf' }],
+          extension: [
+            {
+              url: 'http://hl7.org/fhir/5.0/StructureDefinition/extension-MedicationStatement.renderedDosageInstruction',
+              valueMarkdown: 'nach Bedarf',
+            },
+          ],
+        },
+      },
+      {
+        name: 'medication',
+        resource: {
+          resourceType: 'Medication',
+          id: 'nachtrag-2',
+          status: 'active',
+          code: { coding: [{ system: ATC, version: '2026', code: 'N02BE01' }] },
+        },
+      },
+    ]);
+    const id = String(
+      nachtrag.json().parameter!.find((p) => p.name === 'medicationStatement')!.resource!['id'],
+    );
+    await post(`${MS}/MedicationStatement/${id}/$cancel-eml-entry`, []);
+    const gelesen = await lesen(`${QUERY}/MedicationStatement/${id}`);
+    expect([gelesen.statusCode, detail(gelesen)]).toEqual([410, 'MSG_DELETED']);
+    const historie = await lesen(`${QUERY}/MedicationStatement/${id}/_history`);
+    expect(historie.statusCode).toBe(200);
+    expect(historie.json().entry!.length).toBeGreaterThan(0);
+    // history-type: alle Fassungen aller Instanzen, auch der gelöschten.
+    const typ = (await lesen(`${QUERY}/MedicationStatement/_history`)).json();
+    expect(typ.entry!.some((e) => e.resource['id'] === id)).toBe(true);
+    const schreiben = await app.inject({
+      method: 'POST',
+      url: `${QUERY}/MedicationStatement`,
+      headers: kopf(),
+      payload: { resourceType: 'MedicationStatement' },
+    });
+    expect(schreiben.statusCode).toBe(405);
+  });
+});
+
 describe('Selbstprüfung gegen die Profilregeln', () => {
   it('der Startbestand des Medication Service erfüllt die Profile, die er nennt', async () => {
     const { alleBestaende } = await import('./bestand.ts');

@@ -52,5 +52,7 @@ meldete an mehreren Stellen eigene oder ältere Codes.
 
 ⚠ Nicht geprüft: Slices (etwa einzelne Extensions eines Profils), Typ- und Profilangaben von
 Verweisen, Wertelisten außerhalb der Pakete (UCUM, Sprachen, große Kataloge), Formate primitiver
-Datentypen, `_sort` und `_include`. Die Codes `MSG_NO_MATCH` und `MSG_BAD_FORMAT` nennt der IG
-ohne Bedingung; die Demo meldet sie nicht.
+Datentypen, `_sort` und `_include`. ~~Die Codes `MSG_NO_MATCH` und `MSG_BAD_FORMAT` nennt der IG
+ohne Bedingung; die Demo meldet sie nicht.~~ Berichtigt am 02.11.2026: `MSG_NO_MATCH` hat eine
+Bedingung — 404 bei leerem Ergebnis (CapabilityStatement, IG-MED16217P4A); die Demo meldet ihn
+seitdem. Für `MSG_BAD_FORMAT` ist keine Bedingung erkennbar ⚠; die Demo meldet ihn nicht.

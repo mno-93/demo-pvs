@@ -177,8 +177,9 @@ export const SUCHPARAMETER: Record<string, Record<string, Parameter>> = {
 };
 
 const ERGEBNIS = new Set(['_count', '_offset', '_format']);
+// `ap` („ungefähr“) wertet die Demo nicht aus: 400 statt eines stillen Fehltreffers.
 const DATUM =
-  /^(eq|ne|gt|lt|ge|le|sa|eb|ap)?\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
+  /^(eq|ne|gt|lt|ge|le|sa|eb)?\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
 
 export type Suchfehler = { art: 'unbekannt' | 'syntax'; text: string };
 

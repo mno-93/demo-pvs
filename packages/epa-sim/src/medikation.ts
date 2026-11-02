@@ -36,6 +36,7 @@ import {
 import {
   aktivitaetAnlegen,
   archivSichern,
+  archivierteKennungen,
   archivWiederherstellen,
   fassung,
   fassungZum,
@@ -140,6 +141,11 @@ const MSG = {
     display: 'Unknown search parameter',
   },
   syntax: { system: HL7_OO, code: 'MSG_BAD_SYNTAX', display: 'Invalid query parameter(s)' },
+  keinTreffer: {
+    system: HL7_OO,
+    code: 'MSG_NO_MATCH',
+    display: 'No Resource found matching the query',
+  },
 } satisfies Record<string, Detailcode>;
 
 /** Antwort mit Detailcode; `code` ist der Issue-Typ nach FHIR. */
@@ -161,9 +167,15 @@ function operationsparameterAbweisen(
   anfrage: { query: unknown },
   erlaubt: Record<string, RegExp>,
   antwort: SimAntwort,
+  /** Höchstzahl je Parameter nach der OperationDefinition (`max`); sonst 1. */
+  hoechstens: Record<string, number> = {},
 ): boolean {
   for (const [name, werte] of Object.entries(anfrage.query as Record<string, unknown>)) {
     const muster = erlaubt[name];
+    if (muster && ([] as unknown[]).concat(werte).length > (hoechstens[name] ?? 1)) {
+      void melden(antwort, 400, 'invalid', `Zu viele Werte für ${name}`, MSG.syntax);
+      return true;
+    }
     if (!muster) {
       void melden(
         antwort,
@@ -182,8 +194,47 @@ function operationsparameterAbweisen(
   return false;
 }
 const ZAHL = /^\d+$/;
+/** Datum mit den Präfixen, die `imZeitraum` auswertet; `ap` ergibt 400 statt eines stillen Fehltreffers. */
 const DATUMSWERT =
-  /^(eq|ne|gt|lt|ge|le|sa|eb|ap)?\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
+  /^(eq|ne|gt|lt|ge|le|sa|eb)?\d{4}(-\d{2}(-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?)?)?$/;
+
+/** Datumsbezug eines eML-Eintrags (1.4.0): `effectiveDateTime`, Beginn von `effectivePeriod`, sonst `meta.lastUpdated`. */
+function bezugsdatum(r: Ressource): string {
+  return String(
+    r['effectiveDateTime'] ??
+      (r['effectivePeriod'] as { start?: string } | undefined)?.start ??
+      r.meta?.lastUpdated ??
+      '',
+  );
+}
+
+/** Absteigend nach Datumsbezug, dann nach `meta.lastUpdated` (IG-MED03188C0X). */
+function nachBezugsdatum(a: Ressource, b: Ressource): number {
+  return (
+    bezugsdatum(b).localeCompare(bezugsdatum(a)) ||
+    String(b.meta?.lastUpdated ?? '').localeCompare(String(a.meta?.lastUpdated ?? ''))
+  );
+}
+
+/** Seite eines Suchergebnisses mit `self` und, wenn es weitergeht, `next` (FHIR Paging). */
+function seitenverweise(
+  anfrage: { url: string },
+  ab: number,
+  anzahl: number,
+  gesamt: number,
+): { relation: string; url: string }[] {
+  const adresse = (offset: number) => {
+    const [pfad, suche = ''] = anfrage.url.split('?');
+    const p = new URLSearchParams(suche);
+    p.set('_offset', String(offset));
+    p.set('_count', String(anzahl));
+    return `${String(pfad)}?${p.toString()}`;
+  };
+  return [
+    { relation: 'self', url: adresse(ab) },
+    ...(ab + anzahl < gesamt ? [{ relation: 'next', url: adresse(ab + anzahl) }] : []),
+  ];
+}
 
 /** Verknüpfung eines eML-Eintrags mit seinem eMP-Eintrag: `basedOn` mit `isEMP` (1.4.0). */
 export function empVerweis(id: string) {
@@ -578,12 +629,13 @@ export function medikationEinhaengen(
         // Das abgegebene Arzneimittel kann vom verordneten abweichen (Austausch).
         if (quelle) nimm(finden(kvnr, 'Medication', referenzId(quelle['medicationReference'])));
       }
+      // Änderungseinträge, die auf genau diese Fassung zeigen (IG-MED98416U4Q).
       for (const p of alle.filter(
         (r) =>
           r.resourceType === 'Provenance' &&
           !istChronologie(r, EMP) &&
-          (r['target'] as { reference: string }[]).some((t) =>
-            t.reference.startsWith(`MedicationStatement/${String(a.id)}/`),
+          (r['target'] as { reference: string }[]).some(
+            (t) => t.reference === versionierterVerweis(a),
           ),
       )) {
         nimm(p);
@@ -593,13 +645,18 @@ export function medikationEinhaengen(
     return dazu;
   }
 
-  /** eML — `$medication-list`: nicht stornierte Medikationsinformationen, optional nach Datum. */
+  /**
+   * eML — `$medication-list`: nicht stornierte Medikationsinformationen, optional nach Datum;
+   * absteigend nach Datumsbezug (IG-MED03188C0X), die Person als erstes Element der ersten Seite
+   * (IG-MED25360QCP); ohne Treffer 404 `MSG_NO_MATCH` (IG-MED16217P4A).
+   */
   app.get(`${b}/$medication-list`, async (anfrage, antwort) => {
     if (
       operationsparameterAbweisen(
         anfrage,
         { date: DATUMSWERT, _count: ZAHL, _offset: ZAHL },
         antwort,
+        { date: 2 },
       )
     )
       return antwort;
@@ -607,27 +664,44 @@ export function medikationEinhaengen(
     const q = anfrage.query as Record<string, string | string[] | undefined>;
     // `date` (0..2, Ober- und Untergrenze) — auch für „neu seit dem letzten Aufruf".
     // ⚠ „neu seit" trifft damit nur neue Einnahmezeiträume, keine späteren Nachträge zu alten.
-    const aussagen = ablage(kvnr).filter(
-      (r) =>
-        r.resourceType === 'MedicationStatement' &&
-        r['status'] !== 'entered-in-error' &&
-        // 1.4.0: effectiveDateTime, sonst Beginn von effectivePeriod, sonst meta.lastUpdated.
-        imZeitraum(
-          String(
-            r['effectiveDateTime'] ??
-              (r['effectivePeriod'] as { start?: string } | undefined)?.start ??
-              r.meta?.lastUpdated ??
-              '',
-          ),
-          q['date'],
-        ),
-    );
+    const aussagen = ablage(kvnr)
+      .filter(
+        (r) =>
+          r.resourceType === 'MedicationStatement' &&
+          r['status'] !== 'entered-in-error' &&
+          imZeitraum(bezugsdatum(r), q['date']),
+      )
+      .sort(nachBezugsdatum);
+    if (aussagen.length === 0)
+      return melden(
+        antwort,
+        404,
+        'not-found',
+        'Keine Medikationsinformation zur Anfrage.',
+        MSG.keinTreffer,
+      );
     const q2 = anfrage.query as Record<string, string | undefined>;
     const ab = Number(q2['_offset'] ?? 0);
-    const seite = aussagen.slice(ab, ab + Number(q2['_count'] ?? aussagen.length));
+    const anzahl = Number(q2['_count'] ?? aussagen.length);
+    const seite = aussagen.slice(ab, ab + anzahl);
+    const ergebnis = suchergebnis(seite, einschluesse(kvnr, seite));
     return {
-      ...suchergebnis(seite, [patientFuer(kvnr), ...einschluesse(kvnr, seite)]),
+      ...ergebnis,
       total: aussagen.length,
+      link: seitenverweise(anfrage, ab, Math.max(anzahl, 1), aussagen.length),
+      // Die Person steht als erstes Element der ersten Seite.
+      entry: [
+        ...(ab === 0
+          ? [
+              {
+                fullUrl: vollUrl(patientFuer(kvnr)),
+                resource: patientFuer(kvnr),
+                search: { mode: 'include' },
+              },
+            ]
+          : []),
+        ...ergebnis.entry,
+      ],
     };
   });
 
@@ -644,28 +718,38 @@ export function medikationEinhaengen(
     const chronologie = gewuenscht
       ? ablage(kvnr).find((r) => istChronologie(r, EMP) && r.id === gewuenscht)
       : aktuelleChronologie(ablage(kvnr), EMP);
-    if (gewuenscht && !chronologie) {
+    // Unbekannter Stand: 404 MSG_RESOURCE_ID_FAIL (IG-MED14428K6S); noch kein eMP: 404
+    // MEDSVC_EMP_NO_EXIST (IG-MED35894UP4).
+    if (gewuenscht && !chronologie)
+      return melden(antwort, 404, 'not-found', `Kein eMP-Stand ${gewuenscht}.`, MSG.unbekannt);
+    if (!chronologie)
       return fehlt(
         antwort,
         'MEDSVC_EMP_NO_EXIST',
         'eMP does not exist',
-        `Kein eMP-Stand ${gewuenscht}.`,
+        'Es gibt noch keinen eMP.',
       );
-    }
     // 1.4.0 (IG-MED04510JHX): alle Instanzen in der Fassung zum Bezugszeitpunkt — `recorded`
     // des Chronologieeintrags, sonst der Zeitpunkt der Anfrage.
     const bezug = gewuenscht ? String(chronologie?.['recorded'] ?? jetzt()) : jetzt();
     const zumBezug = (typ: string, id: string) =>
       fassungZum(ablage(kvnr), typ, id, bezug) ?? finden(kvnr, typ, id);
-    const eintraege = ((chronologie?.['target'] as { reference: string }[] | undefined) ?? [])
+    // Einträge nach authoredOn aufsteigend, dann nach Kennung (IG-MED07144WB0).
+    const eintraege = ((chronologie['target'] as { reference?: string }[] | undefined) ?? [])
+      .filter((t) => !!t.reference)
       .map((t) => {
-        const [typ, id, , v] = t.reference.split('/');
+        const [typ, id, , v] = String(t.reference).split('/');
         return (
           (v ? fassung(ablage(kvnr), String(typ), String(id), v) : undefined) ??
           finden(kvnr, String(typ), String(id))
         );
       })
-      .filter((r): r is Ressource => !!r);
+      .filter((r): r is Ressource => !!r)
+      .sort(
+        (x, y) =>
+          String(x['authoredOn'] ?? '').localeCompare(String(y['authoredOn'] ?? '')) ||
+          String(x.id).localeCompare(String(y.id)),
+      );
     const dazu: Ressource[] = [];
     const nimm = (r: Ressource | undefined) => {
       if (r && !dazu.some((x) => x.resourceType === r.resourceType && x.id === r.id)) dazu.push(r);
@@ -674,18 +758,20 @@ export function medikationEinhaengen(
       nimm(zumBezug('Medication', referenzId(e['medicationReference'])));
       for (const v of (e['reasonReference'] as { reference?: string }[] | undefined) ?? [])
         nimm(zumBezug('Condition', referenzId(v)));
-      for (const a of (
-        (e.extension ?? []) as {
-          url: string;
-          extension?: { url: string; valueReference?: unknown }[];
-        }[]
-      ).filter((x) => x.url === EXT.aktivitaet)) {
-        nimm(
-          zumBezug(
-            'MedicationStatement',
-            referenzId(a.extension?.find((y) => y.url === 'reference')?.valueReference),
-          ),
-        );
+      // Über `activity` die jüngste Medikationsinformation (nach Datumsbezug) mit Verordnung,
+      // Abgabe und deren Arzneimitteln (IG-MED77392SBV, IG-MED49768SWR).
+      const juengste = aktivitaetsverweise(e)
+        .map((id) => zumBezug('MedicationStatement', id))
+        .filter((r): r is Ressource => !!r)
+        .sort(nachBezugsdatum)[0];
+      if (juengste) {
+        nimm(juengste);
+        for (const q of (juengste['derivedFrom'] as { reference?: string }[] | undefined) ?? []) {
+          const [typ, id] = String(q.reference ?? '').split('/');
+          const quelle = zumBezug(String(typ), String(id));
+          nimm(quelle);
+          if (quelle) nimm(zumBezug('Medication', referenzId(quelle['medicationReference'])));
+        }
       }
       // Änderungseinträge des eMP-Eintrags mit den verantwortlichen Organisationen.
       for (const p of ablage(kvnr).filter(
@@ -706,12 +792,10 @@ export function medikationEinhaengen(
       meta: { lastUpdated: jetzt() },
       type: 'collection',
       timestamp: jetzt(),
-      entry: [patientFuer(kvnr), ...(chronologie ? [chronologie] : []), ...eintraege, ...dazu].map(
-        (r) => ({
-          fullUrl: vollUrl(r),
-          resource: r,
-        }),
-      ),
+      entry: [patientFuer(kvnr), chronologie, ...eintraege, ...dazu].map((r) => ({
+        fullUrl: vollUrl(r),
+        resource: r,
+      })),
     };
   });
 
@@ -771,6 +855,35 @@ export function medikationEinhaengen(
    * `PractitionerRole` und `AuditEvent` sind nicht nachgebildet.
    */
   const q = QUERY_BASIS;
+  /** Fassungen einer Instanz, neueste zuerst — aus dem Archiv, dazu die aktuelle. */
+  const verlauf = (kvnr: string, typ: string, id: string): Ressource[] => {
+    const aktuell = finden(kvnr, typ, id);
+    const alle = fassungen(ablage(kvnr), typ, id);
+    return (
+      aktuell && !alle.some((f) => f.meta?.versionId === aktuell.meta?.versionId)
+        ? [...alle, aktuell]
+        : alle
+    )
+      .slice()
+      .reverse();
+  };
+  const verlaufsbundle = (eintraege: Ressource[]) => ({
+    resourceType: 'Bundle',
+    meta: { lastUpdated: jetzt() },
+    type: 'history',
+    total: eintraege.length,
+    entry: eintraege.map((f) => ({
+      fullUrl: vollUrl(f),
+      resource: f,
+      request: {
+        method: f.meta?.versionId === '1' ? 'POST' : 'PUT',
+        url: `${f.resourceType}/${String(f.id)}`,
+      },
+      response: { status: f.meta?.versionId === '1' ? '201 Created' : '200 OK' },
+    })),
+  });
+  const nachAktualitaet = (a: Ressource, b: Ressource) =>
+    String(b.meta?.lastUpdated ?? '').localeCompare(String(a.meta?.lastUpdated ?? ''));
   for (const typ of [
     'Medication',
     'MedicationRequest',
@@ -780,6 +893,23 @@ export function medikationEinhaengen(
     'Organization',
     'Provenance',
   ]) {
+    // Provenance kennt laut CapabilityStatement nur Suche und Lesen, keine Historie.
+    const mitHistorie = typ !== 'Provenance';
+    if (mitHistorie) {
+      /** history-type: alle Fassungen aller Instanzen des Typs, neueste zuerst. */
+      app.get(`${q}/${typ}/_history`, async (anfrage) => {
+        const kvnr = kvnrAus(anfrage);
+        const kennungen = new Set([
+          ...ablage(kvnr)
+            .filter((r) => r.resourceType === typ)
+            .map((r) => String(r.id)),
+          ...archivierteKennungen(ablage(kvnr), typ),
+        ]);
+        return verlaufsbundle(
+          [...kennungen].flatMap((id) => verlauf(kvnr, typ, id)).sort(nachAktualitaet),
+        );
+      });
+    }
     app.get(`${q}/${typ}`, async (anfrage, antwort) => {
       const kvnr = kvnrAus(anfrage);
       const p = anfrage.query as Record<string, string | string[] | undefined>;
@@ -792,48 +922,36 @@ export function medikationEinhaengen(
           ergebnis.text,
           ergebnis.art === 'unbekannt' ? MSG.parameterUnbekannt : MSG.syntax,
         );
+      // Standardsortierung: zuletzt geändert zuerst (IG-MED37997J2U und Verwandte).
+      ergebnis.sort(nachAktualitaet);
       const ab = Number(([] as string[]).concat(p['_offset'] ?? [])[0] ?? 0);
       const anzahl = Number(([] as string[]).concat(p['_count'] ?? [])[0] ?? ergebnis.length);
       return { ...suchergebnis(ergebnis.slice(ab, ab + anzahl)), total: ergebnis.length };
     });
     const unbekannt = (antwort: SimAntwort) =>
       antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`));
+    // Gelöschte Instanzen: 410 (FHIR read); ihre Fassungen bleiben über die Historie abrufbar.
+    const fehltOderGeloescht = (kvnr: string, id: string, antwort: SimAntwort) =>
+      istGeloescht(ablage(kvnr), typ, id)
+        ? melden(antwort, 410, 'deleted', `${typ}/${id} wurde gelöscht.`, MSG.geloescht)
+        : unbekannt(antwort);
     app.get(`${q}/${typ}/:id`, async (anfrage, antwort) => {
-      const r = finden(kvnrAus(anfrage), typ, (anfrage.params as { id: string }).id);
-      return r ?? unbekannt(antwort);
+      const kvnr = kvnrAus(anfrage);
+      const id = (anfrage.params as { id: string }).id;
+      return finden(kvnr, typ, id) ?? fehltOderGeloescht(kvnr, id, antwort);
     });
-    /** Versionshistorie einer Instanz, neueste zuerst — aus dem Fassungsarchiv. */
+    if (!mitHistorie) continue;
+    /** Versionshistorie einer Instanz, neueste zuerst — aus dem Fassungsarchiv, auch gelöscht. */
     app.get(`${q}/${typ}/:id/_history`, async (anfrage, antwort) => {
       const kvnr = kvnrAus(anfrage);
       const id = (anfrage.params as { id: string }).id;
-      const r = finden(kvnr, typ, id);
-      if (!r) return unbekannt(antwort);
-      const alle = fassungen(ablage(kvnr), typ, id);
-      const liste = (
-        alle.some((f) => f.meta?.versionId === r.meta?.versionId) ? alle : [...alle, r]
-      )
-        .slice()
-        .reverse();
-      return {
-        resourceType: 'Bundle',
-        meta: { lastUpdated: jetzt() },
-        type: 'history',
-        total: liste.length,
-        entry: liste.map((f) => ({
-          fullUrl: vollUrl(f),
-          resource: f,
-          request: { method: f.meta?.versionId === '1' ? 'POST' : 'PUT', url: `${typ}/${id}` },
-          response: { status: f.meta?.versionId === '1' ? '201 Created' : '200 OK' },
-        })),
-      };
+      const liste = verlauf(kvnr, typ, id);
+      return liste.length > 0 ? verlaufsbundle(liste) : unbekannt(antwort);
     });
     app.get(`${q}/${typ}/:id/_history/:vid`, async (anfrage, antwort) => {
       const kvnr = kvnrAus(anfrage);
       const { id, vid } = anfrage.params as { id: string; vid: string };
-      const aktuell = finden(kvnr, typ, id);
-      const f =
-        fassung(ablage(kvnr), typ, id, vid) ??
-        (aktuell?.meta?.versionId === vid ? aktuell : undefined);
+      const f = verlauf(kvnr, typ, id).find((x) => x.meta?.versionId === vid);
       return f ?? unbekannt(antwort);
     });
   }

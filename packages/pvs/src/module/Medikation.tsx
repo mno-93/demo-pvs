@@ -484,7 +484,7 @@ export function Medikation() {
             })
             .catch(() => undefined);
         }
-        lesezeichen.merken(plan.abgerufen, plan.lesenachweis);
+        lesezeichen.merken(plan.abgerufen || (liste.abgerufen ?? ''), plan.lesenachweis);
       })
       .catch((f: unknown) => {
         if (abgebrochen) return;

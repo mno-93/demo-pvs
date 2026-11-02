@@ -116,11 +116,15 @@ export function jetzt(): string {
   return demoZeitpunkt();
 }
 
+/** Datumspräfixe, die `imZeitraum` auswertet; `ap` („ungefähr“) nicht. */
+export const DATUMSPRAEFIXE = ['eq', 'ne', 'gt', 'ge', 'lt', 'le', 'sa', 'eb'] as const;
+
 /**
- * Prüft einen Zeitpunkt gegen FHIR-Datumsparameter (`gt`, `ge`, `lt`, `le`, `eq`; ohne Präfix
- * `eq`). Mehrere Werte gelten zusammen, etwa `date=ge…&date=le…`. Der Bestand führt Zeitpunkte
- * ohne Zone, Antworten tragen sie (zeit.ts im Kern) — und so kommen sie als Lesezeichen zurück.
- * Verglichen wird deshalb ohne Zone, als Zeichenkette: Alle stammen aus derselben Uhr.
+ * Prüft einen Zeitpunkt gegen FHIR-Datumsparameter (`gt`, `ge`, `lt`, `le`, `eq`, `ne`, `sa`,
+ * `eb`; ohne Präfix `eq`). Für einen Zeitpunkt gilt `sa` wie `gt` und `eb` wie `lt`. Mehrere Werte
+ * gelten zusammen, etwa `date=ge…&date=le…`. Der Bestand führt Zeitpunkte ohne Zone, Antworten
+ * tragen sie (zeit.ts im Kern) — und so kommen sie als Lesezeichen zurück. Verglichen wird
+ * deshalb ohne Zone, als Zeichenkette: Alle stammen aus derselben Uhr.
  */
 export function imZeitraum(
   zeitpunkt: string | undefined,
@@ -131,8 +135,9 @@ export function imZeitraum(
   if (!zeitpunkt) return false;
   const lokal = ohneZeitzone(zeitpunkt);
   return bedingungen.every((b) => {
-    const praefix = /^(gt|ge|lt|le|eq)/.exec(b)?.[1] ?? 'eq';
-    const wert = ohneZeitzone(b.replace(/^(gt|ge|lt|le|eq)/, ''));
+    const angabe = /^(gt|ge|lt|le|eq|ne|sa|eb)/.exec(b)?.[1] ?? 'eq';
+    const praefix = angabe === 'sa' ? 'gt' : angabe === 'eb' ? 'lt' : angabe;
+    const wert = ohneZeitzone(b.replace(/^(gt|ge|lt|le|eq|ne|sa|eb)/, ''));
     const t = lokal.slice(0, Math.max(wert.length, 10));
     // Ein reines Datum steht für den ganzen Tag (FHIR Search, Datumsbereiche): „nach" vergleicht
     // mit dessen Ende, „vor" mit dessen Anfang.
@@ -143,6 +148,7 @@ export function imZeitraum(
     if (praefix === 'ge') return ende >= wert;
     if (praefix === 'lt') return anfang < wert;
     if (praefix === 'le') return anfang <= wert;
+    if (praefix === 'ne') return !lokal.startsWith(wert);
     return lokal.startsWith(wert);
   });
 }

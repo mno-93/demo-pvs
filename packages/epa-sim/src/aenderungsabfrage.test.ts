@@ -134,9 +134,14 @@ describe('Abfrage „seit dem letzten Aufruf"', () => {
 
   it('liefert über $medication-list mit date nur neue Einträge der Medikationsliste', async () => {
     const lesezeichen = (await lesen(`${MS}/$medication-list`)).meta!.lastUpdated!;
-    expect(
-      treffer(await lesen(`${MS}/$medication-list?date=gt${encodeURIComponent(lesezeichen)}`)),
-    ).toHaveLength(0);
+    // Ohne Treffer 404 MSG_NO_MATCH (IG-MED16217P4A), kein leeres Suchergebnis.
+    const leer = await app.inject({
+      method: 'GET',
+      url: `${MS}/$medication-list?date=gt${encodeURIComponent(lesezeichen)}`,
+      headers: kopf(),
+    });
+    expect(leer.statusCode).toBe(404);
+    expect(leer.json().issue[0].details.coding[0].code).toBe('MSG_NO_MATCH');
     await fremdEintragen();
     expect(
       treffer(await lesen(`${MS}/$medication-list?date=gt${encodeURIComponent(lesezeichen)}`)),
