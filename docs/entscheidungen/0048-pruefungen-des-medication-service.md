@@ -1,6 +1,6 @@
 # 0048 — Prüfungen des Medication Service wie im Aktensystem
 
-**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0047
+**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0047 · **ergänzt durch:** 0056
 
 ## Zusammenhang
 
@@ -23,7 +23,9 @@ meldete an mehreren Stellen eigene oder ältere Codes.
    `packages/kern/src/fhir/profilregeln.json`.
 2. **Die Invarianten wertet FHIRPath.js aus** (`fhirpath` 5.2.1, HL7/NLM, BSD-artige Lizenz) —
    derselbe Ausdruck wie im Profil, keine Nachbildung von Hand. Es ist die erste
-   Laufzeitabhängigkeit des Kerns; der gehostete Kern wächst um rund 100 kB (gepackt 14 kB).
+   Laufzeitabhängigkeit des Kerns; ~~der gehostete Kern wächst um rund 100 kB (gepackt 14 kB)~~.
+   Berichtigt am 02.11.2026: FHIRPath.js mit Abhängigkeiten sind rund 1 167 kB (gepackt rund
+   225 kB); seit ADR 0056 lädt sie nur der Simulator.
 3. **Der Simulator prüft jede Eingabe vor der Geschäftslogik**: Planeintrag, Arzneimittel,
    Behandlungsgründe und Nachtrag. Jeder Befund wird ein Eintrag im OperationOutcome mit dem
    Element als `expression`.
@@ -52,7 +54,9 @@ meldete an mehreren Stellen eigene oder ältere Codes.
 
 ⚠ Nicht geprüft: Slices (etwa einzelne Extensions eines Profils), Typ- und Profilangaben von
 Verweisen, Wertelisten außerhalb der Pakete (UCUM, Sprachen, große Kataloge), Formate primitiver
-Datentypen, `_sort` und `_include`. ~~Die Codes `MSG_NO_MATCH` und `MSG_BAD_FORMAT` nennt der IG
+Datentypen, `_sort` und `_include`. Berichtigt am 02.11.2026: Die 22 Regeln mit `%resource` oder
+`%rootResource`, darunter 20 der 40 Regeln von `DosageDgMP` und `TimingDgMP`, blieben bis dahin ohne
+Aussage, weil FHIRPath.js diese Variablen nicht selbst setzt (ADR 0056). ~~Die Codes `MSG_NO_MATCH` und `MSG_BAD_FORMAT` nennt der IG
 ohne Bedingung; die Demo meldet sie nicht.~~ Berichtigt am 02.11.2026: `MSG_NO_MATCH` hat eine
 Bedingung — 404 bei leerem Ergebnis (CapabilityStatement, IG-MED16217P4A); die Demo meldet ihn
 seitdem. Für `MSG_BAD_FORMAT` ist keine Bedingung erkennbar ⚠; die Demo meldet ihn nicht.

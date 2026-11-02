@@ -11,15 +11,16 @@ speicherStarten(startzustand());
 
 /**
  * Gehostete Demo (ADR 0025): Ohne Server beantwortet der Simulator im Browser die Wege der ePA,
- * des Fachdienstes und der Demo-Steuerung. Lokal läuft er als eigener Dienst.
+ * des Fachdienstes und der Demo-Steuerung. Lokal läuft er als eigener Dienst. Die Oberfläche
+ * wartet nicht auf das Paket des Simulators; erst Anfragen an ihn warten, bis es geladen ist
+ * (ADR 0056).
  */
-async function transportEinrichten(): Promise<void> {
+function transportEinrichten(): void {
   if (import.meta.env.VITE_SIMULATOR !== 'browser') return;
-  const { simulatorImBrowser } = await import('@demo-pvs/epa-sim/browser');
-  const simulator = simulatorImBrowser();
+  const simulator = import('@demo-pvs/epa-sim/browser').then((m) => m.simulatorImBrowser());
   transportSetzen((pfad, init) =>
     SIMULATORWEGE.test(pfad)
-      ? simulator.abrufen(new Request(new URL(pfad, window.location.origin), init))
+      ? simulator.then((s) => s.abrufen(new Request(new URL(pfad, window.location.origin), init)))
       : fetch(pfad, init),
   );
 }
@@ -27,12 +28,11 @@ async function transportEinrichten(): Promise<void> {
 const wurzel = document.getElementById('wurzel');
 if (!wurzel) throw new Error('Wurzelelement nicht gefunden.');
 
-void transportEinrichten().then(() =>
-  createRoot(wurzel).render(
-    <StrictMode>
-      <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <App />
-      </BrowserRouter>
-    </StrictMode>,
-  ),
+transportEinrichten();
+createRoot(wurzel).render(
+  <StrictMode>
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+      <App />
+    </BrowserRouter>
+  </StrictMode>,
 );

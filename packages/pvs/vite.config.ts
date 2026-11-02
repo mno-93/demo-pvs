@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react';
 
 const SIMULATOR = 'http://localhost:8787';
 
+/** React und Router — das einzige, was das Praxissystem aus `node_modules` braucht. */
+const REACT_UND_ROUTER =
+  /[/\\]node_modules[/\\](react|react-dom|react-router|react-router-dom|scheduler|@remix-run|cookie|set-cookie-parser|turbo-stream)[/\\]/;
+
 export default defineConfig({
   plugins: [react()],
   // Unterpfad der gehosteten Demo, etwa /demo-pvs/ auf GitHub Pages; lokal die Wurzel.
@@ -27,11 +31,17 @@ export default defineConfig({
     outDir: 'dist',
     // Die gehostete Demo ist öffentlich, das Repository privat: dort keine Quelltext-Karten.
     sourcemap: process.env['VITE_SIMULATOR'] !== 'browser',
-    // Bibliotheken und Kern getrennt vom Anwendungscode: kleinere Pakete, besseres Caching.
+    // Bibliotheken und Kern getrennt vom Anwendungscode: kleinere Pakete, besseres Caching. Was nur
+    // der Simulator im Browser braucht — die Profilprüfung mit FHIRPath.js und seinen
+    // Abhängigkeiten —, bleibt im Paket des Simulators, das erst die gehostete Fassung nachlädt
+    // (ADR 0056).
     rollupOptions: {
       output: {
-        manualChunks: (id) =>
-          id.includes('node_modules') ? 'bibliotheken' : id.includes('/kern/') ? 'kern' : undefined,
+        manualChunks: (id) => {
+          if (REACT_UND_ROUTER.test(id)) return 'bibliotheken';
+          if (id.includes('/kern/') && !/profilpruefung|profilregeln/.test(id)) return 'kern';
+          return undefined;
+        },
       },
     },
   },

@@ -457,7 +457,8 @@ describe('Common Query API — Lesen, Historie, Sortierung', () => {
 describe('Selbstprüfung gegen die Profilregeln', () => {
   it('der Startbestand des Medication Service erfüllt die Profile, die er nennt', async () => {
     const { alleBestaende } = await import('./bestand.ts');
-    const { profilPruefen, geprueftesProfil } = await import('@demo-pvs/kern');
+    const { profilPruefen, geprueftesProfil, nichtAuswertbar } =
+      await import('@demo-pvs/kern/profilpruefung');
     const befunde = alleBestaende().flatMap((b) =>
       b.medikation
         .filter((r) => geprueftesProfil(String(r.meta?.profile?.[0] ?? '')))
@@ -468,5 +469,8 @@ describe('Selbstprüfung gegen die Profilregeln', () => {
         ),
     );
     expect(befunde).toEqual([]);
+    // tim-10 (Timing, R4) nennt `when in (…)`; bei mehreren `when` wertet FHIRPath.js das nicht aus.
+    const tim10 = "(when in ('C' | 'CM' | 'CD' | 'CV'))";
+    expect(nichtAuswertbar().filter((a) => !a.includes(tim10))).toEqual([]);
   });
 });

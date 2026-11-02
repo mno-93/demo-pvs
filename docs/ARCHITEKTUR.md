@@ -67,7 +67,9 @@ Körper, Grenzen und Fehler gleich —
 [0050](entscheidungen/0050-eine-schnittstelle-fuer-server-und-browser.md). Tests prüfen den
 Simulator über `inject`, den Adapter über `Request` und beide gegeneinander
 (`browser-paritaet.test.ts`), ohne laufenden Dienst. Zurückgesetzt wird überall mit
-`simulatorZuruecksetzen()`.
+`simulatorZuruecksetzen()`. Gehostet zeigt das Praxissystem seine Oberfläche, ohne auf das Paket
+des Simulators zu warten; erst Anfragen an ihn warten
+([0056](entscheidungen/0056-profilpruefung-nur-im-simulator.md)).
 
 Im PVS sieht man die ePA in einem eigenen Fenster über der Kartei, nicht als Reiter —
 [0014](entscheidungen/0014-epa-als-fenster.md).
@@ -196,7 +198,11 @@ Einmal dokumentieren, überall verwenden ([0039](entscheidungen/0039-einmal-doku
   Abbildung, das Profil wählt das Ziel.
 - **Prüfung:**
   - `fhirPruefen` prüft in jedem Testlauf Pflichtangaben und Invarianten aller Ausgaben;
-  - `npm run fhir:validieren` legt dieselben Ausgaben dem HL7 FHIR Validator vor.
+  - `npm run fhir:validieren` legt dieselben Ausgaben dem HL7 FHIR Validator vor;
+  - `profilPruefen` (eigener Einstieg `@demo-pvs/kern/profilpruefung`) prüft im Simulator jede
+    Eingabe des Medication Service gegen die Regeln der Profile; das Praxissystem lädt FHIRPath.js
+    nicht ([0048](entscheidungen/0048-pruefungen-des-medication-service.md),
+    [0056](entscheidungen/0056-profilpruefung-nur-im-simulator.md)).
 
 Bestände, Abbildungsregeln und Feldtabellen: [DATENMODELL.md](DATENMODELL.md).
 

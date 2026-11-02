@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./profilpruefung": {
+      "types": "./dist/fhir/profilpruefung.d.ts",
+      "default": "./dist/fhir/profilpruefung.js"
     }
   },
   "scripts": {
@@ -16,5 +20,6 @@
   },
   "dependencies": {
     "fhirpath": "5.2.1"
-  }
+  },
+  "sideEffects": false
 }

@@ -3,15 +3,14 @@ import {
   DOSIERUNGSTEXT_SPRACHE,
   DOSIERUNGSTEXT_VERSION,
   TEXT_EXTENSION,
-  VIERERSCHEMA_IM_TEXT,
   automatischeKategorie,
   dosierungstext,
   gerenderterText,
-  profilPruefen,
   vollUrl,
   type EmpKategorie,
   type Ressource,
 } from '@demo-pvs/kern';
+import { profilPruefen } from '@demo-pvs/kern/profilpruefung';
 import { bestandFuer } from './bestand.ts';
 import { uuidV7 } from './plattform.ts';
 import { suchen } from './suche.ts';
@@ -372,26 +371,17 @@ function profilAbweisen(r: Ressource | undefined, profil: string, antwort: SimAn
  * Prüfung der Dosierung nach `gemIG_TI_Common#Validierung` (IG 1.4.0-ballot.1, Geschäftslogik
  * von `$add-emp-entry`, `$update-emp-entry` und `$add-eml-entry`): Der Dienst erzeugt den Text
  * selbst neu und vergleicht ihn mit `renderedDosageInstruction`; bei Freitext muss derselbe Text
- * dort stehen. Nur de-DE mit Algorithmusversion 2.0.0 (general-principles).
+ * dort stehen. Nur de-DE mit Algorithmusversion 2.0.0 (general-principles). Die Invarianten von
+ * `DosageDgMP` (Viererschema als Freitext, fehlende Metadaten des Texts) prüft vorher die
+ * Profilprüfung (ADR 0056).
  */
 function dosierungAbweisen(r: Ressource, antwort: SimAntwort): boolean {
   const feld = r.resourceType === 'MedicationStatement' ? 'dosage' : 'dosageInstruction';
   const dosierungen = (r[feld] as Json[] | undefined) ?? [];
   if (dosierungen.length === 0) return false;
-  const freitext = dosierungen.every((d) => d['text'] && !d['timing'] && !d['doseAndRate']);
-  const struktur = (text: string) => {
-    void ungueltig(antwort, `Profilvalidierung fehlgeschlagen: ${text}`);
-    return true;
-  };
-  if (freitext && dosierungen.some((d) => VIERERSCHEMA_IM_TEXT.test(String(d['text']))))
-    return struktur('Viererschema als Freitext (DosageFourSlotPatternInText).');
   const meta = ((r.extension ?? []) as { url: string; extension?: Json[] }[]).find(
     (e) => e.url === TEXT_EXTENSION.generiert,
   );
-  if (!freitext && !meta)
-    return struktur(
-      'GeneratedDosageInstructionsMeta fehlt (DosageStructuredRequiresGeneratedText).',
-    );
   if (meta) {
     const teil = (url: string) => meta.extension?.find((x) => x['url'] === url);
     if (
@@ -417,7 +407,11 @@ function dosierungAbweisen(r: Ressource, antwort: SimAntwort): boolean {
   try {
     erwartet = dosierungstext(r);
   } catch (e) {
-    return struktur(e instanceof Error ? e.message : String(e));
+    void ungueltig(
+      antwort,
+      `Profilvalidierung fehlgeschlagen: ${e instanceof Error ? e.message : String(e)}`,
+    );
+    return true;
   }
   if (gerenderterText(r) === erwartet) return false;
   const ergebnis = operationOutcome(

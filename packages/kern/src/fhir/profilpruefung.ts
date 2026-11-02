@@ -14,8 +14,13 @@ import type { Ressource } from './typen.js';
  * (etwa die Extensions eines Profils einzeln), Typ- und Profilangaben von Verweisen, Wertelisten
  * außerhalb der Pakete (UCUM, Sprachen, große Kataloge) und die Formate primitiver Datentypen.
  *
- * Das Praxissystem nutzt dieselbe Prüfung vor dem Senden: Was der Dienst abweisen würde, sieht
- * die Ärztin schon bei der Eingabe.
+ * Nur der Simulator nutzt die Prüfung; sie hat einen eigenen Einstiegspunkt
+ * (`@demo-pvs/kern/profilpruefung`), damit FHIRPath.js und die Regeln nicht im Startpaket des
+ * Praxissystems landen (ADR 0056). Jeder Ausdruck wird einmal übersetzt und dann wiederverwendet;
+ * `trace()` in den Regeln der Pakete schreibt nichts in die Konsole. Ausdrücke, die FHIRPath.js
+ * nicht auswerten kann, führt `nichtAuswertbar()` — die Tests prüfen die Liste. ⚠ Bekannt: `tim-10`
+ * (Timing, R4) prüft `when in (…)`; bei mehreren `when` wertet FHIRPath.js das nicht aus, die Regel
+ * bleibt dann ohne Aussage.
  */
 
 export interface Profilbefund {
@@ -38,8 +43,58 @@ interface Regeln {
 const PROFILE = (katalog as unknown as { profile: Record<string, Regeln> }).profile;
 export const PROFILREGELN_PAKETE = (katalog as unknown as { pakete: string[] }).pakete;
 
+/** `trace()` steht in vielen Regeln der Pakete; ohne eigene Funktion schriebe es in die Konsole. */
+const OPTIONEN = { traceFn: () => undefined };
+type Auswertung = (r: object, umgebung: Record<string, unknown>) => unknown[];
+/** Übersetzte Ausdrücke; `null`, wenn FHIRPath.js den Ausdruck nicht übersetzen kann. */
+const UEBERSETZT = new Map<string, Auswertung | null>();
+const NICHT_AUSWERTBAR = new Set<string>();
+
 function auswerten(r: Ressource, ausdruck: string): unknown[] {
-  return fhirpath.evaluate(r as object, ausdruck, undefined, r4) as unknown[];
+  let f = UEBERSETZT.get(ausdruck);
+  if (f === undefined) {
+    try {
+      const g = fhirpath.compile(ausdruck, r4, OPTIONEN);
+      f = (x: object, umgebung: Record<string, unknown>) => g(x, umgebung) as unknown[];
+    } catch {
+      f = null;
+    }
+    UEBERSETZT.set(ausdruck, f);
+  }
+  if (f === null) {
+    NICHT_AUSWERTBAR.add(ausdruck);
+    throw new Error(`Nicht auswertbar: ${ausdruck}`);
+  }
+  try {
+    // `%resource` und `%rootResource` nennen viele Regeln (DosageDgMP); ohne sie wirft FHIRPath.js.
+    return f(r as object, { resource: r, rootResource: r });
+  } catch (e) {
+    NICHT_AUSWERTBAR.add(ausdruck);
+    throw e;
+  }
+}
+
+/** Ausdrücke, die bisher nicht auswertbar waren — eine Prüfung ohne Aussage ist kein Erfolg. */
+export function nichtAuswertbar(): string[] {
+  return [...NICHT_AUSWERTBAR].sort();
+}
+
+/** Alle Ausdrücke der Regeln, je Profil — für die Prüfung, ob FHIRPath.js sie übersetzen kann. */
+export function regelausdruecke(): string[] {
+  return Object.values(PROFILE).flatMap((p) => [
+    ...p.invarianten.map(invariantenausdruck),
+    ...p.muster.map((m) => m.pfad),
+    ...p.wertelisten.map((v) => v.pfad),
+  ]);
+}
+
+/**
+ * Eine Invariante gilt je Element ihres Pfads. `select()` statt `all()`: Ein leeres Ergebnis macht
+ * keine Aussage — so besteht `ref-1` einen Verweis nur mit `identifier`, wie in R5 ausdrücklich
+ * (`reference.exists() implies …`) und wie beim HL7 FHIR Validator (ADR 0056).
+ */
+function invariantenausdruck(k: { pfad: string; ausdruck: string }): string {
+  return k.pfad.includes('.') ? `${k.pfad}.select(${k.ausdruck})` : k.ausdruck;
 }
 
 function enthaelt(wert: unknown, muster: unknown): boolean {
@@ -134,14 +189,13 @@ export function profilPruefen(r: Ressource, profil: string): Profilbefund[] {
   }
 
   for (const k of regeln.invarianten) {
-    const ausdruck = k.pfad.includes('.') ? `${k.pfad}.all(${k.ausdruck})` : k.ausdruck;
     let ergebnis: unknown[];
     try {
-      ergebnis = auswerten(r, ausdruck);
+      ergebnis = auswerten(r, invariantenausdruck(k));
     } catch {
       continue; // ⚠ Ausdruck, den FHIRPath.js nicht auswerten kann: keine Aussage
     }
-    if (ergebnis.length > 0 && !ergebnis.every((x) => x === true))
+    if (!ergebnis.every((x) => x === true))
       befunde.push({ pfad: k.pfad, regel: k.key, text: k.text });
   }
   return befunde;
