@@ -47,6 +47,12 @@ export interface Dokument {
   eingestellt?: string;
   autor: string;
   einrichtung: string;
+  /** Telematik-ID der einstellenden Einrichtung (`authorInstitution`), wenn bekannt. */
+  einrichtungTelematikId?: string;
+  /** Metadaten aus ITI-41: `healthcareFacilityTypeCode`, `practiceSettingCode`, `confidentialityCode`. */
+  einrichtungsart?: Kodewert;
+  fachrichtung?: Kodewert;
+  vertraulichkeit?: Kodewert;
   groesseBytes: number;
   /** Strukturierter Inhalt als FHIR-Bundle. */
   inhalt: Record<string, unknown> | null;

@@ -255,3 +255,117 @@ describe('Demo-Ersatz des KIM-Clientmoduls', () => {
     expect(antwort.body).toMatch(/^553 /);
   });
 });
+
+describe('ITI-41: Metadaten und Prüfungen (IHE ITI TF-3, IGs des XDS Document Service)', () => {
+  const senden = (payload: string) =>
+    app.inject({ method: 'POST', url: XDS_DOKUMENTENDIENST, headers: kopf, payload });
+
+  it('gibt Einrichtungsart, Fachrichtung, Vertraulichkeit und Telematik-ID im MHD zurück', async () => {
+    expect(registryResponseLesen((await senden(einreichung())).body).erfolg).toBe(true);
+    const ref = (
+      await app.inject({
+        method: 'GET',
+        url: `/epa/mhd/api/v1/fhir/DocumentReference/${ENTRY}`,
+        headers: kopf,
+      })
+    ).json();
+    expect(ref.context.facilityType.coding[0]).toMatchObject({ code: 'PRA' });
+    expect(ref.context.practiceSetting.coding[0]).toMatchObject({ code: 'ALLG' });
+    expect(ref.securityLabel[0].coding[0]).toMatchObject({ code: 'N' });
+    expect(ref.author[1].identifier).toEqual({
+      system: 'https://gematik.de/fhir/sid/telematik-id',
+      value: PRAXIS,
+    });
+  });
+
+  it('meldet eine doppelte uniqueId — auch in derselben Einreichung', async () => {
+    const zweimal = provideAndRegisterErzeugen(
+      {
+        kvnr: HOFFMANN,
+        uniqueId: '2.25.20',
+        quelle: '2.25.11',
+        zeitpunkt: '2026-09-09T11:00:00Z',
+        autor: {
+          person: 'Dr. med. Anna Brandt',
+          einrichtung: 'Hausarztpraxis am Stadtgarten',
+          telematikId: PRAXIS,
+        },
+        dokumente: [
+          '6a1f0c3e-1111-4222-8333-444455550001',
+          '6a1f0c3e-1111-4222-8333-444455550002',
+        ].map((entryUuid) => ({
+          entryUuid,
+          uniqueId: '2.25.21',
+          titel: 'Arztbrief',
+          mimeType: 'application/fhir+json',
+          erstellt: '2026-09-09T11:00:00Z',
+          ...ARZTBRIEF_XDS,
+          inhaltBase64: Buffer.from(JSON.stringify(BRIEF)).toString('base64'),
+        })),
+      },
+      'nachricht-2',
+    );
+    const antwort = registryResponseLesen((await senden(zweimal)).body);
+    expect(antwort.erfolg).toBe(false);
+    expect(antwort.fehler.map((f) => f.code)).toContain('XDSDuplicateUniqueIdInRegistry');
+  });
+
+  it('prüft classCode und typeCode gegen den registrierten formatCode', async () => {
+    const falsch = einreichung({
+      formatCode: {
+        code: 'urn:gematik:ig:DatensatzPersoenlicheErklaerungen:r3.1',
+        system: '1.3.6.1.4.1.19376.3.276.1.5.6',
+        anzeige: 'Persönliche Erklärungen',
+      },
+      mimeType: 'application/xml',
+      inhaltBase64: Buffer.from('<erklaerung/>').toString('base64'),
+    });
+    const antwort = registryResponseLesen((await senden(falsch)).body);
+    expect(antwort.erfolg).toBe(false);
+    expect(antwort.fehler[0]!.text).toMatch(/classCode und typeCode/);
+  });
+});
+
+describe('ITI-67: Suchparameter des Responders (IG de.gematik.epa.mhd 1.1.3)', () => {
+  const suchen = async (suche: string) =>
+    app.inject({
+      method: 'GET',
+      url: `/epa/mhd/api/v1/fhir/DocumentReference?${suche}`,
+      headers: kopf,
+    });
+  const anzahl = async (suche: string) => (await suchen(suche)).json().total as number;
+
+  it('lehnt unbekannte Parameter ab, statt alle Dokumente zu liefern', async () => {
+    const a = await suchen('status=current&gibtesnicht=1');
+    expect(a.statusCode).toBe(400);
+    expect(a.json().issue[0].diagnostics).toMatch(/gibtesnicht/);
+  });
+
+  it('kennt Token mit System, Listen mit Komma, Datum, Namen und die Person', async () => {
+    const alle = await anzahl('status=current');
+    expect(alle).toBeGreaterThan(2);
+    const kodiert = await suchen('category=BRI');
+    const klasse = kodiert.json().entry[0].resource.category[0].coding[0];
+    // Mit dem richtigen System gleich viele, mit einem falschen keine.
+    expect(await anzahl(`category=${encodeURIComponent(`${klasse.system}|BRI`)}`)).toBe(
+      kodiert.json().total,
+    );
+    expect(await anzahl(`category=${encodeURIComponent('urn:oid:1.2.3|BRI')}`)).toBe(0);
+    expect(await anzahl('category=BRI,LAB')).toBeGreaterThanOrEqual(kodiert.json().total);
+    expect(await anzahl('creation=gt2099-01-01')).toBe(0);
+    expect(await anzahl('author.family=Wagner')).toBeGreaterThan(0);
+    expect(
+      await anzahl(`facility=${encodeURIComponent('urn:oid:1.3.6.1.4.1.19376.3.276.1.5.2|KHS')}`),
+    ).toBeGreaterThan(0);
+    expect(
+      await anzahl(
+        `patient.identifier=${encodeURIComponent(`http://fhir.de/sid/gkv/kvid-10|${HOFFMANN}`)}`,
+      ),
+    ).toBe(alle);
+    expect(
+      await anzahl(
+        `patient.identifier=${encodeURIComponent('http://fhir.de/sid/gkv/kvid-10|K876543217')}`,
+      ),
+    ).toBe(0);
+  });
+});

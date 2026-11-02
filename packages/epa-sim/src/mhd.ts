@@ -1,7 +1,8 @@
 import type { SimAnwendung } from './schnittstelle.ts';
 import { bytesAus, sha256Hex, uuidV7 } from './plattform.ts';
 import { vollUrl, type Ressource } from '@demo-pvs/kern';
-import { bestandFuer, type Dokument } from './bestand.ts';
+import { bestandFuer, type Dokument, type Kodewert } from './bestand.ts';
+import { TELEMATIK_ID } from './schreibwege.ts';
 import { AB_STUFE, abStufe, STUFE } from './betrieb.ts';
 import {
   EPS_TYP,
@@ -63,6 +64,28 @@ export function sichtbar(d: Dokument): boolean {
   return d.nurIn === 'release-3.1.3' ? !abStufe(1) : abStufe(STUFE[d.nurIn]);
 }
 
+/** Krankenhaus und Arztpraxis wie im Beispiel des IG; die übrigen ⚠ ohne Abgleich mit der Werteliste. */
+const EINRICHTUNGSART = {
+  krankenhaus: { code: 'KHS', system: '1.3.6.1.4.1.19376.3.276.1.5.2', anzeige: 'Krankenhaus' },
+  praxis: { code: 'PRA', system: '1.3.6.1.4.1.19376.3.276.1.5.2', anzeige: 'Arztpraxis' },
+  mvz: {
+    code: 'MVZ',
+    system: '1.3.6.1.4.1.19376.3.276.1.5.2',
+    anzeige: 'Medizinisches Versorgungszentrum',
+  },
+} as const satisfies Record<string, Kodewert>;
+
+/**
+ * `context.facilityType` (1..1 im Profil): aus ITI-41 übernommen; im Startbestand ⚠ aus dem Namen
+ * der fiktiven Einrichtung abgeleitet.
+ */
+function einrichtungsartVon(d: Dokument): Kodewert {
+  if (d.einrichtungsart) return d.einrichtungsart;
+  if (/klinik|krankenhaus/i.test(d.einrichtung)) return EINRICHTUNGSART.krankenhaus;
+  if (/\bMVZ\b/.test(d.einrichtung)) return EINRICHTUNGSART.mvz;
+  return EINRICHTUNGSART.praxis;
+}
+
 function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
   const kodierung = (k: { code: string; system: string; anzeige: string }) => ({
     coding: [{ system: alsUri(k.system), code: k.code, display: k.anzeige }],
@@ -90,9 +113,16 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
     date: d.eingestellt ?? d.erstellt,
     author: [
       { type: 'Practitioner', display: d.autor },
-      { type: 'Organization', display: d.einrichtung },
+      {
+        type: 'Organization',
+        ...(d.einrichtungTelematikId
+          ? { identifier: { system: TELEMATIK_ID, value: d.einrichtungTelematikId } }
+          : {}),
+        display: d.einrichtung,
+      },
     ],
     description: d.titel,
+    ...(d.vertraulichkeit ? { securityLabel: [kodierung(d.vertraulichkeit)] } : {}),
     content: [
       {
         attachment: {
@@ -116,6 +146,11 @@ function alsDocumentReference(d: Dokument, kvnr: string): Ressource {
           : {}),
       },
     ],
+    // Metadaten aus ITI-41: Einrichtungsart (1..1) und Fachrichtung.
+    context: {
+      facilityType: kodierung(einrichtungsartVon(d)),
+      ...(d.fachrichtung ? { practiceSetting: kodierung(d.fachrichtung) } : {}),
+    },
   };
 }
 
@@ -149,6 +184,71 @@ function codeAus(wert: string | undefined): string | undefined {
 function systemAus(wert: string | undefined): string | undefined {
   return wert?.includes('|') ? wert.split('|')[0] : undefined;
 }
+
+/** Token `code`, `system|code` oder `|code` gegen einen Kodewert; OIDs auch als `urn:oid:`. */
+function tokenPasst(k: Kodewert | null | undefined, wert: string): boolean {
+  if (!k) return false;
+  const code = codeAus(wert);
+  const system = systemAus(wert);
+  if (code !== k.code) return false;
+  if (system === undefined) return true;
+  if (system === '') return !k.system;
+  return system === k.system || system === alsUri(k.system);
+}
+
+/** FHIR-Suche nach Zeichenketten: Anfang, ohne Groß- und Kleinschreibung. */
+const beginntMit = (text: string, wert: string) =>
+  text.toLowerCase().startsWith(wert.toLowerCase());
+
+/**
+ * Vor- und Nachname aus dem Anzeigenamen des Autors — ⚠ Annahme der Demo: Titel vorn, Nachname
+ * zuletzt. Ein Primärsystem bekäme die Namensteile aus `authorPerson` (XCN).
+ */
+function namensteile(anzeige: string): { vornamen: string[]; nachname: string } {
+  const teile = anzeige
+    .split(/\s+/)
+    .filter((t) => t && !/^(Dr\.|med\.|Prof\.|dent\.|rer\.|nat\.|PD|Dipl\.-[\wäöü]+\.?)$/.test(t));
+  return { vornamen: teile.slice(0, -1), nachname: teile[teile.length - 1] ?? '' };
+}
+
+/**
+ * Suchparameter des Responders nach dem CapabilityStatement `epa-mhd-document-responder` 1.1.3,
+ * je Dokument und Wert. Kommagetrennte Werte verknüpfen ODER, wiederholte Parameter UND (FHIR
+ * Search). `event`, `period` und `related` kennt die Demo, aber kein Dokument trägt diese
+ * Angaben — sie treffen nie.
+ */
+const SUCHE: Record<string, (d: Dokument, wert: string, kvnr: string) => boolean> = {
+  _id: (d, w) => eintragsUuid(d) === w,
+  _lastUpdated: (d, w) => imZeitraum(d.eingestellt ?? d.erstellt, w),
+  date: (d, w) => imZeitraum(d.eingestellt ?? d.erstellt, w),
+  creation: (d, w) => imZeitraum(d.erstellt, w),
+  status: (_d, w) => w === 'current',
+  type: (d, w) => tokenPasst(d.typeCode, w),
+  category: (d, w) => tokenPasst(d.classCode, w),
+  format: (d, w) => tokenPasst(d.formatCode, w),
+  facility: (d, w) => tokenPasst(einrichtungsartVon(d), w),
+  setting: (d, w) => tokenPasst(d.fachrichtung, w),
+  'security-label': (d, w) => tokenPasst(d.vertraulichkeit, w),
+  contenttype: (d, w) =>
+    tokenPasst({ code: d.mimeType, system: 'urn:ietf:bcp:13', anzeige: d.mimeType }, w),
+  language: (_d, w) => tokenPasst({ code: 'de-DE', system: 'urn:ietf:bcp:47', anzeige: '' }, w),
+  identifier: (d, w) =>
+    kennungPasst({ system: 'urn:ietf:rfc:3986', value: d.uniqueId }, w) ||
+    kennungPasst({ system: 'urn:ietf:rfc:3986', value: `urn:uuid:${eintragsUuid(d)}` }, w),
+  'patient.identifier': (_d, w, kvnr) =>
+    kennungPasst({ system: 'http://fhir.de/sid/gkv/kvid-10', value: kvnr }, w),
+  patient: (_d, w, kvnr) => w === `Patient/pat-${kvnr}` || w.endsWith(`/Patient/pat-${kvnr}`),
+  title: (d, w) => beginntMit(d.titel, w),
+  description: (d, w) => beginntMit(d.titel, w),
+  'author.given': (d, w) => namensteile(d.autor).vornamen.some((v) => beginntMit(v, w)),
+  'author.family': (d, w) => beginntMit(namensteile(d.autor).nachname, w),
+  'author.organization.name': (d, w) => beginntMit(d.einrichtung, w),
+  event: () => false,
+  period: () => false,
+  related: () => false,
+};
+/** FHIR-Steuerparameter, die die Demo hinnimmt, ohne dass sie das Ergebnis ändern. */
+const STEUERUNG = new Set(['_format', '_pretty']);
 
 /**
  * Vorschau ePA 3.2: Die Suche erzeugt die ePS und ihre DocumentReference (IG-MHD27048WTV) — neue
@@ -203,10 +303,27 @@ export function mhdEinhaengen(
     ) {
       return epsSuchergebnis(kvnr, status.split(',').includes('current'));
     }
-    const klasse = codeAus(eins('category'));
+    // Ein Parameter, den der Dienst nicht kennt, wird abgelehnt — nicht übergangen, sonst kämen
+    // alle Dokumente zurück.
+    const unbekannt = Object.keys(q).filter(
+      (n) => !SUCHE[n] && n !== '_content' && !STEUERUNG.has(n),
+    );
+    if (unbekannt.length > 0) {
+      return antwort
+        .code(400)
+        .send(
+          operationOutcome(
+            'error',
+            'not-supported',
+            `Unbekannter Suchparameter: ${unbekannt.join(', ')}. Unterstützt: ${[
+              ...Object.keys(SUCHE),
+              ...(abStufe(AB_STUFE.volltextsuche) ? ['_content'] : []),
+            ].join(', ')}.`,
+          ),
+        );
+    }
     const begriff = eins('_content')?.toLowerCase().trim();
-    // Volltextsuche erst ab Weiterentwicklung 1 (ADR 0034). Ein nicht unterstützter
-    // Suchparameter wird abgelehnt, nicht stillschweigend übergangen.
+    // Volltextsuche erst ab Weiterentwicklung 1 (ADR 0034).
     if (begriff !== undefined && !abStufe(AB_STUFE.volltextsuche)) {
       return antwort
         .code(400)
@@ -218,23 +335,21 @@ export function mhdEinhaengen(
           ),
         );
     }
-    const kennung = eins('identifier');
+    // Wiederholte Parameter: UND; Werte mit Komma: ODER. Datumswerte mit Komma gibt es nicht.
+    const bedingungen = Object.entries(q)
+      .filter(([n]) => SUCHE[n])
+      .flatMap(([n, werte]) =>
+        ([] as string[]).concat(werte ?? []).map((w) => ({
+          pruefen: SUCHE[n]!,
+          werte: ['date', '_lastUpdated', 'creation'].includes(n) ? [w] : w.split(','),
+        })),
+      );
     const treffer = bestandFuer(kvnr).dokumente.filter(
       (d) =>
         sichtbar(d) &&
-        status.split(',').includes('current') &&
-        (!typ || d.typeCode.code === typ) &&
-        (!klasse || d.classCode.code === klasse) &&
-        (!begriff || begriff.split(/\s+/).every((w) => trifftWortanfang(volltext(d), w))) &&
-        // Abfrage „seit": `_lastUpdated` und `date` (SHALL in IG 1.1.3) — beide auf der Einstellung.
-        imZeitraum(d.eingestellt ?? d.erstellt, q['_lastUpdated']) &&
-        imZeitraum(d.eingestellt ?? d.erstellt, q['date']) &&
-        (!kennung ||
-          kennungPasst({ system: 'urn:ietf:rfc:3986', value: d.uniqueId }, kennung) ||
-          kennungPasst(
-            { system: 'urn:ietf:rfc:3986', value: `urn:uuid:${eintragsUuid(d)}` },
-            kennung,
-          )),
+        // Ohne `status` gilt jeder Status; die Demo führt nur aktuelle Fassungen.
+        bedingungen.every((b) => b.werte.some((w) => b.pruefen(d, w, kvnr))) &&
+        (!begriff || begriff.split(/\s+/).every((w) => trifftWortanfang(volltext(d), w))),
     );
     return {
       resourceType: 'Bundle',
@@ -276,12 +391,16 @@ export function mhdEinhaengen(
             type: 'DocumentReference',
             interaction: [{ code: 'read' }, { code: 'search-type' }],
             searchParam: [
-              { name: 'status', type: 'token' },
-              { name: 'type', type: 'token' },
-              { name: 'category', type: 'token' },
-              { name: 'identifier', type: 'token' },
-              { name: 'date', type: 'date' },
-              { name: '_lastUpdated', type: 'date' },
+              ...Object.keys(SUCHE).map((name) => ({
+                name,
+                type: ['_lastUpdated', 'date', 'creation', 'period'].includes(name)
+                  ? 'date'
+                  : ['patient', 'related'].includes(name)
+                    ? 'reference'
+                    : /^(title|description|author\.)/.test(name)
+                      ? 'string'
+                      : 'token',
+              })),
               ...(abStufe(AB_STUFE.volltextsuche) ? [{ name: '_content', type: 'string' }] : []),
             ],
           },

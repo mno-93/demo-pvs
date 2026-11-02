@@ -25,6 +25,11 @@ import { kind, kinder, nachfahren, xmlLesen, xmlMaskieren, type XmlElement } fro
  */
 
 export const XDS_DOKUMENTENDIENST = '/epa/xds-document/api/I_Document_Management';
+/**
+ * `wsa:To` ist eine URI (WS-Addressing). ⚠ Die Adresse des Aktensystems vergibt der Anbieter; die
+ * Demo nennt eine erfundene im eigenen Namensraum.
+ */
+export const XDS_ADRESSE = `https://example.org/demo-pvs${XDS_DOKUMENTENDIENST}`;
 export const ITI41_AKTION = 'urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b';
 export const ITI41_ANTWORT = 'urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-bResponse';
 /** SOAP 1.2 trägt die Aktion im Inhaltstyp. */
@@ -170,7 +175,7 @@ export function provideAndRegisterErzeugen(e: XdsEinreichung, nachrichtId: strin
     (d) => `<xdsb:Document id="urn:uuid:${d.entryUuid}">${d.inhaltBase64}</xdsb:Document>`,
   );
   return `<?xml version="1.0" encoding="UTF-8"?>
-<soap:Envelope xmlns:soap="${NS.soap}" xmlns:wsa="${NS.wsa}"><soap:Header><wsa:Action soap:mustUnderstand="1">${ITI41_AKTION}</wsa:Action><wsa:MessageID>urn:uuid:${nachrichtId}</wsa:MessageID><wsa:To>${XDS_DOKUMENTENDIENST}</wsa:To></soap:Header><soap:Body><xdsb:ProvideAndRegisterDocumentSetRequest xmlns:xdsb="${NS.xdsb}" xmlns:lcm="${NS.lcm}" xmlns:rim="${NS.rim}"><lcm:SubmitObjectsRequest><rim:RegistryObjectList>${einreichung}${dokumente.join('')}${verbindungen.join('')}</rim:RegistryObjectList></lcm:SubmitObjectsRequest>${inhalte.join('')}</xdsb:ProvideAndRegisterDocumentSetRequest></soap:Body></soap:Envelope>`;
+<soap:Envelope xmlns:soap="${NS.soap}" xmlns:wsa="${NS.wsa}"><soap:Header><wsa:Action soap:mustUnderstand="1">${ITI41_AKTION}</wsa:Action><wsa:MessageID>urn:uuid:${nachrichtId}</wsa:MessageID><wsa:To>${XDS_ADRESSE}</wsa:To></soap:Header><soap:Body><xdsb:ProvideAndRegisterDocumentSetRequest xmlns:xdsb="${NS.xdsb}" xmlns:lcm="${NS.lcm}" xmlns:rim="${NS.rim}"><lcm:SubmitObjectsRequest><rim:RegistryObjectList>${einreichung}${dokumente.join('')}${verbindungen.join('')}</rim:RegistryObjectList></lcm:SubmitObjectsRequest>${inhalte.join('')}</xdsb:ProvideAndRegisterDocumentSetRequest></soap:Body></soap:Envelope>`;
 }
 
 /* ---------- Lesen auf der Seite des Aktensystems ---------- */
@@ -181,6 +186,10 @@ export interface GelesenesDokument extends Omit<XdsDokumentangabe, 'inhaltBase64
   autorPerson: string;
   autorEinrichtung: string;
   autorTelematikId: string;
+  /** `healthcareFacilityTypeCode`, `practiceSettingCode`, `confidentialityCode`, wenn angegeben. */
+  einrichtungsart: XdsCode | null;
+  fachrichtung: XdsCode | null;
+  vertraulichkeit: XdsCode | null;
 }
 
 export interface GeleseneEinreichung {
@@ -257,6 +266,9 @@ export function provideAndRegisterLesen(xml: string): GeleseneEinreichung {
         : '',
       autorEinrichtung: teile[0] ?? '',
       autorTelematikId: teile[9] ?? '',
+      einrichtungsart: codeAus(eo, XDS_SCHEMA.healthcareFacilityTypeCode),
+      fachrichtung: codeAus(eo, XDS_SCHEMA.practiceSettingCode),
+      vertraulichkeit: codeAus(eo, XDS_SCHEMA.confidentialityCode),
       inhaltBase64: inhalte.get(id) ?? null,
     };
   });

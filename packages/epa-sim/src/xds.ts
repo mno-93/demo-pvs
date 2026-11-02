@@ -40,7 +40,13 @@ import { base64ZuText } from './plattform.ts';
  *   beschreibt es der README der Implementation Guides) und, ab „Weiterentwicklung 2", der ✦
  *   formatCode des strukturierten Arztbriefs der Demo. Der CDA-eArztbrief (`ig-eab.json`) ist
  *   seit dem 01.04.2026 nur noch lesbar;
- * - eine uniqueId nur einmal je Akte.
+ * - classCode und typeCode passend zum registrierten formatCode → `XDSRegistryMetadataError`;
+ * - eine uniqueId nur einmal je Akte, auch innerhalb einer Einreichung →
+ *   `XDSDuplicateUniqueIdInRegistry`.
+ *
+ * Gespeichert werden auch Einrichtungsart, Fachrichtung, Vertraulichkeit und die Telematik-ID der
+ * einstellenden Einrichtung; der MHD Service gibt sie als `context`, `securityLabel` und
+ * `author.identifier` zurück.
  *
  * ⚠ Nicht nachgebildet: MTOM/XOP (das Dokument kommt inline), Prüfung gegen die Legal Policy
  * je Kategorie, Hash und Größe, SOAP-Faults bei Fehlern der Prüfkette (sie antwortet wie auf
@@ -51,10 +57,22 @@ const PDF_A1 = 'urn:ihe-d:spec:PDF_A1:2005';
 
 const deutsch = (iso: string) => iso.split('-').reverse().join('.');
 
-/** Prüft einen formatCode gegen die registrierten Dokumenttypen. `null`: nicht registriert. */
-function registriert(format: string, mimeType: string, titel: string): XdsFehler | 'ok' | null {
-  const typ = dokumenttypen.find((t) => t.formatCode === format);
+/**
+ * Prüft einen formatCode gegen die registrierten Dokumenttypen — samt classCode und typeCode, die
+ * die Implementation Guides je formatCode vorschreiben. `null`: nicht registriert.
+ */
+function registriert(d: GeleseneEinreichung['dokumente'][number]): XdsFehler | 'ok' | null {
+  const { mimeType, titel } = d;
+  const typ = dokumenttypen.find((t) => t.formatCode === d.formatCode.code);
   if (!typ) return null;
+  if (
+    (typ.classCode && d.classCode.code !== typ.classCode.code) ||
+    (typ.typeCode && d.typeCode.code !== typ.typeCode.code)
+  )
+    return {
+      code: 'XDSRegistryMetadataError',
+      text: `${titel}: classCode und typeCode passen nicht zum formatCode (${typ.datei}: ${typ.classCode?.code ?? '—'}, ${typ.typeCode?.code ?? '—'}).`,
+    };
   if (typ.gueltigAb && typ.gueltigAb > DEMO_HEUTE)
     return {
       code: 'XDSRegistryMetadataError',
@@ -102,7 +120,7 @@ function pruefen(e: GeleseneEinreichung, kvnr: string): XdsFehler[] {
         text: `${d.titel}: classCode, typeCode und formatCode sind Pflicht.`,
       });
     const format = d.formatCode.code;
-    const ig = format ? registriert(format, d.mimeType, d.titel) : 'ok';
+    const ig = format ? registriert(d) : 'ok';
     if (ig && ig !== 'ok') fehler.push(ig);
     else if (ig === 'ok') {
       /* registriert und gültig */
@@ -128,10 +146,15 @@ function pruefen(e: GeleseneEinreichung, kvnr: string): XdsFehler[] {
         code: 'XDSRegistryMetadataError',
         text: `${d.titel}: formatCode „${format}" ist unbekannt.`,
       });
-    if (bestand.some((x) => x.uniqueId === `urn:oid:${d.uniqueId}`))
+    // Eine uniqueId gibt es je Akte nur einmal — auch innerhalb derselben Einreichung (IHE ITI
+    // TF-3, 4.2.4.1: XDSDuplicateUniqueIdInRegistry).
+    if (
+      bestand.some((x) => x.uniqueId === `urn:oid:${d.uniqueId}`) ||
+      e.dokumente.filter((x) => x.uniqueId === d.uniqueId).length > 1
+    )
       fehler.push({
-        code: 'XDSRegistryMetadataError',
-        text: `${d.titel}: uniqueId ist bereits vergeben.`,
+        code: 'XDSDuplicateUniqueIdInRegistry',
+        text: `${d.titel}: uniqueId ${d.uniqueId} ist bereits vergeben.`,
       });
   }
   return fehler;
@@ -165,6 +188,10 @@ function alsDokument(d: GeleseneEinreichung['dokumente'][number]): Dokument {
     eingestellt: jetzt(),
     autor: d.autorPerson,
     einrichtung: d.autorEinrichtung,
+    ...(d.autorTelematikId ? { einrichtungTelematikId: d.autorTelematikId } : {}),
+    ...(d.einrichtungsart ? { einrichtungsart: d.einrichtungsart } : {}),
+    ...(d.fachrichtung ? { fachrichtung: d.fachrichtung } : {}),
+    ...(d.vertraulichkeit ? { vertraulichkeit: d.vertraulichkeit } : {}),
     groesseBytes: roh.length,
     inhalt,
     ...(json ? {} : { datei: roh }),
