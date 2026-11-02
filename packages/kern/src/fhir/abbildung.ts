@@ -186,33 +186,40 @@ export function patientNachFhir(patient: Patient, profil: string = PROFIL.patien
  * Seitenlokalisation als Extension; SNOMED CT steht als zweite Kodierung daneben.
  */
 export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
+  // Unbekanntes bleibt weg (ADR 0053): kein ICD-Coding ohne Code, kein Kennzeichen, kein Status.
+  const icdExtensionen: Extension[] = [
+    ...(diagnose.zusatzkennzeichen
+      ? [
+          {
+            url: ICD_EXTENSION.diagnosesicherheit,
+            valueCoding: {
+              system: SYSTEM.icdDiagnosesicherheit,
+              code: diagnose.zusatzkennzeichen,
+              display: ZUSATZKENNZEICHEN_BEZEICHNUNG[diagnose.zusatzkennzeichen],
+            },
+          },
+        ]
+      : []),
+    ...(diagnose.seitenlokalisation
+      ? [
+          {
+            url: ICD_EXTENSION.seitenlokalisation,
+            valueCoding: {
+              system: SYSTEM.icdSeitenlokalisation,
+              code: diagnose.seitenlokalisation,
+              display: SEITENLOKALISATION_BEZEICHNUNG[diagnose.seitenlokalisation],
+            },
+          },
+        ]
+      : []),
+  ];
   const icd: Coding = {
     system: CODESYSTEM.icd10gm,
     version: ICD10GM_VERSION,
     code: diagnose.code,
     display: diagnose.bezeichnung,
-    extension: [
-      {
-        url: ICD_EXTENSION.diagnosesicherheit,
-        valueCoding: {
-          system: SYSTEM.icdDiagnosesicherheit,
-          code: diagnose.zusatzkennzeichen,
-          display: ZUSATZKENNZEICHEN_BEZEICHNUNG[diagnose.zusatzkennzeichen],
-        },
-      },
-      ...(diagnose.seitenlokalisation
-        ? [
-            {
-              url: ICD_EXTENSION.seitenlokalisation,
-              valueCoding: {
-                system: SYSTEM.icdSeitenlokalisation,
-                code: diagnose.seitenlokalisation,
-                display: SEITENLOKALISATION_BEZEICHNUNG[diagnose.seitenlokalisation],
-              },
-            },
-          ]
-        : []),
-    ],
+    // Leere Listen sind in FHIR nicht zulässig.
+    ...(icdExtensionen.length > 0 ? { extension: icdExtensionen } : {}),
   };
 
   // Alpha-ID-SE als weitere Kodierung, wenn erfasst (Must Support in ti-condition-diagnosis).
@@ -223,12 +230,14 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
   // Diagnose: Zusatzkennzeichen „A“ verlangt einen leeren Status (icd-4 der Deutschen Basisprofile,
   // dort Warnung; in der `EMPReasonCondition` des ePA-Ballots 1.4.0 Fehler).
   const ohneStatus =
-    diagnose.diagnosesicherheit === 'irrtümlich' || diagnose.zusatzkennzeichen === 'A';
+    diagnose.diagnosesicherheit === 'irrtümlich' ||
+    diagnose.zusatzkennzeichen === 'A' ||
+    diagnose.klinischerStatus === null;
   const ressource: Ressource = {
     resourceType: 'Condition',
     id: diagnose.id,
     meta: { profile: [PROFIL.diagnose] },
-    ...(ohneStatus
+    ...(ohneStatus || diagnose.klinischerStatus === null
       ? {}
       : {
           clinicalStatus: {
@@ -241,15 +250,22 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
             ],
           },
         }),
-    verificationStatus: {
-      coding: [
-        {
-          system: SYSTEM.conditionVer,
-          code: DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit],
-          display: anzeige('verifikation', DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit]),
-        },
-      ],
-    },
+    ...(diagnose.diagnosesicherheit
+      ? {
+          verificationStatus: {
+            coding: [
+              {
+                system: SYSTEM.conditionVer,
+                code: DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit],
+                display: anzeige(
+                  'verifikation',
+                  DIAGNOSESICHERHEIT_CODE[diagnose.diagnosesicherheit],
+                ),
+              },
+            ],
+          },
+        }
+      : {}),
     category: [
       {
         coding: [
@@ -263,7 +279,10 @@ export function diagnoseNachFhir(diagnose: Diagnose, kvnr: string): Ressource {
     ],
     // Mehrfachkodierung nach dem Informationsmodell: ICD-10-GM und, sofern vorhanden, SNOMED CT.
     code: {
-      coding: [icd, ...alphaId, ...(diagnose.snomed ? [kodierungNachFhir(diagnose.snomed)] : [])],
+      coding: [
+        ...(diagnose.code ? [icd, ...alphaId] : []),
+        ...(diagnose.snomed ? [kodierungNachFhir(diagnose.snomed)] : []),
+      ],
       text: diagnose.bezeichnung,
     },
     subject: patientVerweis(diagnose.patientId, kvnr),
@@ -373,15 +392,25 @@ export function impfungNachFhir(impfung: Impfung, kvnr: string): Ressource {
     ...(herkunftExtension(impfung.herkunft).length
       ? { extension: herkunftExtension(impfung.herkunft) }
       : {}),
-    status: impfung.status === 'fehlerhaft' ? 'entered-in-error' : 'completed',
+    status:
+      impfung.status === 'fehlerhaft'
+        ? 'entered-in-error'
+        : impfung.status === 'nicht-erfolgt'
+          ? 'not-done'
+          : 'completed',
     vaccineCode: {
       coding: [
-        {
-          system: CODESYSTEM.atc,
-          version: impfung.impfstoff.atcVersion,
-          code: impfung.impfstoff.atc,
-          display: impfung.impfstoff.bezeichnung,
-        },
+        // Ohne ATC-Code kein ATC-Coding — ein leerer Code wäre ungültig.
+        ...(impfung.impfstoff.atc
+          ? [
+              {
+                system: CODESYSTEM.atc,
+                ...(impfung.impfstoff.atcVersion ? { version: impfung.impfstoff.atcVersion } : {}),
+                code: impfung.impfstoff.atc,
+                display: impfung.impfstoff.bezeichnung,
+              },
+            ]
+          : []),
         ...(impfung.impfstoff.pzn
           ? [{ system: 'http://fhir.de/CodeSystem/ifa/pzn', code: impfung.impfstoff.pzn }]
           : []),

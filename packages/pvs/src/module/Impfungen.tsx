@@ -255,6 +255,7 @@ function Impfzeile({ impfung: i }: { impfung: Impfung }) {
         <b>{i.impfstoff.bezeichnung}</b>
         {i.dosis && <Marker ton="neutral">{i.dosis}. Dosis</Marker>}
         {i.status === 'fehlerhaft' && <Marker ton="fehler">fehlerhaft</Marker>}
+        {i.status === 'nicht-erfolgt' && <Marker ton="warn">nicht erfolgt</Marker>}
       </div>
       <div className="leise-klein">
         {deutschesDatum(i.datum)} · {i.zielkrankheiten.map((k) => k.anzeige).join(', ')}

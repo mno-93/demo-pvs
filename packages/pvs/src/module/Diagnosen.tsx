@@ -3,9 +3,7 @@ import { useLocation } from 'react-router-dom';
 import {
   ALLERGIESTATUS_BEZEICHNUNG,
   DIAGNOSEART_BEZEICHNUNG,
-  DIAGNOSESICHERHEIT_BEZEICHNUNG,
   GEWISSHEIT_BEZEICHNUNG,
-  KLINISCHER_STATUS_BEZEICHNUNG,
   allergienAbgleichen,
   atcFuerSubstanz,
   deutschesDatum,
@@ -17,6 +15,9 @@ import {
   type Diagnose,
   type Listenzeile,
   type Ressource,
+  diagnosecode,
+  diagnosesicherheitText,
+  klinischerStatusText,
 } from '@demo-pvs/kern';
 import { ausfuehren, useAuswahl, useZustand } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
@@ -906,8 +907,7 @@ function DiagnoseKarte({
         <>
           {d.code && (
             <span className="code" title="ICD-10-GM mit Zusatzkennzeichen und Seite">
-              {d.code} {d.zusatzkennzeichen}
-              {d.seitenlokalisation ? ` ${d.seitenlokalisation}` : ''}
+              {diagnosecode(d)}
             </span>
           )}{' '}
           {berichtigt ? (
@@ -939,8 +939,8 @@ function DiagnoseKarte({
             </Marker>{' '}
             {!berichtigt && (
               <span>
-                {KLINISCHER_STATUS_BEZEICHNUNG[d.klinischerStatus]} ·{' '}
-                {DIAGNOSESICHERHEIT_BEZEICHNUNG[d.diagnosesicherheit]}
+                {klinischerStatusText(d.klinischerStatus)} ·{' '}
+                {diagnosesicherheitText(d.diagnosesicherheit)}
               </span>
             )}
           </div>

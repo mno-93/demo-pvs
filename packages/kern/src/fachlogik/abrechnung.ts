@@ -49,7 +49,10 @@ export function pruefeLeistung(ziffer: string, umgebung: Pruefumgebung): Pruefme
   if (ziffer === '03220') {
     const dauerdiagnosen = umgebung.diagnosen.filter(
       (d) =>
-        d.art === 'dauer' && istGegenwaertig(d.klinischerStatus) && d.zusatzkennzeichen === 'G',
+        d.art === 'dauer' &&
+        d.code !== '' &&
+        istGegenwaertig(d.klinischerStatus) &&
+        d.zusatzkennzeichen === 'G',
     );
     if (dauerdiagnosen.length === 0) {
       meldungen.push({

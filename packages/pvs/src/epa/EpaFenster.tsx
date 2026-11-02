@@ -6,7 +6,6 @@ import {
   DIAGNOSEART_BEZEICHNUNG,
   EMP_EXTENSION,
   GEWISSHEIT_BEZEICHNUNG,
-  KLINISCHER_STATUS_BEZEICHNUNG,
   deutschesDatum,
   deutscherZeitpunkt,
   dokumentinhaltLesen,
@@ -23,6 +22,8 @@ import {
   type Ressource,
   dosierungsanzeige,
   grundanzeige,
+  diagnosecode,
+  klinischerStatusText,
 } from '@demo-pvs/kern';
 import { ausfuehren, useAuswahl } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
@@ -1147,11 +1148,7 @@ function Listenzeile({ eintrag, aufklappen }: { eintrag: Posten; aufklappen: Auf
         rechts={eintrag.psRelevant && !berichtigt ? <PsMarke kompakt /> : undefined}
         zeile={
           <>
-            {diagnose?.code && (
-              <span className="code">
-                {diagnose.code} {diagnose.zusatzkennzeichen}
-              </span>
-            )}
+            {diagnose?.code && <span className="code">{diagnosecode(diagnose)}</span>}
             {berichtigt ? (
               <Marker ton="fehler">fehlerhaft</Marker>
             ) : allergie ? (
@@ -1165,7 +1162,7 @@ function Listenzeile({ eintrag, aufklappen }: { eintrag: Posten; aufklappen: Auf
               diagnose && (
                 <span>
                   {DIAGNOSEART_BEZEICHNUNG[diagnose.art]} ·{' '}
-                  {KLINISCHER_STATUS_BEZEICHNUNG[diagnose.klinischerStatus]}
+                  {klinischerStatusText(diagnose.klinischerStatus)}
                 </span>
               )
             )}
@@ -1188,11 +1185,7 @@ function Listenzeile({ eintrag, aufklappen }: { eintrag: Posten; aufklappen: Auf
                 ` · geändert ${deutscherZeitpunkt(chronik.zuletztAm)}, ${chronik.zuletztVon}`}
             </div>
             <div className="codezeile">
-              {diagnose?.code && (
-                <span className="code">
-                  ICD-10-GM {diagnose.code} {diagnose.zusatzkennzeichen}
-                </span>
-              )}
+              {diagnose?.code && <span className="code">ICD-10-GM {diagnosecode(diagnose)}</span>}
               {e.snomed && <span className="code snomed">SNOMED CT {e.snomed.code}</span>}
               {allergie && (
                 <span className="leise-klein">

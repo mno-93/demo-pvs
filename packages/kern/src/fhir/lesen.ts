@@ -17,6 +17,8 @@ import {
 import {
   DIAGNOSESICHERHEIT_CODE,
   KLINISCHER_STATUS_CODE,
+  sicherheitAusZusatzkennzeichen,
+  zusatzkennzeichenAusStatus,
   type Diagnose,
   type Diagnosesicherheit,
   type KlinischerStatus,
@@ -26,6 +28,7 @@ import {
 import type { Herkunft } from '../typen/herkunft.js';
 import type { Impfung } from '../typen/impfung.js';
 import { CODESYSTEM, type Kodierung } from '../typen/kodierung.js';
+import { ortszeitDeutschland } from '../uhr.js';
 import { ALLERGIE_ENDE_EXTENSION, HERKUNFT_EXTENSION, ICD_EXTENSION } from './abbildung.js';
 import type { Ressource } from './typen.js';
 
@@ -33,8 +36,13 @@ import type { Ressource } from './typen.js';
  * Rückabbildung von FHIR in die Domänentypen — Gegenstück zu `abbildung.ts`.
  *
  * Gebraucht für die Listen der ePA (✦ Diagnose-Service): Das Praxissystem zeigt deren
- * Einträge mit denselben Bausteinen wie die eigenen und kann sie übernehmen. Was eine
- * Ressource nicht trägt, bekommt den Wert, den auch die Erfassung vorbelegt.
+ * Einträge mit denselben Bausteinen wie die eigenen und kann sie übernehmen.
+ *
+ * Was eine Ressource nicht trägt, ist unbekannt — nicht die Vorbelegung der Erfassung (ADR 0053):
+ * Zusatzkennzeichen, Diagnosesicherheit und klinischer Status einer Diagnose werden `null`, wenn
+ * keine andere Angabe sie ergibt; eine Impfung `not-done` bleibt „nicht erfolgt“. Ausnahme mit
+ * Absicht: Eine Allergie ohne klinischen Status gilt als aktiv — für die AMTS-Prüfung die
+ * vorsichtige Seite.
  */
 
 function umkehren<K extends string>(abbildung: Record<K, string>): Record<string, K> {
@@ -68,8 +76,17 @@ function kodierung(c: Coding | undefined, text?: string): Kodierung | null {
     : null;
 }
 
+/**
+ * ISO-Datum eines FHIR-Datums oder -Zeitpunkts — ein Zeitpunkt mit Zone als Tag in deutscher
+ * Zeit (`2026-09-08T23:30:00Z` ist der 09.09.2026), sonst die ersten zehn Zeichen.
+ */
 function datum(wert: unknown): string | null {
-  return typeof wert === 'string' && wert ? wert.slice(0, 10) : null;
+  if (typeof wert !== 'string' || !wert) return null;
+  if (/T.*(Z|[+-]\d{2}:\d{2})$/.test(wert)) {
+    const zeitpunkt = new Date(wert);
+    if (!Number.isNaN(zeitpunkt.getTime())) return ortszeitDeutschland(zeitpunkt).slice(0, 10);
+  }
+  return wert.slice(0, 10);
 }
 
 export function diagnoseAusFhir(r: Ressource, patientId: string, herkunft: Herkunft): Diagnose {
@@ -81,6 +98,12 @@ export function diagnoseAusFhir(r: Ressource, patientId: string, herkunft: Herku
   const kategorie = JSON.stringify(r['category'] ?? '');
   const festgestellt = (r.extension ?? []).find((e) => e.url.endsWith('condition-assertedDate')) as
     { valueDateTime?: string } | undefined;
+  // Fehlt eine Angabe, folgt sie wo möglich aus den anderen, sonst bleibt sie unbekannt.
+  const kennzeichen = ext(ICD_EXTENSION.diagnosesicherheit) as Zusatzkennzeichen | undefined;
+  const status = STATUS_AUS_CODE[statuscode(r, 'clinicalStatus')] ?? null;
+  const sicherheit =
+    SICHERHEIT_AUS_CODE[statuscode(r, 'verificationStatus')] ??
+    (kennzeichen ? sicherheitAusZusatzkennzeichen(kennzeichen) : null);
   return {
     id: String(r.id),
     patientId,
@@ -89,13 +112,12 @@ export function diagnoseAusFhir(r: Ressource, patientId: string, herkunft: Herku
     bezeichnung: konzept.text ?? icd?.display ?? sct?.display ?? '(ohne Bezeichnung)',
     snomed: kodierung(sct),
     alphaId: kodierungen.find((k) => k.system === CODESYSTEM.alphaId)?.code ?? null,
-    zusatzkennzeichen:
-      (ext(ICD_EXTENSION.diagnosesicherheit) as Zusatzkennzeichen | undefined) ?? 'G',
+    zusatzkennzeichen: kennzeichen ?? zusatzkennzeichenAusStatus(sicherheit, status),
     seitenlokalisation:
       (ext(ICD_EXTENSION.seitenlokalisation) as Seitenlokalisation | undefined) ?? null,
-    diagnosesicherheit: SICHERHEIT_AUS_CODE[statuscode(r, 'verificationStatus')] ?? 'gesichert',
+    diagnosesicherheit: sicherheit,
     art: kategorie.includes('problem-list-item') ? 'dauer' : 'akut',
-    klinischerStatus: STATUS_AUS_CODE[statuscode(r, 'clinicalStatus')] ?? 'aktiv',
+    klinischerStatus: status,
     schweregrad: kodierung((r['severity'] as Konzept | undefined)?.coding?.[0]),
     koerperstelle: (r['bodySite'] as Konzept[] | undefined)?.[0]?.text ?? null,
     beginn: datum(r['onsetDateTime']) ?? datum(r['recordedDate']) ?? '',
@@ -247,13 +269,19 @@ export function impfungAusFhir(r: Ressource, patientId: string, herkunft: Herkun
     zielkrankheiten: (protokoll?.targetDisease ?? [])
       .map((t) => kodierung(t.coding?.[0]))
       .filter((k): k is Kodierung => k !== null),
-    datum: String(r['occurrenceDateTime'] ?? '').slice(0, 10),
+    datum: datum(r['occurrenceDateTime']) ?? '',
     dosis: protokoll?.doseNumberPositiveInt ?? null,
     charge: (r['lotNumber'] as string | undefined) ?? null,
     geimpftVon:
       (r['performer'] as { actor?: { display?: string } }[] | undefined)?.[0]?.actor?.display ??
       herkunft.verantwortlich,
-    status: r['status'] === 'entered-in-error' ? 'fehlerhaft' : 'erfolgt',
+    // `status` ist ein Modifier: Eine nicht erfolgte Impfung darf nicht als erfolgt gelten.
+    status:
+      r['status'] === 'entered-in-error'
+        ? 'fehlerhaft'
+        : r['status'] === 'not-done'
+          ? 'nicht-erfolgt'
+          : 'erfolgt',
     herkunft,
     epaId: null,
     notiz: (r['note'] as { text?: string }[] | undefined)?.[0]?.text ?? null,

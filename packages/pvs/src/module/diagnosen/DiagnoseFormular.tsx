@@ -25,6 +25,7 @@ import {
   type KodierserviceEintrag,
   type Seitenlokalisation,
   type Zusatzkennzeichen,
+  diagnosecode,
 } from '@demo-pvs/kern';
 import { Karte, Marker } from '../../bausteine/Bausteine.js';
 import { Terminologiesuche } from '../../bausteine/Terminologiesuche.js';
@@ -273,10 +274,7 @@ export function DiagnoseFormular({
               <div>
                 <dt>ICD-10-GM</dt>
                 <dd>
-                  <span className="code">
-                    {e.code} {e.zusatzkennzeichen}
-                    {e.seitenlokalisation ? ` ${e.seitenlokalisation}` : ''}
-                  </span>
+                  <span className="code">{diagnosecode(e)}</span>
                 </dd>
               </div>
               <div>
@@ -306,11 +304,13 @@ export function DiagnoseFormular({
             <Auswahl
               id="d-zusatz"
               beschriftung="ICD-Diagnosesicherheit"
-              wert={e.zusatzkennzeichen}
-              optionen={Object.entries(ZUSATZKENNZEICHEN_BEZEICHNUNG).map(([k, b]) => [
-                k,
-                `${k} — ${b}`,
-              ])}
+              wert={e.zusatzkennzeichen ?? ''}
+              optionen={[
+                ...(e.zusatzkennzeichen ? [] : [['', 'unbekannt — bitte wählen'] as const]),
+                ...Object.entries(ZUSATZKENNZEICHEN_BEZEICHNUNG).map(
+                  ([k, b]) => [k, `${k} — ${b}`] as const,
+                ),
+              ]}
               aendern={(w) => zusatzWaehlen(w as Zusatzkennzeichen)}
             />
             <Auswahl
@@ -328,16 +328,22 @@ export function DiagnoseFormular({
             <Auswahl
               id="d-sicherheit"
               beschriftung="Diagnosesicherheit"
-              wert={e.diagnosesicherheit}
-              optionen={Object.entries(DIAGNOSESICHERHEIT_BEZEICHNUNG)}
+              wert={e.diagnosesicherheit ?? ''}
+              optionen={[
+                ...(e.diagnosesicherheit ? [] : [['', 'unbekannt — bitte wählen'] as const]),
+                ...Object.entries(DIAGNOSESICHERHEIT_BEZEICHNUNG),
+              ]}
               aendern={(w) => setze('diagnosesicherheit', w as Diagnosesicherheit)}
               hinweis={vorbelegt ? 'aus dem Zusatzkennzeichen vorbelegt' : undefined}
             />
             <Auswahl
               id="d-status"
               beschriftung="Klinischer Status"
-              wert={e.klinischerStatus}
-              optionen={Object.entries(KLINISCHER_STATUS_BEZEICHNUNG)}
+              wert={e.klinischerStatus ?? ''}
+              optionen={[
+                ...(e.klinischerStatus ? [] : [['', 'unbekannt — bitte wählen'] as const]),
+                ...Object.entries(KLINISCHER_STATUS_BEZEICHNUNG),
+              ]}
               aendern={(w) =>
                 setzeE((alt) => ({
                   ...alt,
@@ -443,6 +449,8 @@ export function DiagnoseFormular({
             <button
               type="button"
               className="knopf stark"
+              // Was aus der ePA unbekannt kam, wählt die Praxis, bevor sie speichert (ADR 0053).
+              disabled={!e.zusatzkennzeichen || !e.diagnosesicherheit || !e.klinischerStatus}
               onClick={() =>
                 beiSpeichern(
                   { ...e, dokumentiertAm: heute },

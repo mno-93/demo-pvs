@@ -71,8 +71,8 @@ export const KLINISCHER_STATUS_CODE: Record<KlinischerStatus, string> = {
   behoben: 'resolved',
 };
 
-/** Ist die Erkrankung derzeit gegenwärtig? Aktiv, Wiederauftreten und Rezidiv. */
-export function istGegenwaertig(status: KlinischerStatus): boolean {
+/** Ist die Erkrankung derzeit gegenwärtig? Aktiv, Wiederauftreten und Rezidiv; unbekannt: nein. */
+export function istGegenwaertig(status: KlinischerStatus | null): boolean {
   return status === 'aktiv' || status === 'wiederauftreten' || status === 'rezidiv';
 }
 
@@ -114,23 +114,45 @@ export function statusAusZusatzkennzeichen(zusatz: Zusatzkennzeichen): Klinische
   return zusatz === 'Z' ? 'behoben' : 'aktiv';
 }
 
+/**
+ * Zusatzkennzeichen aus Diagnosesicherheit und klinischem Status — für Einträge, die es nicht
+ * tragen. Umkehrung der Kopplung der Deutschen Basisprofile (`icd-4` bis `icd-7`): ausgeschlossen
+ * → A; vorläufig, Differential, unbestätigt → V; gesichert und behoben, inaktiv oder in
+ * Remission → Z; gesichert → G. Ohne Diagnosesicherheit oder bei irrtümlicher Eingabe: `null`.
+ */
+export function zusatzkennzeichenAusStatus(
+  sicherheit: Diagnosesicherheit | null,
+  status: KlinischerStatus | null,
+): Zusatzkennzeichen | null {
+  if (sicherheit === 'ausgeschlossen') return 'A';
+  if (sicherheit === 'vorläufig' || sicherheit === 'differential' || sicherheit === 'unbestätigt')
+    return 'V';
+  if (sicherheit !== 'gesichert') return null;
+  return status === 'behoben' || status === 'inaktiv' || status === 'remission' ? 'Z' : 'G';
+}
+
 export interface Diagnose {
   id: string;
   patientId: string;
   fallId: string | null;
-  /** ICD-10-GM-Diagnosecode — geführt für die Abrechnung. */
+  /** ICD-10-GM-Diagnosecode — geführt für die Abrechnung. Leer, wenn ein ePA-Eintrag keinen trägt. */
   code: string;
   bezeichnung: string;
   /** SNOMED CT aus dem Kodierservice. Liegt es vor, ist die Diagnose mehrfach kodiert. */
   snomed: Kodierung | null;
   alphaId: string | null;
-  /** ICD-Diagnosesicherheit (Unterelement des ICD-10-GM-Codes). */
-  zusatzkennzeichen: Zusatzkennzeichen;
+  /**
+   * ICD-Diagnosesicherheit (Unterelement des ICD-10-GM-Codes). `null` = unbekannt: Ein Eintrag aus
+   * der ePA trägt weder das Kennzeichen noch eine Diagnosesicherheit, aus der es folgt (ADR 0053).
+   */
+  zusatzkennzeichen: Zusatzkennzeichen | null;
   /** ICD-Seitenlokalisation (Unterelement des ICD-10-GM-Codes). */
   seitenlokalisation: Seitenlokalisation | null;
-  diagnosesicherheit: Diagnosesicherheit;
+  /** `null` = unbekannt (nur aus der ePA). */
+  diagnosesicherheit: Diagnosesicherheit | null;
   art: Diagnoseart;
-  klinischerStatus: KlinischerStatus;
+  /** `null` = unbekannt (nur aus der ePA; bei irrtümlicher Eingabe steht kein Status, con-5). */
+  klinischerStatus: KlinischerStatus | null;
   /** Schweregrad als SNOMED-CT-Konzept aus ConditionDiagnosisSeverity. */
   schweregrad: Kodierung | null;
   /** Körperstelle als Bezeichnung; die SNOMED-CT-Kodierung ist in der Demo nicht belegt. */
@@ -155,4 +177,21 @@ export interface Diagnose {
   epaId: string | null;
   /** Fassung des ePA-Eintrags beim letzten Abgleich — daran zeigt sich eine Änderung dort. */
   epaFassung: string | null;
+}
+
+/** ICD-10-GM mit Zusatzkennzeichen und Seite, wie Listen und Brief ihn zeigen; Unbekanntes fehlt. */
+export function diagnosecode(
+  d: Pick<Diagnose, 'code' | 'zusatzkennzeichen' | 'seitenlokalisation'>,
+): string {
+  return [d.code, d.zusatzkennzeichen, d.seitenlokalisation].filter(Boolean).join(' ');
+}
+
+/** Klinischer Status in Worten; ein unbekannter heißt so (ADR 0053). */
+export function klinischerStatusText(status: KlinischerStatus | null): string {
+  return status ? KLINISCHER_STATUS_BEZEICHNUNG[status] : 'Status unbekannt';
+}
+
+/** Diagnosesicherheit in Worten; eine unbekannte heißt so (ADR 0053). */
+export function diagnosesicherheitText(sicherheit: Diagnosesicherheit | null): string {
+  return sicherheit ? DIAGNOSESICHERHEIT_BEZEICHNUNG[sicherheit] : 'Diagnosesicherheit unbekannt';
 }

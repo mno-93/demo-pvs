@@ -2,9 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   ALLERGIESTATUS_BEZEICHNUNG,
   CODESYSTEM,
-  DIAGNOSESICHERHEIT_BEZEICHNUNG,
   GEWISSHEIT_BEZEICHNUNG,
-  KLINISCHER_STATUS_BEZEICHNUNG,
   PS_QUELLE_BEZEICHNUNG,
   PS_QUELLE_GEFUEHRT,
   allergieAusFhirRessource,
@@ -23,6 +21,9 @@ import {
   type Ressource,
   dosierungsanzeige,
   grundanzeige,
+  diagnosecode,
+  diagnosesicherheitText,
+  klinischerStatusText,
 } from '@demo-pvs/kern';
 import { Marker } from '../bausteine/Bausteine.js';
 import {
@@ -371,16 +372,14 @@ function Eintraege({
               <div className="reihe">
                 <b>{d.bezeichnung}</b>
                 <NeuMarke seit={seit} ressource={r} />
-                {d.code && (
-                  <span className="code">
-                    {d.code} {d.zusatzkennzeichen}
-                  </span>
-                )}
+                {d.code && <span className="code">{diagnosecode(d)}</span>}
                 {d.beginn && <span className="leise-klein">seit {d.beginn.slice(0, 4)}</span>}
-                <Marker ton="neutral">
-                  {DIAGNOSESICHERHEIT_BEZEICHNUNG[d.diagnosesicherheit]}
+                <Marker ton={d.diagnosesicherheit ? 'neutral' : 'warn'}>
+                  {diagnosesicherheitText(d.diagnosesicherheit)}
                 </Marker>
-                <Marker ton="neutral">{KLINISCHER_STATUS_BEZEICHNUNG[d.klinischerStatus]}</Marker>
+                <Marker ton={d.klinischerStatus ? 'neutral' : 'warn'}>
+                  {klinischerStatusText(d.klinischerStatus)}
+                </Marker>
                 {d.schweregrad && <Marker ton="neutral">{d.schweregrad.anzeige}</Marker>}
               </div>
               <PsHerkunft chronik={chronik} />

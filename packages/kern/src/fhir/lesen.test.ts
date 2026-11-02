@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { HERKUNFT_EXTENSION, allergieNachFhir, diagnoseNachFhir } from './abbildung.js';
-import { allergieAusFhirRessource, chronikLesen, diagnoseAusFhir, istBerichtigt } from './lesen.js';
+import {
+  HERKUNFT_EXTENSION,
+  allergieNachFhir,
+  diagnoseNachFhir,
+  impfungNachFhir,
+} from './abbildung.js';
+import {
+  allergieAusFhirRessource,
+  chronikLesen,
+  diagnoseAusFhir,
+  impfungAusFhir,
+  istBerichtigt,
+} from './lesen.js';
 import { allergieMuster, diagnoseMuster } from '../testhilfe.js';
 import { CODESYSTEM } from '../typen/kodierung.js';
 
@@ -119,5 +130,81 @@ describe('Chronik eines ePA-Eintrags', () => {
     expect(chronik.erstelltDurch).toBe('Dr. med. Lea Wagner');
     expect(chronik.quelldokument).toEqual({ id: 'kh-e-1', anzeige: 'Entlassbrief, Klinikum' });
     expect(chronikLesen(eintrag, []).quelldokument).toBeNull();
+  });
+});
+
+describe('Rückabbildung: unbekannt statt Vorbelegung (ADR 0053)', () => {
+  const herkunft = diagnoseMuster({}).herkunft;
+  const icd = { system: CODESYSTEM.icd10gm, code: 'J45.9', display: 'Asthma bronchiale' };
+
+  it('leitet das Zusatzkennzeichen aus der Diagnosesicherheit ab — ausgeschlossen ist A', () => {
+    const d = diagnoseAusFhir(
+      {
+        resourceType: 'Condition',
+        id: 'c1',
+        verificationStatus: { coding: [{ code: 'refuted' }] },
+        category: [{ coding: [{ code: 'problem-list-item' }] }],
+        code: { coding: [icd] },
+      },
+      'p1',
+      herkunft,
+    );
+    expect(d.zusatzkennzeichen).toBe('A');
+    expect(d.diagnosesicherheit).toBe('ausgeschlossen');
+    expect(d.klinischerStatus).toBeNull();
+  });
+
+  it('lässt fehlende Angaben unbekannt und schreibt sie nicht zurück', () => {
+    const d = diagnoseAusFhir(
+      { resourceType: 'Condition', id: 'c2', code: { coding: [icd], text: 'Asthma' } },
+      'p1',
+      herkunft,
+    );
+    expect(d).toMatchObject({
+      zusatzkennzeichen: null,
+      diagnosesicherheit: null,
+      klinischerStatus: null,
+    });
+    const fhir = diagnoseNachFhir(d, 'A123456780');
+    expect(fhir['clinicalStatus']).toBeUndefined();
+    expect(fhir['verificationStatus']).toBeUndefined();
+    const coding = (fhir['code'] as { coding: { extension?: unknown[] }[] }).coding[0]!;
+    expect(coding.extension).toBeUndefined();
+  });
+
+  it('nennt den Tag eines Zeitpunkts in deutscher Zeit', () => {
+    const d = diagnoseAusFhir(
+      {
+        resourceType: 'Condition',
+        id: 'c3',
+        clinicalStatus: { coding: [{ code: 'active' }] },
+        verificationStatus: { coding: [{ code: 'confirmed' }] },
+        code: { coding: [icd] },
+        onsetDateTime: '2026-09-08T23:30:00Z',
+      },
+      'p1',
+      herkunft,
+    );
+    expect(d.beginn).toBe('2026-09-09');
+    expect(d.zusatzkennzeichen).toBe('G');
+  });
+
+  it('liest eine nicht erfolgte Impfung als „nicht erfolgt“ und schreibt not-done', () => {
+    const i = impfungAusFhir(
+      {
+        resourceType: 'Immunization',
+        id: 'i1',
+        status: 'not-done',
+        vaccineCode: { text: 'Influenza' },
+        occurrenceDateTime: '2025-10-14',
+      },
+      'p1',
+      herkunft,
+    );
+    expect(i.status).toBe('nicht-erfolgt');
+    const fhir = impfungNachFhir(i, 'A123456780');
+    expect(fhir['status']).toBe('not-done');
+    // Ohne ATC-Code kein ATC-Coding mit leerem Code.
+    expect((fhir['vaccineCode'] as { coding: unknown[] }).coding).toEqual([]);
   });
 });

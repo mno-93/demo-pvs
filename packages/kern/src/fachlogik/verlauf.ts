@@ -1,7 +1,8 @@
 import { GEWISSHEIT_BEZEICHNUNG, reaktionenAlsText, type Allergie } from '../typen/allergie.js';
 import {
   DIAGNOSEART_BEZEICHNUNG,
-  KLINISCHER_STATUS_BEZEICHNUNG,
+  diagnosecode,
+  klinischerStatusText,
   type Diagnose,
 } from '../typen/diagnose.js';
 import type { Karteikarteneintrag, Kuerzel } from '../typen/karteikarte.js';
@@ -125,9 +126,9 @@ export function verlaufBilden(quellen: Verlaufsquellen): Verlaufseintrag[] {
       id: `v-${d.id}`,
       zeitpunkt: d.herkunft.zeitpunkt,
       kuerzel: 'D',
-      text: `${d.code} ${d.zusatzkennzeichen} — ${d.bezeichnung}`,
+      text: `${diagnosecode(d)} — ${d.bezeichnung}`,
       // Liegt SNOMED CT vor, steht die Mehrfachkodierung im Zusatz — sichtbar, nicht nur im Datensatz.
-      zusatz: `${DIAGNOSEART_BEZEICHNUNG[d.art]} · ${KLINISCHER_STATUS_BEZEICHNUNG[d.klinischerStatus]} · ${zeitraum}${d.snomed ? ` · SNOMED CT ${d.snomed.code}` : ''}${d.epaId ? ' · in der Diagnosenliste der ePA' : ''}`,
+      zusatz: `${DIAGNOSEART_BEZEICHNUNG[d.art]} · ${klinischerStatusText(d.klinischerStatus)} · ${zeitraum}${d.snomed ? ` · SNOMED CT ${d.snomed.code}` : ''}${d.epaId ? ' · in der Diagnosenliste der ePA' : ''}`,
       verfasser: d.herkunft.verantwortlich,
       ursprung: 'diagnose',
       quelleId: d.id,
@@ -244,7 +245,7 @@ export function verlaufBilden(quellen: Verlaufsquellen): Verlaufseintrag[] {
       zeitpunkt: i.herkunft.zeitpunkt,
       kuerzel: 'I',
       text: `${i.impfstoff.bezeichnung}${i.dosis ? ` · ${i.dosis}. Dosis` : ''}`,
-      zusatz: `${i.zielkrankheiten.map((k) => k.anzeige).join(', ')} · geimpft ${deutschesDatum(i.datum)}${i.charge ? ` · Charge ${i.charge}` : ''}${i.status === 'fehlerhaft' ? ' · fehlerhaft' : ''}${i.epaId ? ' · in der Impfliste der ePA' : ''}`,
+      zusatz: `${i.zielkrankheiten.map((k) => k.anzeige).join(', ')} · ${i.status === 'nicht-erfolgt' ? 'nicht geimpft' : 'geimpft'} ${deutschesDatum(i.datum)}${i.charge ? ` · Charge ${i.charge}` : ''}${i.status === 'fehlerhaft' ? ' · fehlerhaft' : ''}${i.epaId ? ' · in der Impfliste der ePA' : ''}`,
       verfasser: i.herkunft.verantwortlich,
       ursprung: 'impfung',
       quelleId: i.id,

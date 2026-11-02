@@ -11,7 +11,7 @@ import { medikationsaussageNachFhir } from '../fhir/medikation.js';
 import { zeitzonenErgaenzen } from '../fhir/zeit.js';
 import type { Ressource } from '../fhir/typen.js';
 import { reaktionenAlsText, type Allergie } from '../typen/allergie.js';
-import type { Diagnose } from '../typen/diagnose.js';
+import { diagnosecode, type Diagnose } from '../typen/diagnose.js';
 import type { Impfung } from '../typen/impfung.js';
 import type { Medikationsangabe } from '../typen/medikation.js';
 import type { Patient } from '../typen/person.js';
@@ -120,8 +120,7 @@ export interface Arztbriefangabe {
 
 /** Diagnose als Zeile — ICD-10-GM mit Zusatzkennzeichen, wie im Brief üblich. */
 export function diagnosezeile(d: Diagnose): string {
-  const seite = d.seitenlokalisation ? ` ${d.seitenlokalisation}` : '';
-  return `${d.code} ${d.zusatzkennzeichen}${seite} ${d.bezeichnung}`;
+  return [diagnosecode(d), d.bezeichnung].filter(Boolean).join(' ');
 }
 
 export function allergiezeile(a: Allergie): string {

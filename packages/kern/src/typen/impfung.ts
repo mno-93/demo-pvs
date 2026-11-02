@@ -25,7 +25,8 @@ export interface Impfung {
   charge: string | null;
   /** Wer geimpft hat — Person und Einrichtung. */
   geimpftVon: string;
-  status: 'erfolgt' | 'fehlerhaft';
+  /** Erfolgt, nicht erfolgt (`not-done`, Modifier) oder irrtümlich eingetragen. */
+  status: 'erfolgt' | 'nicht-erfolgt' | 'fehlerhaft';
   herkunft: Herkunft;
   /** Kennung des Eintrags in der Impfliste der ePA, wenn er dort geführt wird. */
   epaId: string | null;
