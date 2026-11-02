@@ -63,6 +63,9 @@ export interface SpiegelEintrag {
   id: string;
   bezeichnung: string;
   atc: string;
+  /** Version des ATC-Codes und PZN des Arzneimittels, soweit der eMP sie nennt. */
+  atcVersion?: string;
+  pzn?: string | null;
   /** Erzeugter Dosierungstext (`renderedDosageInstruction`), sonst der Freitext. */
   dosierung: string;
   /**

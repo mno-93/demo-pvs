@@ -159,6 +159,32 @@ describe('Medikationsplan der Praxis ohne Akte', () => {
     expect(praxisplan[0]!.rezeptIds).toEqual(['r-weber-1', rezepte[1]!.id]);
   });
 
+  it('nennt ein Rezept über denselben Wirkstoff nicht „im Plan“, sondern ordnet es auf Wunsch zu', async () => {
+    ohneAkte();
+    const zehn: Rezept = {
+      ...RAMIPRIL,
+      id: 'r-weber-2',
+      arzneimittel: { ...RAMIPRIL.arzneimittel, bezeichnung: 'Ramipril 10 mg Tabletten' },
+      rezeptId: '160.000.000.000.003.02',
+      gesendetAm: '2026-09-09T09:10:00',
+    };
+    speicherStarten({ ...startzustand(), rezepte: [RAMIPRIL, zehn] });
+    öffne('/patient/p-weber/medikation');
+    fireEvent.click((await screen.findAllByRole('button', { name: 'in den Plan' }))[1]!);
+    await waitFor(() => expect(lesen().praxisplan).toHaveLength(1));
+    expect(lesen().praxisplan[0]!.rezeptIds).toEqual(['r-weber-1']);
+
+    const zeile = screen.getByText('Ramipril 10 mg Tabletten').closest('tr')!;
+    expect(within(zeile).getByText(/Wirkstoff im Plan: Ramipril 5 mg Tabletten/)).toBeDefined();
+    expect(within(zeile).queryByText(/· im Plan/)).toBeNull();
+    fireEvent.click(
+      within(zeile).getByRole('button', { name: 'zuordnen zu Ramipril 5 mg Tabletten' }),
+    );
+    expect(lesen().praxisplan).toHaveLength(1);
+    expect(lesen().praxisplan[0]!.rezeptIds).toEqual(['r-weber-1', 'r-weber-2']);
+    expect(within(zeile).getByText(/· im Plan/)).toBeDefined();
+  });
+
   it('setzt ab — das Mittel kann danach wieder aufgenommen werden', async () => {
     ohneAkte();
     speicherStarten({ ...startzustand(), rezepte: [RAMIPRIL] });

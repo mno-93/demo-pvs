@@ -42,6 +42,11 @@ export type PlanausEpa = SpiegelEintrag & { atcVersion: string; pzn: string | nu
 function nachEpa(e: PraxisplanEintrag, epa: SpiegelEintrag): PraxisplanEintrag {
   return {
     ...e,
+    // Auch das Arzneimittel: `$link-emp` und eine Abgabe mit Austausch ändern es im eMP.
+    bezeichnung: epa.bezeichnung,
+    atc: epa.atc,
+    ...(epa.atcVersion ? { atcVersion: epa.atcVersion } : {}),
+    ...(epa.pzn !== undefined ? { pzn: epa.pzn } : {}),
     dosierung: epa.dosierung,
     dosis: epa.dosis ?? null,
     grund: epa.grund,

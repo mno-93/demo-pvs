@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CODESYSTEM,
+  EMP_EXTENSION,
   EMP_STATUS_BEZEICHNUNG,
   EMP_STATUS_CODE,
   offeneUnterschiede,
@@ -31,8 +32,10 @@ import {
   dokumentinhaltLesen,
   istKeineBekannteAllergie,
   laborwerteAusDokumenten,
+  imGueltigenPlan,
   letzteVerordnung,
   planangabeAusRezept,
+  planeintragGleicherWirkstoff,
   planeintragZumRezept,
   schwersterBefund,
   staendeVergleichen,
@@ -232,7 +235,10 @@ interface Listenzeile {
   datum: string;
   einrichtung: string;
   dosierung: string;
-  imPlan: boolean;
+  /** Der Planeintrag, mit dem der Eintrag verknüpft ist (`basedOn`, ADR 0051). */
+  planeintrag: Planzeile | null;
+  /** Nicht verknüpft, aber ein gültiger Planeintrag mit demselben Wirkstoff (ATC-Code). */
+  wirkstoffImPlan: Planzeile | null;
 }
 
 interface Medikationsstand {
@@ -293,14 +299,12 @@ function rezeptspur(liste: Medikationsliste, planId: string): Rezeptspur {
 function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[] {
   const suche = (typ: string, id: string) =>
     liste.einschluesse.find((r) => r.resourceType === typ && r.id === id);
-  const planAtc = new Set(plan.map((z) => z.atc));
+  const planNachId = new Map(plan.map((z) => [z.id, z]));
   return liste.eintraege
     .map((a) => {
       const medikament = suche('Medication', referenz(a)) ?? null;
       const atc = (medikament && codeVon(medikament, 'code', ATC)) ?? '';
-      const kontext = (a.extension ?? []).find((e) =>
-        e.url.endsWith('context-extension'),
-      )?.valueCode;
+      const kontext = (a.extension ?? []).find((e) => e.url === EMP_EXTENSION.kontext)?.valueCode;
       const verordnung = ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
         .map((q) => String(q.reference ?? '').split('/'))
         .map(([typ, id]) => suche(String(typ), String(id)))
@@ -328,10 +332,38 @@ function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listenzeile[]
             ?.display ??
           '—',
         dosierung: dosierungsanzeige(a),
-        imPlan: Array.isArray(a['basedOn']) || planAtc.has(atc),
+        ...planbezug(a, atc, plan, planNachId),
       };
     })
     .sort((x, y) => y.datum.localeCompare(x.datum));
+}
+
+/**
+ * Bezug eines eML-Eintrags zum eMP (ADR 0051): „im Plan“ nur über die Verknüpfung (`basedOn`,
+ * gesetzt von `$link-emp` oder `$add-emp-entry`). Derselbe Wirkstoff in einem gültigen
+ * Planeintrag ist ein eigener Hinweis — eine andere Stärke ist gerade die Abweichung, die der
+ * Abgleich zeigen soll.
+ */
+function planbezug(
+  aussage: Ressource,
+  atc: string,
+  plan: readonly Planzeile[],
+  planNachId: ReadonlyMap<string, Planzeile>,
+): Pick<Listenzeile, 'planeintrag' | 'wirkstoffImPlan'> {
+  const planeintrag =
+    ((aussage['basedOn'] as { reference?: string }[] | undefined) ?? [])
+      .map((b) => String(b.reference ?? '').split('/'))
+      .filter(([typ]) => typ === 'MedicationRequest')
+      .map(([, id]) => planNachId.get(String(id)))
+      .find((z) => z !== undefined) ?? null;
+  const wirkstoffImPlan =
+    planeintrag || !atc ? null : (plan.find((z) => z.atc === atc && imGueltigenPlan(z)) ?? null);
+  return { planeintrag, wirkstoffImPlan };
+}
+
+/** Die Kennung des eMP-Eintrags (`identifier`), über die `$link-emp` und Rezepte ihn nennen. */
+function empKennung(z: Planzeile): string {
+  return String((z.eintrag['identifier'] as { value?: string }[] | undefined)?.[0]?.value ?? z.id);
 }
 
 /**
@@ -675,6 +707,14 @@ export function Medikation() {
     return id;
   }
 
+  /** Ordnet ein Rezept dem gültigen Planeintrag mit demselben Wirkstoff zu (ADR 0051). */
+  function rezeptZuordnen(r: Rezept) {
+    const e = planeintragGleicherWirkstoff(r, praxisplan);
+    if (!e) return;
+    ausfuehren(vorgaenge.praxisplanRezeptZuordnen(e.id, r.id));
+    setzeMeldung({ art: 'gut', text: 'Dem Planeintrag zugeordnet.' });
+  }
+
   /** Nimmt ein vorhandenes Rezept in den Medikationsplan der Praxis auf. */
   function rezeptInPraxisplan(r: Rezept) {
     ausfuehren(
@@ -719,9 +759,7 @@ export function Medikation() {
         atcVersion: katalog?.atcVersion ?? '2026',
       },
       dosierung: z.dosierung,
-      empId: String(
-        (z.eintrag['identifier'] as { value?: string }[] | undefined)?.[0]?.value ?? z.id,
-      ),
+      empId: empKennung(z),
       grund: z.grund,
       herkunft: 'plan',
       imPlan: true,
@@ -743,7 +781,8 @@ export function Medikation() {
       empId: null,
       grund: null,
       herkunft: 'liste',
-      imPlan: z.imPlan,
+      imPlan: z.planeintrag !== null,
+      wirkstoffImPlan: z.wirkstoffImPlan?.bezeichnung ?? null,
       katalog,
       ...(z.medikament
         ? {
@@ -769,7 +808,10 @@ export function Medikation() {
       empId: null,
       grund: null,
       herkunft: 'neu',
-      imPlan: aktivePlanCodes.includes(m.atc),
+      imPlan: false,
+      wirkstoffImPlan:
+        zeilen.map((z) => z.lokal ?? z.epa!).find((e) => e.atc === m.atc && imGueltigenPlan(e))
+          ?.bezeichnung ?? null,
       katalog: m,
     });
   }
@@ -1259,6 +1301,17 @@ export function Medikation() {
                 darfVerordnen={darfVerordnen && mitEpa}
                 rezept={vorlageAusListe}
                 umgebung={umgebung}
+                verknuepfen={(z) =>
+                  void handlung(async () => {
+                    if (!z.wirkstoffImPlan) return;
+                    await empVerknuepfen(
+                      kvnr,
+                      lesenachweis,
+                      String(z.aussage.id),
+                      empKennung(z.wirkstoffImPlan),
+                    );
+                  }, 'Mit dem Planeintrag verknüpft.')
+                }
                 uebernehmen={(z) =>
                   void handlung(async () => {
                     const neu = await empEintragAnlegen(
@@ -1294,7 +1347,9 @@ export function Medikation() {
         {...(!mitEpa
           ? {
               imPlan: (r: Rezept) => planeintragZumRezept(r, praxisplan) !== null,
-              ...(darfVerordnen ? { inDenPlan: rezeptInPraxisplan } : {}),
+              wirkstoffImPlan: (r: Rezept) =>
+                planeintragGleicherWirkstoff(r, praxisplan)?.bezeichnung ?? null,
+              ...(darfVerordnen ? { inDenPlan: rezeptInPraxisplan, zuordnen: rezeptZuordnen } : {}),
             }
           : {})}
         werkzeuge={
@@ -1530,6 +1585,7 @@ function EmlTabelle({
   rezept,
   umgebung,
   uebernehmen,
+  verknuepfen,
 }: {
   zeilen: Listenzeile[];
   /** Seit dem letzten Aufruf neu, von anderen Einrichtungen. */
@@ -1538,6 +1594,8 @@ function EmlTabelle({
   rezept: (z: Listenzeile) => void;
   umgebung: AmtsUmgebung;
   uebernehmen: (z: Listenzeile) => void;
+  /** Verknüpft den Eintrag mit dem Planeintrag desselben Wirkstoffs (`$link-emp`). */
+  verknuepfen: (z: Listenzeile) => void;
 }) {
   return (
     <div className="tabelle-rahmen">
@@ -1570,10 +1628,19 @@ function EmlTabelle({
                 </td>
                 <td className="leise-klein">{z.einrichtung}</td>
                 <td>
-                  {z.imPlan ? (
+                  {!z.planeintrag ? (
+                    <Marker ton="warn">nicht im Plan</Marker>
+                  ) : imGueltigenPlan(z.planeintrag) ? (
                     <Marker ton="gut">im Plan</Marker>
                   ) : (
-                    <Marker ton="warn">nicht im Plan</Marker>
+                    <Marker ton="neutral">
+                      im Plan · {EMP_STATUS_BEZEICHNUNG[z.planeintrag.status]}
+                    </Marker>
+                  )}
+                  {z.wirkstoffImPlan && (
+                    <div className="leise-klein">
+                      Wirkstoff im Plan: {z.wirkstoffImPlan.bezeichnung}
+                    </div>
                   )}
                 </td>
                 <td>
@@ -1583,7 +1650,17 @@ function EmlTabelle({
                         Rezept
                       </button>
                     )}
-                    {darfVerordnen && !z.imPlan && z.medikament && katalog && (
+                    {darfVerordnen && z.wirkstoffImPlan && (
+                      <button
+                        type="button"
+                        className="knopf klein"
+                        aria-label={`verknüpfen mit ${z.wirkstoffImPlan.bezeichnung}`}
+                        onClick={() => verknuepfen(z)}
+                      >
+                        verknüpfen
+                      </button>
+                    )}
+                    {darfVerordnen && !z.planeintrag && z.medikament && katalog && (
                       <UebernahmeKnopf
                         mittel={katalog}
                         umgebung={umgebung}

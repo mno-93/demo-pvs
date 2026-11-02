@@ -236,3 +236,100 @@ describe('Karteikarte', () => {
     expect(screen.queryByText(/Salbutamol 100 µg Dosieraerosol/)).toBeNull();
   });
 });
+
+describe('Medikationsliste und Plan', () => {
+  beforeEach(() => {
+    klientZuruecksetzen();
+    epaFensterSchliessen();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const mittel = (id: string, text: string) => ({
+    resourceType: 'Medication',
+    id,
+    code: {
+      coding: [{ system: 'http://fhir.de/CodeSystem/bfarm/atc', code: 'C09AA05' }],
+      text,
+    },
+  });
+  const aussage = (id: string, mittelId: string, start: string, verknuepft: boolean) => ({
+    resourceType: 'MedicationStatement',
+    id,
+    status: 'active',
+    medicationReference: { reference: `Medication/${mittelId}` },
+    effectivePeriod: { start },
+    ...(verknuepft
+      ? {
+          basedOn: [
+            {
+              reference: 'MedicationRequest/emp-1',
+              extension: [{ url: `${EMP}is-emp-extension`, valueBoolean: true }],
+            },
+          ],
+        }
+      : {}),
+  });
+
+  it('nennt nur Verknüpfte „im Plan“; derselbe Wirkstoff ist ein Hinweis mit „verknüpfen“', async () => {
+    const aufrufe = epaAttrappe((a) => {
+      if (a.pfad === `${MS}/$medication-list`)
+        return {
+          status: 200,
+          inhalt: suchergebnis(
+            [
+              aussage('ms-1', 'm1', '2026-08-01', true),
+              aussage('ms-2', 'm10', '2026-09-01', false),
+            ] as never,
+            [
+              mittel('m1', 'Ramipril 5 mg Tabletten'),
+              mittel('m10', 'Ramipril 10 mg Tabletten'),
+            ] as never,
+          ),
+        };
+      if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: PLAN };
+      if (a.pfad === `${MS}/MedicationStatement/ms-2/$link-emp`)
+        return {
+          status: 200,
+          inhalt: {
+            resourceType: 'Parameters',
+            parameter: [
+              { name: 'empEntry', resource: PLAN.entry[1]!.resource },
+              {
+                name: 'relatedChronology',
+                resource: { resourceType: 'Provenance', id: 'chron-2' },
+              },
+            ],
+          },
+        };
+      return undefined;
+    });
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+
+    const zehn = (await screen.findByText('Ramipril 10 mg Tabletten')).closest('tr')!;
+    expect(within(zehn).getByText('nicht im Plan')).toBeDefined();
+    expect(within(zehn).getByText('Wirkstoff im Plan: Ramipril 5 mg Tabletten')).toBeDefined();
+    const fuenf = screen
+      .getAllByText('Ramipril 5 mg Tabletten')
+      .map((e) => e.closest('tr'))
+      .find((tr) => tr && within(tr).queryByText('Verordnung'))!;
+    expect(within(fuenf).getByText('im Plan')).toBeDefined();
+    expect(within(fuenf).queryByRole('button', { name: /verknüpfen/ })).toBeNull();
+
+    fireEvent.click(
+      within(zehn).getByRole('button', { name: 'verknüpfen mit Ramipril 5 mg Tabletten' }),
+    );
+    expect(await screen.findByText('Mit dem Planeintrag verknüpft.')).toBeDefined();
+    const verknuepfung = aufrufe.find((a) => a.pfad.endsWith('/ms-2/$link-emp'))!;
+    expect(verknuepfung.koerper).toMatchObject({
+      parameter: expect.arrayContaining([
+        {
+          name: 'medicationPlanIdentifier',
+          valueIdentifier: { system: 'https://gematik.de/fhir/sid/emp-identifier', value: 'emp-1' },
+        },
+      ]),
+    });
+  });
+});

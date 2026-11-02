@@ -79,4 +79,56 @@ describe('Zustandsspeicher', () => {
     expect(lesen().handlungen).toBe(1);
     expect(lesen().protokoll[0]?.beschreibung).toContain('Karteieintrag');
   });
+  it('übernimmt beim Abgleich auch ein im eMP geändertes Arzneimittel', () => {
+    ausfuehren(
+      vorgaenge.praxisplanAufnehmen({
+        patientId: 'p-hoffmann',
+        bezeichnung: 'Metformin 500 mg Filmtabletten',
+        atc: 'A10BA02',
+        atcVersion: '2026',
+        pzn: '90900030',
+        dosierung: '1-0-1-0',
+        grund: null,
+        rezeptIds: [],
+      }),
+    );
+    const lokal = lesen().praxisplan.find((e) => e.patientId === 'p-hoffmann')!;
+    const epa = {
+      id: 'emp-1',
+      bezeichnung: 'Metformin 500 mg Filmtabletten',
+      atc: 'A10BA02',
+      dosierung: '1-0-1-0',
+      grund: null,
+      status: 'aktiv' as const,
+      verantwortlich: 'Hausarztpraxis am Stadtgarten',
+      fassung: '1',
+    };
+    ausfuehren(vorgaenge.praxisplanVerknuepfen(lokal.id, epa));
+    // `$link-emp` mit der Klinik-Verordnung: Der eMP-Eintrag nennt jetzt 1000 mg.
+    ausfuehren(
+      vorgaenge.planAbgleichen(
+        'p-hoffmann',
+        'chron-2',
+        '2026-09-09T10:00:00',
+        [],
+        [
+          {
+            lokalId: lokal.id,
+            epa: {
+              ...epa,
+              bezeichnung: 'Metformin 1000 mg Filmtabletten',
+              pzn: '90900031',
+              fassung: '2',
+            },
+          },
+        ],
+      ),
+    );
+    expect(lesen().praxisplan.find((e) => e.id === lokal.id)).toMatchObject({
+      bezeichnung: 'Metformin 1000 mg Filmtabletten',
+      pzn: '90900031',
+      atcVersion: '2026',
+      epaStand: { fassung: '2' },
+    });
+  });
 });

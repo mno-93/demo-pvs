@@ -26,8 +26,10 @@ export interface Rezeptvorlage {
   praxisplanId?: string;
   grund: string | null;
   herkunft: 'plan' | 'liste' | 'neu';
-  /** Steht das Mittel schon im Plan? */
+  /** Gehört das Rezept zu einem Planeintrag (verknüpft oder zugeordnet, ADR 0051)? */
   imPlan: boolean;
+  /** Nicht im Plan, aber ein gültiger Planeintrag mit demselben Wirkstoff — seine Bezeichnung. */
+  wirkstoffImPlan?: string | null;
   /** Katalogeintrag für die AMTS-Prüfung. */
   katalog: ArzneimittelEintrag | null;
   /** Eintrag der Medikationsliste, aus dem erneut verordnet wird. */
@@ -76,11 +78,18 @@ export function RezeptFormular({
   const [normgroesse, setzeNormgroesse] = useState<Normgroesse>('N3');
   const [grund, setzeGrund] = useState(vorlage.grund ?? '');
   const angeboten = !vorlage.imPlan && planSchreibbar;
-  const [auchInPlan, setzeAuchInPlan] = useState(angeboten);
+  // Steht derselbe Wirkstoff schon im Plan, wäre ein zweiter Eintrag meist eine Doppelung.
+  const [auchInPlan, setzeAuchInPlan] = useState(angeboten && !vorlage.wirkstoffImPlan);
   const [freigabe, setzeFreigabe] = useState<Rezeptfreigabe>(
     vorlage.imPlan ? 'freigegeben' : 'hinweis',
   );
-  const [hinweis, setzeHinweis] = useState(vorlage.imPlan ? '' : 'nicht im Medikationsplan');
+  const [hinweis, setzeHinweis] = useState(
+    vorlage.imPlan
+      ? ''
+      : vorlage.wirkstoffImPlan
+        ? `Wirkstoff im Plan: ${vorlage.wirkstoffImPlan}`
+        : 'nicht im Medikationsplan',
+  );
   const befunde = useMemo(
     () =>
       vorlage.katalog && vorlage.herkunft !== 'plan' ? amtsPruefen(vorlage.katalog, umgebung) : [],
@@ -116,8 +125,13 @@ export function RezeptFormular({
           </span>
           {vorlage.empId || vorlage.praxisplanId ? (
             <Marker ton="gut">aus dem Plan</Marker>
+          ) : vorlage.imPlan ? (
+            <Marker ton="gut">im Plan</Marker>
           ) : (
             <Marker ton="warn">nicht im Plan</Marker>
+          )}
+          {vorlage.wirkstoffImPlan && (
+            <span className="leise-klein">Wirkstoff im Plan: {vorlage.wirkstoffImPlan}</span>
           )}
         </div>
         {vorlage.herkunft !== 'plan' && vorlage.katalog && <Befundliste befunde={befunde} />}
@@ -283,7 +297,9 @@ export function RezepteKarte({
   aerztlich,
   werkzeuge,
   imPlan,
+  wirkstoffImPlan,
   inDenPlan,
+  zuordnen,
   beiSenden,
   beiLoeschen,
   beiVerwerfen,
@@ -294,10 +310,14 @@ export function RezepteKarte({
   /** Keine Akte: Rezepte gehen nicht in die ePA; der Plan ist der Medikationsplan der Praxis. */
   ohneAkte?: boolean;
   aerztlich: boolean;
-  /** Steht das Rezept im Medikationsplan der Praxis? */
+  /** Ist das Rezept einem Eintrag des Medikationsplans der Praxis zugeordnet? */
   imPlan?: (r: Rezept) => boolean;
+  /** Bezeichnung eines gültigen Planeintrags mit demselben Wirkstoff, dem es nicht zugeordnet ist. */
+  wirkstoffImPlan?: (r: Rezept) => string | null;
   /** Nimmt das Rezept in den Medikationsplan der Praxis auf. */
   inDenPlan?: (r: Rezept) => void;
+  /** Ordnet das Rezept dem Planeintrag mit demselben Wirkstoff zu. */
+  zuordnen?: (r: Rezept) => void;
   werkzeuge?: React.ReactNode;
   beiSenden: (r: Rezept) => void;
   beiLoeschen: (r: Rezept) => void;
@@ -328,6 +348,7 @@ export function RezepteKarte({
               {sortiert.map((r) => {
                 const epa = rezeptInEpa(r, liste, gesperrt, ohneAkte);
                 const imPraxisplan = imPlan?.(r) ?? false;
+                const wirkstoff = imPraxisplan ? null : (wirkstoffImPlan?.(r) ?? null);
                 return (
                   <tr key={r.id} className={r.status === 'geloescht' ? 'gedaempft' : undefined}>
                     <td>{deutschesDatum((r.gesendetAm ?? r.erstelltAm).slice(0, 10))}</td>
@@ -336,7 +357,13 @@ export function RezepteKarte({
                       <div className="leise-klein">
                         {r.packungen} × {r.normgroesse} ·{' '}
                         <span className="code">{r.dosierung}</span>
-                        {r.empId ? ' · aus dem Plan' : imPraxisplan ? ' · im Plan' : ''}
+                        {r.empId
+                          ? ' · aus dem Plan'
+                          : imPraxisplan
+                            ? ' · im Plan'
+                            : wirkstoff
+                              ? ` · Wirkstoff im Plan: ${wirkstoff}`
+                              : ''}
                       </div>
                     </td>
                     <td>
@@ -383,6 +410,16 @@ export function RezepteKarte({
                             onClick={() => beiVerwerfen(r)}
                           >
                             verwerfen
+                          </button>
+                        )}
+                        {zuordnen && wirkstoff && r.status !== 'geloescht' && (
+                          <button
+                            type="button"
+                            className="knopf klein"
+                            aria-label={`zuordnen zu ${wirkstoff}`}
+                            onClick={() => zuordnen(r)}
+                          >
+                            zuordnen
                           </button>
                         )}
                         {inDenPlan && imPlan && !imPraxisplan && r.status !== 'geloescht' && (

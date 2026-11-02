@@ -5,6 +5,7 @@ import {
   imGueltigenPlan,
   letzteVerordnung,
   planangabeAusRezept,
+  planeintragGleicherWirkstoff,
   planeintragZumRezept,
 } from './praxisplan.js';
 
@@ -68,9 +69,21 @@ describe('Medikationsplan der Praxis', () => {
     expect(planeintragZumRezept(rezept({}), plan)?.id).toBe('pp-1');
   });
 
-  it('ordnet ein Rezept über denselben Wirkstoff zu, damit es nicht doppelt aufgenommen wird', () => {
+  it('ordnet ein Rezept über denselben Wirkstoff nicht zu, sondern nennt den Eintrag als Hinweis', () => {
     const plan = [eintrag({ atc: 'C09AA05' })];
-    expect(planeintragZumRezept(rezept({ id: 'rz-2' }), plan)?.id).toBe('pp-1');
+    expect(planeintragZumRezept(rezept({ id: 'rz-2' }), plan)).toBeNull();
+    expect(planeintragGleicherWirkstoff(rezept({ id: 'rz-2' }), plan)?.id).toBe('pp-1');
+  });
+
+  it('nennt keinen gleichen Wirkstoff, wenn das Rezept schon zugeordnet ist oder keinen ATC trägt', () => {
+    const plan = [eintrag({ atc: 'C09AA05', rezeptIds: ['rz-1'] })];
+    expect(planeintragGleicherWirkstoff(rezept({}), plan)).toBeNull();
+    expect(
+      planeintragGleicherWirkstoff(
+        rezept({ id: 'rz-3', arzneimittel: { ...rezept({}).arzneimittel, atc: '' } }),
+        plan,
+      ),
+    ).toBeNull();
   });
 
   it('übergeht abgesetzte Einträge — das Mittel kann wieder aufgenommen werden', () => {

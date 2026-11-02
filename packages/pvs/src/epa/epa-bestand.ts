@@ -227,15 +227,26 @@ export function statusVon(ressource: Ressource): string {
   return status?.coding?.[0]?.code ?? (ressource['status'] as string) ?? '';
 }
 
+/**
+ * Das fachliche Datum einer Ressource, je nach Typ. Für Einträge der Medikationsliste gilt der
+ * Datumsbezug des Medication Service: `effectiveDateTime`, sonst Beginn von `effectivePeriod`,
+ * sonst `dateAsserted` (IG 1.4.0-ballot.1, `$medication-list`).
+ */
 export function datumVon(ressource: Ressource): string {
+  const beginn = (feld: string) => (ressource[feld] as { start?: string } | undefined)?.start;
   return (
     (ressource['recordedDate'] as string) ??
     (ressource['onsetDateTime'] as string) ??
     (ressource['effectiveDateTime'] as string) ??
+    beginn('effectivePeriod') ??
+    (ressource['dateAsserted'] as string) ??
+    (ressource['occurrenceDateTime'] as string) ??
     (ressource['performedDateTime'] as string) ??
+    beginn('performedPeriod') ??
     (ressource['timingDateTime'] as string) ??
     (ressource['authoredOn'] as string) ??
     (ressource['whenHandedOver'] as string) ??
+    (ressource['issued'] as string) ??
     (ressource['date'] as string) ??
     ''
   );

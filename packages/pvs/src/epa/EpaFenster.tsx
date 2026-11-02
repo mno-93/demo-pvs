@@ -4,6 +4,7 @@ import {
   ALLERGIESTATUS_BEZEICHNUNG,
   CODESYSTEM,
   DIAGNOSEART_BEZEICHNUNG,
+  EMP_EXTENSION,
   GEWISSHEIT_BEZEICHNUNG,
   KLINISCHER_STATUS_BEZEICHNUNG,
   deutschesDatum,
@@ -919,8 +920,9 @@ const EML_ART: Record<string, string> = {
   EMP: 'Medikationsplan',
 };
 
+/** Herkunft eines Eintrags der Medikationsliste: Verordnung, Nachtrag oder Medikationsplan. */
 function kontextVon(r: Ressource): string {
-  const e = (r.extension ?? []).find((x) => x.url.endsWith('/context'));
+  const e = (r.extension ?? []).find((x) => x.url === EMP_EXTENSION.kontext);
   return e?.valueCoding?.code ?? e?.valueCode ?? '';
 }
 
