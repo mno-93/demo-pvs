@@ -18,8 +18,9 @@ Vorrang fester Pfadteile vor Platzhaltern.
 ## Entscheidung
 
 1. **Eine eigene, schmale Schnittstelle** (`epa-sim/src/schnittstelle.ts`): `SimAnwendung` mit
-   `get`, `post`, `put`, `anfrageHaken`, `sendeHaken`, `nichtGefunden`; `SimAnfrage` und
-   `SimAntwort` mit genau den Teilen, die die Wege benutzen. Die Wege kennen nur sie.
+   `get`, `post`, `put`, `anfrageHaken`, `sendeHaken`, `nichtGefunden` (seit ADR 0057 auch
+   `serialisierHaken`); `SimAnfrage` und `SimAntwort` mit genau den Teilen, die die Wege benutzen.
+   Die Wege kennen nur sie.
 2. **Fastify bekommt eine dünne Hülle** (`anwendung.ts`), der Browser-Adapter erfüllt die
    Schnittstelle direkt (`browser.ts`). Fehlt einer Seite etwas, meldet es die Typprüfung.
 3. **Gleiches Verhalten, wo Fastify selbst handelt:** gleiche Leser für JSON (leer ergibt `{}`,

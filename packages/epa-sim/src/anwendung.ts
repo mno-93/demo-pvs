@@ -65,6 +65,10 @@ function alsSimAnwendung(app: FastifyInstance): SimAnwendung {
       void app.addHook('onRequest', async (anfrage, r) => {
         await ausfuehren(haken, anfrage, r);
       }),
+    serialisierHaken: (haken) =>
+      void app.addHook('preSerialization', async (anfrage, r, koerper) =>
+        haken(anfrage, antwortHuelle(r), koerper),
+      ),
     sendeHaken: (haken) =>
       void app.addHook('onSend', async (anfrage, r, koerper) =>
         haken(anfrage, antwortHuelle(r), koerper),

@@ -43,6 +43,11 @@ export interface SimAnwendung {
   put(pfad: string, handler: SimHandler): void;
   /** Läuft vor jedem Weg; hat er gesendet, entfällt der Weg. */
   anfrageHaken(haken: SimHandler): void;
+  /**
+   * Läuft, bevor ein Objekt als JSON serialisiert wird, und darf es ersetzen. Zeichenketten,
+   * Binärinhalt und `null` erreichen ihn nicht (wie `preSerialization` in Fastify).
+   */
+  serialisierHaken(haken: SimSendeHaken): void;
   /** Läuft vor dem Senden und darf den Körper ersetzen. */
   sendeHaken(haken: SimSendeHaken): void;
   nichtGefunden(handler: SimHandler): void;

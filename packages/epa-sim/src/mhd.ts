@@ -45,11 +45,19 @@ const ENDUNG: Record<string, string> = {
   'application/pdf': 'pdf',
 };
 
+/** Abgeleitete entryUUIDs je Dokumentkennung — SHA-256 in JavaScript ist nicht umsonst. */
+const ABGELEITETE_UUIDS = new Map<string, string>();
+
 /** entryUUID eines Dokuments — aus seiner Kennung abgeleitet, damit sie stabil bleibt. */
 export function eintragsUuid(d: Dokument): string {
   if (d.entryUuid) return d.entryUuid;
-  const h = sha256Hex(`entry:${d.id}`);
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+  let uuid = ABGELEITETE_UUIDS.get(d.id);
+  if (!uuid) {
+    const h = sha256Hex(`entry:${d.id}`);
+    uuid = `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
+    ABGELEITETE_UUIDS.set(d.id, uuid);
+  }
+  return uuid;
 }
 
 /** codingScheme der XDS-Metadaten als URI: eine OID mit `urn:oid:`, eine URL unverändert. */
@@ -171,9 +179,9 @@ function volltext(d: Dokument): string {
  * Spezifikation nicht fest; ein Teilwort-Treffer mitten im Wort wäre für Nutzende nicht
  * nachvollziehbar.
  */
-function trifftWortanfang(text: string, wort: string): boolean {
+function wortanfang(wort: string): RegExp {
   const maskiert = wort.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${maskiert}`, 'u').test(text);
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${maskiert}`, 'u');
 }
 
 function codeAus(wert: string | undefined): string | undefined {
@@ -344,13 +352,16 @@ export function mhdEinhaengen(
           werte: ['date', '_lastUpdated', 'creation'].includes(n) ? [w] : w.split(','),
         })),
       );
-    const treffer = bestandFuer(kvnr).dokumente.filter(
-      (d) =>
-        sichtbar(d) &&
-        // Ohne `status` gilt jeder Status; die Demo führt nur aktuelle Fassungen.
-        bedingungen.every((b) => b.werte.some((w) => b.pruefen(d, w, kvnr))) &&
-        (!begriff || begriff.split(/\s+/).every((w) => trifftWortanfang(volltext(d), w))),
-    );
+    // Je Suchwort ein Ausdruck, je Dokument ein Text — nicht je Paar.
+    const woerter = (begriff ?? '').split(/\s+/).filter(Boolean).map(wortanfang);
+    const treffer = bestandFuer(kvnr).dokumente.filter((d) => {
+      if (!sichtbar(d)) return false;
+      // Ohne `status` gilt jeder Status; die Demo führt nur aktuelle Fassungen.
+      if (!bedingungen.every((b) => b.werte.some((w) => b.pruefen(d, w, kvnr)))) return false;
+      if (woerter.length === 0) return true;
+      const text = volltext(d);
+      return woerter.every((m) => m.test(text));
+    });
     return {
       resourceType: 'Bundle',
       meta: {

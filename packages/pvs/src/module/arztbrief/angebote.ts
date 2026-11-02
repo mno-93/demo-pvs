@@ -176,13 +176,16 @@ export function useBriefangebote(
       const verweise = (await dokumenteSuchen(kvnr))
         .map(dokumentverweisLesen)
         .filter((v) => v.typ?.code === 'BEFU' && istStrukturiert(v));
-      const befunde: GelesenerBefund[] = [];
-      for (const v of verweise) {
-        const inhalt = await dokumentAbrufen(kvnr, v.ressource);
-        const b = laborbefundLesen(inhalt, patientId, { bestand: 'epa', dokumentId: v.id });
-        if (b) befunde.push(b);
-      }
-      return befunde;
+      // Die Befunde unabhängig voneinander abrufen, nicht nacheinander.
+      const befunde = await Promise.all(
+        verweise.map(async (v) =>
+          laborbefundLesen(await dokumentAbrufen(kvnr, v.ressource), patientId, {
+            bestand: 'epa',
+            dokumentId: v.id,
+          }),
+        ),
+      );
+      return befunde.filter((b): b is GelesenerBefund => !!b);
     },
     abh,
     aktiv,

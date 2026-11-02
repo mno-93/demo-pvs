@@ -206,14 +206,18 @@ async function seitAbfragen(
   zeilen: Planzeile[],
   liste: Listenzeile[],
 ): Promise<SeitAbfrage> {
-  const chronologie = await planaenderungenSeit(kvnr, vorher.zeitpunkt);
+  // Chronologie und Liste hängen nicht voneinander ab; der frühere Plan nur von der Chronologie.
+  const [chronologie, seit] = await Promise.all([
+    planaenderungenSeit(kvnr, vorher.zeitpunkt),
+    medikationslisteSeit(kvnr, vorher.zeitpunkt),
+  ]);
   const fremd = chronologie.filter((c) => c.telematikId !== EINRICHTUNG.telematikId);
   let plan: Standaenderungen | null = null;
   if (fremd.length > 0 && vorher.chronologie) {
     const frueher = await medikationsplanLesen(kvnr, vorher.chronologie);
     plan = staendeVergleichen(planzeilen(frueher).map(alsStand), zeilen.map(alsStand));
   }
-  const neueAussagen = new Set(await medikationslisteSeit(kvnr, vorher.zeitpunkt));
+  const neueAussagen = new Set(seit);
   const fremdeZeilen = liste.filter(
     (z) => neueAussagen.has(String(z.aussage.id)) && !z.einrichtung.includes(EINRICHTUNG.anzeige),
   );
@@ -599,25 +603,34 @@ export function Medikation() {
 
   /*
    * Solange ein gesendetes Rezept noch nicht in der Medikationsliste steht, fragt das Modul
-   * nach — der Fachdienst überträgt asynchron. Höchstens zwanzigmal, dann bleibt es beim Stand.
+   * nach — der Fachdienst überträgt asynchron. Höchstens zwanzigmal je Rezept, dann bleibt es
+   * beim Stand; ein später gesendetes Rezept bekommt seine eigenen Nachfragen.
    */
-  const ausstehend = rezepte.some(
-    (r) => rezeptInEpa(r, stand?.roh ?? null, gesperrt || !befugt).art === 'ausstehend',
-  );
-  const [nachfragen, setzeNachfragen] = useState(0);
+  const [nachfragen, setzeNachfragen] = useState<ReadonlyMap<string, number>>(new Map());
+  const nachzufragen = rezepte
+    .filter(
+      (r) =>
+        rezeptInEpa(r, stand?.roh ?? null, gesperrt || !befugt).art === 'ausstehend' &&
+        (nachfragen.get(r.id) ?? 0) < 20,
+    )
+    .map((r) => r.id);
+  const nachzufragenSchluessel = nachzufragen.join('|');
   useEffect(() => {
-    if (!ausstehend || laedt || nachfragen >= 20) return;
+    if (!nachzufragenSchluessel || laedt) return;
     const z = setTimeout(() => {
-      setzeNachfragen((n) => n + 1);
+      setzeNachfragen((alt) => {
+        const neu = new Map(alt);
+        for (const id of nachzufragenSchluessel.split('|')) neu.set(id, (neu.get(id) ?? 0) + 1);
+        return neu;
+      });
       neuLaden();
     }, 1500);
     return () => clearTimeout(z);
-  }, [ausstehend, laedt, nachfragen, neuLaden]);
+  }, [nachzufragenSchluessel, laedt, nachfragen, neuLaden]);
 
   /** Legt das Rezept an, nimmt das Mittel auf Wunsch in den Plan und sendet es, wenn gewünscht. */
   function rezeptAusVorlage(v: Rezeptvorlage, a: Rezeptangabe, senden: boolean) {
     setzeVorlage(null);
-    setzeNachfragen(0);
     void handlung(
       async () => {
         // Ohne eMP — und für Einträge nur der Praxis — gehört das Rezept zum Plan der Praxis.
@@ -1388,11 +1401,9 @@ export function Medikation() {
           </button>
         }
         beiSenden={(r: Rezept) => {
-          setzeNachfragen(0);
           void handlung(() => rezeptSenden(r), 'E-Rezept signiert und gesendet.');
         }}
         beiLoeschen={(r: Rezept) => {
-          setzeNachfragen(0);
           void handlung(() => rezeptLoeschen(r), 'E-Rezept gelöscht.');
         }}
         beiVerwerfen={(r: Rezept) => ausfuehren(vorgaenge.rezeptVerwerfen(r.id))}

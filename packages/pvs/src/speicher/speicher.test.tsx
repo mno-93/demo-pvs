@@ -65,6 +65,39 @@ describe('Zustandsspeicher', () => {
     expect(screen.getByTestId('anzahl').textContent).toBe('2');
   });
 
+  it('rendert nicht neu, wenn sich nur Felder ändern, die die Auswahl nicht liest', () => {
+    render(<AbleitendeAnsicht patientId="p-hoffmann" />);
+    const vorher = renderZaehler;
+    act(() =>
+      ausfuehren(
+        vorgaenge.epaLesezeichenMerken({
+          patientId: 'p-hoffmann',
+          bestand: 'dokumente',
+          zeitpunkt: '2026-09-09T10:00:00+02:00',
+          chronologie: null,
+        }),
+      ),
+    );
+    expect(renderZaehler).toBe(vorher);
+    act(() => ausfuehren(vorgaenge.karteneintragAnlegen('p-hoffmann', 'A', 'Testeintrag')));
+    expect(renderZaehler).toBe(vorher);
+  });
+
+  it('gibt bei technischen Vorgängen ohne Änderung den alten Zustand zurück', () => {
+    const lesezeichen = {
+      patientId: 'p-hoffmann',
+      bestand: 'dokumente' as const,
+      zeitpunkt: '2026-09-09T10:00:00+02:00',
+      chronologie: null,
+    };
+    ausfuehren(vorgaenge.epaLesezeichenMerken(lesezeichen));
+    const z = lesen();
+    ausfuehren(vorgaenge.epaLesezeichenMerken({ ...lesezeichen }));
+    ausfuehren(vorgaenge.nutzerWechseln(z.nutzer));
+    ausfuehren(vorgaenge.befugnisVerloren('p-unbekannt'));
+    expect(lesen()).toBe(z);
+  });
+
   it('zählt nur fachliche Vorgänge als Handlung', () => {
     // Eine Befugnis ist die Folge des Einlesens, keine eigene Handlung.
     ausfuehren(

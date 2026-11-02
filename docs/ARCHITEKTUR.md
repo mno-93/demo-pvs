@@ -212,7 +212,9 @@ Ein kleiner Speicher auf `useSyncExternalStore` statt einer Bibliothek — siehe
 [0003](entscheidungen/0003-eigener-zustandsspeicher.md). Der Zustand ist ein einziges unveränderliches
 Objekt; Änderungen laufen über benannte Vorgänge in `packages/pvs/src/speicher/vorgaenge.ts`.
 Das hält die Handlungen der Anwendung an einer Stelle auf und macht sie zählbar — Grundlage für den
-Aufwandszähler ab M4.
+Aufwandszähler ab M4. Ableitungen (`useAuswahl`, `useZustand`) rechnen nur neu, wenn sich ein Feld
+ändert, das sie lesen; Vorgänge ohne Änderung geben den alten Zustand zurück
+([0057](entscheidungen/0057-ausschnitt-memo-und-parallele-abrufe.md)).
 
 ## Was bewusst fehlt
 

@@ -83,6 +83,7 @@ function vorrang(a: Weg, b: Weg): number {
 class BrowserAnwendung implements SimAnwendung {
   wege: Weg[] = [];
   anfrageHakenListe: SimHandler[] = [];
+  serialisierHakenListe: SimSendeHaken[] = [];
   sendeHakenListe: SimSendeHaken[] = [];
   nichtGefundenHandler: SimHandler = (a, r) =>
     r.code(404).send(fehlerKoerper('notFound', `${a.method} ${a.url}`));
@@ -105,6 +106,10 @@ class BrowserAnwendung implements SimAnwendung {
 
   anfrageHaken(haken: SimHandler) {
     this.anfrageHakenListe.push(haken);
+  }
+
+  serialisierHaken(haken: SimSendeHaken) {
+    this.serialisierHakenListe.push(haken);
   }
 
   sendeHaken(haken: SimSendeHaken) {
@@ -270,6 +275,10 @@ export function simulatorImBrowser(): BrowserSimulator {
     let koerper: unknown = antwort.koerper;
     const binaer = koerper instanceof Uint8Array;
     if (!binaer && koerper !== undefined && typeof koerper !== 'string') {
+      if (koerper !== null)
+        for (const haken of app.serialisierHakenListe) {
+          koerper = await haken(anfrage, antwort, koerper);
+        }
       koerper = JSON.stringify(koerper);
       if (!antwort.getHeader('content-type')) {
         antwort.header('content-type', 'application/json; charset=utf-8');

@@ -239,14 +239,21 @@ function EpaDialog({
     const offen = verweise.filter((v) => !(v.id in inhalte));
     if (offen.length === 0) return inhalte;
     setzeLaeuft(true);
-    const neu: Inhaltsspeicher = {};
-    for (const v of offen) {
-      try {
-        neu[v.id] = { inhalt: await dokumentAbrufen(kvnr, v.ressource) };
-      } catch (f) {
-        neu[v.id] = { fehler: f instanceof EpaFehler ? f.diagnose : 'Abruf fehlgeschlagen' };
-      }
-    }
+    // Unabhängige Abrufe parallel; mit der einstellbaren Antwortzeit der Demo zählt das.
+    const neu: Inhaltsspeicher = Object.fromEntries(
+      await Promise.all(
+        offen.map(async (v) => {
+          try {
+            return [v.id, { inhalt: await dokumentAbrufen(kvnr, v.ressource) }] as const;
+          } catch (f) {
+            return [
+              v.id,
+              { fehler: f instanceof EpaFehler ? f.diagnose : 'Abruf fehlgeschlagen' },
+            ] as const;
+          }
+        }),
+      ),
+    );
     setzeInhalte((alt) => ({ ...alt, ...neu }));
     setzeLaeuft(false);
     return { ...inhalte, ...neu };

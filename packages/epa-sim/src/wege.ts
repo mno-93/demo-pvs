@@ -251,13 +251,19 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     if (fhir && String(antwort.getHeader('content-type') ?? '').startsWith('application/json')) {
       void antwort.header('content-type', 'application/fhir+json; charset=utf-8');
     }
-    // Der Bestand führt Zeitpunkte ohne Zone; FHIR verlangt sie (zeit.ts im Kern). Ein
-    // abgerufenes Dokument (ITI-68) geht unverändert hinaus — es trägt die Zone schon selbst.
-    if (fhir && !anfrage.url.startsWith(MHD_ABRUF)) {
-      return JSON.stringify(zeitzonenErgaenzen(JSON.parse(koerper as string)));
-    }
     return koerper;
   });
+
+  // Der Bestand führt Zeitpunkte ohne Zone; FHIR verlangt sie (zeit.ts im Kern). Ergänzt am
+  // Objekt vor dem Serialisieren, nicht durch Parsen und erneutes Serialisieren jeder Antwort.
+  // Ein abgerufenes Dokument (ITI-68) geht unverändert hinaus — es trägt die Zone schon selbst.
+  app.serialisierHaken((anfrage, _antwort, koerper) =>
+    istFernweg(anfrage.url) &&
+    !anfrage.url.startsWith(MHD_ABRUF) &&
+    typeof (koerper as { resourceType?: unknown }).resourceType === 'string'
+      ? zeitzonenErgaenzen(koerper)
+      : koerper,
+  );
 
   befugnisEinhaengen(app, kvnrAus, sitzungAus);
   mhdEinhaengen(app, kvnrAus);

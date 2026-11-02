@@ -36,6 +36,25 @@ function jetzt(): string {
   return demoZeitpunktSekunden();
 }
 
+/** Inhaltlich gleich — für die kleinen Merker des Zustands (Lesezeichen, Stände, Ordnungen). */
+function gleich(a: unknown, b: unknown): boolean {
+  return a === b || JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Ersetzt den Eintrag mit demselben Schlüssel; `null`, wenn er schon so dasteht. Vorgänge ohne
+ * Änderung geben den alten Zustand zurück: Dann rechnet keine Ansicht neu (`useAuswahl`).
+ */
+function eintragSetzen<T>(
+  liste: readonly T[],
+  neu: T,
+  gleicherSchluessel: (e: T) => boolean,
+): readonly T[] | null {
+  const alt = liste.find(gleicherSchluessel);
+  if (alt !== undefined && gleich(alt, neu)) return null;
+  return [...liste.filter((e) => !gleicherSchluessel(e)), neu];
+}
+
 /** Ein eMP-Eintrag mit den Angaben, die der Plan der Praxis zusätzlich führt. */
 export type PlanausEpa = SpiegelEintrag & { atcVersion: string; pzn: string | null };
 
@@ -91,7 +110,7 @@ export const vorgaenge = {
       name: 'nutzerWechseln',
       beschreibung: `Rolle gewechselt zu ${nutzer.name}`,
       zaehltNicht: true,
-      anwenden: (z) => ({ ...z, nutzer }),
+      anwenden: (z) => (gleich(z.nutzer, nutzer) ? z : { ...z, nutzer }),
     };
   },
 
@@ -220,22 +239,26 @@ export const vorgaenge = {
       zaehltNicht: true,
       anwenden: (z) => ({
         ...z,
-        praxisplan: [
-          ...z.praxisplan.map((e) => {
-            const u = uebernehmen.find((x) => x.lokalId === e.id);
-            return u ? nachEpa(e, u.epa) : e;
-          }),
-          ...aufnehmen.map((e): PraxisplanEintrag => ({
-            ...e,
-            id: neueId('praxisplan'),
-            patientId,
-            angelegtAm: e.geaendertAm || abgeglichenAm,
-            geaendertAm: e.geaendertAm || abgeglichenAm,
-            rezeptIds: [],
-            epaId: e.id,
-            epaStand: epaStandVon(e),
-          })),
-        ],
+        // Ohne Übernahmen bleibt der Plan dasselbe Objekt; nur der Zeitpunkt ändert sich.
+        praxisplan:
+          uebernehmen.length === 0 && aufnehmen.length === 0
+            ? z.praxisplan
+            : [
+                ...z.praxisplan.map((e) => {
+                  const u = uebernehmen.find((x) => x.lokalId === e.id);
+                  return u ? nachEpa(e, u.epa) : e;
+                }),
+                ...aufnehmen.map((e): PraxisplanEintrag => ({
+                  ...e,
+                  id: neueId('praxisplan'),
+                  patientId,
+                  angelegtAm: e.geaendertAm || abgeglichenAm,
+                  geaendertAm: e.geaendertAm || abgeglichenAm,
+                  rezeptIds: [],
+                  epaId: e.id,
+                  epaStand: epaStandVon(e),
+                })),
+              ],
         planabgleiche: [
           { patientId, planId, abgeglichenAm },
           ...z.planabgleiche.filter((a) => a.patientId !== patientId),
@@ -324,12 +347,17 @@ export const vorgaenge = {
       name: 'praxisplanVerknuepfen',
       beschreibung: 'Medikationsplan der Praxis mit dem eMP verknüpft',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        praxisplan: z.praxisplan.map((e) =>
-          e.id === id ? { ...e, epaId: epa.id, epaStand: epaStandVon(epa) } : e,
-        ),
-      }),
+      anwenden: (z) => {
+        const stand = epaStandVon(epa);
+        const e = z.praxisplan.find((x) => x.id === id);
+        if (!e || (e.epaId === epa.id && gleich(e.epaStand, stand))) return z;
+        return {
+          ...z,
+          praxisplan: z.praxisplan.map((x) =>
+            x.id === id ? { ...x, epaId: epa.id, epaStand: stand } : x,
+          ),
+        };
+      },
     };
   },
 
@@ -351,14 +379,17 @@ export const vorgaenge = {
       name: 'praxisplanRezeptZuordnen',
       beschreibung: 'E-Rezept dem Medikationsplan der Praxis zugeordnet',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        praxisplan: z.praxisplan.map((e) =>
-          e.id === id && !e.rezeptIds.includes(rezeptId)
-            ? { ...e, rezeptIds: [...e.rezeptIds, rezeptId] }
-            : e,
-        ),
-      }),
+      anwenden: (z) =>
+        z.praxisplan.some((e) => e.id === id && !e.rezeptIds.includes(rezeptId))
+          ? {
+              ...z,
+              praxisplan: z.praxisplan.map((e) =>
+                e.id === id && !e.rezeptIds.includes(rezeptId)
+                  ? { ...e, rezeptIds: [...e.rezeptIds, rezeptId] }
+                  : e,
+              ),
+            }
+          : z,
     };
   },
 
@@ -407,13 +438,16 @@ export const vorgaenge = {
       name: 'befugnisErhalten',
       beschreibung: 'ePA-Befugnis nach Einlesen der eGK erhalten',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        epaBefugnisse: [
-          { patientId, gueltigBis, erteiltAm },
-          ...z.epaBefugnisse.filter((b) => b.patientId !== patientId),
-        ],
-      }),
+      anwenden: (z) =>
+        gleich(z.epaBefugnisse[0], { patientId, gueltigBis, erteiltAm })
+          ? z
+          : {
+              ...z,
+              epaBefugnisse: [
+                { patientId, gueltigBis, erteiltAm },
+                ...z.epaBefugnisse.filter((b) => b.patientId !== patientId),
+              ],
+            },
     };
   },
 
@@ -448,8 +482,12 @@ export const vorgaenge = {
       beschreibung: epaId
         ? `${art === 'diagnose' ? 'Diagnose' : 'Allergie'} mit der ePA-Liste abgeglichen`
         : `Verknüpfung mit der ePA-Liste gelöst`,
-      anwenden: (z) =>
-        art === 'diagnose'
+      anwenden: (z) => {
+        const liste: readonly { id: string; epaId?: string | null; epaFassung?: string | null }[] =
+          art === 'diagnose' ? z.diagnosen : z.allergien;
+        const e = liste.find((x) => x.id === id);
+        if (!e || ((e.epaId ?? null) === epaId && (e.epaFassung ?? null) === epaFassung)) return z;
+        return art === 'diagnose'
           ? {
               ...z,
               diagnosen: z.diagnosen.map((d) => (d.id === id ? { ...d, epaId, epaFassung } : d)),
@@ -457,7 +495,8 @@ export const vorgaenge = {
           : {
               ...z,
               allergien: z.allergien.map((a) => (a.id === id ? { ...a, epaId, epaFassung } : a)),
-            },
+            };
+      },
     };
   },
 
@@ -929,15 +968,14 @@ export const vorgaenge = {
       name: 'listenordnungSetzen',
       beschreibung: 'Reihenfolge der Liste geändert',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        listenordnung: [
-          ...z.listenordnung.filter(
-            (o) => !(o.patientId === ordnung.patientId && o.liste === ordnung.liste),
-          ),
+      anwenden: (z) => {
+        const listenordnung = eintragSetzen(
+          z.listenordnung,
           ordnung,
-        ],
-      }),
+          (o) => o.patientId === ordnung.patientId && o.liste === ordnung.liste,
+        );
+        return listenordnung ? { ...z, listenordnung } : z;
+      },
     };
   },
 
@@ -946,15 +984,14 @@ export const vorgaenge = {
       name: 'epaLesezeichenMerken',
       beschreibung: 'Lesezeichen der ePA-Abfrage gemerkt',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        epaLesezeichen: [
-          ...z.epaLesezeichen.filter(
-            (l) => !(l.patientId === lesezeichen.patientId && l.bestand === lesezeichen.bestand),
-          ),
+      anwenden: (z) => {
+        const epaLesezeichen = eintragSetzen(
+          z.epaLesezeichen,
           lesezeichen,
-        ],
-      }),
+          (l) => l.patientId === lesezeichen.patientId && l.bestand === lesezeichen.bestand,
+        );
+        return epaLesezeichen ? { ...z, epaLesezeichen } : z;
+      },
     };
   },
 
@@ -963,15 +1000,14 @@ export const vorgaenge = {
       name: 'epaGesehenMerken',
       beschreibung: 'Stand der ePA-Sicht gemerkt',
       zaehltNicht: true,
-      anwenden: (z) => ({
-        ...z,
-        epaGesehen: [
-          ...z.epaGesehen.filter(
-            (g) => !(g.patientId === stand.patientId && g.sicht === stand.sicht),
-          ),
+      anwenden: (z) => {
+        const epaGesehen = eintragSetzen(
+          z.epaGesehen,
           stand,
-        ],
-      }),
+          (g) => g.patientId === stand.patientId && g.sicht === stand.sicht,
+        );
+        return epaGesehen ? { ...z, epaGesehen } : z;
+      },
     };
   },
 

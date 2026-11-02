@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useSyncExternalStore } from 'react';
 import type { Protokolleintrag, Zustand } from './zustand.js';
 
 /**
@@ -68,49 +68,83 @@ function abonnieren(hoerender: () => void): () => void {
   };
 }
 
+/** Was eine Auswahl zuletzt ergab und welche Felder des Zustands sie dafür gelesen hat. */
+interface Merker<T> {
+  zustand: Zustand;
+  /** Gelesene Felder mit ihrem Wert; `null`, wenn die Auswahl den ganzen Zustand liefert. */
+  felder: readonly (readonly [keyof Zustand, unknown])[] | null;
+  abhaengigkeiten: readonly unknown[];
+  wert: T;
+}
+
+/** Wertet eine Auswahl aus und merkt, welche Felder des Zustands sie liest. */
+function auswerten<T>(
+  z: Zustand,
+  auswahl: (zustand: Zustand) => T,
+  abhaengigkeiten: readonly unknown[],
+): Merker<T> {
+  const gelesen = new Set<keyof Zustand>();
+  const beobachtet = new Proxy(z, {
+    get(ziel, feld, empfaenger) {
+      gelesen.add(feld as keyof Zustand);
+      return Reflect.get(ziel, feld, empfaenger) as unknown;
+    },
+  });
+  const wert = auswahl(beobachtet);
+  if ((wert as unknown) === beobachtet)
+    return { zustand: z, felder: null, abhaengigkeiten, wert: z as T };
+  return { zustand: z, felder: [...gelesen].map((f) => [f, z[f]] as const), abhaengigkeiten, wert };
+}
+
+function unveraendert<T>(m: Merker<T>, z: Zustand, abhaengigkeiten: readonly unknown[]): boolean {
+  return (
+    m.abhaengigkeiten.length === abhaengigkeiten.length &&
+    m.abhaengigkeiten.every((a, i) => Object.is(a, abhaengigkeiten[i])) &&
+    (m.zustand === z || (m.felder !== null && m.felder.every(([f, w]) => z[f] === w)))
+  );
+}
+
 /**
- * Liest einen Ausschnitt des Zustands.
+ * Ableitung aus dem Zustand, die zusätzlich von Werten der Komponente abhängen darf.
  *
- * Das Ergebnis wird gegen die Identität des Zustands zwischengespeichert. Ohne diesen
- * Zwischenspeicher liefert eine Auswahlfunktion, die eine neue Liste erzeugt
- * (`z.diagnosen.filter(...)`), bei jedem Aufruf ein neues Objekt; React hält das für eine
- * Änderung und rendert endlos weiter. Der Fehler tritt erst zur Laufzeit auf und ist an
- * der Aufrufstelle nicht zu sehen — deshalb ist er hier abgefangen und nicht als Regel
- * in die Dokumentation geschrieben.
+ * Beispiel: die Diagnosen einer bestimmten Patientin. Die Abhängigkeiten sind anzugeben,
+ * damit die Ableitung bei ihrer Änderung neu berechnet wird.
  *
- * Die Auswahlfunktion darf nur vom Zustand abhängen. Wer über Eigenschaften der
- * Komponente ableitet (etwa über eine Patientenkennung), nimmt `useAuswahl`.
+ * Ausschnitt-Memo: Die Auswahl merkt sich, welche Felder des Zustands sie liest, und rechnet
+ * erst neu, wenn sich eines davon ändert — sonst bleibt ihr Ergebnis dasselbe Objekt, und die
+ * Komponente rendert nicht. Technische Vorgänge wie Lesezeichen oder Abgleich lösen so nichts aus,
+ * wo diese Felder nicht gelesen werden. Ohne das Memo lieferte eine Auswahl, die eine neue Liste
+ * erzeugt (`z.diagnosen.filter(...)`), bei jedem Aufruf ein neues Objekt; React hielte das für eine
+ * Änderung und renderte endlos weiter.
  */
-export function useZustand<T>(auswahl: (zustand: Zustand) => T): T {
-  const zwischenspeicher = useRef<{ zustand: Zustand; wert: T } | null>(null);
+export function useAuswahl<T>(
+  auswahl: (zustand: Zustand) => T,
+  abhaengigkeiten: readonly unknown[],
+): T {
+  const merker = useRef<Merker<T> | null>(null);
+  // Die Auswahlfunktion ist bei jedem Rendern neu; maßgeblich sind die Abhängigkeiten.
+  const aktuell = useRef({ auswahl, abhaengigkeiten });
+  aktuell.current = { auswahl, abhaengigkeiten };
 
   const holen = useCallback(() => {
     const jetzt = lesen();
-    const gemerkt = zwischenspeicher.current;
-    if (gemerkt && gemerkt.zustand === jetzt) return gemerkt.wert;
-    const wert = auswahl(jetzt);
-    zwischenspeicher.current = { zustand: jetzt, wert };
-    return wert;
-    // Die Auswahlfunktion ist bei jedem Rendern eine neue Instanz. Sie bewusst nicht in
-    // die Abhängigkeiten aufzunehmen ist der Kern des Zwischenspeichers: Nur eine
-    // Zustandsänderung darf zu einem neuen Wert führen.
+    const m = merker.current;
+    const a = aktuell.current;
+    if (m && unveraendert(m, jetzt, a.abhaengigkeiten)) return m.wert;
+    merker.current = auswerten(jetzt, a.auswahl, a.abhaengigkeiten);
+    return merker.current.wert;
   }, []);
 
   return useSyncExternalStore(abonnieren, holen, holen);
 }
 
 /**
- * Ableitung aus dem Zustand, die zusätzlich von Werten der Komponente abhängt.
- *
- * Beispiel: die Diagnosen einer bestimmten Patientin. Die Abhängigkeiten sind anzugeben,
- * damit die Ableitung bei ihrer Änderung neu berechnet wird.
+ * Liest einen Ausschnitt des Zustands; die Auswahlfunktion darf nur vom Zustand abhängen. Wer
+ * über Eigenschaften der Komponente ableitet (etwa über eine Patientenkennung), nimmt
+ * `useAuswahl`.
  */
-export function useAuswahl<T>(
-  auswahl: (zustand: Zustand) => T,
-  abhaengigkeiten: readonly unknown[],
-): T {
-  const zustand = useZustand((z) => z);
-  // Die Auswahlfunktion steht bewusst nicht in den Abhängigkeiten: Sie ist bei jedem
-  // Rendern neu, und die angegebenen Abhängigkeiten sagen, wann neu zu rechnen ist.
-  return useMemo(() => auswahl(zustand), [zustand, ...abhaengigkeiten]);
+export function useZustand<T>(auswahl: (zustand: Zustand) => T): T {
+  return useAuswahl(auswahl, KEINE);
 }
+
+const KEINE: readonly unknown[] = [];

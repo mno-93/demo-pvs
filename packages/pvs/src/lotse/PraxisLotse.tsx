@@ -29,7 +29,7 @@ import {
   type Quellenangabe,
   type Quellentext,
 } from '@demo-pvs/kern';
-import { useZustand } from '../speicher/speicher.js';
+import { useAuswahl, useZustand } from '../speicher/speicher.js';
 import { usePatientId } from '../module/Patientenkartei.js';
 import { EgkKnopf } from '../epa/befugnis.js';
 import { epaFensterOeffnen } from '../epa/fenster.js';
@@ -93,11 +93,12 @@ export function PraxisLotse() {
  * Bereich im ePA-Fenster: Er ist eine Anwendung der ePA, das PVS bindet sie ein.
  */
 export function AktenlotseInhalt({ patientId }: { patientId: string }) {
-  const patient = useZustand((z) => z.patienten.find((p) => p.id === patientId));
+  const patient = useAuswahl((z) => z.patienten.find((p) => p.id === patientId), [patientId]);
   // Ohne Befugnis antwortet die ePA nicht. Wird sie erteilt, liest der Lotse neu — sonst
   // bliebe der Hinweis stehen, obwohl der Zugang inzwischen besteht.
-  const befugnisBis = useZustand(
+  const befugnisBis = useAuswahl(
     (z) => z.epaBefugnisse.find((b) => b.patientId === patientId)?.gueltigBis ?? null,
+    [patientId],
   );
   const kvnr = patient?.versicherung.kvnr ?? '';
 
