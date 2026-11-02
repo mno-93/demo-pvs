@@ -82,14 +82,19 @@ export function rezeptInEpa(
     return { art: 'nicht-sichtbar', text: 'in der ePA für die Praxis nicht sichtbar', abgaben: [] };
   }
   const praefix = `${rezept.rezeptId}_`;
+  // Die Medikationsinformation trägt die Prozesskennung als Extension (EPAMedicationStatement
+  // 1.4.0-ballot.1); je abgegebenem Arzneimittel gibt es eine.
   const traegt = (r: Ressource) =>
-    ((r['identifier'] as { value?: string }[] | undefined) ?? []).some((i) =>
-      String(i.value ?? '').startsWith(praefix),
+    ((r.extension ?? []) as { url: string; valueIdentifier?: { value?: string } }[]).some(
+      (e) =>
+        e.url.endsWith('/rx-prescription-process-identifier-extension') &&
+        String(e.valueIdentifier?.value ?? '').startsWith(praefix),
     );
-  const aussage = liste.eintraege.find(traegt);
-  if (!aussage)
+  const aussagen = liste.eintraege.filter(traegt);
+  if (aussagen.length === 0)
     return { art: 'ausstehend', text: 'Übertragung in die ePA ausstehend', abgaben: [] };
-  const abgaben = ((aussage['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
+  const abgaben = aussagen
+    .flatMap((a) => (a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
     .map((d) => String(d.reference ?? '').split('/'))
     .filter(([typ]) => typ === 'MedicationDispense')
     .map(([, id]) =>

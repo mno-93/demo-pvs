@@ -12,10 +12,24 @@ import { bestandFuer, bestandVorhanden } from './bestand.ts';
 import { betriebslage } from './betrieb.ts';
 import { chronologieAnlegen } from './chronologie.ts';
 import { jetzt, neueId, operationOutcome, parameterLesen } from './fhir-hilfen.ts';
-import { EMP, EMP_IDENTIFIER, EXT, PROFIL, empVerweis, istEmpEintrag } from './medikation.ts';
 import {
+  EMP,
+  EMP_IDENTIFIER,
+  EXT,
+  PROFIL,
+  empKennung,
+  empVerweis,
+  empZuruecksetzen,
+  istEmpEintrag,
+  mittelLoeschenWennFrei,
+  verknuepfen,
+  verknuepfterEintrag,
+} from './medikation.ts';
+import {
+  MEDIKATIONSDIENST,
   aktivitaetAnlegen,
   fortschreiben,
+  loeschen,
   subjektFuer,
   versionierterVerweis,
   type Handelnde,
@@ -31,14 +45,16 @@ import {
  * ⚠ Demo-Ersatz: keine VAU, keine QES — der Datensatz kommt unsigniert, Base64-kodiert, im
  * Parameter `ePrescription`; eigener Pfadpräfix `/erp`.
  *
- * **Zulieferung** nach IG `de.gematik.epa.medication` 1.3.5, technische Anwendungsfälle: Der
- * Fachdienst reiht Verschreibung, Abgabe und Stornierungen in eine Warteschlange ein und
- * überträgt sie **asynchron** (`$provide-prescription-erp`, `$provide-dispensation-erp`,
- * `$cancel-prescription-erp`, `$cancel-dispensation-erp`). Trägt die Verschreibung den
- * eMP-Identifier eines Planeintrags (`MedicationRequest.basedOn.identifier`), verknüpft der
- * Medication Service Liste und Plan selbst; nach der Abgabe verweist der Planeintrag auf das
- * abgegebene Arzneimittel, bei Austausch mit geänderter Dosierung. Werden zu einem Rezept
- * mehrere Arzneimittel abgegeben, aktualisiert sich der Plan nicht.
+ * **Zulieferung** nach IG `de.gematik.epa.medication` 1.4.0-ballot.1, Aktivitätsdiagramme der
+ * E-Rezept-Operationen (ADR 0055): Der Fachdienst reiht Verschreibung, Abgabe und Stornierungen
+ * in eine Warteschlange ein und überträgt sie **asynchron** (`$provide-prescription-erp`,
+ * `$provide-dispensation-erp`, `$cancel-prescription-erp`, `$cancel-dispensation-erp`). Trägt die
+ * Verschreibung den eMP-Identifier eines Planeintrags (`MedicationRequest.basedOn.identifier`),
+ * verknüpft der Medication Service die Medikationsinformation mit ihm, ohne den Plan zu ändern;
+ * erst die Abgabe schreibt den Planeintrag fort — mit dem abgegebenen Arzneimittel, bei Austausch
+ * mit geänderter Dosierung. Werden zu einem Rezept mehrere Arzneimittel abgegeben, entsteht je
+ * eines eine Medikationsinformation, und der Plan übernimmt keines. Urheber dieser Änderungen ist
+ * der Dienst (MEDICATIONSVC).
  *
  * Die Abgabe selbst löst die Demo-Steuerung aus („Apotheke gibt ab").
  */
@@ -50,6 +66,10 @@ const PRESCRIPTION_ID = `${NS}GEM_ERP_NS_PrescriptionId`;
 const ACCESS_CODE = `${NS}GEM_ERP_NS_AccessCode`;
 const FLOWTYPE = 'https://gematik.de/fhir/erp/CodeSystem/GEM_ERP_CS_FlowType';
 const RX_PROZESS = 'https://gematik.de/fhir/epa-medication/sid/rx-prescription-process-identifier';
+const RX_EXTENSION =
+  'https://gematik.de/fhir/epa-medication/StructureDefinition/rx-prescription-process-identifier-extension';
+const VERARBEITUNGSEREIGNIS =
+  'https://gematik.de/fhir/epa-medication/StructureDefinition/epa-medicationstatement-processing-event-extension';
 const KVID = 'http://fhir.de/sid/gkv/kvid-10';
 const ATC = 'http://fhir.de/CodeSystem/bfarm/atc';
 const PZN = 'http://fhir.de/CodeSystem/ifa/pzn';
@@ -76,6 +96,8 @@ interface Rezept {
   verordnung: Ressource | null;
   authoredOn: string;
   empId: string | null;
+  /** Die Medikationsinformation der Verschreibung in der eML — Grundlage der Abgabe. */
+  aussageId?: string;
   /** Stand der Zulieferung in die ePA. */
   epa: 'ausstehend' | 'übertragen' | 'keine Akte' | 'Widerspruch' | 'storniert';
   abgabe: 'keine' | 'abgegeben';
@@ -118,14 +140,25 @@ function prozesskennung(r: Rezept): string {
   return `${String(r.task.id)}_${r.authoredOn}`;
 }
 
+/**
+ * Die Prozesskennung (RxPrescriptionProcessIdentifier) trägt die Verordnung als `identifier`,
+ * Arzneimittel, Abgabe und Medikationsinformation als Extension (`de.gematik.epa` 1.4.0-ballot.1,
+ * Profile EPAMedicationRequest, EPAMedication, EPAMedicationDispense, EPAMedicationStatement).
+ */
+const prozessExtension = (prozess: string) => ({
+  url: RX_EXTENSION,
+  valueIdentifier: { system: RX_PROZESS, value: prozess },
+});
+
+function prozessVon(r: Ressource): string | undefined {
+  if (r.resourceType === 'MedicationRequest') return kennung(r, RX_PROZESS);
+  return ((r.extension ?? []) as { url: string; valueIdentifier?: { value?: string } }[]).find(
+    (e) => e.url === RX_EXTENSION,
+  )?.valueIdentifier?.value;
+}
+
 function mitProzess(kvnr: string, typ: string, prozess: string): Ressource[] {
-  return ablage(kvnr).filter(
-    (x) =>
-      x.resourceType === typ &&
-      ((x['identifier'] as { value?: string }[] | undefined) ?? []).some(
-        (i) => i.value === prozess,
-      ),
-  );
+  return ablage(kvnr).filter((x) => x.resourceType === typ && prozessVon(x) === prozess);
 }
 
 function referenzId(verweis: unknown): string {
@@ -135,23 +168,28 @@ function referenzId(verweis: unknown): string {
 }
 
 function planeintragZu(kvnr: string, aussage: Ressource): Ressource | undefined {
-  const verweis = (aussage['basedOn'] as { reference?: string }[] | undefined)?.[0];
-  const id = referenzId(verweis);
+  const id = verknuepfterEintrag(aussage);
   return id ? ablage(kvnr).find((r) => istEmpEintrag(r) && r.id === id) : undefined;
 }
 
-/** `$provide-prescription-erp`: Verschreibung, Arzneimittel und Medikationsinformation anlegen. */
+/**
+ * `$provide-prescription-erp` (IG-MED-BL-PROVIDE-PRESCRIPTION-ERP-V3): Verschreibung,
+ * Arzneimittel und Medikationsinformation anlegen. Trägt die Verschreibung den Identifier eines
+ * eMP-Eintrags, wird die Medikationsinformation mit ihm verknüpft (`basedOn` mit `isEMP`) — ohne
+ * den eMP selbst zu ändern; den Aktivitätsnachweis bekommt der Eintrag erst mit der Abgabe. Gibt
+ * es den Eintrag nicht, vermerkt die Medikationsinformation das Verarbeitungsereignis
+ * `LINKING_NOT_SUCCESSFUL`. Urheber der Änderungen ist der Dienst (MEDICATIONSVC).
+ */
 function verschreibungEinstellen(r: Rezept): void {
   const kvnr = r.kvnr!;
   const liste = ablage(kvnr);
   const zeit = jetzt();
   const prozess = prozesskennung(r);
-  const wer = r.verordner!;
   const medication: Ressource = {
     ...r.medication!,
     id: neueId('med'),
     meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.medication] },
-    identifier: [{ system: RX_PROZESS, value: prozess }],
+    extension: [prozessExtension(prozess)],
     status: 'inactive',
   };
   const dosierung = r.verordnung!['dosageInstruction'];
@@ -165,7 +203,7 @@ function verschreibungEinstellen(r: Rezept): void {
     medicationReference: { reference: `Medication/${String(medication.id)}` },
     subject: subjektFuer(kvnr),
     authoredOn: r.authoredOn,
-    requester: { display: `${r.arzt}, ${wer.anzeige}` },
+    requester: { display: `${r.arzt}, ${r.verordner!.anzeige}` },
     ...(r.verordnung!['dispenseRequest']
       ? { dispenseRequest: r.verordnung!['dispenseRequest'] }
       : {}),
@@ -175,8 +213,7 @@ function verschreibungEinstellen(r: Rezept): void {
     resourceType: 'MedicationStatement',
     id: neueId('ms'),
     meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.aussage] },
-    extension: [{ url: EXT.kontext, valueCode: 'PRESCRIPTION' }],
-    identifier: [{ system: RX_PROZESS, value: prozess }],
+    extension: [{ url: EXT.kontext, valueCode: 'PRESCRIPTION' }, prozessExtension(prozess)],
     status: 'intended',
     medicationReference: { reference: `Medication/${String(medication.id)}` },
     subject: subjektFuer(kvnr),
@@ -184,12 +221,29 @@ function verschreibungEinstellen(r: Rezept): void {
     dateAsserted: zeit,
     derivedFrom: [{ reference: `MedicationRequest/${String(verordnung.id)}` }],
   };
-  // Die Dosierung wird samt Text in die Medikationsinformation kopiert (Verknüpfungslogik).
+  // Die Dosierung wird samt Text in die Medikationsinformation kopiert.
   if (Array.isArray(dosierung) && dosierung.length > 0) {
     mitDosierung(verordnung, 'dosageInstruction', dosierung as Record<string, unknown>[]);
     mitDosierung(aussage, 'dosage', dosierung as Record<string, unknown>[]);
   }
+  // Verknüpfung mit dem Planeintrag über den eMP-Identifier (Kontext EMP, gleich welcher Status).
+  if (r.empId) {
+    const plan = liste.find((x) => istEmpEintrag(x) && empKennung(x) === r.empId);
+    if (plan) aussage['basedOn'] = [empVerweis(String(plan.id))];
+    else
+      aussage.extension = [
+        ...(aussage.extension ?? []),
+        {
+          url: VERARBEITUNGSEREIGNIS,
+          extension: [
+            { url: 'event', valueCode: 'LINKING_NOT_SUCCESSFUL' },
+            { url: 'dateTime', valueDateTime: zeit },
+          ],
+        },
+      ];
+  }
   liste.push(medication, verordnung, aussage);
+  r.aussageId = String(aussage.id);
   aktivitaetAnlegen(
     liste,
     [
@@ -197,93 +251,51 @@ function verschreibungEinstellen(r: Rezept): void {
       versionierterVerweis(verordnung),
       versionierterVerweis(aussage),
     ],
-    wer,
+    MEDIKATIONSDIENST,
     'CREATE',
     zeit,
   );
-
-  // Verknüpfung mit dem Planeintrag über den eMP-Identifier.
-  const plan = r.empId
-    ? liste.find(
-        (x) =>
-          istEmpEintrag(x) &&
-          kennung(x, EMP_IDENTIFIER) === r.empId &&
-          ['active', 'on-hold'].includes(String(x['status'])),
-      )
-    : undefined;
-  if (plan) {
-    aussage['basedOn'] = [empVerweis(String(plan.id))];
-    plan.extension = [
-      ...((plan.extension ?? []) as { url: string }[]),
-      {
-        url: EXT.aktivitaet,
-        extension: [
-          {
-            url: 'reference',
-            valueReference: { reference: `MedicationStatement/${String(aussage.id)}` },
-          },
-          { url: 'addedOn', valueDateTime: zeit },
-        ],
-      },
-    ];
-    fortschreiben(plan, zeit);
-    aktivitaetAnlegen(liste, [versionierterVerweis(plan)], wer, 'UPDATE', zeit);
-    chronologieAnlegen(liste, EMP, wer, zeit);
-  }
-}
-
-/** Nimmt die Verknüpfung eines Planeintrags mit einer Medikationsinformation zurück. */
-function planVerknuepfungLoesen(kvnr: string, aussage: Ressource, wer: Handelnde, zeit: string) {
-  const plan = planeintragZu(kvnr, aussage);
-  if (!plan) return;
-  plan.extension = (plan.extension ?? []).filter(
-    (e) =>
-      !(
-        e.url === EXT.aktivitaet &&
-        referenzId(e.extension?.find((y) => y.url === 'reference')?.valueReference) === aussage.id
-      ),
-  );
-  const herkunft = ((plan.extension ?? []) as { url: string; valueReference?: unknown }[]).find(
-    (e) => e.url === EXT.herkunftsmittel,
-  );
-  if (herkunft) plan['medicationReference'] = herkunft.valueReference;
-  delete aussage['basedOn'];
-  fortschreiben(plan, zeit);
-  aktivitaetAnlegen(ablage(kvnr), [versionierterVerweis(plan)], wer, 'UPDATE', zeit);
-  chronologieAnlegen(ablage(kvnr), EMP, wer, zeit);
 }
 
 /**
- * `$cancel-prescription-erp`: Verschreibung, Arzneimittel, Abgaben und Medikationsinformation
- * mit derselben Prozesskennung werden `entered-in-error`; die eML zeigt sie nicht mehr.
- * ⚠ Die Statusübersicht des IG spricht von Löschen, der Anwendungsfall von `entered-in-error`;
- * die Demo folgt dem Anwendungsfall und löst eine Verknüpfung mit dem Plan.
+ * `$cancel-prescription-erp` (IG-MED-BL-CANCEL-PRESCRIPTION-ERP-V4): Medikationsinformationen,
+ * Abgaben und Verschreibung der Prozesskennung werden gelöscht (bleiben über die Historie
+ * abrufbar), ebenso Arzneimittel, die niemand mehr braucht. Ein verknüpfter eMP-Eintrag wird auf
+ * seine Fassung vor der Übernahme zurückgesetzt.
  */
 function verschreibungStornieren(r: Rezept): void {
   const kvnr = r.kvnr!;
+  const liste = ablage(kvnr);
   const zeit = jetzt();
   const prozess = prozesskennung(r);
-  const betroffen = [
-    'MedicationRequest',
-    'Medication',
-    'MedicationDispense',
-    'MedicationStatement',
-  ].flatMap((typ) => mitProzess(kvnr, typ, prozess));
-  for (const x of betroffen) {
-    if (x.resourceType === 'MedicationStatement')
-      planVerknuepfungLoesen(kvnr, x, r.verordner!, zeit);
-    x['status'] = 'entered-in-error';
-    fortschreiben(x, zeit);
+  const aussagen = mitProzess(kvnr, 'MedicationStatement', prozess);
+  const geloescht = [
+    ...aussagen,
+    ...mitProzess(kvnr, 'MedicationDispense', prozess),
+    ...mitProzess(kvnr, 'MedicationRequest', prozess),
+  ];
+  const mittel = [
+    ...new Set(
+      geloescht
+        .map((x) => referenzId(x['medicationReference']))
+        .concat(mitProzess(kvnr, 'Medication', prozess).map((m) => String(m.id))),
+    ),
+  ];
+  let planGeaendert = false;
+  for (const a of aussagen) {
+    const plan = planeintragZu(kvnr, a);
+    if (!plan) continue;
+    if (empZuruecksetzen(kvnr, plan, a, zeit).eintragGeaendert) {
+      fortschreiben(plan, zeit);
+      aktivitaetAnlegen(liste, [versionierterVerweis(plan)], MEDIKATIONSDIENST, 'UPDATE', zeit);
+      planGeaendert = true;
+    }
   }
-  if (betroffen.length > 0) {
-    aktivitaetAnlegen(
-      ablage(kvnr),
-      betroffen.map(versionierterVerweis),
-      r.verordner!,
-      'DELETE',
-      zeit,
-    );
-  }
+  if (geloescht.length === 0) return;
+  aktivitaetAnlegen(liste, geloescht.map(versionierterVerweis), MEDIKATIONSDIENST, 'DELETE', zeit);
+  for (const x of geloescht) loeschen(liste, x);
+  for (const id of mittel) mittelLoeschenWennFrei(kvnr, id);
+  if (planGeaendert) chronologieAnlegen(liste, EMP, MEDIKATIONSDIENST, zeit);
 }
 
 export type Abgabeart = 'wie-verordnet' | 'austausch' | 'mehrfach';
@@ -331,7 +343,17 @@ function austauschen(text: string, dosierung: string): { text: string; dosierung
   };
 }
 
-/** `$provide-dispensation-erp`: Abgabe(n) anlegen, Verschreibung abschließen, Plan fortschreiben. */
+/**
+ * `$provide-dispensation-erp` (IG-MED-BL-PROVIDE-DISPENSATION-ERP-V4, Teil
+ * ADD-DISPENSATION-ERP-V1): je abgegebenem Arzneimittel eine Abgabe und eine
+ * Medikationsinformation — die erste ist die der Verschreibung, weitere entstehen neu. Die
+ * Medikationsinformation nennt das abgegebene Arzneimittel und beginnt am Tag der Abgabe; eine
+ * geänderte Dosierung der Abgabe geht in sie über. Ohne Austausch wird das verordnete Arzneimittel
+ * fortgeschrieben (neue Fassung, aktiv) statt neu angelegt. Danach „link eMP element“: Der
+ * verknüpfte eMP-Eintrag bekommt den Aktivitätsnachweis und — bei genau einem abgegebenen
+ * Arzneimittel — dessen Arzneimittel und Dosierung (IG 1.3.5, „mehrere Arzneimittel“: kein
+ * Planupdate).
+ */
 function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
   const kvnr = r.kvnr!;
   const liste = ablage(kvnr);
@@ -339,8 +361,15 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
   const heute = zeit.slice(0, 10);
   const prozess = prozesskennung(r);
   const verordnung = mitProzess(kvnr, 'MedicationRequest', prozess)[0];
-  const aussage = mitProzess(kvnr, 'MedicationStatement', prozess)[0];
-  const verordnetesMittel = mitProzess(kvnr, 'Medication', prozess)[0];
+  const aussage =
+    mitProzess(kvnr, 'MedicationStatement', prozess).find((a) => a.id === r.aussageId) ??
+    mitProzess(kvnr, 'MedicationStatement', prozess)[0];
+  const verordnetesMittel = verordnung
+    ? liste.find(
+        (x) =>
+          x.resourceType === 'Medication' && x.id === referenzId(verordnung['medicationReference']),
+      )
+    : undefined;
   if (!verordnung || !aussage || !verordnetesMittel) return;
   const text = String((verordnetesMittel['code'] as { text?: string } | undefined)?.text ?? '');
   const dosierungText = viererschema(verordnung['dosageInstruction']);
@@ -365,33 +394,39 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
           },
         ];
 
-  const abgaben: Ressource[] = [];
-  const mittel: Ressource[] = [];
-  for (const p of produkte) {
-    const m: Ressource = {
-      resourceType: 'Medication',
-      id: neueId('med'),
-      meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.medication] },
-      identifier: [{ system: RX_PROZESS, value: prozess }],
-      status: 'active',
-      code: {
-        coding: [
-          ...coding.filter((k) => k.system === ATC),
-          ...(p.pzn ? [{ system: PZN, code: p.pzn }] : []),
-        ],
-        text: p.text,
-      },
-    };
-    const a: Ressource = {
+  const neu: Ressource[] = [];
+  const geaendert: Ressource[] = [verordnung, aussage];
+  const aussagen: Ressource[] = [];
+  produkte.forEach((p, i) => {
+    // Ohne Austausch: dasselbe Arzneimittel in neuer Fassung; sonst ein neues.
+    let m: Ressource;
+    if (art === 'wie-verordnet') {
+      m = verordnetesMittel;
+      m['status'] = 'active';
+      fortschreiben(m, zeit);
+      geaendert.push(m);
+    } else {
+      m = {
+        resourceType: 'Medication',
+        id: neueId('med'),
+        meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.medication] },
+        extension: [prozessExtension(prozess)],
+        status: 'active',
+        code: {
+          coding: [
+            ...coding.filter((k) => k.system === ATC),
+            ...(p.pzn ? [{ system: PZN, code: p.pzn }] : []),
+          ],
+          text: p.text,
+        },
+      };
+      neu.push(m);
+    }
+    const abgabe: Ressource = {
       resourceType: 'MedicationDispense',
       id: neueId('ab'),
       meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.abgabe] },
-      extension: [
-        {
-          url: 'https://gematik.de/fhir/epa-medication/StructureDefinition/rx-prescription-process-identifier-extension',
-          valueIdentifier: { system: RX_PROZESS, value: prozess },
-        },
-      ],
+      extension: [prozessExtension(prozess)],
       status: 'completed',
       medicationReference: { reference: `Medication/${String(m.id)}` },
       subject: subjektFuer(kvnr),
@@ -401,47 +436,54 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
       ...(art !== 'wie-verordnet' ? { substitution: { wasSubstituted: true } } : {}),
     };
     if (p.dosierung)
-      mitDosierung(a, 'dosageInstruction', dosierungNachFhir(dosierungAusText(p.dosierung)));
-    mittel.push(m);
-    abgaben.push(a);
-  }
-  liste.push(...mittel, ...abgaben);
+      mitDosierung(abgabe, 'dosageInstruction', dosierungNachFhir(dosierungAusText(p.dosierung)));
+    neu.push(abgabe);
+    // Die erste Abgabe schreibt die Medikationsinformation der Verschreibung fort; jede weitere
+    // bekommt eine eigene, mit derselben Verknüpfung.
+    const a: Ressource =
+      i === 0
+        ? aussage
+        : {
+            ...structuredClone(aussage),
+            id: neueId('ms'),
+            meta: { versionId: '1', lastUpdated: zeit, profile: [PROFIL.aussage] },
+            dateAsserted: zeit,
+          };
+    a['status'] = 'unknown';
+    a['medicationReference'] = { reference: `Medication/${String(m.id)}` };
+    a['effectivePeriod'] = { start: heute };
+    a['derivedFrom'] = [
+      { reference: `MedicationRequest/${String(verordnung.id)}` },
+      { reference: `MedicationDispense/${String(abgabe.id)}` },
+    ];
+    if (p.dosierung) mitDosierung(a, 'dosage', dosierungNachFhir(dosierungAusText(p.dosierung)));
+    if (i > 0) neu.push(a);
+    aussagen.push(a);
+  });
+  liste.push(...neu.filter((x) => !liste.includes(x)));
   verordnung['status'] = 'completed';
-  verordnetesMittel['status'] = 'active';
-  aussage['status'] = 'unknown';
-  aussage['derivedFrom'] = [
-    ...((aussage['derivedFrom'] as unknown[] | undefined) ?? []),
-    ...abgaben.map((a) => ({ reference: `MedicationDispense/${String(a.id)}` })),
-  ];
-  for (const x of [verordnung, verordnetesMittel, aussage]) fortschreiben(x, zeit);
-  aktivitaetAnlegen(
-    liste,
-    [...mittel, ...abgaben, verordnung, verordnetesMittel, aussage].map(versionierterVerweis),
-    APOTHEKE,
-    'CREATE',
-    zeit,
-  );
+  for (const x of [verordnung, aussage]) fortschreiben(x, zeit);
+  aktivitaetAnlegen(liste, neu.map(versionierterVerweis), MEDIKATIONSDIENST, 'CREATE', zeit);
+  aktivitaetAnlegen(liste, geaendert.map(versionierterVerweis), MEDIKATIONSDIENST, 'UPDATE', zeit);
 
-  // Der Planeintrag verweist auf das abgegebene Arzneimittel — nur bei genau einem.
+  // „link eMP element“: Aktivitätsnachweis am verknüpften Eintrag; Arzneimittel und Dosierung nur
+  // bei genau einem abgegebenen Arzneimittel.
   const plan = planeintragZu(kvnr, aussage);
-  if (plan && abgaben.length === 1) {
-    plan['medicationReference'] = { reference: `Medication/${String(mittel[0]!.id)}` };
-    if (produkte[0]!.dosierung)
-      mitDosierung(
-        plan,
-        'dosageInstruction',
-        dosierungNachFhir(dosierungAusText(produkte[0]!.dosierung)),
-      );
+  if (plan) {
+    for (const a of aussagen) verknuepfen(kvnr, a, plan, zeit, aussagen.length === 1);
     fortschreiben(plan, zeit);
-    aktivitaetAnlegen(liste, [versionierterVerweis(plan)], APOTHEKE, 'UPDATE', zeit);
-    chronologieAnlegen(liste, EMP, APOTHEKE, zeit);
+    aktivitaetAnlegen(liste, [versionierterVerweis(plan)], MEDIKATIONSDIENST, 'UPDATE', zeit);
+    chronologieAnlegen(liste, EMP, MEDIKATIONSDIENST, zeit);
   }
 }
 
 /**
- * `$cancel-dispensation-erp`: Abgaben entfernen, Verschreibung wieder `active`, Arzneimittel
- * `inactive`, Medikationsinformation `intended`. ⚠ Den Planeintrag setzt die Demo auf das
- * ursprüngliche Arzneimittel zurück; der IG regelt das für diesen Fall nicht ausdrücklich.
+ * `$cancel-dispensation-erp` (IG-MED-BL-CANCEL-DISPENSATION-ERP-V5, Teil
+ * REMOVE-DISPENSATION-ERP-V2): Der verknüpfte eMP-Eintrag wird auf seine Fassung vor der Abgabe
+ * zurückgesetzt — Arzneimittel und Dosierung —, der Aktivitätsnachweis entfällt. Die
+ * Medikationsinformation der Verschreibung kehrt zurück (geplant, Arzneimittel, Beginn und
+ * Dosierung der Verordnung), weitere werden gelöscht, ebenso die Abgaben und die abgegebenen
+ * Arzneimittel; ein ohne Austausch fortgeschriebenes Arzneimittel wird wieder inaktiv.
  */
 function abgabeStornieren(r: Rezept): void {
   const kvnr = r.kvnr!;
@@ -449,43 +491,63 @@ function abgabeStornieren(r: Rezept): void {
   const zeit = jetzt();
   const prozess = prozesskennung(r);
   const verordnung = mitProzess(kvnr, 'MedicationRequest', prozess)[0];
-  const aussage = mitProzess(kvnr, 'MedicationStatement', prozess)[0];
-  const alleMittel = mitProzess(kvnr, 'Medication', prozess);
+  const aussagen = mitProzess(kvnr, 'MedicationStatement', prozess);
+  const aussage = aussagen.find((a) => a.id === r.aussageId) ?? aussagen[0];
   const abgaben = mitProzess(kvnr, 'MedicationDispense', prozess);
   if (!verordnung || !aussage) return;
-  const abgegebeneMittel = new Set(abgaben.map((a) => referenzId(a['medicationReference'])));
-  const verordnetesMittel = alleMittel.find((m) => !abgegebeneMittel.has(String(m.id)));
-  const weg = new Set([...abgaben.map((a) => a.id), ...abgegebeneMittel]);
-  liste.splice(
-    0,
-    liste.length,
-    ...liste.filter(
-      (x) =>
-        !(weg.has(String(x.id)) && ['MedicationDispense', 'Medication'].includes(x.resourceType)),
-    ),
-  );
-  verordnung['status'] = 'active';
-  if (verordnetesMittel) verordnetesMittel['status'] = 'inactive';
-  aussage['status'] = 'intended';
-  aussage['derivedFrom'] = [{ reference: `MedicationRequest/${String(verordnung.id)}` }];
-  for (const x of [verordnung, aussage, ...(verordnetesMittel ? [verordnetesMittel] : [])])
-    fortschreiben(x, zeit);
-  aktivitaetAnlegen(
-    liste,
-    [versionierterVerweis(verordnung), versionierterVerweis(aussage)],
-    APOTHEKE,
-    'UPDATE',
-    zeit,
-  );
+
+  // Zuerst der eMP-Eintrag: Er vergleicht seine Fassungen mit der Medikationsinformation, wie
+  // sie nach der Abgabe aussieht.
   const plan = planeintragZu(kvnr, aussage);
-  if (plan && abgegebeneMittel.has(referenzId(plan['medicationReference']))) {
-    const herkunft = ((plan.extension ?? []) as { url: string; valueReference?: unknown }[]).find(
-      (e) => e.url === EXT.herkunftsmittel,
+  let planGeaendert = false;
+  if (plan) {
+    for (const a of aussagen)
+      if (empZuruecksetzen(kvnr, plan, a, zeit, { verknuepfungBehalten: true }).eintragGeaendert)
+        planGeaendert = true;
+  }
+
+  const verordnetesMittelId = referenzId(verordnung['medicationReference']);
+  const abgegebeneMittel = new Set(abgaben.map((a) => referenzId(a['medicationReference'])));
+  const weitere = aussagen.filter((a) => a !== aussage);
+  aussage['status'] = 'intended';
+  aussage['medicationReference'] = structuredClone(verordnung['medicationReference']);
+  aussage['effectivePeriod'] = { start: String(verordnung['authoredOn'] ?? r.authoredOn) };
+  aussage['derivedFrom'] = [{ reference: `MedicationRequest/${String(verordnung.id)}` }];
+  const dosierung = verordnung['dosageInstruction'] as Record<string, unknown>[] | undefined;
+  if (dosierung && dosierung.length > 0) mitDosierung(aussage, 'dosage', dosierung);
+  verordnung['status'] = 'active';
+  const geaendert: Ressource[] = [aussage, verordnung];
+  const verordnetesMittel = liste.find(
+    (x) => x.resourceType === 'Medication' && x.id === verordnetesMittelId,
+  );
+  if (verordnetesMittel && verordnetesMittel['status'] !== 'inactive') {
+    verordnetesMittel['status'] = 'inactive';
+    geaendert.push(verordnetesMittel);
+  }
+  for (const x of geaendert) fortschreiben(x, zeit);
+  aktivitaetAnlegen(liste, geaendert.map(versionierterVerweis), MEDIKATIONSDIENST, 'UPDATE', zeit);
+  const geloescht = [
+    ...weitere,
+    ...abgaben,
+    ...[...abgegebeneMittel]
+      .filter((id) => id !== verordnetesMittelId)
+      .map((id) => liste.find((x) => x.resourceType === 'Medication' && x.id === id))
+      .filter((x): x is Ressource => !!x),
+  ];
+  if (geloescht.length > 0) {
+    aktivitaetAnlegen(
+      liste,
+      geloescht.map(versionierterVerweis),
+      MEDIKATIONSDIENST,
+      'DELETE',
+      zeit,
     );
-    if (herkunft) plan['medicationReference'] = herkunft.valueReference;
+    for (const x of geloescht) loeschen(liste, x);
+  }
+  if (plan && planGeaendert) {
     fortschreiben(plan, zeit);
-    aktivitaetAnlegen(liste, [versionierterVerweis(plan)], APOTHEKE, 'UPDATE', zeit);
-    chronologieAnlegen(liste, EMP, APOTHEKE, zeit);
+    aktivitaetAnlegen(liste, [versionierterVerweis(plan)], MEDIKATIONSDIENST, 'UPDATE', zeit);
+    chronologieAnlegen(liste, EMP, MEDIKATIONSDIENST, zeit);
   }
 }
 

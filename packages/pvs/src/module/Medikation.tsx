@@ -258,26 +258,26 @@ interface Rezeptspur {
 }
 
 function rezeptspur(liste: Medikationsliste, planId: string): Rezeptspur {
-  const verknuepft = liste.eintraege
-    .filter((a) =>
-      ((a['basedOn'] as { reference?: string }[] | undefined) ?? []).some(
-        (b) => b.reference === `MedicationRequest/${planId}`,
-      ),
-    )
-    .sort((x, y) =>
-      String((y['effectivePeriod'] as { start?: string } | undefined)?.start ?? '').localeCompare(
-        String((x['effectivePeriod'] as { start?: string } | undefined)?.start ?? ''),
-      ),
-    );
-  const letzte = verknuepft[0];
+  const quelle = (a: Ressource, typ: string) =>
+    ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
+      .map((d) => String(d.reference ?? '').split('/'))
+      .filter(([t]) => t === typ)
+      .map(([, id]) => liste.einschluesse.find((r) => r.resourceType === typ && r.id === id))
+      .filter((r): r is Ressource => !!r);
+  const verknuepft = liste.eintraege.filter((a) =>
+    ((a['basedOn'] as { reference?: string }[] | undefined) ?? []).some(
+      (b) => b.reference === `MedicationRequest/${planId}`,
+    ),
+  );
+  // Die jüngste Verordnung; zu ihr gehören alle Medikationsinformationen ihrer Abgaben — je
+  // abgegebenem Arzneimittel eine (IG 1.4.0-ballot.1, ADD-DISPENSATION-ERP-V1).
+  const letzte = verknuepft
+    .flatMap((a) => quelle(a, 'MedicationRequest'))
+    .sort((x, y) => String(y['authoredOn'] ?? '').localeCompare(String(x['authoredOn'] ?? '')))[0];
   if (!letzte) return { verordnetAm: null, abgegebenAm: null, mehrfach: null };
-  const abgaben = ((letzte['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
-    .map((d) => String(d.reference ?? '').split('/'))
-    .filter(([typ]) => typ === 'MedicationDispense')
-    .map(([, id]) =>
-      liste.einschluesse.find((r) => r.resourceType === 'MedicationDispense' && r.id === id),
-    )
-    .filter((r): r is Ressource => !!r);
+  const abgaben = verknuepft
+    .filter((a) => quelle(a, 'MedicationRequest').some((v) => v.id === letzte.id))
+    .flatMap((a) => quelle(a, 'MedicationDispense'));
   const mittel = (a: Ressource) =>
     textVon(
       liste.einschluesse.find(
@@ -288,9 +288,7 @@ function rezeptspur(liste: Medikationsliste, planId: string): Rezeptspur {
       ) ?? a,
     );
   return {
-    verordnetAm: String(
-      (letzte['effectivePeriod'] as { start?: string } | undefined)?.start ?? '',
-    ).slice(0, 10),
+    verordnetAm: String(letzte['authoredOn'] ?? '').slice(0, 10),
     abgegebenAm: abgaben[0] ? String(abgaben[0]['whenHandedOver'] ?? '').slice(0, 10) : null,
     mehrfach: abgaben.length > 1 ? abgaben.map(mittel) : null,
   };

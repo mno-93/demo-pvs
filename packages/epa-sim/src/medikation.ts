@@ -547,6 +547,8 @@ export function empZuruecksetzen(
   eintrag: Ressource,
   aussage: Ressource,
   zeit: string = jetzt(),
+  /** Beim Storno einer Abgabe bleibt die Verknüpfung aus der Verschreibung bestehen. */
+  { verknuepfungBehalten = false }: { verknuepfungBehalten?: boolean } = {},
 ): Loesung {
   const gleich = (f: Ressource) =>
     referenzId(f['medicationReference']) === referenzId(aussage['medicationReference']) &&
@@ -581,7 +583,7 @@ export function empZuruecksetzen(
   if (uebrig.length !== bisher.length) geaendert = true;
   return {
     eintragGeaendert: geaendert,
-    verordnung: verknuepfungLoesen(kvnr, aussage, eintrag, zeit),
+    verordnung: verknuepfungBehalten ? null : verknuepfungLoesen(kvnr, aussage, eintrag, zeit),
   };
 }
 
@@ -670,10 +672,11 @@ export function verknuepfen(
   zeit: string,
   uebernehmen: boolean,
 ): Ressource | null {
-  aussage['basedOn'] = [
-    ...((aussage['basedOn'] as unknown[] | undefined) ?? []),
-    empVerweis(String(eintrag.id)),
-  ];
+  if (verknuepfterEintrag(aussage) !== eintrag.id)
+    aussage['basedOn'] = [
+      ...((aussage['basedOn'] as unknown[] | undefined) ?? []),
+      empVerweis(String(eintrag.id)),
+    ];
   if (uebernehmen) {
     const spaeter = aufgenommenAm(eintrag).some((t) => t > String(aussage.meta?.lastUpdated ?? ''));
     const dosierung = aussage['dosage'] as Json[] | undefined;
@@ -714,7 +717,9 @@ export function verknuepfen(
   ];
   const verordnung = verordnungZu(kvnr, aussage);
   if (!verordnung) return null;
-  verordnung['basedOn'] = [{ identifier: { system: EMP_IDENTIFIER, value: empKennung(eintrag) } }];
+  const verweis = [{ identifier: { system: EMP_IDENTIFIER, value: empKennung(eintrag) } }];
+  if (JSON.stringify(verordnung['basedOn'] ?? null) === JSON.stringify(verweis)) return null;
+  verordnung['basedOn'] = verweis;
   fortschreiben(verordnung, zeit);
   return verordnung;
 }
@@ -732,7 +737,7 @@ function mittelInGebrauch(kvnr: string, mittelId: string): boolean {
 }
 
 /** Löscht ein Arzneimittel, das niemand mehr braucht; seine letzte Fassung bleibt in der Historie. */
-function mittelLoeschenWennFrei(kvnr: string, mittelId: string): void {
+export function mittelLoeschenWennFrei(kvnr: string, mittelId: string): void {
   const mittel = finden(kvnr, 'Medication', mittelId);
   if (!mittel || mittelInGebrauch(kvnr, mittelId)) return;
   fassungenSichern(ablage(kvnr), [versionierterVerweis(mittel)]);

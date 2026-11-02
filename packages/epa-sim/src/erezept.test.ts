@@ -272,10 +272,30 @@ describe('E-Rezept', () => {
         reference: 'MedicationRequest/emp-h-med-3',
       },
     ]);
+    // Die Verschreibung ändert den eMP nicht (IG-MED-BL-PROVIDE-PRESCRIPTION-ERP-V3): keine
+    // neue Fassung, kein Aktivitätsnachweis — den bekommt der Eintrag erst mit der Abgabe.
     const nachher = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
-    expect(
-      Number(nachher.meta && (nachher.meta as { versionId: string }).versionId),
-    ).toBeGreaterThan(Number((vorher.meta as { versionId: string }).versionId));
+    expect(nachher.meta).toEqual(vorher.meta);
+    // Die Prozesskennung steht an der Medikationsinformation als Extension; die Common Query API
+    // findet sie über `rx-prescription`.
+    const prozess = (
+      neu!['extension'] as { url: string; valueIdentifier?: { value: string } }[]
+    ).find((e) => e.url.endsWith('rx-prescription-process-identifier-extension'))!.valueIdentifier!
+      .value;
+    const gefunden = await app.inject({
+      method: 'GET',
+      url: `/epa/query/api/v1/fhir/MedicationStatement?rx-prescription=${encodeURIComponent(prozess)}`,
+      headers: kopf(),
+    });
+    expect((gefunden.json().entry as unknown[]).length).toBe(1);
+  });
+
+  it('vermerkt eine Verknüpfung, die nicht gelingt, als Verarbeitungsereignis', async () => {
+    await verordnen(rezept({ empId: 'gibt-es-nicht' }));
+    const { treffer, alle } = await liste();
+    const neu = eintragZu(treffer, alle, 'Ramipril')!;
+    expect(neu['basedOn']).toBeUndefined();
+    expect(JSON.stringify(neu['extension'])).toContain('LINKING_NOT_SUCCESSFUL');
   });
 
   it('zeigt nach dem Austausch das abgegebene Arzneimittel und die geänderte Dosierung im Plan', async () => {
@@ -308,14 +328,45 @@ describe('E-Rezept', () => {
     });
     const eintrag = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
     expect(eintrag['medicationReference']).toEqual(vorher);
+    // Je abgegebenem Arzneimittel eine Medikationsinformation, beide mit dem Eintrag verknüpft.
     const { treffer } = await liste();
-    const mitAbgaben = treffer.find(
+    const teilmengen = treffer.filter(
       (s) =>
-        ((s['derivedFrom'] as { reference: string }[]) ?? []).filter((d) =>
+        ((s['derivedFrom'] as { reference: string }[]) ?? []).some((d) =>
           d.reference.startsWith('MedicationDispense/'),
-        ).length === 2,
+        ) &&
+        JSON.stringify(s['basedOn'] ?? []).includes('emp-h-med-3') &&
+        s['status'] === 'unknown' &&
+        String((s['effectivePeriod'] as { start?: string }).start) !== '2026-07-18',
     );
-    expect(mitAbgaben).toBeDefined();
+    expect(teilmengen).toHaveLength(2);
+    expect(JSON.stringify(eintrag['extension'])).toContain(String(teilmengen[1]!.id));
+  });
+
+  it('nimmt die Abgabe zurück: Plan, Medikationsinformation und Arzneimittel wie vorher', async () => {
+    const vorher = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    const { id } = await verordnen(rezept());
+    await app.inject({
+      method: 'POST',
+      url: `/verwaltung/erezepte/${id}/abgabe`,
+      payload: { art: 'austausch' },
+    });
+    const storno = await app.inject({
+      method: 'POST',
+      url: `/verwaltung/erezepte/${id}/abgabe-storno`,
+    });
+    expect(storno.statusCode).toBe(200);
+    const eintrag = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    expect(eintrag['medicationReference']).toEqual(vorher['medicationReference']);
+    expect(dosierungsanzeige(eintrag)).toBe(dosierungsanzeige(vorher));
+    const { treffer, alle } = await liste();
+    const aussage = eintragZu(treffer, alle, 'Ramipril')!;
+    expect(aussage['status']).toBe('intended');
+    expect(
+      (aussage['derivedFrom'] as { reference: string }[]).some((d) =>
+        d.reference.startsWith('MedicationDispense/'),
+      ),
+    ).toBe(false);
   });
 
   it('nimmt ein gelöschtes Rezept aus der Liste und verweigert das Löschen nach der Abgabe', async () => {

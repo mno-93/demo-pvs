@@ -51,7 +51,19 @@ const erweiterung = (r: Ressource, url: string) =>
     (e) => e.url === url,
   );
 const kontext = (r: Ressource) => code(erweiterung(r, `${MS}context-extension`)?.valueCode);
-const rezeptkennung = (r: Ressource) => kennungen(r['identifier']).filter((k) => k.system === RX);
+/**
+ * `rx-prescription` (SearchParameter `rx-prescription-process-sp`, Basis Medication,
+ * MedicationDispense, MedicationStatement): die Prozesskennung aus der Extension. ⚠ Der Ausdruck
+ * im Ballot nennt die Extension ohne die Endung `-extension` und träfe so nie (SPEZIFIKATION 5.14,
+ * Befund 9); die Demo sucht in der Extension, wie TI Common sie definiert und die Beispiele sie
+ * führen.
+ */
+const rezeptkennung = (r: Ressource) =>
+  kennungen(
+    ((r.extension ?? []) as { url: string; valueIdentifier?: unknown }[])
+      .filter((e) => e.url === `${MS}rx-prescription-process-identifier-extension`)
+      .map((e) => e.valueIdentifier),
+  ).filter((k) => k.system === RX);
 
 const GEMEINSAM: Record<string, Parameter> = {
   _id: { art: 'token', werte: (r) => code(r.id) },
