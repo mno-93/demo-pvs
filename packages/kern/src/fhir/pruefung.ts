@@ -9,7 +9,7 @@
  *   `ti-condition-diagnosis` 1.5.0 (Paket `de.gematik.ti` 1.5.0-ballot.2, Snapshot geprüft am
  *   15.10.2026), EU Core 2.0.0 für Allergie, Impfung und Patient (hl7.eu/fhir/base/2.0.0);
  * - **Invarianten** der Basis: con-3, con-4, con-5 (Condition), ait-1, ait-2 (AllergyIntolerance),
- *   org-1 (Organization), cmp-1, cmp-2 (Composition), bdl-7, bdl-9, bdl-10, bdl-11 (Bundle),
+ *   org-1 (Organization), cmp-1, cmp-2 (Composition), bdl-3, bdl-4, bdl-7, bdl-9, bdl-10, bdl-11 (Bundle),
  *   ele-1 (kein leeres Element), dazu eu-pat-1 (EU Core Patient);
  * - **Dokumentregeln** (FHIR R4, Documents): Was die Composition referenziert, liegt im Bundle;
  *   alles im Bundle ist von der Composition aus erreichbar.
@@ -358,6 +358,26 @@ export function bundlePruefen(bundle: Ressource): Pruefbefund[] {
   }[];
   const fehler = (regel: string, pfad: string, text: string) =>
     befunde.push({ schwere: 'fehler', regel, pfad: `Bundle${pfad ? `.${pfad}` : ''}`, text });
+
+  // bdl-3 und bdl-4 (R4): `request` nur und immer bei batch, transaction und history; `response`
+  // nur und immer bei batch-response, transaction-response und history.
+  const typ = String(o['type'] ?? '');
+  const mitAnfrage = ['batch', 'transaction', 'history'].includes(typ);
+  const mitAntwort = ['batch-response', 'transaction-response', 'history'].includes(typ);
+  for (const e of eintraege as { request?: unknown; response?: unknown }[]) {
+    if (mitAnfrage !== (e.request !== undefined))
+      fehler(
+        'bdl-3',
+        'entry.request',
+        `entry.request ${mitAnfrage ? 'fehlt' : 'ist verboten'} (${typ}).`,
+      );
+    if (mitAntwort !== (e.response !== undefined))
+      fehler(
+        'bdl-4',
+        'entry.response',
+        `entry.response ${mitAntwort ? 'fehlt' : 'ist verboten'} (${typ}).`,
+      );
+  }
 
   // bdl-7 (R4): `(type = 'history') or entry.where(fullUrl.exists()).select(fullUrl &
   // resource.meta.versionId).isDistinct()` — dieselbe fullUrl ist erlaubt, wenn die Fassungen

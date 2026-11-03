@@ -407,6 +407,34 @@ describe('Ausgaben der Demo sind ohne Fehler', () => {
   });
 });
 
+describe('bdl-3 und bdl-4 nach R4', () => {
+  const regeln = (type: string, eintrag: Record<string, unknown>) =>
+    fhirPruefen({
+      resourceType: 'Bundle',
+      type,
+      entry: [
+        {
+          fullUrl: 'https://example.org/fhir/Patient/p1',
+          resource: { resourceType: 'Patient', id: 'p1' },
+          ...eintrag,
+        },
+      ],
+    } as never).map((b) => b.regel);
+
+  it('verlangt request und response in einer Historie', () => {
+    expect(regeln('history', {})).toEqual(expect.arrayContaining(['bdl-3', 'bdl-4']));
+  });
+
+  it('verbietet request und response in einem Suchergebnis', () => {
+    const r = regeln('searchset', {
+      request: { method: 'GET', url: 'Patient' },
+      response: { status: '200' },
+    });
+    expect(r).toEqual(expect.arrayContaining(['bdl-3', 'bdl-4']));
+    expect(regeln('searchset', {})).not.toContain('bdl-3');
+  });
+});
+
 describe('bdl-7 nach R4', () => {
   const eintrag = (versionId: string) => ({
     fullUrl: 'https://example.org/fhir/Patient/p1',
@@ -421,6 +449,12 @@ describe('bdl-7 nach R4', () => {
 
   it('lässt dieselbe fullUrl in verschiedenen Fassungen und in einer Historie zu', () => {
     expect(regeln('collection', [eintrag('1'), eintrag('2')])).not.toContain('bdl-7');
-    expect(regeln('history', [eintrag('1'), eintrag('1')])).not.toContain('bdl-7');
+    // Eine Historie trägt je Eintrag `request` und `response` (bdl-3, bdl-4).
+    const historie = (versionId: string) => ({
+      ...eintrag(versionId),
+      request: { method: 'PUT', url: 'Patient/p1' },
+      response: { status: '200 OK' },
+    });
+    expect(regeln('history', [historie('1'), historie('1')])).not.toContain('bdl-7');
   });
 });

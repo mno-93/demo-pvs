@@ -80,9 +80,11 @@ if (!existsSync(jar)) {
 // 2. Ausgaben der Tests ablegen
 rmSync(ORDNER, { recursive: true, force: true });
 mkdirSync(RESSOURCEN, { recursive: true });
+// Unter Windows heißt das Programm npx.cmd; ohne Shell findet Node es nicht.
 const tests = spawnSync('npx', ['vitest', 'run', ...konfiguration.testdateien], {
   stdio: 'inherit',
   env: { ...process.env, FHIR_AUSGABE: RESSOURCEN },
+  shell: process.platform === 'win32',
 });
 if (tests.status !== 0) abbrechen('Die Tests sind fehlgeschlagen — erst sie, dann der Validator.');
 
