@@ -503,7 +503,8 @@ Ohne Anmeldung und ohne Befugnis, mit `x-insurantid` und `x-useragent`.
 
 Widerspruch gegen das Einstellen durch den E-Rezept-Fachdienst (`erp-submission`) löscht die Daten
 des Medikationsprozesses und setzt den Widerspruch gegen den Medikationsprozess mit (Konzept
-3.1.3). ⚠ Den Anbieterwechsel bildet die Demo als `SUSPENDED` ab.
+3.1.3); wer den Medikationsprozess wieder erlaubt, erlaubt auch das Einstellen
+(`I_Consent_Decision_Management` 1.7.1, Regel h). ⚠ Den Anbieterwechsel bildet die Demo als `SUSPENDED` ab.
 
 ### 5.8 E-Rezept-Fachdienst (⚠ Demo-Ersatz nach gematik `api-erp`)
 
