@@ -284,6 +284,7 @@ export function impfungAusFhir(r: Ressource, patientId: string, herkunft: Herkun
           : 'erfolgt',
     herkunft,
     epaId: null,
+    epaFassung: null,
     notiz: (r['note'] as { text?: string }[] | undefined)?.[0]?.text ?? null,
   };
 }

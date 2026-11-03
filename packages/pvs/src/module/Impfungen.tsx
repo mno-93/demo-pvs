@@ -75,7 +75,7 @@ export function Impfungen() {
       setzeMeldung({
         gut: false,
         text:
-          f instanceof EpaFehler && f.status === 409
+          f instanceof EpaFehler && f.veraltet
             ? 'Die Impfliste wurde inzwischen von einer anderen Einrichtung geändert. Sie ist neu geladen — bitte erneut ausführen.'
             : f instanceof EpaFehler
               ? `${f.status}: ${f.diagnose}`
@@ -89,7 +89,14 @@ export function Impfungen() {
   const inDieEpa = (i: Impfung) =>
     void handlung(async () => {
       const { eintrag } = await inDieImpfliste(kvnr, liste?.lesenachweis ?? null, i);
-      ausfuehren(vorgaenge.impfungVerknuepfen(i.id, String(eintrag.id), true));
+      ausfuehren(
+        vorgaenge.impfungVerknuepfen(
+          i.id,
+          String(eintrag.id),
+          true,
+          eintrag.meta?.versionId ?? '1',
+        ),
+      );
     }, 'In die Impfliste der ePA gestellt.');
 
   const inDiePraxis = (e: Impflisteneintrag) => {
@@ -173,7 +180,15 @@ export function Impfungen() {
                   <Impfzeile impfung={i} />
                   <div className="reihe" style={{ gap: 6 }}>
                     {i.epaId ? (
-                      <Marker ton="gut">in der Impfliste</Marker>
+                      <ImpflistenStand
+                        impfung={i}
+                        epa={
+                          liste
+                            ? (epaEintraege.find((e) => e.impfung.id === i.epaId) ?? null)
+                            : undefined
+                        }
+                        darfSchreiben={darfSchreiben}
+                      />
                     ) : (
                       <Marker ton="warn">nur in der Praxis</Marker>
                     )}
@@ -276,7 +291,7 @@ function NeueImpfung({
   kvnr: string;
   listeDa: boolean;
   speichern: (
-    i: Omit<Impfung, 'id' | 'herkunft' | 'epaId' | 'status' | 'patientId'>,
+    i: Omit<Impfung, 'id' | 'herkunft' | 'epaId' | 'epaFassung' | 'status' | 'patientId'>,
     inDieListe: boolean,
   ) => void;
 }) {
@@ -318,6 +333,7 @@ function NeueImpfung({
           patientId: 'vorschau',
           status: 'erfolgt',
           epaId: null,
+          epaFassung: null,
           herkunft: {
             bestand: 'lokal',
             quelle: 'Hausarztpraxis am Stadtgarten',
@@ -419,4 +435,38 @@ function NeueImpfung({
       )}
     </Karte>
   );
+}
+
+/**
+ * Stand einer verknüpften Impfung gegenüber der Impfliste: abgeglichen, dort geändert (andere
+ * Fassung als beim letzten Abgleich) oder dort nicht mehr geführt. `epa` ist `undefined`, solange
+ * die Impfliste nicht gelesen ist.
+ */
+function ImpflistenStand({
+  impfung,
+  epa,
+  darfSchreiben,
+}: {
+  impfung: Impfung;
+  epa: Impflisteneintrag | null | undefined;
+  darfSchreiben: boolean;
+}) {
+  if (epa === null) return <Marker ton="neutral">nicht mehr in der Impfliste</Marker>;
+  if (epa && impfung.epaFassung && epa.impfung.epaFassung !== impfung.epaFassung) {
+    return (
+      <>
+        <Marker ton="warn">in der Impfliste geändert</Marker>
+        {darfSchreiben && (
+          <button
+            type="button"
+            className="knopf klein"
+            onClick={() => ausfuehren(vorgaenge.impfungNachEpa(impfung.id, epa.impfung))}
+          >
+            ← ePA-Stand übernehmen
+          </button>
+        )}
+      </>
+    );
+  }
+  return <Marker ton="gut">in der Impfliste</Marker>;
 }

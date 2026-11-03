@@ -183,6 +183,51 @@ describe('E-Rezept', () => {
     expect(rezept.empId).toBe('emp-1');
   });
 
+  it('löscht den Entwurf im Fachdienst, wenn die Aktivierung scheitert, und lässt das Rezept vorbereitet', async () => {
+    const aufrufe = epaAttrappe((a) => {
+      if (a.pfad === `${MS}/$medication-list`) return { status: 200, inhalt: suchergebnis([]) };
+      if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: PLAN };
+      if (a.pfad === '/erp/Task/$create')
+        return {
+          status: 201,
+          inhalt: {
+            resourceType: 'Task',
+            id: '160.000.000.000.001.53',
+            status: 'draft',
+            identifier: [
+              {
+                system: 'https://gematik.de/fhir/erp/NamingSystem/GEM_ERP_NS_PrescriptionId',
+                value: '160.000.000.000.001.53',
+              },
+              {
+                system: 'https://gematik.de/fhir/erp/NamingSystem/GEM_ERP_NS_AccessCode',
+                value: 'abc',
+              },
+            ],
+          },
+        };
+      if (a.pfad.endsWith('/$activate'))
+        return {
+          status: 400,
+          inhalt: {
+            resourceType: 'OperationOutcome',
+            issue: [{ severity: 'error', code: 'invalid', diagnostics: 'Signatur ungültig' }],
+          },
+        };
+      if (a.pfad.endsWith('/$abort')) return { status: 204 };
+      return undefined;
+    });
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+    fireEvent.click(await screen.findByRole('button', { name: 'Rezept' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Signieren und senden' }));
+    expect(await screen.findByText(/Signatur ungültig/)).toBeDefined();
+    const abbruch = aufrufe.find((a) => a.pfad.endsWith('/$abort'));
+    expect(abbruch?.pfad).toBe('/erp/Task/160.000.000.000.001.53/$abort');
+    expect(abbruch?.kopf['X-AccessCode']).toBe('abc');
+    expect(lesen().rezepte[0]!.status).toBe('vorbereitet');
+  });
+
   it('übernimmt die strukturierte Dosierung des Planeintrags samt Reichweite (ADR 0052)', async () => {
     const woechentlich: Dosierung = {
       schema: { art: 'wochentage', gaben: [{ tag: 'mon', menge: 1 }] },

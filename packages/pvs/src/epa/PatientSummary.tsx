@@ -98,7 +98,12 @@ export function PatientSummaryAnsicht({
       ),
     [inhalt],
   );
-  const seit = useSeitLetztemAufruf(patientId, 'summary', gesehen);
+  // Je Quelle ein eigener Stand: Der Wechsel der Quelle ist keine Änderung an Einträgen.
+  const seit = useSeitLetztemAufruf(
+    patientId,
+    herkunft === 'aktensystem' ? 'summary-aktensystem' : 'summary',
+    gesehen,
+  );
   const gefuellt = inhalt.abschnitte.filter((a) => a.eintraege.length > 0).length;
   // Jüngste Änderung an einem gezeigten Eintrag — „zuletzt aktualisiert" der Übersicht.
   const zuletzt = provenance

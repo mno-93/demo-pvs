@@ -1192,6 +1192,32 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
     expect((await lesen('/epa/query/api/v1/fhir/Organization')).statusCode).toBe(200);
   });
 
+  it('folgt der Kaskade der Widersprüche (I_Consent_Decision_Management 1.7.1)', async () => {
+    const setzen = async (koerper: Record<string, string>) =>
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/verwaltung/akte',
+          payload: { kvnr: HOFFMANN, ...koerper },
+        })
+      ).json().widersprueche;
+    // (c)(f): Widerspruch gegen das Einstellen sperrt auch den Medikationsprozess.
+    expect(await setzen({ 'erp-submission': 'deny' })).toMatchObject({
+      'erp-submission': 'deny',
+      medication: 'deny',
+    });
+    // (h): Wer den Medikationsprozess erlaubt, erlaubt auch das Einstellen.
+    expect(await setzen({ medication: 'permit' })).toMatchObject({
+      'erp-submission': 'permit',
+      medication: 'permit',
+    });
+    // (a): Der Widerspruch gegen den Medikationsprozess allein lässt das Einstellen zu.
+    expect(await setzen({ medication: 'deny' })).toMatchObject({
+      'erp-submission': 'permit',
+      medication: 'deny',
+    });
+  });
+
   it('führt die Einstellung der Zwischenüberschriften je Aktenkonto, Standard true', async () => {
     const url = '/epa/medication/render/v1/emp/settings';
     expect((await lesen(url)).json()).toEqual({ subheadings: true });

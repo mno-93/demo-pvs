@@ -87,6 +87,7 @@ function impfung(teil: Partial<Impfung> = {}): Impfung {
       dokumentId: null,
     },
     epaId: null,
+    epaFassung: null,
     notiz: null,
     ...teil,
   };
@@ -403,5 +404,23 @@ describe('Ausgaben der Demo sind ohne Fehler', () => {
         }),
       ),
     ).toEqual([]);
+  });
+});
+
+describe('bdl-7 nach R4', () => {
+  const eintrag = (versionId: string) => ({
+    fullUrl: 'https://example.org/fhir/Patient/p1',
+    resource: { resourceType: 'Patient', id: 'p1', meta: { versionId } },
+  });
+  const regeln = (type: string, eintraege: unknown[]) =>
+    fhirPruefen({ resourceType: 'Bundle', type, entry: eintraege } as never).map((b) => b.regel);
+
+  it('meldet dieselbe fullUrl mit derselben Fassung', () => {
+    expect(regeln('collection', [eintrag('1'), eintrag('1')])).toContain('bdl-7');
+  });
+
+  it('lässt dieselbe fullUrl in verschiedenen Fassungen und in einer Historie zu', () => {
+    expect(regeln('collection', [eintrag('1'), eintrag('2')])).not.toContain('bdl-7');
+    expect(regeln('history', [eintrag('1'), eintrag('1')])).not.toContain('bdl-7');
   });
 });

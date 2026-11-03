@@ -3,6 +3,7 @@ import { deutschesDatum, dokumentinhaltLesen, type Dokumentart } from '@demo-pvs
 import { Leer, Marker } from '../../bausteine/Bausteine.js';
 import { DokumentBetrachter } from '../../bausteine/DokumentBetrachter.js';
 import { dokumenteSuchen, istDatei, volltextsucheVerfuegbar } from '../dienste/dokumente.js';
+import { EpaFehler } from '../klient.js';
 import {
   dokumenteSortieren,
   dokumentverweisLesen,
@@ -29,6 +30,9 @@ export function DokumenteInEpa({
   const betrachter = useRef<HTMLDivElement>(null);
   const [begriff, setzeBegriff] = useState('');
   const [treffer, setzeTreffer] = useState<Dokumentverweis[] | null>(null);
+  const [suchfehler, setzeSuchfehler] = useState<string | null>(null);
+  // Nur die Antwort der letzten Suche zählt; eine ältere, spätere Antwort wird verworfen.
+  const letzteSuche = useRef(0);
   const [volltext, setzeVolltext] = useState(false);
   const betriebsstand = useBetriebsstand();
   const liste = dokumenteSortieren(treffer ?? verweise);
@@ -71,11 +75,17 @@ export function DokumenteInEpa({
 
   async function suchen() {
     const b = begriff.trim();
+    const nr = ++letzteSuche.current;
+    setzeSuchfehler(null);
     if (!b) return setzeTreffer(null);
     try {
-      setzeTreffer((await dokumenteSuchen(kvnr, b)).map(dokumentverweisLesen));
-    } catch {
-      setzeTreffer([]);
+      const gefunden = (await dokumenteSuchen(kvnr, b)).map(dokumentverweisLesen);
+      if (nr === letzteSuche.current) setzeTreffer(gefunden);
+    } catch (f) {
+      if (nr !== letzteSuche.current) return;
+      // Ein Fehler ist kein „Kein Treffer“.
+      setzeTreffer(null);
+      setzeSuchfehler(f instanceof EpaFehler ? f.diagnose : 'Die Suche ist fehlgeschlagen.');
     }
   }
 
@@ -104,7 +114,11 @@ export function DokumenteInEpa({
               value={begriff}
               onChange={(e) => {
                 setzeBegriff(e.target.value);
-                if (!e.target.value) setzeTreffer(null);
+                if (!e.target.value) {
+                  letzteSuche.current += 1;
+                  setzeTreffer(null);
+                  setzeSuchfehler(null);
+                }
               }}
             />
             <button type="submit" className="knopf klein">
@@ -114,6 +128,11 @@ export function DokumenteInEpa({
         )
       }
     >
+      {suchfehler && (
+        <div className="hinweisbox fehler" role="alert">
+          <b>Volltextsuche fehlgeschlagen.</b> {suchfehler}
+        </div>
+      )}
       {laedt ? (
         <Leer>Wird abgefragt …</Leer>
       ) : liste.length === 0 ? (
@@ -192,6 +211,11 @@ export function DokumenteInEpa({
                           >
                             Übernehmen
                           </button>
+                        )}
+                        {inhalte[v.id]?.fehler && (
+                          <Marker ton="fehler" titel={inhalte[v.id]?.fehler}>
+                            nicht abrufbar
+                          </Marker>
                         )}
                       </div>
                     </td>

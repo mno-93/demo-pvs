@@ -30,7 +30,10 @@ function entschluesseln(t: string): string {
   return t.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-z]+);/g, (ganz, e: string) => {
     if (e.startsWith('#x')) return String.fromCodePoint(parseInt(e.slice(2), 16));
     if (e.startsWith('#')) return String.fromCodePoint(parseInt(e.slice(1), 10));
-    return ENTITAET[e] ?? ganz;
+    const wert = ENTITAET[e];
+    // Andere Entitäten bräuchten eine DTD, die der Leser nicht liest.
+    if (wert === undefined) throw new Error(`XML nicht wohlgeformt: unbekannte Entität ${ganz}.`);
+    return wert;
   });
 }
 
@@ -44,7 +47,11 @@ export function xmlMaskieren(t: string): string {
 
 const lokalerName = (n: string) => n.slice(n.indexOf(':') + 1);
 
-/** Liest ein XML-Dokument. Wirft bei nicht wohlgeformtem Inhalt. */
+/**
+ * Liest ein XML-Dokument. Wirft bei nicht wohlgeformtem Inhalt — auch bei Stellen, die keine der
+ * bekannten Formen haben, statt sie zu übergehen, und bei Text oder einem zweiten Element neben
+ * dem Wurzelelement.
+ */
 export function xmlLesen(xml: string): XmlElement {
   const wurzel: XmlElement = {
     name: '#dokument',
@@ -57,7 +64,13 @@ export function xmlLesen(xml: string): XmlElement {
   const muster =
     /<!\[CDATA\[([\s\S]*?)\]\]>|<!--[\s\S]*?-->|<\?[\s\S]*?\?>|<!DOCTYPE[^>]*>|<\/([^\s>]+)\s*>|<([^\s/>]+)((?:\s+[^\s=]+\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>|([^<]+)/g;
   let treffer: RegExpExecArray | null;
+  let position = 0;
+  const unerwartet = (stelle: number) =>
+    new Error(`XML nicht wohlgeformt: unerwarteter Inhalt an Stelle ${stelle}.`);
   while ((treffer = muster.exec(xml)) !== null) {
+    // Lückenlos: Was keiner Form entspricht, darf der Leser nicht überspringen.
+    if (treffer.index !== position) throw unerwartet(position);
+    position = muster.lastIndex;
     const oben = stapel[stapel.length - 1]!;
     const [, cdata, ende, start, attr, leer, text] = treffer;
     if (cdata !== undefined) oben.text += cdata;
@@ -80,16 +93,20 @@ export function xmlLesen(xml: string): XmlElement {
       oben.kinder.push(element);
       if (!leer) stapel.push(element);
     } else if (text !== undefined) {
-      if (text.includes('<')) throw new Error('XML nicht wohlgeformt.');
-      oben.text += entschluesseln(text);
+      if (oben === wurzel) {
+        if (text.trim()) throw unerwartet(treffer.index);
+      } else oben.text += entschluesseln(text);
     }
   }
+  if (position !== xml.length) throw unerwartet(position);
   if (stapel.length !== 1)
     throw new Error(
       `XML nicht wohlgeformt: <${stapel[stapel.length - 1]!.name}> nicht geschlossen.`,
     );
   const dokument = wurzel.kinder[0];
   if (!dokument) throw new Error('XML ohne Wurzelelement.');
+  if (wurzel.kinder.length > 1)
+    throw new Error('XML nicht wohlgeformt: mehr als ein Wurzelelement.');
   return dokument;
 }
 

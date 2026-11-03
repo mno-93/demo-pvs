@@ -160,11 +160,10 @@ const TEXTTYPEN = [
 ];
 
 class KoerperFehler extends Error {
-  constructor(
-    readonly status: number,
-    text: string,
-  ) {
+  readonly status: number;
+  constructor(status: number, text: string) {
     super(text);
+    this.status = status;
   }
 }
 

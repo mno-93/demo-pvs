@@ -318,6 +318,9 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     }
     if (k.medication === 'deny' || k.medication === 'permit') {
       b.widersprueche.medication = k.medication;
+      // (h): Wer den Medikationsprozess erlaubt, erlaubt auch das Einstellen der E-Rezept-Daten
+      // (I_Consent_Decision_Management 1.7.1, `updateConsentDecision`).
+      if (k.medication === 'permit') b.widersprueche['erp-submission'] = 'permit';
     }
     return { kvnr: b.kvnr, status: b.status, widersprueche: b.widersprueche };
   });

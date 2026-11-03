@@ -40,13 +40,16 @@ export async function impflisteLaden(kvnr: string, patientId: string): Promise<E
         ressource: r,
         chronik,
         eigener: chronik.angelegtVonTelematikId === EINRICHTUNG.telematikId,
-        impfung: impfungAusFhir(r, patientId, {
-          bestand: 'epa',
-          quelle: `Impfliste der ePA · ${chronik.angelegtVon}`,
-          zeitpunkt: chronik.angelegtAm,
-          verantwortlich: chronik.angelegtVon,
-          dokumentId: null,
-        }),
+        impfung: {
+          ...impfungAusFhir(r, patientId, {
+            bestand: 'epa',
+            quelle: `Impfliste der ePA · ${chronik.angelegtVon}`,
+            zeitpunkt: chronik.angelegtAm,
+            verantwortlich: chronik.angelegtVon,
+            dokumentId: null,
+          }),
+          epaFassung: r.meta?.versionId ?? '1',
+        },
       };
     }),
   };

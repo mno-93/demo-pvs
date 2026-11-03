@@ -37,7 +37,14 @@ export async function rezeptSenden(rezept: Rezept): Promise<void> {
     rezeptId: aufgabe.rezeptId,
     authoredOn: z.heute,
   });
-  await erezeptAktivieren(aufgabe, datensatz);
+  try {
+    await erezeptAktivieren(aufgabe, datensatz);
+  } catch (f) {
+    // Ausgleich: Ohne Aktivierung bliebe der Entwurf im Fachdienst liegen; das Rezept bleibt
+    // vorbereitet und lässt sich erneut senden. Scheitert auch das Löschen, zählt der erste Fehler.
+    await erezeptLoeschen(aufgabe.rezeptId, aufgabe.accessCode).catch(() => undefined);
+    throw f;
+  }
   ausfuehren(vorgaenge.rezeptGesendet(rezept.id, aufgabe.rezeptId, aufgabe.accessCode));
 }
 

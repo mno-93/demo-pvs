@@ -43,3 +43,4 @@ export * from './fhir/erezept.js';
 export * from './beispiele.js';
 export * from './uhr.js';
 export * from './wege.js';
+export * from './fachlogik/befugnis.js';

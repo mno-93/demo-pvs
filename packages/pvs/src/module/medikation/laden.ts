@@ -35,6 +35,7 @@ export function useMedikationsstand(patientId: string, kvnr: string, befugt: boo
   const [laedt, setzeLaedt] = useState(true);
   const [fehler, setzeFehler] = useState<EpaFehler | null>(null);
   const [seit, setzeSeit] = useState<SeitAbfrage | null>(null);
+  const [seitFehler, setzeSeitFehler] = useState<string | null>(null);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -60,9 +61,16 @@ export function useMedikationsstand(patientId: string, kvnr: string, befugt: boo
         if (vorher) {
           seitAbfragen(kvnr, vorher, zeilen, listenZeilen)
             .then((s) => {
-              if (!abgebrochen) setzeSeit(s);
+              if (!abgebrochen) {
+                setzeSeit(s);
+                setzeSeitFehler(null);
+              }
             })
-            .catch(() => undefined);
+            .catch((f: unknown) => {
+              // Ein Fehler ist nicht „nichts Neues“.
+              if (!abgebrochen)
+                setzeSeitFehler(f instanceof EpaFehler ? f.diagnose : 'nicht abrufbar');
+            });
         }
         lesezeichen.merken(plan.abgerufen || (liste.abgerufen ?? ''), plan.lesenachweis);
       })
@@ -76,35 +84,42 @@ export function useMedikationsstand(patientId: string, kvnr: string, befugt: boo
     };
   }, [kvnr, zaehler, patientId, befugt, einlesungen, betriebsstand]);
 
-  return { stand, laedt, fehler, seit, neuLaden };
+  return { stand, laedt, fehler, seit, seitFehler, neuLaden };
 }
 
 /**
  * Zwischenüberschriften des eMP (IG-MED09759K35-01, Render API): gelesen, sobald der eMP
- * erreichbar ist; umgeschaltet sofort in der Anzeige, bei einem Fehler zurück.
+ * erreichbar ist; umgeschaltet sofort in der Anzeige, bei einem Fehler zurück — mit dem Grund,
+ * damit der Schalter nicht stillschweigend zurückspringt.
  */
 export function useZwischenueberschriften(
   kvnr: string,
   mitEpa: boolean,
-): [boolean, (wert: boolean) => void] {
+): [boolean, (wert: boolean) => void, string | null] {
   const [ueberschriften, setzeUeberschriften] = useState(true);
+  const [fehler, setzeFehler] = useState<string | null>(null);
   useEffect(() => {
     if (!mitEpa) return;
     let gueltig = true;
+    setzeFehler(null);
     zwischenueberschriftenLesen(kvnr)
       .then((w) => gueltig && setzeUeberschriften(w))
-      .catch(() => undefined);
+      .catch((f: unknown) => {
+        if (gueltig) setzeFehler(f instanceof EpaFehler ? f.diagnose : 'nicht lesbar');
+      });
     return () => {
       gueltig = false;
     };
   }, [kvnr, mitEpa]);
   function zwischenueberschriftenUmschalten(wert: boolean) {
     setzeUeberschriften(wert);
-    void zwischenueberschriftenSetzen(kvnr, wert).then(setzeUeberschriften, () =>
-      setzeUeberschriften(!wert),
-    );
+    setzeFehler(null);
+    void zwischenueberschriftenSetzen(kvnr, wert).then(setzeUeberschriften, (f: unknown) => {
+      setzeUeberschriften(!wert);
+      setzeFehler(f instanceof EpaFehler ? f.diagnose : 'nicht gespeichert');
+    });
   }
-  return [ueberschriften, zwischenueberschriftenUmschalten];
+  return [ueberschriften, zwischenueberschriftenUmschalten, fehler];
 }
 
 /**

@@ -72,6 +72,11 @@ export function LaborbefundeInEpa({
                       Übernehmen
                     </button>
                   )}
+                  {inhalte[v.id]?.fehler && (
+                    <Marker ton="fehler" titel={inhalte[v.id]?.fehler}>
+                      nicht abrufbar
+                    </Marker>
+                  )}
                 </div>
               </div>
               {befund ? (

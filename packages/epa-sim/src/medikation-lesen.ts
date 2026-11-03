@@ -5,7 +5,7 @@ import { aktuelleChronologie, istChronologie } from './chronologie.ts';
 import { imZeitraum, jetzt, operationOutcome, suchergebnis } from './fhir-hilfen.ts';
 import { fassung, fassungZum, patientFuer, versionierterVerweis } from './schreibwege.ts';
 import {
-  Anfrage,
+  type Anfrage,
   DATUMSWERT,
   EMP,
   MEDIKATION_BASIS,

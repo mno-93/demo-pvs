@@ -272,3 +272,31 @@ export const ADRESSBUCH: readonly Adressbucheintrag[] = [
     kim: null,
   },
 ];
+
+/**
+ * Startbestand, den Simulator und Praxissystem teilen — vorher auf beiden Seiten von Hand
+ * abgestimmt. Die Versichertennummern der fiktiven Personen; Frau Weber hat keine ePA.
+ */
+export const KVNR_BEISPIEL = {
+  hoffmann: 'A123456780',
+  krueger: 'K876543217',
+  yildiz: 'M555123402',
+  weber: 'W246813578',
+} as const;
+
+/**
+ * Befugnisse der Praxis aus früheren Kartenlesungen (Konzept 3.1.3: 90 Tage ab Stecken der eGK).
+ * Frau Hoffmann ist neu in der Praxis — für sie gibt es noch keine.
+ */
+export const START_BEFUGNISSE_PRAXIS: readonly { kvnr: string; eingelesenAm: string }[] = [
+  { kvnr: KVNR_BEISPIEL.krueger, eingelesenAm: '2026-07-14T09:02:00+02:00' },
+  { kvnr: KVNR_BEISPIEL.yildiz, eingelesenAm: '2026-07-02T08:40:00+02:00' },
+];
+
+/** Kennungen der Listeneinträge in der ePA, mit denen Einträge der Praxis verknüpft beginnen. */
+export const START_LISTENEINTRAG = {
+  /** Frau Yildiz: Hypothyreose (✦ Diagnoseliste). */
+  yildizHypothyreose: 'cond-y-1',
+  /** Frau Yildiz: essentielle Hypertonie (✦ Diagnoseliste). */
+  yildizHypertonie: 'cond-y-2',
+} as const;

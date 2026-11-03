@@ -237,19 +237,24 @@ function PdfAnzeige({ pdf, markieren }: { pdf: string; markieren: string[] }) {
 /** PDF im eingebetteten Anzeigeprogramm des Browsers, andere Dateien als Angabe. */
 function Dateiansicht({ datei, markieren }: { datei: EpaDatei; markieren: string[] }) {
   const [pdf, setzePdf] = useState<string | null>(null);
+  const [unlesbar, setzeUnlesbar] = useState(false);
   useEffect(() => {
     if (datei.mimeType !== 'application/pdf') return;
     let abgebrochen = false;
+    setzeUnlesbar(false);
     void alsBytezeichen(datei.datei)
       .then((p) => {
         if (!abgebrochen) setzePdf(p);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!abgebrochen) setzeUnlesbar(true);
+      });
     return () => {
       abgebrochen = true;
     };
   }, [datei]);
   if (datei.mimeType === 'application/pdf') {
+    if (unlesbar) return <Leer>PDF nicht lesbar.</Leer>;
     return pdf ? <PdfAnzeige pdf={pdf} markieren={markieren} /> : <Leer>Wird gelesen …</Leer>;
   }
   if (datei.mimeType.includes('xml')) return <XmlAnsicht datei={datei.datei} />;

@@ -268,6 +268,7 @@ describe('Impfung', () => {
         status: 'erfolgt',
         herkunft,
         epaId: null,
+        epaFassung: null,
         notiz: null,
       },
       'A123456780',

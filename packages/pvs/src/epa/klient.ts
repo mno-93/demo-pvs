@@ -282,8 +282,13 @@ async function senden<T>({
     const detail = inhalt?.issue?.[0]?.details?.coding?.[0]?.code as string | undefined;
     const code: string | null =
       typeof inhalt?.errorCode === 'string' ? inhalt.errorCode : (detail ?? null);
+    // Alle Befunde eines OperationOutcome, nicht nur den ersten — eine Profilprüfung meldet oft
+    // mehrere (422 `MEDSVC_NO_VALID_STRUCTURE`).
+    const befunde = ((inhalt?.issue ?? []) as { diagnostics?: string }[])
+      .map((i) => i.diagnostics)
+      .filter((d): d is string => !!d);
     const text: string =
-      inhalt?.issue?.[0]?.diagnostics ??
+      (befunde.length > 0 ? befunde.join(' · ') : undefined) ??
       inhalt?.errorDetail ??
       `Die ePA antwortete mit ${antwort.status}.`;
     const diagnose = code ? `${code}: ${text}` : text;

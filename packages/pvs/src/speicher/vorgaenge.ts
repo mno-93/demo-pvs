@@ -30,6 +30,17 @@ function jetzt(): string {
   return demoZeitpunktSekunden();
 }
 
+/**
+ * Größe eines übernommenen Inhalts in Byte: eine Datei (PDF) nach ihrer Größe, Text nach UTF-8,
+ * strukturierte Inhalte als JSON — nicht die Hülle `{ datei, mimeType }` als JSON.
+ */
+function groesseVon(inhalt: unknown): number {
+  const datei = (inhalt as { datei?: { size?: unknown } } | null)?.datei;
+  if (datei && typeof datei.size === 'number') return datei.size;
+  const text = typeof inhalt === 'string' ? inhalt : JSON.stringify(inhalt ?? {});
+  return new TextEncoder().encode(text).length;
+}
+
 /** Inhaltlich gleich — für die kleinen Merker des Zustands (Lesezeichen, Stände, Ordnungen). */
 function gleich(a: unknown, b: unknown): boolean {
   return a === b || JSON.stringify(a) === JSON.stringify(b);
@@ -503,6 +514,8 @@ export const vorgaenge = {
       name: 'diagnoseAusEpaUebernehmen',
       beschreibung: `Diagnose ${epa.code || epa.bezeichnung} aus der ePA übernommen`,
       anwenden: (z) => {
+        // Nur einmal: Ein schon übernommener Eintrag bleibt, wie er ist.
+        if (z.diagnosen.some((d) => d.patientId === patientId && d.epaId === epa.id)) return z;
         const fall = fallFuer(z, patientId);
         const neue: Diagnose = {
           ...epa,
@@ -527,6 +540,8 @@ export const vorgaenge = {
       name: 'allergieAusEpaUebernehmen',
       beschreibung: `Allergie ${epa.substanz} aus der ePA übernommen`,
       anwenden: (z) => {
+        // Nur einmal: Ein schon übernommener Eintrag bleibt, wie er ist.
+        if (z.allergien.some((a) => a.patientId === patientId && a.epaId === epa.id)) return z;
         const neue: Allergie = {
           ...epa,
           id: neueId('allg'),
@@ -664,7 +679,7 @@ export const vorgaenge = {
       anwenden: (z) => {
         if (z.dokumente.some((d) => d.patientId === patientId && d.epaId === angabe.epaId))
           return z;
-        const inhaltstext = JSON.stringify(angabe.inhalt ?? {});
+        const typ = angabe.inhaltstyp ?? 'application/fhir+json';
         const neu: LokalesDokument = {
           id: neueId('dok'),
           patientId,
@@ -675,9 +690,9 @@ export const vorgaenge = {
           epaId: angabe.epaId,
           einrichtung: angabe.einrichtung,
           autor: angabe.autor,
-          dateiname: `${angabe.epaId}.${(angabe.inhaltstyp ?? 'application/fhir+json').endsWith('xml') ? 'xml' : 'json'}`,
-          inhaltstyp: angabe.inhaltstyp ?? 'application/fhir+json',
-          groesseBytes: new TextEncoder().encode(inhaltstext).length,
+          dateiname: `${angabe.epaId}.${typ.endsWith('pdf') ? 'pdf' : typ.endsWith('xml') ? 'xml' : 'json'}`,
+          inhaltstyp: typ,
+          groesseBytes: groesseVon(angabe.inhalt),
           gespeichertAm: jetzt(),
           gespeichertVon: z.nutzer.name,
           inhalt: angabe.inhalt,
@@ -887,7 +902,7 @@ export const vorgaenge = {
 
   /** Neue Impfung der Praxis. */
   impfungAnlegen(
-    angabe: Omit<Impfung, 'id' | 'herkunft' | 'epaId' | 'status'>,
+    angabe: Omit<Impfung, 'id' | 'herkunft' | 'epaId' | 'epaFassung' | 'status'>,
     id: string = neueId('impf'),
   ): Vorgang {
     return {
@@ -901,6 +916,7 @@ export const vorgaenge = {
             id,
             status: 'erfolgt',
             epaId: null,
+            epaFassung: null,
             herkunft: {
               bestand: 'lokal',
               quelle: 'Hausarztpraxis am Stadtgarten',
@@ -916,42 +932,79 @@ export const vorgaenge = {
   },
 
   /** Verknüpft eine Impfung der Praxis mit ihrem Eintrag in der Impfliste der ePA. */
-  impfungVerknuepfen(id: string, epaId: string | null, alsFolge = false): Vorgang {
+  impfungVerknuepfen(
+    id: string,
+    epaId: string | null,
+    alsFolge = false,
+    epaFassung: string | null = null,
+  ): Vorgang {
     return {
       name: 'impfungVerknuepfen',
       zaehltNicht: alsFolge,
       beschreibung: 'Impfung mit der Impfliste der ePA abgeglichen',
       anwenden: (z) => ({
         ...z,
-        impfungen: z.impfungen.map((i) => (i.id === id ? { ...i, epaId } : i)),
+        impfungen: z.impfungen.map((i) => (i.id === id ? { ...i, epaId, epaFassung } : i)),
       }),
     };
   },
 
-  /** Übernimmt eine Impfung aus der Impfliste der ePA — verknüpft. */
+  /** „← ePA-Stand übernehmen“: Die Impfung der Praxis erhält den Stand der Impfliste. */
+  impfungNachEpa(id: string, epa: Impfung): Vorgang {
+    return {
+      name: 'impfungNachEpa',
+      beschreibung: `Stand der Impfliste übernommen: ${epa.impfstoff.bezeichnung}`,
+      anwenden: (z) => ({
+        ...z,
+        impfungen: z.impfungen.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                impfstoff: epa.impfstoff,
+                zielkrankheiten: epa.zielkrankheiten,
+                datum: epa.datum,
+                dosis: epa.dosis,
+                charge: epa.charge,
+                geimpftVon: epa.geimpftVon,
+                status: epa.status,
+                notiz: epa.notiz,
+                epaId: epa.id,
+                epaFassung: epa.epaFassung,
+              }
+            : i,
+        ),
+      }),
+    };
+  },
+
+  /** Übernimmt eine Impfung aus der Impfliste der ePA — verknüpft, und nur einmal. */
   impfungAusEpaUebernehmen(patientId: string, epa: Impfung, quelle: string): Vorgang {
     return {
       name: 'impfungAusEpaUebernehmen',
       beschreibung: `Impfung ${epa.impfstoff.bezeichnung} aus der ePA übernommen`,
-      anwenden: (z) => ({
-        ...z,
-        impfungen: [
-          {
-            ...epa,
-            id: neueId('impf'),
-            patientId,
-            epaId: epa.id,
-            herkunft: {
-              bestand: 'epa',
-              quelle,
-              zeitpunkt: jetzt(),
-              verantwortlich: z.nutzer.name,
-              dokumentId: epa.herkunft.dokumentId,
+      anwenden: (z) =>
+        z.impfungen.some((i) => i.patientId === patientId && i.epaId === epa.id)
+          ? z
+          : {
+              ...z,
+              impfungen: [
+                {
+                  ...epa,
+                  id: neueId('impf'),
+                  patientId,
+                  epaId: epa.id,
+                  epaFassung: epa.epaFassung,
+                  herkunft: {
+                    bestand: 'epa',
+                    quelle,
+                    zeitpunkt: jetzt(),
+                    verantwortlich: z.nutzer.name,
+                    dokumentId: epa.herkunft.dokumentId,
+                  },
+                },
+                ...z.impfungen,
+              ],
             },
-          },
-          ...z.impfungen,
-        ],
-      }),
     };
   },
 

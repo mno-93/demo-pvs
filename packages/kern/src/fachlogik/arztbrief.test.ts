@@ -150,6 +150,7 @@ describe('Arztbrief als FHIR-Dokument', () => {
               dokumentId: null,
             },
             epaId: null,
+            epaFassung: null,
             notiz: null,
           },
         ],

@@ -16,6 +16,11 @@ import {
   type Termin,
   type Impfung,
   DEMO_HEUTE,
+  KVNR_BEISPIEL,
+  START_BEFUGNISSE_PRAXIS,
+  START_LISTENEINTRAG,
+  befugnisende,
+  BEFUGNIS_TAGE_PRAXIS,
 } from '@demo-pvs/kern';
 import type { EpaBefugnis, Zustand } from '../speicher/zustand.js';
 import { SCAN_MEDIKATIONSUEBERSICHT } from './scanbild.js';
@@ -49,7 +54,7 @@ export const patienten: Patient[] = [
     anschrift: { strasse: 'Gartenweg', hausnummer: '4', plz: '28195', ort: 'Bremen' },
     telefon: '0421 5550101',
     versicherung: {
-      kvnr: 'A123456780',
+      kvnr: KVNR_BEISPIEL.hoffmann,
       kostentraeger: 'Beispielkasse Nordwest',
       kostentraegerkennung: '109999901',
       versichertenart: 'Rentner:in',
@@ -69,7 +74,7 @@ export const patienten: Patient[] = [
     anschrift: { strasse: 'Lindenallee', hausnummer: '17a', plz: '28203', ort: 'Bremen' },
     telefon: '0421 5550202',
     versicherung: {
-      kvnr: 'K876543217',
+      kvnr: KVNR_BEISPIEL.krueger,
       kostentraeger: 'Beispielkasse Nordwest',
       kostentraegerkennung: '109999901',
       versichertenart: 'Mitglied',
@@ -89,7 +94,7 @@ export const patienten: Patient[] = [
     anschrift: { strasse: 'Am Deich', hausnummer: '88', plz: '28199', ort: 'Bremen' },
     telefon: '0421 5550303',
     versicherung: {
-      kvnr: 'M555123402',
+      kvnr: KVNR_BEISPIEL.yildiz,
       kostentraeger: 'Beispielkasse Süd',
       kostentraegerkennung: '109999902',
       versichertenart: 'Mitglied',
@@ -110,7 +115,7 @@ export const patienten: Patient[] = [
     anschrift: { strasse: 'Hafenstraße', hausnummer: '3', plz: '28217', ort: 'Bremen' },
     telefon: '0421 5550404',
     versicherung: {
-      kvnr: 'W246813578',
+      kvnr: KVNR_BEISPIEL.weber,
       kostentraeger: 'Beispielkasse Nordwest',
       kostentraegerkennung: '109999901',
       versichertenart: 'Mitglied',
@@ -262,7 +267,7 @@ export const diagnosen: Diagnose[] = [
     beginn: '2016-08-30',
     herkunft: lokal('2016-08-30T10:15:00'),
     // Seit Quartalsbeginn in der Diagnosenliste der ePA geführt (✦ Diagnose-Service).
-    epaId: 'cond-y-2',
+    epaId: START_LISTENEINTRAG.yildizHypertonie,
     epaFassung: '1',
   }),
   diagnose({
@@ -274,7 +279,7 @@ export const diagnosen: Diagnose[] = [
     snomed: sct('40930008', 'Hypothyreose'),
     beginn: '2019-01-22',
     herkunft: lokal('2019-01-22T09:10:00'),
-    epaId: 'cond-y-1',
+    epaId: START_LISTENEINTRAG.yildizHypothyreose,
     epaFassung: '1',
   }),
 ];
@@ -523,18 +528,15 @@ export const dokumente: LokalesDokument[] = [
  * 90 Tage nach Konzept 3.1.3; das Ende rechnet die OpenAPI als Tag des Einlesens plus 89 Tage,
  * 23:59:59 deutscher Zeit. Frau Hoffmann ist neu: Für sie gibt es noch keine.
  */
-export const epaBefugnisse: EpaBefugnis[] = [
-  {
-    patientId: 'p-krueger',
-    gueltigBis: '2026-10-11T23:59:59+02:00',
-    erteiltAm: '2026-07-14T09:02:00+02:00',
-  },
-  {
-    patientId: 'p-yildiz',
-    gueltigBis: '2026-09-29T23:59:59+02:00',
-    erteiltAm: '2026-07-02T08:40:00+02:00',
-  },
-];
+export const epaBefugnisse: EpaBefugnis[] = START_BEFUGNISSE_PRAXIS.map((b) => {
+  const patient = patienten.find((p) => p.versicherung.kvnr === b.kvnr);
+  if (!patient) throw new Error(`Startbestand: keine Person mit KVNR ${b.kvnr}`);
+  return {
+    patientId: patient.id,
+    gueltigBis: befugnisende(new Date(b.eingelesenAm), BEFUGNIS_TAGE_PRAXIS),
+    erteiltAm: b.eingelesenAm,
+  };
+});
 
 /**
  * Impfungen der Praxis. Frau Yildiz wurde hier gegen Grippe geimpft; in der Impfliste der ePA
@@ -558,6 +560,7 @@ export const impfungen: Impfung[] = [
     status: 'erfolgt',
     herkunft: lokal('2025-10-15T10:20:00'),
     epaId: null,
+    epaFassung: null,
     notiz: null,
   },
 ];

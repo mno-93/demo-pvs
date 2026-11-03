@@ -359,9 +359,19 @@ export function bundlePruefen(bundle: Ressource): Pruefbefund[] {
   const fehler = (regel: string, pfad: string, text: string) =>
     befunde.push({ schwere: 'fehler', regel, pfad: `Bundle${pfad ? `.${pfad}` : ''}`, text });
 
-  const urls = eintraege.map((e) => e.fullUrl).filter(Boolean);
-  if (new Set(urls).size !== urls.length)
-    fehler('bdl-7', 'entry', 'Jede fullUrl darf nur einmal vorkommen.');
+  // bdl-7 (R4): `(type = 'history') or entry.where(fullUrl.exists()).select(fullUrl &
+  // resource.meta.versionId).isDistinct()` — dieselbe fullUrl ist erlaubt, wenn die Fassungen
+  // verschieden sind, und in einer Historie immer.
+  if (o['type'] !== 'history') {
+    const schluessel = eintraege
+      .filter((e) => e.fullUrl)
+      .map(
+        (e) =>
+          `${String(e.fullUrl)}|${String((e.resource?.['meta'] as { versionId?: string } | undefined)?.versionId ?? '')}`,
+      );
+    if (new Set(schluessel).size !== schluessel.length)
+      fehler('bdl-7', 'entry', 'Eine fullUrl kommt mit derselben Fassung mehrfach vor.');
+  }
   eintraege.forEach((e) => {
     if (e.resource) befunde.push(...ressourcePruefen(e.resource));
   });

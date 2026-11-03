@@ -16,7 +16,7 @@
  * Ohne Befugnis antwortet die ePA nicht. Dann steht hier nicht der Fehler, sondern der Weg aus
  * ihm heraus: die Karte einlesen.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   VORSCHLAGSFRAGEN,
   uebernehmbar,
@@ -103,6 +103,9 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
 
   const [kontext, setzeKontext] = useState<Lotsenkontext | null>(null);
   const [vorschlaege, setzeVorschlaege] = useState<Lotsenvorschlaege | null>(null);
+  const [vorschlagsfehler, setzeVorschlagsfehler] = useState<string | null>(null);
+  // Nur die Antwort der letzten Frage zählt; eine ältere, spätere Antwort wird verworfen.
+  const letzteFrage = useRef(0);
   const [verweise, setzeVerweise] = useState<Dokumentverweis[]>([]);
   const [antwort, setzeAntwort] = useState<Lotsenantwort | null>(null);
   const [laeuft, setzeLaeuft] = useState(false);
@@ -126,24 +129,44 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
 
   useEffect(() => {
     if (!kvnr || angeboten !== true) return;
+    // Antworten zu einem früheren Stand oder einer anderen Person kommen nicht mehr an.
+    let abgebrochen = false;
+    letzteFrage.current += 1;
     setzeFehler(null);
+    setzeVorschlagsfehler(null);
     // Eine Antwort von vorher beruht auf einem Stand, den es nicht mehr gibt.
     setzeAntwort(null);
     setzeGeoeffnet(null);
     void lotseKontext(kvnr, 'nach Krankenhausaufenthalt')
-      .then(setzeKontext)
+      .then((k) => {
+        if (!abgebrochen) setzeKontext(k);
+      })
       .catch((f: unknown) => {
+        if (abgebrochen) return;
         // Kein Überblick aus einem Stand, den die ePA gerade abgelehnt hat.
         setzeKontext(null);
         setzeVorschlaege(null);
         setzeFehler(f instanceof Error ? f : new Error('Kontext nicht lesbar'));
       });
     void lotseVorschlaege(kvnr)
-      .then(setzeVorschlaege)
-      .catch(() => setzeVorschlaege(null));
+      .then((v) => {
+        if (!abgebrochen) setzeVorschlaege(v);
+      })
+      .catch((f: unknown) => {
+        if (abgebrochen) return;
+        setzeVorschlaege(null);
+        setzeVorschlagsfehler(f instanceof Error ? f.message : 'keine Antwort');
+      });
     void dokumenteSuchen(kvnr)
-      .then((r) => setzeVerweise(r.map(dokumentverweisLesen)))
-      .catch(() => setzeVerweise([]));
+      .then((r) => {
+        if (!abgebrochen) setzeVerweise(r.map(dokumentverweisLesen));
+      })
+      .catch(() => {
+        if (!abgebrochen) setzeVerweise([]);
+      });
+    return () => {
+      abgebrochen = true;
+    };
   }, [kvnr, angeboten, befugnisBis, betriebsstand, uebernommen]);
 
   /**
@@ -189,15 +212,18 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
 
   async function fragen(frage: string) {
     if (!kvnr) return;
+    const nr = ++letzteFrage.current;
     setzeLaeuft(true);
     setzeFehler(null);
     setzeGeoeffnet(null);
     try {
-      setzeAntwort(await lotseFragen(kvnr, frage, 'fach'));
+      const a = await lotseFragen(kvnr, frage, 'fach');
+      if (nr === letzteFrage.current) setzeAntwort(a);
     } catch (f) {
-      setzeFehler(f instanceof Error ? f : new Error('Der Lotse hat nicht geantwortet.'));
+      if (nr === letzteFrage.current)
+        setzeFehler(f instanceof Error ? f : new Error('Der Lotse hat nicht geantwortet.'));
     } finally {
-      setzeLaeuft(false);
+      if (nr === letzteFrage.current) setzeLaeuft(false);
     }
   }
 
@@ -363,6 +389,11 @@ export function AktenlotseInhalt({ patientId }: { patientId: string }) {
             </section>
           )}
 
+          {vorschlagsfehler && (
+            <span className="marker fehler" title={vorschlagsfehler}>
+              Vorschläge für die Listen nicht abrufbar
+            </span>
+          )}
           {gruppen.length > 0 && (
             <section className="lotse-block" aria-label="Vorschläge für die Listen">
               <h3>

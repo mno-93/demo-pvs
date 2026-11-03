@@ -129,6 +129,7 @@ describe('Impfungen', () => {
           dokumentId: null,
         },
         epaId: null,
+        epaFassung: null,
         notiz: null,
       },
       'M555123402',
@@ -138,6 +139,26 @@ describe('Impfungen', () => {
     öffne('/patient/p-yildiz/impfungen');
     fireEvent.click(await screen.findByRole('button', { name: '← in die Praxis' }));
     expect(lesen().impfungen.some((i) => i.epaId === 'imm-1')).toBe(true);
+    expect(lesen().impfungen.find((i) => i.epaId === 'imm-1')?.epaFassung).toBe('1');
+  });
+
+  it('erkennt eine in der Impfliste geänderte Impfung und übernimmt den ePA-Stand', async () => {
+    const z = startzustand();
+    const lokal = { ...z.impfungen[0]!, epaId: 'imm-y', epaFassung: '1' };
+    const aus = impfungNachFhir({ ...lokal, charge: 'FLU-25-1511' }, 'M555123402');
+    impflisteAttrappe([{ ...aus, id: 'imm-y', meta: { versionId: '2' } }]);
+    speicherStarten({
+      ...z,
+      impfungen: [lokal],
+      epaBefugnisse: [dauerhafteBefugnis('p-yildiz')],
+    });
+    öffne('/patient/p-yildiz/impfungen');
+    expect(await screen.findByText('in der Impfliste geändert')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: '← ePA-Stand übernehmen' }));
+    const nachher = lesen().impfungen.find((i) => i.id === lokal.id)!;
+    expect(nachher.charge).toBe('FLU-25-1511');
+    expect(nachher.epaFassung).toBe('2');
+    expect(await screen.findByText('in der Impfliste')).toBeDefined();
   });
 });
 

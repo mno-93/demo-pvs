@@ -34,7 +34,10 @@ acht Stellen.
 
 - Keine Datei über 1 000 Zeilen in diesen Bereichen; keine zyklischen Importe zwischen den Modulen
   (geprüft).
-- Verhalten unverändert: Tests, Typprüfung und Prüfliste wie zuvor.
+- Verhalten unverändert: Tests, Typprüfung und Prüfliste wie zuvor. ▸ Ein beim Verschieben ohne
+  `type` importierter Typ ließ den Simulator unter Node nicht starten; Vitest und Vite übersetzen
+  anders und merkten es nicht. Seitdem melden `verbatimModuleSyntax` und `erasableSyntaxOnly` in
+  der tsconfig des Simulators das bei der Typprüfung (Nachtrag 03.11.2026).
 - Wer einen Weg ändert, ändert ihn an einer Stelle; Praxissystem und Simulator können nicht mehr
   auseinanderlaufen.
 

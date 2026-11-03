@@ -2,13 +2,15 @@ import { Link } from 'react-router-dom';
 import {
   TERMINART_BEZEICHNUNG,
   TERMINSTATUS_BEZEICHNUNG,
+  type Patient,
   type Terminstatus,
   deutschesDatum,
 } from '@demo-pvs/kern';
 import { ausfuehren, useZustand } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Karte, Leer, Marker } from '../bausteine/Bausteine.js';
-import { BefugnisMarker, EgkKnopf, istGueltig } from '../epa/befugnis.js';
+import { EgkKnopf, istGueltig, useBefugnis } from '../epa/befugnis.js';
+import { EpaZugang, useAktenstatus } from '../epa/aktenstatus.js';
 
 const NAECHSTER_STATUS: Partial<Record<Terminstatus, Terminstatus>> = {
   geplant: 'wartend',
@@ -28,7 +30,6 @@ export function Tagesuebersicht() {
   const heute = useZustand((z) => z.heute);
   const termine = useZustand((z) => z.termine);
   const patienten = useZustand((z) => z.patienten);
-  const befugnisse = useZustand((z) => z.epaBefugnisse);
 
   const heutige = termine
     .filter((t) => t.datum === heute)
@@ -49,10 +50,6 @@ export function Tagesuebersicht() {
       <h1 style={{ marginBottom: 14 }}>Tagesübersicht</h1>
 
       <Karte titel={`Sprechstunde am ${deutschesDatum(heute)}`}>
-        <p className="leise-klein">
-          Mit dem Einlesen der eGK erhält die Praxis eine Befugnis für die ePA — 90 Tage lang
-          (Konzept ePA 3.1.3). Ohne sie gibt die ePA keine Daten heraus.
-        </p>
         {heutige.length === 0 ? (
           <Leer>Für heute sind keine Termine eingetragen.</Leer>
         ) : (
@@ -89,12 +86,7 @@ export function Tagesuebersicht() {
                       </Marker>
                     </td>
                     <td>
-                      <div className="reihe" style={{ gap: 6 }}>
-                        <BefugnisMarker patientId={t.patientId} />
-                        {!istGueltig(
-                          befugnisse.find((b) => b.patientId === t.patientId) ?? null,
-                        ) && <EgkKnopf patientId={t.patientId} />}
-                      </div>
+                      <EpaZelle patient={patienten.find((p) => p.id === t.patientId)} />
                     </td>
                     <td>
                       {naechster && (
@@ -137,5 +129,21 @@ export function Tagesuebersicht() {
         )}
       </Karte>
     </>
+  );
+}
+
+/**
+ * eGK und ePA eines Termins: derselbe Zustand wie im Patientenkopf — „keine ePA“, wenn das
+ * Aktensystem keine Akte meldet, sonst die Befugnis —, dazu „eGK einlesen“ ohne Befugnis.
+ */
+function EpaZelle({ patient }: { patient: Patient | undefined }) {
+  const status = useAktenstatus(patient);
+  const befugt = istGueltig(useBefugnis(patient?.id ?? ''));
+  if (!patient) return null;
+  return (
+    <div className="reihe" style={{ gap: 6 }}>
+      <EpaZugang patient={patient} status={status} />
+      {!befugt && <EgkKnopf patientId={patient.id} />}
+    </div>
   );
 }

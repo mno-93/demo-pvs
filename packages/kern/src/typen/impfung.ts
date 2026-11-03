@@ -30,5 +30,10 @@ export interface Impfung {
   herkunft: Herkunft;
   /** Kennung des Eintrags in der Impfliste der ePA, wenn er dort geführt wird. */
   epaId: string | null;
+  /**
+   * Fassung des Eintrags in der ePA (`meta.versionId`) beim letzten Abgleich — wie bei Diagnosen
+   * und Allergien. Weicht die Fassung in der ePA ab, wurde der Eintrag dort geändert.
+   */
+  epaFassung: string | null;
   notiz: string | null;
 }

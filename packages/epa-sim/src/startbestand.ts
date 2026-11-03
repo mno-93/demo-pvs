@@ -26,6 +26,9 @@ import {
   type Impfung,
   type Ressource,
   neueId,
+  KVNR_BEISPIEL,
+  START_BEFUGNISSE_PRAXIS,
+  START_LISTENEINTRAG,
 } from '@demo-pvs/kern';
 import { sha256Hex } from './plattform.ts';
 import { SCAN_KARDIOLOGIE_2019 } from './scanbild.ts';
@@ -40,7 +43,13 @@ import {
   kardiologieKontrolleBrief,
   kardiologieKontrolleFhir,
 } from './briefe.ts';
-import { bestandFuer, bestaendeLeeren, type Dokument, type Kodewert } from './bestand.ts';
+import {
+  bestandAnlegen,
+  bestandFuer,
+  bestaendeLeeren,
+  type Dokument,
+  type Kodewert,
+} from './bestand.ts';
 import { befugnisErteilen, befugnisseLeeren } from './befugnis.ts';
 import { chronologieAnlegen } from './chronologie.ts';
 import { eintragAnlegen, listeFortschreiben } from './diagnosedienst.ts';
@@ -84,7 +93,7 @@ function dosierungMitText(
  * (nur im Praxissystem) hat keine Akte.
  */
 
-const KVNR = { hoffmann: 'A123456780', krueger: 'K876543217', yildiz: 'M555123402' } as const;
+const KVNR = KVNR_BEISPIEL;
 
 export const KLINIKUM: Handelnde = {
   telematikId: '5-DEMO-KLINIKUM-SONNENSCHEIN',
@@ -472,6 +481,7 @@ function impfEintrag(
         dokumentId: null,
       },
       epaId: null,
+      epaFassung: null,
       notiz: null,
       ...teil,
     },
@@ -669,21 +679,11 @@ export function startbestandAufbauen(): void {
     new Date('2026-07-12T10:00:00+02:00'),
     'Startbestand',
   );
-  befugnisErteilen(
-    KVNR.krueger,
-    PRAXIS.telematikId,
-    new Date('2026-07-14T09:02:00+02:00'),
-    'Startbestand',
-  );
-  befugnisErteilen(
-    KVNR.yildiz,
-    PRAXIS.telematikId,
-    new Date('2026-07-02T08:40:00+02:00'),
-    'Startbestand',
-  );
+  for (const b of START_BEFUGNISSE_PRAXIS)
+    befugnisErteilen(b.kvnr, PRAXIS.telematikId, new Date(b.eingelesenAm), 'Startbestand');
 
   // --- Frau Hoffmann ---
-  const hoffmann = bestandFuer(KVNR.hoffmann);
+  const hoffmann = bestandAnlegen(KVNR.hoffmann);
   hoffmann.demographie = { vorname: 'Renate', nachname: 'Hoffmann', geburtsdatum: '1958-03-14' };
 
   /*
@@ -1129,7 +1129,7 @@ export function startbestandAufbauen(): void {
   listeFortschreiben(KVNR.hoffmann, 'AllergyIntolerance', KLINIKUM, beiEntlassung);
 
   // --- Frau Yildiz ---
-  const yildiz = bestandFuer(KVNR.yildiz);
+  const yildiz = bestandAnlegen(KVNR.yildiz);
   yildiz.demographie = { vorname: 'Meral', nachname: 'Yildiz', geburtsdatum: '1969-06-25' };
   const laborY = laborbefundBauen(BEFUND_YILDIZ);
   const laborkopfY = {
@@ -1201,7 +1201,7 @@ export function startbestandAufbauen(): void {
     ),
     PRAXIS,
     '2026-07-02T09:05:00',
-    'cond-y-1',
+    START_LISTENEINTRAG.yildizHypothyreose,
   );
   eintragAnlegen(
     KVNR.yildiz,
@@ -1218,14 +1218,18 @@ export function startbestandAufbauen(): void {
     ),
     PRAXIS,
     '2026-07-02T09:06:00',
-    'cond-y-2',
+    START_LISTENEINTRAG.yildizHypertonie,
   );
 
-  alsRelevantMarkieren(KVNR.yildiz, 'cond-y-1', 'cond-y-2');
+  alsRelevantMarkieren(
+    KVNR.yildiz,
+    START_LISTENEINTRAG.yildizHypothyreose,
+    START_LISTENEINTRAG.yildizHypertonie,
+  );
   listeFortschreiben(KVNR.yildiz, 'Condition', PRAXIS, '2026-07-02T09:06:00');
 
   // --- Herr Krüger: leere Akte, Widerspruch gegen den Medikationsprozess ---
-  const krueger = bestandFuer(KVNR.krueger);
+  const krueger = bestandAnlegen(KVNR.krueger);
   krueger.demographie = {
     vorname: 'Tobias',
     nachname: 'Krüger',

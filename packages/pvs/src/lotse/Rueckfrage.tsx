@@ -56,7 +56,10 @@ export function neueFrageId(): string {
 }
 
 type Kontaktlage =
-  { art: 'laedt' } | { art: 'gefunden'; eintrag: Kontakteintrag } | { art: 'keiner' };
+  | { art: 'laedt' }
+  | { art: 'gefunden'; eintrag: Kontakteintrag }
+  | { art: 'keiner' }
+  | { art: 'fehler'; text: string };
 
 export function Rueckfrage({
   bezug,
@@ -98,8 +101,10 @@ export function Rueckfrage({
       .then((k) => {
         if (!abgebrochen) setzeKontakt(k ? { art: 'gefunden', eintrag: k } : { art: 'keiner' });
       })
-      .catch(() => {
-        if (!abgebrochen) setzeKontakt({ art: 'keiner' });
+      .catch((f: unknown) => {
+        // Eine Auskunft, die nicht antwortet, ist kein „nicht im Verzeichnis“.
+        if (!abgebrochen)
+          setzeKontakt({ art: 'fehler', text: f instanceof Error ? f.message : 'keine Antwort' });
       });
     return () => {
       abgebrochen = true;
@@ -152,6 +157,11 @@ export function Rueckfrage({
                 : adressat?.trim() || 'Einrichtung nicht angegeben'}
             </b>
             {kontakt.art === 'keiner' && <span className="marker warn">nicht im Verzeichnis</span>}
+            {kontakt.art === 'fehler' && (
+              <span className="marker fehler" title={kontakt.text}>
+                Kontaktauskunft nicht erreichbar
+              </span>
+            )}
           </div>
 
           {kontakt.art === 'gefunden' && (

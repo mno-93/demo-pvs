@@ -113,7 +113,18 @@ export type Widerspruchsfunktion = 'medication' | 'erp-submission';
 
 const bestaende = new Map<string, Aktenbestand>();
 
+/**
+ * Bestand einer Akte. Lesen legt keine Akte an: Gibt es sie nicht, ist das ein Fehler im Weg, der
+ * vorher `bestandVorhanden` hätte prüfen müssen. Angelegt wird nur ausdrücklich (`bestandAnlegen`).
+ */
 export function bestandFuer(kvnr: string): Aktenbestand {
+  const bestand = bestaende.get(kvnr);
+  if (!bestand) throw new Error(`Für ${kvnr} gibt es keine Akte im Simulator.`);
+  return bestand;
+}
+
+/** Legt die Akte einer Person an (Startbestand) und gibt sie zurück; eine vorhandene bleibt. */
+export function bestandAnlegen(kvnr: string): Aktenbestand {
   let bestand = bestaende.get(kvnr);
   if (!bestand) {
     bestand = {

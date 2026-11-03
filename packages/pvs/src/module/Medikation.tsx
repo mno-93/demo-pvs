@@ -93,7 +93,11 @@ export function Medikation() {
 
   const befugt = istGueltig(useBefugnis(patientId));
   const { lage: listenlage } = useEpaListen(patient);
-  const { stand, laedt, fehler, seit, neuLaden } = useMedikationsstand(patientId, kvnr, befugt);
+  const { stand, laedt, fehler, seit, seitFehler, neuLaden } = useMedikationsstand(
+    patientId,
+    kvnr,
+    befugt,
+  );
   const umgebungOhnePlan = useAmtsUmgebung(listenlage, lokaleAllergien, lokaleDokumente);
 
   const [meldung, setzeMeldung] = useState<{
@@ -142,10 +146,8 @@ export function Medikation() {
    * Gruppen nach Status, aktive und pausierte zusätzlich nach Kategorie, wenn die Einstellung der
    * Zwischenüberschriften es vorsieht (IG-MED09759K35-01, Render API).
    */
-  const [ueberschriften, zwischenueberschriftenUmschalten] = useZwischenueberschriften(
-    kvnr,
-    mitEpa,
-  );
+  const [ueberschriften, zwischenueberschriftenUmschalten, ueberschriftenFehler] =
+    useZwischenueberschriften(kvnr, mitEpa);
   // Ohne ePA stellt das Praxissystem den Plan selbst dar, mit Zwischenüberschriften.
   const gruppen = useMemo(
     () => planGruppieren(zeilen, !mitEpa || ueberschriften),
@@ -517,6 +519,11 @@ export function Medikation() {
                 Zwischenüberschriften
               </label>
             )}
+            {mitEpa && ueberschriftenFehler && (
+              <Marker ton="fehler" titel={ueberschriftenFehler}>
+                Einstellung nicht übertragen
+              </Marker>
+            )}
             {planErgaenzbar && (
               <button
                 type="button"
@@ -530,6 +537,11 @@ export function Medikation() {
           </div>
         }
       >
+        {seitFehler && mitEpa && (
+          <Marker ton="fehler" titel={seitFehler}>
+            Änderungen seit dem letzten Aufruf nicht abrufbar
+          </Marker>
+        )}
         {seit?.plan && mitEpa && (
           <Aenderungsband
             am={seit.am}

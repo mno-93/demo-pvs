@@ -88,7 +88,12 @@ export interface Zustand {
   protokoll: readonly Protokolleintrag[];
 }
 
-export type EpaSicht = 'summary' | 'Condition' | 'AllergyIntolerance' | 'Immunization';
+/**
+ * Sicht, deren Stand gemerkt wird. Die Patient Summary je Quelle: Wechselt der Ausbaustand von der
+ * ✦ Sicht zur ePS des Aktensystems, ist das keine Änderung an Einträgen.
+ */
+export type EpaSicht =
+  'summary' | 'summary-aktensystem' | 'Condition' | 'AllergyIntolerance' | 'Immunization';
 
 export interface EpaLesezeichen {
   patientId: string;
