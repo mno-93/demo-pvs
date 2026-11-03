@@ -406,7 +406,7 @@ export function DosierungEingabe({
       <div id={`${id}-text`} className="reihe" style={{ gap: 6, marginTop: 4 }}>
         {text !== null ? (
           <>
-            <span className="leise-klein">auf dem Plan</span>
+            <span className="leise-klein">Dosierungstext</span>
             <span className="code" data-testid="dosierungstext">
               {text}
             </span>

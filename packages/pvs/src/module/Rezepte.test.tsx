@@ -71,8 +71,15 @@ const PLAN = {
   ],
 };
 
-function medikationsAttrappe(plan: unknown = PLAN) {
+type Aufruf = Parameters<Parameters<typeof epaAttrappe>[0]>[0];
+
+function medikationsAttrappe(
+  plan: unknown = PLAN,
+  zusatz: (a: Aufruf) => ReturnType<Parameters<typeof epaAttrappe>[0]> = () => undefined,
+) {
   return epaAttrappe((a) => {
+    const eigene = zusatz(a);
+    if (eigene) return eigene;
     if (a.pfad === `${MS}/$medication-list`) return { status: 200, inhalt: suchergebnis([]) };
     if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: plan };
     if (a.pfad === '/erp/Task/$create') {
@@ -155,6 +162,72 @@ describe('E-Rezept', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  /** `$update-emp-entry` nimmt den Eintrag an und gibt ihn in neuer Fassung zurück. */
+  const aktualisierung = (a: Aufruf) =>
+    a.pfad === `${MS}/$update-emp-entry`
+      ? {
+          status: 200,
+          inhalt: {
+            resourceType: 'Parameters',
+            parameter: [
+              {
+                name: 'empEntry',
+                resource: {
+                  ...(
+                    a.koerper as { parameter: { name: string; resource?: object }[] }
+                  ).parameter.find((p) => p.name === 'empEntry')!.resource,
+                  meta: { versionId: '2' },
+                },
+              },
+            ],
+          },
+        }
+      : undefined;
+  const planeintragIn = (a: { koerper: unknown }) =>
+    (
+      a.koerper as { parameter: { name: string; resource?: Record<string, unknown> }[] }
+    ).parameter.find((p) => p.name === 'empEntry')!.resource!;
+
+  it('ändert die Dosierung eines Planeintrags über $update-emp-entry', async () => {
+    const aufrufe = medikationsAttrappe(PLAN, aktualisierung);
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+    const zeile = (await screen.findByText('Ramipril 5 mg Tabletten', { selector: 'b' })).closest(
+      'tr',
+    )!;
+    fireEvent.click(within(zeile).getByRole('button', { name: 'Dosierung ändern' }));
+    const gruppe = screen.getByRole('group', { name: /Dosierung ändern/ });
+    fireEvent.change(within(gruppe).getByLabelText('abends'), { target: { value: '1' } });
+    fireEvent.click(within(gruppe).getByRole('button', { name: 'Dosierung übernehmen' }));
+    expect(await screen.findByText(/im Medikationsplan der ePA geändert/)).toBeDefined();
+    const eintrag = planeintragIn(aufrufe.find((a) => a.pfad.endsWith('$update-emp-entry'))!);
+    expect(JSON.stringify(eintrag['extension'])).toContain('täglich: 1-0-1-0 Stück');
+    // Die Fassung des gelesenen Eintrags geht mit — sonst 409 MSG_VERSION_AWARE_CONFLICT.
+    expect(eintrag['meta']).toEqual({ versionId: '1' });
+  });
+
+  it('passt beim Verordnen aus dem Plan mit neuer Dosierung den Planeintrag an', async () => {
+    const aufrufe = medikationsAttrappe(PLAN, aktualisierung);
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+    const zeile = (await screen.findByText('Ramipril 5 mg Tabletten', { selector: 'b' })).closest(
+      'tr',
+    )!;
+    fireEvent.click(within(zeile).getByRole('button', { name: 'Rezept' }));
+    expect(screen.queryByText('Dosierung im Plan anpassen')).toBeNull();
+    fireEvent.change(screen.getByLabelText('abends'), { target: { value: '1' } });
+    expect(screen.getByText('Dosierung im Plan anpassen')).toBeDefined();
+    fireEvent.click(screen.getByRole('button', { name: 'Signieren und senden' }));
+    expect(await screen.findByText('E-Rezept signiert und gesendet.')).toBeDefined();
+    const pfade = aufrufe.map((a) => a.pfad);
+    const update = pfade.findIndex((p) => p.endsWith('$update-emp-entry'));
+    expect(update).toBeGreaterThanOrEqual(0);
+    expect(update).toBeLessThan(pfade.indexOf('/erp/Task/$create'));
+    expect(JSON.stringify(planeintragIn(aufrufe[update]!)['extension'])).toContain(
+      'täglich: 1-0-1-0 Stück',
+    );
   });
 
   it('verordnet aus dem Plan und gibt den eMP-Identifier mit', async () => {

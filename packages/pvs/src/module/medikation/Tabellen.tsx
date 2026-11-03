@@ -126,6 +126,36 @@ export function Planhandlungen({
 
 /* ---------- eML ---------- */
 
+/**
+ * Weicht ein verknüpfter Listeneintrag in der Dosierung vom Planeintrag ab und hat der Eintrag ihn
+ * noch nicht aufgenommen (`extension[activity]`), kann `$link-emp` den Plan aktualisieren —
+ * etwa nach einer Verordnung aus dem Plan mit neuer Dosierung (IG-MED-BL-LINK-EMP-ENTRY-V2). Nur
+ * jüngere Listeneinträge als der Planeintrag: Eine ältere Verordnung drehte sonst eine spätere
+ * Änderung des Plans zurück.
+ */
+export function planAktualisierbar(z: Listenzeile): boolean {
+  const plan = z.planeintrag;
+  if (!plan || !imGueltigenPlan(plan) || z.dosierung === plan.dosierung) return false;
+  const aussageStand = Date.parse(String(z.aussage.meta?.lastUpdated));
+  const planStand = Date.parse(String(plan.eintrag.meta?.lastUpdated));
+  if (aussageStand <= planStand) return false;
+  const aufgenommen = (
+    (plan.eintrag.extension ?? []) as {
+      url: string;
+      extension?: { url: string; valueReference?: { reference?: string } }[];
+    }[]
+  ).some(
+    (e) =>
+      e.url.endsWith('emp-medicationrequest-activity-extension') &&
+      e.extension?.some(
+        (x) =>
+          x.url === 'reference' &&
+          x.valueReference?.reference === `MedicationStatement/${String(z.aussage.id)}`,
+      ),
+  );
+  return !aufgenommen;
+}
+
 export function EmlTabelle({
   zeilen,
   neu,
@@ -134,6 +164,7 @@ export function EmlTabelle({
   umgebung,
   uebernehmen,
   verknuepfen,
+  planAktualisieren,
 }: {
   zeilen: Listenzeile[];
   /** Seit dem letzten Aufruf neu, von anderen Einrichtungen. */
@@ -144,6 +175,11 @@ export function EmlTabelle({
   uebernehmen: (z: Listenzeile) => void;
   /** Verknüpft den Eintrag mit dem Planeintrag desselben Wirkstoffs (`$link-emp`). */
   verknuepfen: (z: Listenzeile) => void;
+  /**
+   * Aktualisiert den verknüpften Planeintrag aus dem Listeneintrag (`$link-emp`, Anwendungsfall
+   * „Pflege des eMP aus der eML – Aktualisierung eines eMP-Eintrags“).
+   */
+  planAktualisieren: (z: Listenzeile) => void;
 }) {
   return (
     <div className="tabelle-rahmen">
@@ -196,6 +232,16 @@ export function EmlTabelle({
                     {z.art === 'Verordnung' && z.medikament && katalog && (
                       <button type="button" className="knopf klein" onClick={() => rezept(z)}>
                         Rezept
+                      </button>
+                    )}
+                    {darfVerordnen && planAktualisierbar(z) && (
+                      <button
+                        type="button"
+                        className="knopf klein"
+                        aria-label={`Plan aktualisieren: ${z.planeintrag!.bezeichnung} auf ${z.dosierung}`}
+                        onClick={() => planAktualisieren(z)}
+                      >
+                        Plan aktualisieren
                       </button>
                     )}
                     {darfVerordnen && z.wirkstoffImPlan && (

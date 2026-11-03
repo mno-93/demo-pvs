@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import {
   EMP_STATUS_BEZEICHNUNG,
   EMP_STATUS_CODE,
   offeneUnterschiede,
   planAbgleichen,
   arzneimittel,
+  dosierungAlsText,
   dosierungAusFhir,
   dosierungAusText,
   planGrundNachFhir,
@@ -15,6 +16,7 @@ import {
   planeintragZumRezept,
   type Rezept,
   type AmtsUmgebung,
+  type Dosierung,
   type EmpStatus,
   type PraxisplanEintrag,
   neueId,
@@ -23,8 +25,9 @@ import { ausfuehren, lesen, useAuswahl, useZustand } from '../speicher/speicher.
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import { Bestandsband, Karte, Leer, Marker } from '../bausteine/Bausteine.js';
 import { DosierungAnzeige } from './medikation/DosierungEingabe.js';
+import { DosierungAendern } from './medikation/DosierungAendern.js';
 import { usePatientId } from './Patientenkartei.js';
-import { EpaFehler } from '../epa/klient.js';
+import { EINRICHTUNG, EpaFehler } from '../epa/klient.js';
 import { empEintragAendern, empEintragAnlegen, empVerknuepfen } from '../epa/dienste/medikation.js';
 import { fehlerTitel } from '../epa/epa-bestand.js';
 import { useAktenstatus } from '../epa/aktenstatus.js';
@@ -34,6 +37,7 @@ import {
   RezepteKarte,
   type Rezeptangabe,
   type Rezeptvorlage,
+  dosierungFuerRezept,
 } from './medikation/RezeptUi.js';
 import { rezeptLoeschen, rezeptSenden } from './medikation/rezepte.js';
 import { epaFensterOeffnen } from '../epa/fenster.js';
@@ -120,6 +124,8 @@ export function Medikation() {
   );
   const [vorlage, setzeVorlage] = useState<Rezeptvorlage | null>(null);
   const [neuesRezept, setzeNeuesRezept] = useState(false);
+  /** Planzeile, deren Dosierung gerade geändert wird. */
+  const [dosisZeile, setzeDosisZeile] = useState<string | null>(null);
   const [neuerPlaneintrag, setzeNeuerPlaneintrag] = useState(false);
 
   const ohneBefugnis = fehler?.ohneBefugnis ?? false;
@@ -185,6 +191,10 @@ export function Medikation() {
           return;
         }
         let empId = v.empId;
+        if (a.planAnpassen && v.empId) {
+          const z = stand?.zeilen.find((x) => empKennung(x) === v.empId);
+          if (z) await epaDosierungAendern(z, a.dosis);
+        }
         if (a.auchInPlan) {
           if (v.listeneintrag) {
             // Mit Verweis auf das Arzneimittel des Listeneintrags verknüpft der Dienst beide
@@ -266,6 +276,10 @@ export function Medikation() {
     );
     if (v.praxisplanId) {
       ausfuehren(vorgaenge.praxisplanRezeptZuordnen(v.praxisplanId, id));
+      if (a.planAnpassen)
+        ausfuehren(
+          vorgaenge.praxisplanAendern(v.praxisplanId, { dosierung: a.dosierung, dosis: a.dosis }),
+        );
     } else if (a.auchInPlan) {
       const r = lesen().rezepte.find((x) => x.id === id);
       if (r)
@@ -394,6 +408,47 @@ export function Medikation() {
         }),
       );
     }, `Änderung an „${l.bezeichnung}" in den Medikationsplan der ePA übertragen.`);
+  }
+
+  /**
+   * „Dosierung ändern“ (Anwendungsfall „Editieren von eMP-Einträgen“): im eMP über
+   * `$update-emp-entry`, wenn der Eintrag abgeglichen ist — Dosierung samt Text, alles andere
+   * bleibt —, sonst im Plan der Praxis.
+   */
+  async function epaDosierungAendern(e: Planzeile, dosis: Dosierung) {
+    const neu = await empEintragAendern(
+      kvnr,
+      lesenachweis,
+      planeintragFortschreiben(e.eintrag, { dosierung: dosis, grund: e.grund }),
+    );
+    // Der Plan der Praxis folgt dem eMP-Eintrag, mit dem er verknüpft ist: Er übernimmt dessen
+    // neuen Stand samt Abgleichsstand.
+    const lokal = praxisplan.find((l) => l.epaId === e.id);
+    if (lokal)
+      ausfuehren(
+        vorgaenge.praxisplanNachEpa(lokal.id, {
+          ...e,
+          verantwortlich: EINRICHTUNG.anzeige,
+          dosierung: dosierungAlsText(dosis),
+          dosis,
+          fassung: neu.eintrag?.meta?.versionId ?? e.fassung,
+        }),
+      );
+  }
+
+  function dosierungAendern(z: Ansichtszeile, dosis: Dosierung) {
+    setzeDosisZeile(null);
+    const text = dosierungAlsText(dosis);
+    if (mitEpa && z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert')) {
+      const e = z.epa;
+      void handlung(
+        () => epaDosierungAendern(e, dosis),
+        `Dosierung von „${e.bezeichnung}" im Medikationsplan der ePA geändert.`,
+      );
+    } else if (z.lokal) {
+      ausfuehren(vorgaenge.praxisplanAendern(z.lokal.id, { dosierung: text, dosis }));
+      setzeMeldung({ art: 'gut', text: `Dosierung von „${z.lokal.bezeichnung}" geändert.` });
+    }
   }
 
   /** Status ändern: im eMP, wenn der Eintrag abgeglichen ist — sonst im Plan der Praxis. */
@@ -588,141 +643,174 @@ export function Medikation() {
                       mitEpa && !!z.epa && (z.lage === 'abgeglichen' || z.lage === 'epa-geaendert');
                     const ungeklaert =
                       z.lage === 'praxis-geaendert' || z.lage === 'beide-geaendert';
+                    const schluessel = z.lokal?.id ?? z.epa!.id;
                     return (
-                      <tr key={z.lokal?.id ?? z.epa!.id}>
-                        <td>
-                          <b>{e.bezeichnung}</b>
-                          {z.epa && seit?.plan?.neu.has(z.epa.id) && (
-                            <span className="neu-marke">neu</span>
-                          )}
-                          {z.epa && seit?.plan?.geaendert.has(z.epa.id) && (
-                            <span className="neu-marke">geändert</span>
-                          )}
-                          <div className="leise-klein">ATC {e.atc || '—'}</div>
-                          {abgeglichen && stand ? (
-                            <Spur spur={rezeptspur(stand.roh, z.epa!.id)} />
-                          ) : (
-                            z.lokal && <PraxisplanSpur eintrag={z.lokal} rezepte={rezepte} />
-                          )}
-                          {(ungeklaert || z.lage === 'gleiches-mittel') && z.epa && (
-                            <div className="leise-klein">
-                              ePA: {z.epa.dosierung} · {z.epa.grund ?? '—'} ·{' '}
-                              {EMP_STATUS_BEZEICHNUNG[z.epa.status]}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <DosierungAnzeige text={e.dosierung} dosis={e.dosis} />
-                        </td>
-                        <td>
-                          {e.grund ?? (e.grundDiagnose ? '' : '—')}
-                          {e.grundDiagnose && (
-                            <div className="leise-klein">
-                              <span className="code">{e.grundDiagnose.code}</span>{' '}
-                              {e.grundDiagnose.bezeichnung}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <Marker ton={STATUS_TON[e.status]}>
-                            {EMP_STATUS_BEZEICHNUNG[e.status]}
-                          </Marker>
-                        </td>
-                        <td
-                          className="leise-klein"
-                          title={
-                            z.epa?.angelegtVon ? `angelegt von ${z.epa.angelegtVon}` : undefined
-                          }
-                        >
-                          {e.verantwortlich}
-                        </td>
-                        {!ohneAkte && (
+                      <Fragment key={schluessel}>
+                        <tr>
                           <td>
-                            <AbgleichMarker zeile={z} />
+                            <b>{e.bezeichnung}</b>
+                            {z.epa && seit?.plan?.neu.has(z.epa.id) && (
+                              <span className="neu-marke">neu</span>
+                            )}
+                            {z.epa && seit?.plan?.geaendert.has(z.epa.id) && (
+                              <span className="neu-marke">geändert</span>
+                            )}
+                            <div className="leise-klein">ATC {e.atc || '—'}</div>
+                            {abgeglichen && stand ? (
+                              <Spur spur={rezeptspur(stand.roh, z.epa!.id)} />
+                            ) : (
+                              z.lokal && <PraxisplanSpur eintrag={z.lokal} rezepte={rezepte} />
+                            )}
+                            {(ungeklaert || z.lage === 'gleiches-mittel') && z.epa && (
+                              <div className="leise-klein">
+                                ePA: {z.epa.dosierung} · {z.epa.grund ?? '—'} ·{' '}
+                                {EMP_STATUS_BEZEICHNUNG[z.epa.status]}
+                              </div>
+                            )}
                           </td>
-                        )}
-                        <td>
-                          <div className="reihe" style={{ gap: 5 }}>
-                            {mitEpa &&
-                              darfVerordnen &&
-                              z.lokal &&
-                              z.lage === 'nur-praxis' &&
-                              e.status !== 'beendet' &&
-                              e.status !== 'abgesetzt' &&
-                              e.status !== 'entered-in-error' && (
-                                <button
-                                  type="button"
-                                  className="knopf klein stark"
-                                  onClick={() => inDieEpa(z.lokal!)}
-                                >
-                                  in die ePA →
-                                </button>
+                          <td>
+                            <DosierungAnzeige text={e.dosierung} dosis={e.dosis} />
+                          </td>
+                          <td>
+                            {e.grund ?? (e.grundDiagnose ? '' : '—')}
+                            {e.grundDiagnose && (
+                              <div className="leise-klein">
+                                <span className="code">{e.grundDiagnose.code}</span>{' '}
+                                {e.grundDiagnose.bezeichnung}
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <Marker ton={STATUS_TON[e.status]}>
+                              {EMP_STATUS_BEZEICHNUNG[e.status]}
+                            </Marker>
+                          </td>
+                          <td
+                            className="leise-klein"
+                            title={
+                              z.epa?.angelegtVon ? `angelegt von ${z.epa.angelegtVon}` : undefined
+                            }
+                          >
+                            {e.verantwortlich}
+                          </td>
+                          {!ohneAkte && (
+                            <td>
+                              <AbgleichMarker zeile={z} />
+                            </td>
+                          )}
+                          <td>
+                            <div className="reihe" style={{ gap: 5 }}>
+                              {mitEpa &&
+                                darfVerordnen &&
+                                z.lokal &&
+                                z.lage === 'nur-praxis' &&
+                                e.status !== 'beendet' &&
+                                e.status !== 'abgesetzt' &&
+                                e.status !== 'entered-in-error' && (
+                                  <button
+                                    type="button"
+                                    className="knopf klein stark"
+                                    onClick={() => inDieEpa(z.lokal!)}
+                                  >
+                                    in die ePA →
+                                  </button>
+                                )}
+                              {mitEpa && darfVerordnen && ungeklaert && z.lokal && z.epa && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="knopf klein stark"
+                                    onClick={() => aenderungUebertragen(z.lokal!, z.epa!)}
+                                  >
+                                    Änderung in die ePA →
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="knopf klein"
+                                    onClick={() => {
+                                      ausfuehren(vorgaenge.praxisplanNachEpa(z.lokal!.id, z.epa!));
+                                      setzeMeldung({
+                                        art: 'gut',
+                                        text: `„${e.bezeichnung}" auf den Stand der ePA gebracht.`,
+                                      });
+                                    }}
+                                  >
+                                    ← ePA-Stand
+                                  </button>
+                                </>
                               )}
-                            {mitEpa && darfVerordnen && ungeklaert && z.lokal && z.epa && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="knopf klein stark"
-                                  onClick={() => aenderungUebertragen(z.lokal!, z.epa!)}
-                                >
-                                  Änderung in die ePA →
-                                </button>
+                              {mitEpa && darfVerordnen && z.lage === 'gleiches-mittel' && (
                                 <button
                                   type="button"
                                   className="knopf klein"
                                   onClick={() => {
-                                    ausfuehren(vorgaenge.praxisplanNachEpa(z.lokal!.id, z.epa!));
+                                    ausfuehren(
+                                      vorgaenge.praxisplanVerknuepfen(z.lokal!.id, z.epa!),
+                                    );
                                     setzeMeldung({
                                       art: 'gut',
-                                      text: `„${e.bezeichnung}" auf den Stand der ePA gebracht.`,
+                                      text: `„${e.bezeichnung}" mit dem Eintrag der ePA verknüpft.`,
                                     });
                                   }}
                                 >
-                                  ← ePA-Stand
+                                  verknüpfen
                                 </button>
-                              </>
-                            )}
-                            {mitEpa && darfVerordnen && z.lage === 'gleiches-mittel' && (
-                              <button
-                                type="button"
-                                className="knopf klein"
-                                onClick={() => {
-                                  ausfuehren(vorgaenge.praxisplanVerknuepfen(z.lokal!.id, z.epa!));
-                                  setzeMeldung({
-                                    art: 'gut',
-                                    text: `„${e.bezeichnung}" mit dem Eintrag der ePA verknüpft.`,
-                                  });
-                                }}
-                              >
-                                verknüpfen
-                              </button>
-                            )}
-                            {!ungeklaert && e.status === 'aktiv' && (abgeglichen || z.lokal) && (
-                              <button
-                                type="button"
-                                className="knopf klein"
-                                onClick={() =>
-                                  abgeglichen
-                                    ? vorlageZeigen(vorlageAusPlan(z.epa!, stand))
-                                    : vorlageZeigen(vorlageAusPraxisplan(z.lokal!))
-                                }
-                              >
-                                Rezept
-                              </button>
-                            )}
-                            {darfVerordnen &&
-                              !ungeklaert &&
-                              z.lage !== 'gleiches-mittel' &&
-                              z.lage !== 'nur-epa' &&
-                              e.status !== 'entered-in-error' && (
-                                <Planhandlungen
-                                  zeile={e}
-                                  ausfuehren={(status, text) => statusAendern(z, status, text)}
-                                />
                               )}
-                          </div>
-                        </td>
-                      </tr>
+                              {!ungeklaert && e.status === 'aktiv' && (abgeglichen || z.lokal) && (
+                                <button
+                                  type="button"
+                                  className="knopf klein"
+                                  onClick={() =>
+                                    abgeglichen
+                                      ? vorlageZeigen(vorlageAusPlan(z.epa!, stand))
+                                      : vorlageZeigen(vorlageAusPraxisplan(z.lokal!))
+                                  }
+                                >
+                                  Rezept
+                                </button>
+                              )}
+                              {darfVerordnen &&
+                                !ungeklaert &&
+                                z.lage !== 'gleiches-mittel' &&
+                                z.lage !== 'nur-epa' &&
+                                (e.status === 'aktiv' || e.status === 'pausiert') && (
+                                  <button
+                                    type="button"
+                                    className="knopf klein"
+                                    aria-expanded={dosisZeile === schluessel}
+                                    onClick={() =>
+                                      setzeDosisZeile((s) => (s === schluessel ? null : schluessel))
+                                    }
+                                  >
+                                    Dosierung ändern
+                                  </button>
+                                )}
+                              {darfVerordnen &&
+                                !ungeklaert &&
+                                z.lage !== 'gleiches-mittel' &&
+                                z.lage !== 'nur-epa' &&
+                                e.status !== 'entered-in-error' && (
+                                  <Planhandlungen
+                                    zeile={e}
+                                    ausfuehren={(status, text) => statusAendern(z, status, text)}
+                                  />
+                                )}
+                            </div>
+                          </td>
+                        </tr>
+                        {dosisZeile === schluessel && (
+                          <tr>
+                            <td colSpan={ohneAkte ? 6 : 7}>
+                              <DosierungAendern
+                                bezeichnung={e.bezeichnung}
+                                start={dosierungFuerRezept(e)}
+                                abbrechen={() => setzeDosisZeile(null)}
+                                beiUebernahme={(d) => dosierungAendern(z, d)}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   }),
                 ])}
@@ -813,6 +901,17 @@ export function Medikation() {
                       empKennung(z.wirkstoffImPlan),
                     );
                   }, 'Mit dem Planeintrag verknüpft.')
+                }
+                planAktualisieren={(z) =>
+                  void handlung(async () => {
+                    if (!z.planeintrag) return;
+                    await empVerknuepfen(
+                      kvnr,
+                      lesenachweis,
+                      String(z.aussage.id),
+                      empKennung(z.planeintrag),
+                    );
+                  }, 'Medikationsplan aus der Medikationsliste aktualisiert.')
                 }
                 uebernehmen={(z) =>
                   void handlung(async () => {

@@ -37,6 +37,7 @@ import {
   ungueltig,
   verknuepfen,
   verknuepfterEintrag,
+  schonAufgenommen,
 } from './medikation.ts';
 
 /** Schreiben in der eML: Nachtrag und Storno, `$link-emp` und `$unlink-emp`; die Operationen des E-Rezept-Fachdienstes sind ihm vorbehalten. */
@@ -245,8 +246,10 @@ export function emlwegeEinhaengen(
             'Der eML-Eintrag ist bereits mit einem anderen eMP-Eintrag verknüpft.',
             detail('MEDSVC_ALREADY_LINKED', 'Already linked to another instance'),
           );
-        // Schon mit diesem Eintrag verknüpft: keine Änderung, der letzte Änderungseintrag gilt.
-        if (bisher === eintrag.id) {
+        // Schon aufgenommen (`extension[activity]`): keine Änderung, der letzte Änderungseintrag
+        // gilt. Zeigt nur `basedOn` schon auf den Eintrag — etwa nach einer Verordnung aus dem
+        // Plan —, wird verknüpft und übernommen (IG-MED-BL-LINK-EMP-ENTRY-V2).
+        if (bisher === eintrag.id && schonAufgenommen(eintrag, msId)) {
           const aktivitaet =
             letzteAktivitaet(kvnr, 'MedicationStatement', msId) ??
             letzteAktivitaet(kvnr, 'MedicationRequest', String(eintrag.id));

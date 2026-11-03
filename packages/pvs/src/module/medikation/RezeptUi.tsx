@@ -53,6 +53,11 @@ export interface Rezeptangabe {
   packungen: number;
   normgroesse: Normgroesse;
   auchInPlan: boolean;
+  /**
+   * Rezept aus dem Plan mit geänderter Dosierung: den Planeintrag mit anpassen (Anwendungsfall
+   * „Pflege des eMP im Rahmen der Rezeptierung – Aktualisieren eines eMP-Eintrags“).
+   */
+  planAnpassen: boolean;
   freigabe: Rezeptfreigabe;
   hinweis: string | null;
   grund: string | null;
@@ -69,7 +74,7 @@ const PLUS_TAGE = (heute: string, tage: number) => {
  * das nur als Freitext vorliegt (ältere Einträge), wird zum Schema — als Freitext verbietet es das
  * Profil (`DosageFourSlotPatternInText`).
  */
-function dosierungFuerRezept(v: Rezeptvorlage): Dosierung {
+export function dosierungFuerRezept(v: Pick<Rezeptvorlage, 'dosis' | 'dosierung'>): Dosierung {
   const d = v.dosis ?? dosierungAusText(v.dosierung);
   return d.schema.art === 'freitext' ? dosierungAusText(d.schema.text, d.einheit) : d;
 }
@@ -119,6 +124,25 @@ export function RezeptFormular({
     [vorlage, umgebung],
   );
   const reichweite = gueltig ? reichweiteTage(dosis, packungen, normgroesse) : null;
+  const textVon = (d: Dosierung) =>
+    d.schema.art === 'freitext' ? d.schema.text.trim() : dosierungAlsText(d);
+  const dosierungstext = gueltig ? textVon(dosis) : null;
+  // Verglichen wird mit dem Startwert des Formulars, nicht mit dem Text am Eintrag: Ein älterer
+  // Freitext „1-0-0-0“ wird beim Öffnen strukturiert, ohne dass jemand die Dosierung ändert.
+  const [startText] = useState(() => {
+    try {
+      return textVon(dosierungFuerRezept(vorlage));
+    } catch {
+      return vorlage.dosierung;
+    }
+  });
+  // Aus dem Plan verordnet, Dosierung geändert: den Planeintrag mit anpassen. In der ePA nur
+  // ärztlich und mit schreibbarem Plan; im Plan der Praxis immer.
+  const anpassbar =
+    dosierungstext !== null &&
+    dosierungstext !== startText &&
+    ((!!vorlage.empId && planSchreibbar && aerztlich) || !!vorlage.praxisplanId);
+  const [planAnpassen, setzePlanAnpassen] = useState(true);
   // Das Formular öffnet oberhalb des Plans; der Blick und der Fokus folgen ihm.
   const rahmen = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -134,6 +158,7 @@ export function RezeptFormular({
     packungen,
     normgroesse,
     auchInPlan: angeboten && auchInPlan,
+    planAnpassen: anpassbar && planAnpassen,
     freigabe: aerztlich ? 'freigegeben' : freigabe,
     hinweis: aerztlich ? null : hinweis.trim() || null,
     grund: grund.trim() || null,
@@ -205,6 +230,19 @@ export function RezeptFormular({
               ? `Reichweite: nicht in ${dosis.einheit.anzeige}`
               : 'Reichweite: keine Tagesmenge'}
         </div>
+        {anpassbar && (
+          <label className="relevanzwahl">
+            <input
+              type="checkbox"
+              checked={planAnpassen}
+              onChange={(e) => setzePlanAnpassen(e.target.checked)}
+            />
+            <span>
+              <b>Dosierung im Plan anpassen</b>{' '}
+              <span className="leise-klein">bisher {vorlage.dosierung}</span>
+            </span>
+          </label>
+        )}
         {angeboten && (
           <label className="relevanzwahl">
             <input

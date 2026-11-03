@@ -318,6 +318,60 @@ describe('E-Rezept', () => {
     expect(dosierungsanzeige(eintrag)).toBe('täglich: 2-0-0-0 Stück');
   });
 
+  it('übernimmt bei einer Abgabe ohne Austausch die Dosierung der Verordnung nicht in den Plan', async () => {
+    const { id } = await verordnen(rezept({ dosierung: '1-0-1-0' }));
+    const abgabe = await app.inject({
+      method: 'POST',
+      url: `/verwaltung/erezepte/${id}/abgabe`,
+      payload: { art: 'wie-verordnet' },
+    });
+    expect(abgabe.statusCode).toBe(200);
+    const eintrag = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    // IG-MED-BL-PROVIDE-DISPENSATION-ERP-V4: Dosierung nur bei einem Austausch.
+    expect(dosierungsanzeige(eintrag)).toBe('täglich: 1-0-0-0 Stück');
+  });
+
+  it('übernimmt die Dosierung einer Verordnung aus dem Plan erst mit $link-emp', async () => {
+    await verordnen(rezept({ dosierung: '1-0-1-0' }));
+    const { treffer, alle } = await liste();
+    const aussage = eintragZu(treffer, alle, 'Ramipril')!;
+    const stand = await plan();
+    expect(dosierungsanzeige(stand.find((r) => r.id === 'emp-h-med-3')!)).toBe(
+      'täglich: 1-0-0-0 Stück',
+    );
+    const chronologie = stand.find(
+      (r) => r.resourceType === 'Provenance' && JSON.stringify(r).includes('is-emp-chronology'),
+    )!;
+    // Der eML-Eintrag zeigt schon über `basedOn` auf den Planeintrag, ist dort aber noch nicht
+    // aufgenommen — die Verknüpfung übernimmt Arzneimittel und Dosierung (LINK-EMP-ENTRY-V2).
+    const link = await app.inject({
+      method: 'POST',
+      url: `${MEDIKATION}/MedicationStatement/${aussage.id}/$link-emp`,
+      headers: {
+        ...kopf(),
+        'content-type': 'application/fhir+json',
+        'X-Requesting-Organization': Buffer.from(
+          JSON.stringify({
+            resourceType: 'Organization',
+            meta: { profile: ['https://gematik.de/fhir/ti/StructureDefinition/ti-organization'] },
+            identifier: [{ system: 'https://gematik.de/fhir/sid/telematik-id', value: PRAXIS }],
+            name: 'Hausarztpraxis am Stadtgarten',
+          }),
+        ).toString('base64'),
+      },
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: chronologie.id },
+          { name: 'medicationPlanIdentifier', valueIdentifier: { value: 'emp-h-med-3' } },
+        ],
+      },
+    });
+    expect(link.statusCode).toBe(200);
+    const eintrag = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    expect(dosierungsanzeige(eintrag)).toBe('täglich: 1-0-1-0 Stück');
+  });
+
   it('aktualisiert den Plan nicht, wenn zu einem Rezept mehrere Arzneimittel abgegeben werden', async () => {
     const vorher = (await plan()).find((r) => r.id === 'emp-h-med-3')!['medicationReference'];
     const { id } = await verordnen(rezept());

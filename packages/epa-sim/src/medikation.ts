@@ -638,6 +638,41 @@ function kombipackung(m: Ressource | undefined): boolean {
 }
 
 /** Zeitpunkte, zu denen der eMP-Eintrag eML-Einträge aufgenommen hat (`activity.addedOn`). */
+/**
+ * Übernimmt die Dosierung einer Medikationsinformation oder Abgabe samt erzeugtem Text in den
+ * eMP-Eintrag und bestimmt die Kategorie neu (IG-MED-BL-LINK-EMP-ENTRY-V2, ebenso bei der Abgabe).
+ */
+export function dosierungUebernehmen(
+  eintrag: Ressource,
+  quelle: Ressource,
+  feld: 'dosage' | 'dosageInstruction',
+): void {
+  eintrag['dosageInstruction'] = structuredClone(quelle[feld]);
+  const gerendert = TEXT_EXTENSION.gerendert('MedicationRequest');
+  const text = gerenderterText(quelle);
+  const meta = ((quelle.extension ?? []) as { url: string }[]).find(
+    (x) => x.url === TEXT_EXTENSION.generiert,
+  );
+  eintrag.extension = [
+    ...((eintrag.extension ?? []) as { url: string }[]).filter(
+      (x) => x.url !== gerendert && x.url !== TEXT_EXTENSION.generiert,
+    ),
+    ...(text ? [{ url: gerendert, valueMarkdown: text }] : []),
+    ...(meta ? [meta] : []),
+  ];
+  kategorieSetzen(eintrag, { resourceType: 'MedicationRequest' }, kategorieVon(eintrag));
+}
+
+/** Hat der eMP-Eintrag den eML-Eintrag schon aufgenommen (`extension[activity]`)? */
+export function schonAufgenommen(eintrag: Ressource, aussageId: string): boolean {
+  return aktivitaetsverweise(eintrag).includes(aussageId);
+}
+
+/** Kombipackung (KBV-Darreichungsform KPG) — kein automatisches Fortschreiben des eMP. */
+export function istKombipackung(m: Ressource | undefined): boolean {
+  return kombipackung(m);
+}
+
 function aufgenommenAm(eintrag: Ressource): string[] {
   return ((eintrag.extension ?? []) as { url: string; extension?: Json[] }[])
     .filter((x) => x.url === EXT.aktivitaet)
@@ -668,22 +703,8 @@ export function verknuepfen(
   if (uebernehmen) {
     const spaeter = aufgenommenAm(eintrag).some((t) => t > String(aussage.meta?.lastUpdated ?? ''));
     const dosierung = aussage['dosage'] as Json[] | undefined;
-    if (!spaeter && dosierung && dosierung.length > 0) {
-      eintrag['dosageInstruction'] = structuredClone(dosierung);
-      const gerendert = TEXT_EXTENSION.gerendert('MedicationRequest');
-      const text = gerenderterText(aussage);
-      const meta = ((aussage.extension ?? []) as { url: string }[]).find(
-        (x) => x.url === TEXT_EXTENSION.generiert,
-      );
-      eintrag.extension = [
-        ...((eintrag.extension ?? []) as { url: string }[]).filter(
-          (x) => x.url !== gerendert && x.url !== TEXT_EXTENSION.generiert,
-        ),
-        ...(text ? [{ url: gerendert, valueMarkdown: text }] : []),
-        ...(meta ? [meta] : []),
-      ];
-      kategorieSetzen(eintrag, { resourceType: 'MedicationRequest' }, kategorieVon(eintrag));
-    }
+    if (!spaeter && dosierung && dosierung.length > 0)
+      dosierungUebernehmen(eintrag, aussage, 'dosage');
     if (
       !spaeter &&
       !kombipackung(finden(kvnr, 'Medication', referenzId(aussage['medicationReference'])))

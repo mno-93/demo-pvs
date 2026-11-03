@@ -27,6 +27,8 @@ import {
   mittelLoeschenWennFrei,
   verknuepfen,
   verknuepfterEintrag,
+  dosierungUebernehmen,
+  istKombipackung,
 } from './medikation.ts';
 import {
   MEDIKATIONSDIENST,
@@ -469,11 +471,32 @@ function abgabeEinstellen(r: Rezept, art: Abgabeart): void {
   aktivitaetAnlegen(liste, neu.map(versionierterVerweis), MEDIKATIONSDIENST, 'CREATE', zeit);
   aktivitaetAnlegen(liste, geaendert.map(versionierterVerweis), MEDIKATIONSDIENST, 'UPDATE', zeit);
 
-  // „link eMP element“: Aktivitätsnachweis am verknüpften Eintrag; Arzneimittel und Dosierung nur
-  // bei genau einem abgegebenen Arzneimittel.
+  // „link eMP element“ (IG-MED-BL-PROVIDE-DISPENSATION-ERP-V4): Aktivitätsnachweis am
+  // verknüpften Eintrag. Bei genau einem abgegebenen Arzneimittel zeigt der Eintrag danach auf
+  // dieses (außer Kombipackung); die Dosierung übernimmt er nur bei einem Austausch
+  // (`substitution.wasSubstituted`), wenn die Abgabe eine abweichende Dosierung trägt.
   const plan = planeintragZu(kvnr, aussage);
   if (plan) {
-    for (const a of aussagen) verknuepfen(kvnr, a, plan, zeit, aussagen.length === 1);
+    for (const a of aussagen) verknuepfen(kvnr, a, plan, zeit, false);
+    if (aussagen.length === 1) {
+      const abgabe = neu.find((x) => x.resourceType === 'MedicationDispense');
+      const mittelId = referenzId(abgabe?.['medicationReference']);
+      if (
+        abgabe &&
+        referenzId(plan['medicationReference']) !== mittelId &&
+        !istKombipackung(liste.find((x) => x.resourceType === 'Medication' && x.id === mittelId))
+      )
+        plan['medicationReference'] = { reference: `Medication/${mittelId}` };
+      const dosierungAbgabe = abgabe?.['dosageInstruction'] as unknown[] | undefined;
+      if (
+        abgabe &&
+        art !== 'wie-verordnet' &&
+        dosierungAbgabe &&
+        dosierungAbgabe.length > 0 &&
+        JSON.stringify(dosierungAbgabe) !== JSON.stringify(plan['dosageInstruction'] ?? [])
+      )
+        dosierungUebernehmen(plan, abgabe, 'dosageInstruction');
+    }
     fortschreiben(plan, zeit);
     aktivitaetAnlegen(liste, [versionierterVerweis(plan)], MEDIKATIONSDIENST, 'UPDATE', zeit);
     chronologieAnlegen(liste, EMP, MEDIKATIONSDIENST, zeit);

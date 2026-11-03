@@ -316,7 +316,7 @@ export const vorgaenge = {
   /** Ändert Status, Dosierung oder Grund eines Eintrags im Medikationsplan der Praxis. */
   praxisplanAendern(
     id: string,
-    teil: Partial<Pick<PraxisplanEintrag, 'status' | 'dosierung' | 'grund'>>,
+    teil: Partial<Pick<PraxisplanEintrag, 'status' | 'dosierung' | 'dosis' | 'grund'>>,
   ): Vorgang {
     return {
       name: 'praxisplanAendern',
