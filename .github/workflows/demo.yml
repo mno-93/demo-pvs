@@ -8,6 +8,10 @@
 # Repository-Variable PAGES_FREIGEGEBEN den Wert „ja" hat — die Seite ist dann öffentlich
 # erreichbar, auch wenn das Repository privat ist. Bis dahin prüft und baut der Workflow nur; das
 # gebaute Paket liegt als Artefakt am Lauf.
+#
+# Aktionen sind auf Commit-Hashes festgelegt (Kommentar: Hauptversion), damit ein verschobenes
+# Tag keinen fremden Code in einen öffentlichen Lauf bringt; Aktualisieren heißt, Hash und
+# Kommentar gemeinsam zu ändern.
 name: Prüfen und veröffentlichen
 
 on:
@@ -31,8 +35,8 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
@@ -59,11 +63,11 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Referenzimplementierung holen
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: hl7germany/dgMP-DosageTextgenerierung-Skript
           ref: 8977b31853c9e33781fa83541b668b83f8575968
@@ -86,18 +90,18 @@ jobs:
       VALIDATOR_VERSION: 7.0.1
       VALIDATOR_SHA256: 1178b6a3a3fe98d9cd9545cadee505274967332466001d857e4d8bed7138a5bc
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6
         with:
           distribution: temurin
           java-version: 21
       - name: Validator aus dem Cache
         id: validator
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.fhir/validator_cli.jar
           key: fhir-validator-${{ env.VALIDATOR_VERSION }}-${{ env.VALIDATOR_SHA256 }}
@@ -110,7 +114,7 @@ jobs:
       - name: Prüfsumme des Validators
         run: echo "${VALIDATOR_SHA256}  ${HOME}/.fhir/validator_cli.jar" | sha256sum --check --strict
       - name: Paket-Cache des Validators
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.fhir/packages
           key: fhir-pakete-${{ hashFiles('werkzeuge/fhir-validator.json') }}
@@ -133,7 +137,7 @@ jobs:
         run: npm run fhir:validieren
       - name: Bericht sichern
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: fhir-validierung
           path: ausgabe/fhir-validierung
@@ -143,8 +147,8 @@ jobs:
     needs: pruefen
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 22
           cache: npm
@@ -153,7 +157,7 @@ jobs:
         env:
           BASIS: /${{ github.event.repository.name }}/
         run: npm run build:gehostet
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: packages/pvs/dist
 
@@ -171,4 +175,4 @@ jobs:
       url: ${{ steps.bereitstellung.outputs.page_url }}
     steps:
       - id: bereitstellung
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
