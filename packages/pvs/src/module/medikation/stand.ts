@@ -147,13 +147,65 @@ export interface Listenzeile {
   medikament: Ressource | null;
   atc: string;
   art: 'Verordnung' | 'Nachtrag';
+  /** `context-extension`: `PRESCRIPTION`, `MANUAL` oder `EMP` (aus dem Plan, ohne Verordnung). */
+  kontext: string;
   datum: string;
   einrichtung: string;
   dosierung: string;
+  pzn: string;
+  /**
+   * Verschreibung, Abgabe und letzte Bearbeitung nach der Datenherkunft der eML
+   * (IG-MED64473BLY, Spalten „Verordnung“, „Dispensierung“, „Bearbeitung“). Leer bei Nachträgen.
+   */
+  verordnung: Verordnungsangabe | null;
+  abgabe: Abgabeangabe | null;
+  /** Letzte Bearbeitung durch eine Einrichtung; die des Medication Service zählt nicht. */
+  bearbeitung: { datum: string; einrichtung: string } | null;
   /** Der Planeintrag, mit dem der Eintrag verknüpft ist (`basedOn`, ADR 0051). */
   planeintrag: Planzeile | null;
   /** Nicht verknüpft, aber ein gültiger Planeintrag mit demselben Wirkstoff (ATC-Code). */
   wirkstoffImPlan: Planzeile | null;
+}
+
+export interface Verordnungsangabe {
+  datum: string;
+  von: string;
+  /** Mehrfachverordnung (`multiplePrescription.indicator`), in der eML „(M)“. */
+  mehrfach: boolean;
+  btm: boolean;
+  tRezept: boolean;
+}
+
+export interface Abgabeangabe {
+  datum: string;
+  apotheke: string;
+  /** `substitution.wasSubstituted`, in der eML „(S)“. */
+  substitution: boolean;
+}
+
+const EPA_MS = 'https://gematik.de/fhir/epa-medication/StructureDefinition/';
+
+function verordnungsangabe(v: Ressource): Verordnungsangabe {
+  const ext = (v.extension ?? []) as { url: string; extension?: Ressource[] }[];
+  const mvo = ext.find((e) => e.url === `${EPA_MS}multiple-prescription-extension`);
+  return {
+    datum: String(v['authoredOn'] ?? '').slice(0, 10),
+    von: (v['requester'] as { display?: string } | undefined)?.display ?? '—',
+    mehrfach:
+      mvo?.extension?.some((x) => x['url'] === 'indicator' && x['valueBoolean'] === true) ?? false,
+    btm: ext.some((e) => e.url === `${EPA_MS}narcotics-extension`),
+    tRezept: ext.some((e) => e.url === `${EPA_MS}teratogenic-extension`),
+  };
+}
+
+function abgabeangabe(d: Ressource): Abgabeangabe {
+  const performer = (d['performer'] as { actor?: { display?: string } }[] | undefined)?.[0];
+  return {
+    datum: String(d['whenHandedOver'] ?? '').slice(0, 10),
+    apotheke: performer?.actor?.display ?? '—',
+    substitution:
+      (d['substitution'] as { wasSubstituted?: boolean } | undefined)?.wasSubstituted === true,
+  };
 }
 
 export interface Medikationsstand {
@@ -213,42 +265,74 @@ export function listenzeilen(liste: Medikationsliste, plan: Planzeile[]): Listen
   const suche = (typ: string, id: string) =>
     liste.einschluesse.find((r) => r.resourceType === typ && r.id === id);
   const planNachId = new Map(plan.map((z) => [z.id, z]));
-  return liste.eintraege
-    .map((a) => {
-      const medikament = suche('Medication', referenz(a)) ?? null;
-      const atc = (medikament && codeVon(medikament, 'code', ATC)) ?? '';
-      const kontext = (a.extension ?? []).find((e) => e.url === EMP_EXTENSION.kontext)?.valueCode;
-      const verordnung = ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
-        .map((q) => String(q.reference ?? '').split('/'))
-        .map(([typ, id]) => suche(String(typ), String(id)))
-        .find((r) => r?.resourceType === 'MedicationRequest');
-      const aktivitaet = liste.einschluesse.find(
-        (r) =>
-          r.resourceType === 'Provenance' &&
-          (r['target'] as { reference: string }[]).some((t) =>
-            t.reference.startsWith(`MedicationStatement/${String(a.id)}/`),
+  return (
+    liste.eintraege
+      .map((a) => {
+        const medikament = suche('Medication', referenz(a)) ?? null;
+        const atc = (medikament && codeVon(medikament, 'code', ATC)) ?? '';
+        const kontext = (a.extension ?? []).find((e) => e.url === EMP_EXTENSION.kontext)?.valueCode;
+        const quellen = ((a['derivedFrom'] as { reference?: string }[] | undefined) ?? [])
+          .map((q) => String(q.reference ?? '').split('/'))
+          .map(([typ, id]) => suche(String(typ), String(id)));
+        const verordnung = quellen.find((r) => r?.resourceType === 'MedicationRequest');
+        const abgabe = quellen.find((r) => r?.resourceType === 'MedicationDispense');
+        const aktivitaeten = liste.einschluesse.filter(
+          (r) =>
+            r.resourceType === 'Provenance' &&
+            (r['target'] as { reference: string }[]).some((t) =>
+              t.reference.startsWith(`MedicationStatement/${String(a.id)}/`),
+            ),
+        );
+        const aktivitaet = aktivitaeten[0];
+        // „Bearbeitung“: jüngste Aktivität einer Einrichtung — der Medication Service hat keinen
+        // Verweis auf eine Organization, nur seine Kennung.
+        const bearbeitung = aktivitaeten
+          .map((p) => ({
+            datum: String(p['recorded'] ?? ''),
+            wer: (
+              p['agent'] as { who?: { reference?: string; display?: string } }[] | undefined
+            )?.[0]?.who,
+          }))
+          .filter((p) => p.wer?.reference)
+          .sort((x, y) => y.datum.localeCompare(x.datum))[0];
+        return {
+          aussage: a,
+          medikament,
+          atc,
+          art: kontext === 'MANUAL' ? ('Nachtrag' as const) : ('Verordnung' as const),
+          kontext: String(kontext ?? ''),
+          datum: String(
+            (a['effectivePeriod'] as { start?: string } | undefined)?.start ??
+              a['dateAsserted'] ??
+              '',
           ),
-      );
-      return {
-        aussage: a,
-        medikament,
-        atc,
-        art: kontext === 'MANUAL' ? ('Nachtrag' as const) : ('Verordnung' as const),
-        datum: String(
-          (a['effectivePeriod'] as { start?: string } | undefined)?.start ??
-            a['dateAsserted'] ??
-            '',
-        ),
-        einrichtung:
-          (verordnung?.['requester'] as { display?: string } | undefined)?.display ??
-          (aktivitaet?.['agent'] as { who?: { display?: string } }[] | undefined)?.[0]?.who
-            ?.display ??
-          '—',
-        dosierung: dosierungsanzeige(a),
-        ...planbezug(a, atc, plan, planNachId),
-      };
-    })
-    .sort((x, y) => y.datum.localeCompare(x.datum));
+          einrichtung:
+            (verordnung?.['requester'] as { display?: string } | undefined)?.display ??
+            (aktivitaet?.['agent'] as { who?: { display?: string } }[] | undefined)?.[0]?.who
+              ?.display ??
+            '—',
+          dosierung: dosierungsanzeige(a),
+          pzn: (medikament && codeVon(medikament, 'code', CODESYSTEM.pzn)) ?? '',
+          verordnung: verordnung ? verordnungsangabe(verordnung) : null,
+          abgabe: abgabe ? abgabeangabe(abgabe) : null,
+          bearbeitung: bearbeitung
+            ? {
+                datum: bearbeitung.datum.slice(0, 10),
+                einrichtung: bearbeitung.wer?.display ?? '—',
+              }
+            : null,
+          ...planbezug(a, atc, plan, planNachId),
+        };
+      })
+      // Absteigend nach `effective`, bei Gleichstand nach `meta.lastUpdated` (IG-MED64473BLY).
+      .sort(
+        (x, y) =>
+          y.datum.localeCompare(x.datum) ||
+          String(y.aussage.meta?.lastUpdated ?? '').localeCompare(
+            String(x.aussage.meta?.lastUpdated ?? ''),
+          ),
+      )
+  );
 }
 
 /**

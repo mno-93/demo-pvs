@@ -429,6 +429,72 @@ describe('Medikationsliste und Plan', () => {
       : {}),
   });
 
+  it('zeigt je Eintrag Verordnung und Abgabe, Substitution als „(S)“ und Nachträge', async () => {
+    const verordnung = {
+      resourceType: 'MedicationRequest',
+      id: 'mr-1',
+      authoredOn: '2026-08-01',
+      requester: { display: 'Dr. med. Anna Brandt, Hausarztpraxis am Stadtgarten' },
+    };
+    const abgabe = {
+      resourceType: 'MedicationDispense',
+      id: 'md-1',
+      whenHandedOver: '2026-08-03',
+      performer: [{ actor: { display: 'Apotheke am Markt' } }],
+      substitution: { wasSubstituted: true },
+    };
+    const eingeloest = {
+      ...aussage('ms-1', 'm1', '2026-08-03', false),
+      derivedFrom: [
+        { reference: 'MedicationRequest/mr-1' },
+        { reference: 'MedicationDispense/md-1' },
+      ],
+    };
+    const offen = {
+      ...aussage('ms-2', 'm10', '2026-09-01', false),
+      derivedFrom: [{ reference: 'MedicationRequest/mr-2' }],
+    };
+    const nachtrag = {
+      ...aussage('ms-3', 'm20', '2026-07-01', false),
+      extension: [{ url: `${EMP}context-extension`, valueCode: 'MANUAL' }],
+    };
+    epaAttrappe((a) => {
+      if (a.pfad === `${MS}/$medication-list`)
+        return {
+          status: 200,
+          inhalt: suchergebnis(
+            [eingeloest, offen, nachtrag] as never,
+            [
+              mittel('m1', 'Ramipril 5 mg Tabletten'),
+              mittel('m10', 'Ramipril 10 mg Tabletten'),
+              mittel('m20', 'Ibuprofen 400 mg Tabletten'),
+              verordnung,
+              { ...verordnung, id: 'mr-2', authoredOn: '2026-09-01' },
+              abgabe,
+            ] as never,
+          ),
+        };
+      if (a.pfad === `${MS}/$medication-plan`) return { status: 200, inhalt: PLAN };
+      return undefined;
+    });
+    speicherStarten({ ...startzustand(), epaBefugnisse: [dauerhafteBefugnis('p-hoffmann')] });
+    öffne('/patient/p-hoffmann/medikation');
+
+    const zeile = async (text: string) =>
+      (await screen.findAllByText(text))
+        .map((e) => e.closest('tr'))
+        .find((tr) => tr?.closest('table')?.querySelector('th')?.textContent === 'Verordnung')!;
+    const fuenf = await zeile('Ramipril 5 mg Tabletten');
+    expect(within(fuenf).getByText('01.08.2026')).toBeDefined();
+    expect(within(fuenf).getByText('03.08.2026', { exact: false })).toBeDefined();
+    expect(within(fuenf).getByTitle('Substitution').textContent).toBe('(S)');
+    expect(within(fuenf).getByText('Apotheke am Markt')).toBeDefined();
+    expect(
+      within(await zeile('Ramipril 10 mg Tabletten')).getByText('nicht eingelöst'),
+    ).toBeDefined();
+    expect(within(await zeile('Ibuprofen 400 mg Tabletten')).getByText('Nachtrag')).toBeDefined();
+  });
+
   it('nennt nur Verknüpfte „im Plan“; derselbe Wirkstoff ist ein Hinweis mit „verknüpfen“', async () => {
     const aufrufe = epaAttrappe((a) => {
       if (a.pfad === `${MS}/$medication-list`)
@@ -471,7 +537,7 @@ describe('Medikationsliste und Plan', () => {
     const fuenf = screen
       .getAllByText('Ramipril 5 mg Tabletten')
       .map((e) => e.closest('tr'))
-      .find((tr) => tr && within(tr).queryByText('Verordnung'))!;
+      .find((tr) => tr && within(tr).queryByText('im Plan'))!;
     expect(within(fuenf).getByText('im Plan')).toBeDefined();
     expect(within(fuenf).queryByRole('button', { name: /verknüpfen/ })).toBeNull();
 

@@ -156,6 +156,58 @@ export function planAktualisierbar(z: Listenzeile): boolean {
   return !aufgenommen;
 }
 
+/**
+ * Spalten „Verordnung“ und „Dispensierung“ nach der Datenherkunft der eML (IG-MED64473BLY):
+ * Datum mit Verordnenden bzw. Apotheke, „(M)“ vor dem Verordnungsdatum bei Mehrfachverordnung,
+ * „(S)“ vor dem Abgabedatum bei Substitution. Nachträge, BtM- und T-Rezepte sind erkennbar
+ * (Anwendungsfall „Anzeige der eML“); ein Nachtrag zeigt statt der Verordnung die Bearbeitung.
+ */
+export function VerordnungZelle({ z }: { z: Listenzeile }) {
+  const v = z.verordnung;
+  if (!v && (z.art === 'Nachtrag' || z.kontext === 'EMP'))
+    return (
+      <>
+        <Marker ton="neutral">{z.art === 'Nachtrag' ? 'Nachtrag' : 'aus dem Plan'}</Marker>{' '}
+        {deutschesDatum(z.datum.slice(0, 10))}
+        <div className="leise-klein">{z.bearbeitung?.einrichtung ?? z.einrichtung}</div>
+      </>
+    );
+  if (!v) return <span className="leise-klein">—</span>;
+  return (
+    <>
+      {v.mehrfach && <abbr title="Mehrfachverordnung">(M)</abbr>}
+      {v.mehrfach && ' '}
+      {deutschesDatum(v.datum)}
+      {v.btm && (
+        <>
+          {' '}
+          <Marker ton="warn">BtM</Marker>
+        </>
+      )}
+      {v.tRezept && (
+        <>
+          {' '}
+          <Marker ton="warn">T-Rezept</Marker>
+        </>
+      )}
+      <div className="leise-klein">{v.von}</div>
+    </>
+  );
+}
+
+export function AbgabeZelle({ z }: { z: Listenzeile }) {
+  const a = z.abgabe;
+  if (!a) return <span className="leise-klein">{z.verordnung ? 'nicht eingelöst' : '—'}</span>;
+  return (
+    <>
+      {a.substitution && <abbr title="Substitution">(S)</abbr>}
+      {a.substitution && ' '}
+      {deutschesDatum(a.datum)}
+      <div className="leise-klein">{a.apotheke}</div>
+    </>
+  );
+}
+
 export function EmlTabelle({
   zeilen,
   neu,
@@ -186,10 +238,10 @@ export function EmlTabelle({
       <table className="liste">
         <thead>
           <tr>
-            <th>Datum</th>
-            <th>Art</th>
+            <th>Verordnung</th>
+            <th>Abgabe</th>
             <th>Arzneimittel</th>
-            <th>Einrichtung</th>
+            <th>Dosierung</th>
             <th>Plan</th>
             <th>
               <span className="nur-fuer-screenreader">Aktionen</span>
@@ -201,16 +253,21 @@ export function EmlTabelle({
             const katalog = arzneimittel.find((a) => a.atc === z.atc);
             return (
               <tr key={String(z.aussage.id)}>
-                <td>{deutschesDatum(z.datum)}</td>
                 <td>
-                  <Marker ton={z.art === 'Verordnung' ? 'akzent' : 'neutral'}>{z.art}</Marker>
+                  <VerordnungZelle z={z} />
+                </td>
+                <td>
+                  <AbgabeZelle z={z} />
                 </td>
                 <td>
                   {z.medikament ? textVon(z.medikament) : '—'}
                   {neu.has(String(z.aussage.id)) && <span className="neu-marke">neu</span>}
-                  <div className="leise-klein">ATC {z.atc || '—'}</div>
+                  <div className="leise-klein">
+                    ATC {z.atc || '—'}
+                    {z.pzn && ` · PZN ${z.pzn}`}
+                  </div>
                 </td>
-                <td className="leise-klein">{z.einrichtung}</td>
+                <td className="leise-klein">{z.dosierung || '—'}</td>
                 <td>
                   {!z.planeintrag ? (
                     <Marker ton="warn">nicht im Plan</Marker>
