@@ -74,5 +74,11 @@ Meldet die Prüfung einen Fund: Stelle umformulieren, nicht das Muster abschwäc
 5. **Im Browser prüfen**, nicht nur Tests: Vorschau `demo-pvs` (`.claude/launch.json`), die
    betroffenen Abläufe und die Prüfliste in `docs/ENTWICKLUNG.md`; neue Funktionen bekommen dort
    eine Zeile. Konsole ohne Fehler.
-6. Arbeiten auf einem eigenen Branch, nie direkt auf `main`. Commit-Betreff auf Deutsch. Pushen
+6. **Klickpfade mitziehen** (`docs/KLICKPFADE.md`, ADR 0061). Jeder Klickpfad läuft in `pruefen`
+   als Test samt Abbild (`packages/pvs/src/klickpfade/abbilder/`). Schlägt er fehl: Weg geändert →
+   Szenario anpassen; Abbild weicht ab → Texte des Szenarios (`kurz`, `lang`, `aufgabe`) gegen
+   die neue Lage prüfen und berichtigen, erst dann `npm run klickpfade:abbilden`. Nie nur das
+   Abbild neu schreiben. Entfällt ein Ablauf, entfällt sein Klickpfad. Betroffene Klickpfade im
+   Browser ansehen; eine neue Funktion mit eigener Frage bekommt einen Klickpfad.
+7. Arbeiten auf einem eigenen Branch, nie direkt auf `main`. Commit-Betreff auf Deutsch. Pushen
    und Pull Request nur, wenn die Person es ausdrücklich will; kein Force-Push.

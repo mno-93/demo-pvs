@@ -1,0 +1,60 @@
+{
+  "klickpfad": "diagnose-in-ps",
+  "titel": "Eine Diagnose in die Patient Summary bringen",
+  "schritte": [
+    {
+      "schritt": 1,
+      "kurz": "„Migräne“ suchen",
+      "ziel": "Feld „Diagnose suchen — Kodierservice“",
+      "beschriftung": "Diagnose suchen — Kodierservice",
+      "epa": []
+    },
+    {
+      "schritt": 2,
+      "kurz": "Treffer übernehmen",
+      "ziel": "Treffer „^Migräne“",
+      "epa": []
+    },
+    {
+      "schritt": 3,
+      "kurz": "Kategorie „Dauerdiagnose“",
+      "ziel": "Feld „Kategorie“",
+      "beschriftung": "Kategorie",
+      "epa": []
+    },
+    {
+      "schritt": 4,
+      "kurz": "Schon angehakt",
+      "ziel": "Kästchen „^Relevant für die Patient Summary“",
+      "beschriftung": "Relevant für die Patient Summary Vorbelegt für Dauerdiagnosen",
+      "angehakt": true,
+      "epa": []
+    },
+    {
+      "schritt": 5,
+      "kurz": "Speichern",
+      "ziel": "Knopf „Diagnose speichern“",
+      "epa": [
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list",
+        "200 POST ✦ …/diagnosis/$add-condition-entry"
+      ]
+    },
+    {
+      "schritt": 6,
+      "kurz": "Patient Summary öffnen",
+      "ziel": "Knopf „Patient Summary“ in Gruppe „Patientenkopf“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary"
+      ]
+    },
+    {
+      "schritt": 7,
+      "kurz": "Migräne steht in der Patient Summary",
+      "ziel": "Bereich „Diagnosen“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Diagnosen Diagnosenliste · geführt Zur Diagnosenübersicht ↗ Vorhofflimmern, persistierend I48.1 G seit 2026 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet E11.74 G seit 2011 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner Migräne, nicht näher bezeichnet G43.9 G seit 2026 Gesicherte Diagnose Aktiv eingetragen von Hausarztpraxis am Stadtgarten · 09.09.2026 · Dr. med. Anna Brandt + 2 weitere Einträge in der Diagnosenliste , nicht markiert ↗",
+      "epa": []
+    }
+  ]
+}

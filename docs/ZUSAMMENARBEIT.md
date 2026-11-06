@@ -42,7 +42,10 @@ Issue  →  Branch  →  Umsetzung mit Claude  →  Prüfen  →  Pull Request  
    Änderungen erst einen Plan erstellen lassen. Claude schreibt Spezifikation und Änderungsverlauf
    mit (`CLAUDE.md`).
 4. **Prüfen:** `npm run pruefen`, Ablauf im Browser, betroffene Zeilen der Prüfliste
-   ([ENTWICKLUNG.md](ENTWICKLUNG.md)).
+   ([ENTWICKLUNG.md](ENTWICKLUNG.md)). Betroffene **Klickpfade** mitziehen: Weicht ein Abbild ab,
+   erst die Texte des Klickpfads prüfen, dann das Abbild neu schreiben
+   ([KLICKPFADE.md](KLICKPFADE.md)). Im Review gehört ein geändertes Abbild zur Durchsicht: Stimmt
+   die Erläuterung noch zu dem, was der Pfad jetzt zeigt?
 5. **Pull Request** mit der Vorlage: was, warum, Bildschirmfoto, Häkchen der Checkliste.
 6. **Review** durch die zuständige Rolle und die Projektleitung. Anmerkungen im Pull Request.
 7. **Merge** durch die Projektleitung, als Squash — ein Commit je Thema auf `main`.
@@ -57,7 +60,9 @@ damit sich der Stand später wiederfinden lässt.
 
 ## Gestaltung (UX/UI)
 
-- Figma für Erkundung und Klick-Dummies; der Code für die Prüfung gegen echte Abläufe.
+- Figma für Erkundung; gezielte Klickstrecken zu einer Frage als **Klickpfad** aus der Demo
+  selbst ([KLICKPFADE.md](KLICKPFADE.md)) — sie bleiben mit der Demo aktuell. Der Code für die
+  Prüfung gegen echte Abläufe.
   Gestaltungsvariablen und Bausteine in [GESTALTUNG.md](GESTALTUNG.md) — in Figma gleich benennen.
 - Im Issue den **Frame verlinken** und den betroffenen UX-Grundsatz nennen (Spezifikation 2.2).
   Keine Bildschirmfotos aus internen Figma-Dateien hochladen.

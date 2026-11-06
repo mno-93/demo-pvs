@@ -21,6 +21,7 @@
     "vorschau:gehostet": "npm run vorschau --workspace @demo-pvs/pvs --",
     "test": "vitest run",
     "test:watch": "vitest",
+    "klickpfade:abbilden": "vitest run packages/pvs/src/klickpfade -u",
     "typecheck": "tsc --build --force",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

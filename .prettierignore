@@ -8,3 +8,5 @@ packages/kern/src/kataloge/*.ts
 !packages/kern/src/kataloge/index.ts
 !packages/kern/src/kataloge/typen.ts
 packages/kern/src/fhir/profilregeln.json
+# Abbilder der Klickpfade schreibt der Test selbst (ADR 0061)
+packages/pvs/src/klickpfade/abbilder

@@ -42,6 +42,19 @@ Browser (ADR 0025), die feste Demo-Uhr (ADR 0049) und das Aufrufprotokoll.
    nicht von Hand geschrieben. Sonden nach Diensten, Aktenstatus und die Demo-Steuerung bleiben
    draußen.
 
+## Mitziehen (ergänzt am 06.11.2026)
+
+Klickpfade ändern sich mit der Demo. Der Test fängt einen gebrochenen Pfad ab, nicht aber einen,
+der noch durchläuft und etwas anderes zeigt als seine Texte erklären. Deshalb vergleicht der Test
+je Klickpfad ein eingechecktes **Abbild**: je Schritt Ziel, Beschriftung oder Inhalt und die
+ePA-Aufrufe, Uhrzeiten und erzeugte Kennungen vereinheitlicht. Weicht es ab, sind erst die Texte
+zu prüfen, dann wird das Abbild neu geschrieben (`npm run klickpfade:abbilden`). Die Regel steht
+in `CLAUDE.md` („Bei jeder Änderung“), in der Pull-Request-Vorlage und in `docs/ZUSAMMENARBEIT.md`.
+
+Verworfen: **eine Liste der Quelldateien je Klickpfad** mit einer Warnung bei deren Änderung —
+pflegeaufwendig, warnt bei jeder Formatänderung und übersieht Änderungen in gemeinsam genutzten
+Bausteinen. Das Abbild misst, was die Person sieht, nicht, wo es herkommt.
+
 ## Verworfene Alternativen
 
 - **Klickstrecken als Bildfolge von Hand** (wie bisher im Prototyping-Werkzeug). Veraltet mit

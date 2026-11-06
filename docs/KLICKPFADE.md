@@ -28,6 +28,24 @@ Aufgabentext. Am Ende „Protokoll herunterladen“: JSON mit Dauer, Fehlklicks,
 Ereignissen je Schritt. Es bleibt im Browser, wird nicht übertragen und enthält keine Angaben zur
 Testperson.
 
+## Mitziehen
+
+Klickpfade sind Teil der Demo und ändern sich mit ihr. Zwei Sicherungen laufen in `npm run pruefen`
+und in der CI:
+
+1. **Der Pfad selbst** — fehlt ein Ziel, ist es mehrdeutig oder scheitert ein schreibender
+   ePA-Aufruf, schlägt der Test fehl. Die Meldung nennt alle vorhandenen Namen der Rolle.
+2. **Das Abbild** (`packages/pvs/src/klickpfade/abbilder/<kennung>.json`) — je Schritt das Ziel,
+   seine Beschriftung oder sein Inhalt und die ePA-Aufrufe. Läuft der Pfad noch, zeigt aber etwas
+   anderes (eine Vorbelegung, eine Beschriftung, ein anderer ePA-Weg beim Speichern), weicht das
+   Abbild ab.
+
+**Bei einer Abweichung:** erst die Texte des Szenarios (`kurz`, `lang`, `aufgabe`, `frage`) gegen
+die neue Lage prüfen und berichtigen, dann `npm run klickpfade:abbilden` und den Klickpfad im
+Browser ansehen. Nie nur das Abbild neu schreiben — dann stimmen die Erläuterungen nicht mehr. Im
+Review gehört ein geändertes Abbild zur Durchsicht. Entfällt ein Ablauf, entfällt sein Klickpfad
+(Szenario, Abbild, Zeile oben).
+
 ## Einen Klickpfad schreiben
 
 1. **Ablauf finden** — in [SPEZIFIKATION.md, Abschnitt 11](SPEZIFIKATION.md#11-vorführung) oder
@@ -40,5 +58,6 @@ Testperson.
 4. **Texte** — `kurz`: ein Satz am Element. `lang`: warum der Schritt zählt, was dahinter
    passiert; ✦ für Vorschläge wie in der Demo. `aufgabe`: das Ziel, nicht den Weg.
 5. **Prüfen** — `npx vitest run packages/pvs/src/klickpfade` (der Test nennt bei einem fehlenden
-   Ziel alle vorhandenen Namen der Rolle), dann im Browser in allen drei Modi.
+   Ziel alle vorhandenen Namen der Rolle; beim ersten Lauf entsteht das Abbild), dann im Browser
+   in allen drei Modi. Das Abbild durchsehen und mit einchecken.
 6. **Eintragen** — Tabelle oben, Prüfliste in `ENTWICKLUNG.md`, Änderungsverlauf der Spezifikation.

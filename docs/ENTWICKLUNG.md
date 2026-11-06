@@ -18,6 +18,7 @@ Unter Windows laufen alle Befehle ebenso: `npm run dev` startet die Dienste übe
 | `npm run dev:epa`             | Nur den Simulator                                                                                                         |
 | `npm run test`                | Tests einmalig                                                                                                            |
 | `npm run test:watch`          | Tests mitlaufend                                                                                                          |
+| `npm run klickpfade:abbilden` | Schreibt die Abbilder der Klickpfade neu — erst nachdem die Texte der Klickpfade geprüft sind (`docs/KLICKPFADE.md`)      |
 | `npm run typecheck`           | Typprüfung über alle Pakete                                                                                               |
 | `npm run pruefen`             | Format, Lint, Typen, Tests — vor jedem Commit                                                                             |
 | `npm run pruefen:vertraulich` | Sucht nach vertraulichen Inhalten; Projektmuster aus `.vertraulich-muster` oder `VERTRAULICH_MUSTER` (Teil von `pruefen`) |
@@ -336,7 +337,8 @@ Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck 
 
 ## Tests
 
-Oberflächentests sprechen nie mit dem Simulator. `pvs/src/testhilfe/epa-attrappe.ts` ersetzt
+Oberflächentests sprechen nicht mit dem Simulator — außer den Klickpfaden.
+`pvs/src/testhilfe/epa-attrappe.ts` ersetzt
 `fetch`, zeichnet jeden Aufruf auf und antwortet nach Vorgabe; den Information Service beantwortet
 sie, wenn der Test nichts vorgibt, mit „Akte besteht, kein Widerspruch". Befugnisse, die im Test
 nicht ablaufen, liefert `dauerhafteBefugnis`.
@@ -346,6 +348,12 @@ Der Simulator wird über `simulatorBauen()` und Fastify `inject` getestet
 `epa-sim/src/erezept.test.ts`: Information Service, Widerspruch, E-Rezept mit Zulieferung,
 Austausch, Mehrfachabgabe, Löschen, Verzögerung). `epa-sim/src/browser-paritaet.test.ts` schickt
 dieselbe Folge von Anfragen an Server und Browser-Adapter und vergleicht die Antworten.
+
+Die **Klickpfade** (`pvs/src/klickpfade/klickpfade.test.tsx`) laufen dagegen vollständig gegen den
+Simulator im Browser, wie in der gehosteten Demo, und vergleichen je Pfad ein Abbild
+(`klickpfade/abbilder/<kennung>.json`): je Schritt Element, Beschriftung oder Inhalt und die
+ePA-Aufrufe. Uhrzeiten und erzeugte Kennungen sind darin vereinheitlicht. Abweichung → Texte des
+Klickpfads prüfen, dann `npm run klickpfade:abbilden` (`docs/KLICKPFADE.md`, „Mitziehen“).
 
 ## Konventionen
 
