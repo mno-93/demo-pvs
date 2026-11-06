@@ -102,7 +102,7 @@ export function Patientenkartei() {
 
   return (
     <>
-      <div className="patientenkopf">
+      <div className="patientenkopf" role="group" aria-label="Patientenkopf">
         <div className="zeile1">
           <span className="name">
             {patient.nachname}, {patient.vorname}

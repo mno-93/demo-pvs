@@ -139,6 +139,13 @@ npm run vorschau:gehostet
 Weitere Abläufe: [SPEZIFIKATION.md, Abschnitt 11](docs/SPEZIFIKATION.md#11-vorführung). Wozu jedes
 Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).
 
+## Klickpfade
+
+Gezielte Abläufe zu einer Frage, etwa „Wie kommt eine Diagnose in die Patient Summary?“, als
+Rundgang über einen Link — geführt, frei mit Wegweiser oder als Aufgabe für Nutzertests:
+`?klickpfad=diagnose-in-ps`. Übersicht und Anleitung: [docs/KLICKPFADE.md](docs/KLICKPFADE.md)
+([ADR 0061](docs/entscheidungen/0061-klickpfade.md)).
+
 ## Aufbau
 
 ```

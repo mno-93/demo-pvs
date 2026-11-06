@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ROLLE_BEZEICHNUNG } from '@demo-pvs/kern';
-import { ausfuehren, useZustand, zuruecksetzen } from './speicher/speicher.js';
+import { ausfuehren, useZustand } from './speicher/speicher.js';
 import { vorgaenge } from './speicher/vorgaenge.js';
 import { Tagesuebersicht } from './module/Tagesuebersicht.js';
 import { Patientenliste } from './module/Patientenliste.js';
@@ -12,7 +12,6 @@ import { Medikation } from './module/Medikation.js';
 import { Impfungen } from './module/Impfungen.js';
 import { Dokumente } from './module/Dokumente.js';
 import { Arztbrief } from './module/Arztbrief.js';
-import { entwuerfeLeeren } from './module/arztbrief/entwurf.js';
 import { Labor } from './module/Labor.js';
 import { Abrechnung } from './module/Abrechnung.js';
 import { Stammdaten } from './module/Stammdaten.js';
@@ -22,9 +21,15 @@ import { Versichertensicht } from './lotse/Versichertensicht.js';
 import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
 import { protokollUmschalten, useProtokollSichtbar } from './epa/protokoll.js';
-import { EpaFehler, klientZuruecksetzen } from './epa/klient.js';
-import { aktensystemZuruecksetzen } from './demo/steuerung.js';
+import { EpaFehler } from './epa/klient.js';
+import { demoZuruecksetzen } from './demo/zuruecksetzen.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
+
+import { klickpfadAusAdresse } from './klickpfade/aufruf.js';
+
+/** ✦ Klickpfad über der Demo (ADR 0061) — nur geladen, wenn die Adresse einen nennt. */
+const KlickpfadEbene = lazy(() => import('./klickpfade/Ebene.js'));
+const KLICKPFAD = klickpfadAusAdresse(window.location.search);
 
 /** Spezifikation, Entscheidungen und Anleitung der Demo — im öffentlichen Repository. */
 const DOKUMENTATION = 'https://github.com/mno-93/demo-pvs/tree/main/docs';
@@ -94,28 +99,26 @@ export function App() {
       </main>
       <EpaFenster />
       <Aufrufprotokoll />
+      {KLICKPFAD && (
+        <Suspense fallback={null}>
+          <KlickpfadEbene id={KLICKPFAD.id} modus={KLICKPFAD.modus} />
+        </Suspense>
+      )}
     </>
   );
 }
 
-/**
- * Praxis und Aktensystem gemeinsam zurücksetzen — sonst stünden in der ePA Einträge, die die
- * Praxis nicht mehr kennt, und umgekehrt. Erst das Aktensystem: Scheitert es, bleibt auch die
- * Praxis, wie sie war, und der Kopf meldet den Fehler.
- */
+/** Praxis und Aktensystem gemeinsam zurücksetzen (`demoZuruecksetzen`); der Kopf meldet Fehler. */
 function ZuruecksetzenKnopf() {
   const [lage, setzeLage] = useState<'bereit' | 'laeuft' | { fehler: string }>('bereit');
   async function zuruecksetzenBeide() {
     setzeLage('laeuft');
     try {
-      await aktensystemZuruecksetzen();
+      await demoZuruecksetzen();
     } catch (f) {
       setzeLage({ fehler: f instanceof EpaFehler ? f.diagnose : 'Aktensystem nicht erreichbar' });
       return;
     }
-    zuruecksetzen();
-    klientZuruecksetzen();
-    entwuerfeLeeren();
     setzeLage('bereit');
   }
   return (

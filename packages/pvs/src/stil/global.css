@@ -3085,3 +3085,186 @@ table.liste tr.gruppe th {
   display: inline-block;
   max-width: 34ch;
 }
+
+/* ---------- ✦ Klickpfad (ADR 0061) ----------
+   Eigene Ebene über der Demo, nur über den Link. Akzentblau statt Violett (das gehört der
+   Patient Summary); über allem, auch über ePA-Fenster und Aufrufprotokoll. */
+
+body.mit-klickpfad {
+  margin-right: 340px;
+}
+body.mit-klickpfad .epa-fenster-hintergrund,
+body.mit-klickpfad .protokoll {
+  right: 340px;
+}
+.klickpfad-leiste {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 340px;
+  z-index: 90;
+  overflow-y: auto;
+  background: var(--flaeche);
+  border-left: 3px solid var(--akzent);
+  padding: 0 16px 16px;
+  font-size: 14px;
+  color: var(--text);
+}
+.klickpfad-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -16px 12px;
+  padding: 10px 16px;
+  background: var(--akzent);
+  color: var(--flaeche);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.klickpfad-kopf .rechts {
+  margin-left: auto;
+}
+.klickpfad-titel {
+  font-size: 17px;
+  margin: 0 0 8px;
+}
+.klickpfad-modi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding: 8px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--linie);
+}
+.klickpfad-schritte {
+  padding-left: 22px;
+  margin: 8px 0;
+}
+.klickpfad-schritte li {
+  padding: 3px 0;
+  color: var(--text-leise);
+}
+.klickpfad-schritte li.erledigt {
+  color: var(--text-sehr-leise);
+  text-decoration: line-through;
+}
+.klickpfad-schritte li.aktuell {
+  color: var(--akzent-dunkel);
+  font-weight: 600;
+}
+.klickpfad-erlaeuterung,
+.klickpfad-aufgabe {
+  background: var(--akzent-weich);
+  border: 1px solid var(--akzent-linie);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  line-height: 1.45;
+}
+.klickpfad-aufrufe ul {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px;
+}
+.klickpfad-aufrufe code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.klickpfad-live:empty {
+  display: none;
+}
+.klickpfad-live {
+  font-size: 13px;
+  color: var(--text-leise);
+}
+.klickpfad-fehler {
+  color: var(--fehler);
+  background: var(--fehler-weich);
+  border: 1px solid var(--fehler-linie);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.klickpfad-fertig {
+  background: var(--gut-weich);
+  border: 1px solid var(--gut-linie);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+.klickpfad-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+.klickpfad-rahmen {
+  position: fixed;
+  z-index: 85;
+  pointer-events: none;
+  border: 3px solid var(--akzent);
+  border-radius: var(--radius);
+}
+.klickpfad-rahmen.abgedunkelt {
+  box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--kopf-grund) 40%, transparent);
+}
+.klickpfad-rahmen.blitz-a,
+.klickpfad-rahmen.blitz-b {
+  animation: klickpfad-blitz 0.5s;
+}
+.klickpfad-rahmen.blitz-b {
+  animation-name: klickpfad-blitz-2;
+}
+@keyframes klickpfad-blitz {
+  50% {
+    border-color: var(--warn);
+    outline: 6px solid var(--warn-linie);
+  }
+}
+@keyframes klickpfad-blitz-2 {
+  50% {
+    border-color: var(--warn);
+    outline: 6px solid var(--warn-linie);
+  }
+}
+.klickpfad-blase {
+  position: fixed;
+  z-index: 88;
+  max-width: 320px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  background: var(--kopf-grund);
+  color: var(--kopf-text);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 14px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--kopf-grund) 35%, transparent);
+}
+.klickpfad-blase.oben {
+  transform: translateY(-100%);
+}
+.klickpfad-nummer {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--kopf-leise);
+}
+@media (max-width: 900px) {
+  body.mit-klickpfad {
+    margin-right: 0;
+    margin-bottom: 45vh;
+  }
+  body.mit-klickpfad .epa-fenster-hintergrund,
+  body.mit-klickpfad .protokoll {
+    right: 0;
+    bottom: 45vh;
+  }
+  .klickpfad-leiste {
+    top: auto;
+    left: 0;
+    width: auto;
+    height: 45vh;
+    border-left: none;
+    border-top: 3px solid var(--akzent);
+  }
+}
