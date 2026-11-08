@@ -12,6 +12,7 @@ import { schrittAusfuehren, wertSetzen } from './ausfuehren.js';
 import { finden } from './finden.js';
 import KlickpfadEbene from './Ebene.js';
 import { SZENARIEN } from './szenarien/index.js';
+import type { Modus } from './szenario.js';
 
 /** Die Ebene eines Klickpfads über der echten Demo: Sperre im geführten Modus, Protokoll als Aufgabe. */
 
@@ -34,9 +35,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  window.history.replaceState(null, '', '/');
 });
 
-function oeffne(modus: 'gefuehrt' | 'aufgabe') {
+function oeffne(modus: Modus) {
   render(
     <MemoryRouter initialEntries={['/']}>
       <App />
@@ -109,5 +111,95 @@ describe('Klickpfad-Ebene', () => {
       expect.objectContaining({ art: 'fehlklick', element: 'button: Diagnose' }),
     );
     expect(Object.keys(protokoll)).not.toContain('person');
+  }, 20000);
+
+  it('hängt beim Beenden ganz aus: Klicks frei, kein Rand, Adresse ohne Klickpfad', async () => {
+    const leiste = oeffne('gefuehrt');
+    await waitFor(() =>
+      expect(within(leiste).getByText('„Migräne“ suchen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    // Solange der Klickpfad offen ist, steht er in der Adresse — auch nach der Navigation zum Start.
+    await waitFor(() => expect(window.location.search).toBe('?klickpfad=diagnose-in-ps'));
+    expect(document.body.classList.contains('mit-klickpfad')).toBe(true);
+
+    fireEvent.click(within(leiste).getByRole('button', { name: 'beenden' }));
+    expect(screen.queryByRole('complementary', { name: 'Klickpfad' })).toBeNull();
+    expect(document.body.classList.contains('mit-klickpfad')).toBe(false);
+    expect(window.location.search).toBe('');
+    // Die Sperre des geführten Modus ist weg: Der Klick daneben wirkt wieder.
+    fireEvent.click(screen.getByRole('button', { name: 'Allergie' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('combobox', { name: 'Diagnose suchen — Kodierservice' }),
+      ).toBeNull(),
+    );
+  });
+
+  it('beginnt die Aufgabe beim Wechsel neu und behält den Stand beim Wechsel zurück', async () => {
+    const leiste = oeffne('gefuehrt');
+    await waitFor(() =>
+      expect(within(leiste).getByText('„Migräne“ suchen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    act(() => wertSetzen(finden(S.schritte[0]!.ziel)!, 'Migräne'));
+    await waitFor(() =>
+      expect(within(leiste).getByText('Treffer übernehmen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+
+    fireEvent.click(within(leiste).getByRole('radio', { name: 'Aufgabe' }));
+    await waitFor(() => expect(window.location.search).toContain('modus=aufgabe'));
+    // Neu begonnen: Das Suchfeld ist wieder leer, die Messung läuft von vorn.
+    await waitFor(() =>
+      expect(
+        within(leiste).getByRole('button', { name: 'Hilfe: nächster Schritt' }),
+      ).toHaveProperty('disabled', false),
+    );
+    expect(
+      (
+        screen.getByRole('combobox', {
+          name: 'Diagnose suchen — Kodierservice',
+        }) as HTMLInputElement
+      ).value,
+    ).toBe('');
+    expect(within(leiste).queryByRole('button', { name: '← Schritt zurück' })).toBeNull();
+
+    act(() => wertSetzen(finden(S.schritte[0]!.ziel)!, 'Migräne'));
+    await waitFor(() => expect(finden(S.schritte[1]!.ziel)).not.toBeNull());
+    fireEvent.click(within(leiste).getByRole('radio', { name: 'frei mit Wegweiser' }));
+    // Zurück aus der Aufgabe bleibt der Stand: Schritt 2 ist dran.
+    await waitFor(() =>
+      expect(within(leiste).getByText('Treffer übernehmen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    expect(window.location.search).toContain('modus=frei');
+  }, 20000);
+
+  it('lässt frei einen erfüllten Prüfpunkt stehen, bis es dahinter weitergeht', async () => {
+    const leiste = oeffne('frei');
+    await waitFor(() =>
+      expect(within(leiste).getByText('„Migräne“ suchen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    for (const schritt of S.schritte.slice(0, 3)) await act(() => schrittAusfuehren(schritt));
+    await waitFor(() =>
+      expect(within(leiste).getByText('Schon angehakt').getAttribute('aria-current')).toBe('step'),
+    );
+    // Zeit zum Lesen: Der Prüfpunkt rückt nicht von selbst weiter.
+    await act(() => new Promise((r) => setTimeout(r, 600)));
+    expect(within(leiste).getByText('Schon angehakt').getAttribute('aria-current')).toBe('step');
+    // Wer schon speichert, ist darüber hinaus.
+    await act(() => schrittAusfuehren(S.schritte[4]!));
+    await waitFor(() =>
+      expect(within(leiste).getByText('Patient Summary öffnen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
   }, 20000);
 });

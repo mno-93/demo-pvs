@@ -423,6 +423,34 @@ describe('E-Rezept', () => {
     ).toBe(false);
   });
 
+  it('setzt nach Storno einer Abgabe ohne Austausch mit anderer Dosierung nichts zurück (IG wörtlich)', async () => {
+    const vorher = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    const { id } = await verordnen(rezept({ dosierung: '1-0-1-0' }));
+    await app.inject({
+      method: 'POST',
+      url: `/verwaltung/erezepte/${id}/abgabe`,
+      payload: { art: 'wie-verordnet' },
+    });
+    const abgegeben = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    // Die Abgabe übernimmt nur das Arzneimittel; die Dosierung des Plans bleibt.
+    expect(abgegeben['medicationReference']).not.toEqual(vorher['medicationReference']);
+    expect(dosierungsanzeige(abgegeben)).toBe(dosierungsanzeige(vorher));
+    await app.inject({ method: 'POST', url: `/verwaltung/erezepte/${id}/abgabe-storno` });
+    const eintrag = (await plan()).find((r) => r.id === 'emp-h-med-3')!;
+    /*
+     * ▸ REMOVE-DISPENSATION-V2 sucht die „stop version“ über Arzneimittel UND Dosierung gleich der
+     * Medikationsinformation. Hier weicht die Dosierung ab, obwohl der Eintrag noch verknüpft ist
+     * — das gilt als manuelle Änderung, nichts wird zurückgesetzt. Der Plan behält das abgegebene
+     * Arzneimittel. Lücke im Ballot (die Abgabe übernimmt seit V4 nur das Arzneimittel);
+     * der Simulator folgt dem IG wörtlich.
+     */
+    expect(eintrag['medicationReference']).toEqual(abgegeben['medicationReference']);
+    // Der Aktivitätsnachweis der Abgabe entfällt trotzdem.
+    const aktivitaeten = (r: R) =>
+      JSON.stringify(r['extension']).split('activity-extension').length;
+    expect(aktivitaeten(eintrag)).toBe(aktivitaeten(vorher));
+  });
+
   it('nimmt ein gelöschtes Rezept aus der Liste und verweigert das Löschen nach der Abgabe', async () => {
     const eins = await verordnen(rezept());
     const loeschen = await app.inject({

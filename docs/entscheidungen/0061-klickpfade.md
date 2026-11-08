@@ -66,6 +66,32 @@ Bausteinen. Das Abbild misst, was die Person sieht, nicht, wo es herkommt.
 - **Erklärtexte direkt in der Oberfläche.** Widerspräche ADR 0020; die Demo soll sich durch
   Benutzung erklären, der Klickpfad ist eine bewusst zugeschaltete Lesart.
 
+## Umschalten und Verlassen (ergänzt am 08.11.2026)
+
+Im Browser fielen Lücken auf, die kein Test sah: Nach „beenden“ blieb die Sperre des geführten
+Modus aktiv — die Demo ließ sich nicht mehr bedienen —, und der Rand für die Seitenleiste blieb
+stehen. Die Adresse verlor den Klickpfad beim ersten Navigieren; weitergeben oder neu laden ging
+nicht. Ein Wechsel in die Aufgabe mischte die Messung mit dem gezeigten Teil. „neu beginnen“
+setzte zurück, aber offene Formulare behielten ihre Eingaben, und das ePA-Fenster blieb offen.
+Das erste Ziel lag oft außerhalb des Bildes, weil die Ansicht nach dem einmaligen Scrollen noch
+nachlud. Frei rutschten Prüfpunkte ungelesen durch.
+
+Entscheidung:
+
+1. **„beenden“ hängt die Ebene aus** — mit ihr gehen Sperre, Rand und Klickpfad in der Adresse.
+2. **Klickpfad und Modus bleiben in der Adresse**, solange er offen ist (`history.replaceState`,
+   ohne Verlaufseintrag). Neuladen beginnt ihn im gewählten Modus neu.
+3. **Wechsel in die Aufgabe beginnt neu** mit neuer Messung; geführt ↔ frei behalten den Schritt.
+4. **Zurücksetzen beginnt die Ansichten neu** (Durchgang als `key` der Hauptansicht) und schließt
+   das ePA-Fenster — für Klickpfade wie für „Zurücksetzen“ im Kopf.
+5. **Das Ziel rückt in den Blick, bis es ruhig steht**; eigenes Scrollen beendet das.
+6. **Prüfpunkte warten auch frei auf „weiter“**; wer dahinter weitermacht, übergeht sie.
+7. **Aufrufe zählen ab der geladenen Ansicht** — Rundgang und Test warten dafür gleich auf Ruhe.
+
+Verworfen: **den Modus nur in der Seitenleiste halten** — die Adresse ist der Weg, einen Klickpfad
+zu verschicken, und sie soll zeigen, was gerade läuft. **Formulare einzeln leeren** — jede Ansicht
+müsste das Zurücksetzen kennen; der Durchgang als Schlüssel erledigt es für alle.
+
 ## Folgen
 
 - Mehrdeutige Namen fallen auf: Der Kopfknopf „Patient Summary“ und jeder ★-Schalter heißen

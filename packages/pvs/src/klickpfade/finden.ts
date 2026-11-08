@@ -168,3 +168,10 @@ export function markierungsRahmen(e: HTMLElement): Rahmen | null {
   right = Math.min(right, window.innerWidth);
   return bottom > top && right > left ? rahmenAus(top, left, bottom, right) : null;
 }
+
+/** Ist das Element ganz zu sehen — nicht nur angeschnitten? Sonst rückt der Rundgang es in den Blick. */
+export function ganzSichtbar(e: HTMLElement): boolean {
+  const r = markierungsRahmen(e);
+  const eigen = e.getBoundingClientRect();
+  return !!r && eigen.top >= r.top - 1 && eigen.bottom <= r.bottom + 1;
+}

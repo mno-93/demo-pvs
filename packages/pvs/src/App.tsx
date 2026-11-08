@@ -22,7 +22,7 @@ import { Aufrufprotokoll } from './epa/Aufrufprotokoll.js';
 import { EpaFenster } from './epa/EpaFenster.js';
 import { protokollUmschalten, useProtokollSichtbar } from './epa/protokoll.js';
 import { EpaFehler } from './epa/klient.js';
-import { demoZuruecksetzen } from './demo/zuruecksetzen.js';
+import { demoZuruecksetzen, useDurchgang } from './demo/zuruecksetzen.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
 
 import { klickpfadAusAdresse } from './klickpfade/aufruf.js';
@@ -38,6 +38,7 @@ export function App() {
   // Meldet die ePA eine fehlende Befugnis, berichtigt das Praxissystem seinen Stand (ADR 0017).
   useEffect(() => befugnisabgleichEinrichten(), []);
   const { pathname } = useLocation();
+  const durchgang = useDurchgang();
 
   /*
    * ✦ Die Versichertensicht ist kein Teil des Praxissystems, sondern stellvertretend die App der
@@ -72,7 +73,8 @@ export function App() {
   return (
     <>
       <Kopf />
-      <main className="inhalt">
+      {/* Nach dem Zurücksetzen beginnen die Ansichten neu, ohne Eingaben von vorher. */}
+      <main className="inhalt" key={durchgang}>
         <Routes>
           <Route path="/" element={<Tagesuebersicht />} />
           <Route path="/patienten" element={<Patientenliste />} />

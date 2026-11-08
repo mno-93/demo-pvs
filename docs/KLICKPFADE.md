@@ -21,7 +21,13 @@ An die Adresse der Demo `?klickpfad=<kennung>` anhängen, wahlweise mit `&modus=
 
 Gehostet: `https://<konto>.github.io/<repository>/?klickpfad=…`. Der Klickpfad setzt Praxis und
 Aktensystem zurück und stellt den Startzustand selbst her. Die Seitenleiste wechselt den Modus,
-geht einen Schritt zurück oder beginnt neu; „beenden“ blendet sie aus.
+geht einen Schritt zurück oder beginnt neu; „beenden“ nimmt die Ebene ganz weg, die Demo bleibt
+im erreichten Stand.
+
+**Modus wechseln:** geführt ↔ frei am selben Schritt. In die Aufgabe beginnt der Pfad neu, mit
+neuer Messung; zurück aus der Aufgabe bleibt der Stand. Klickpfad und Modus stehen in der
+Adresse, solange der Pfad offen ist — die Adresse lässt sich jederzeit weitergeben, Neuladen
+beginnt neu.
 
 **Nutzertest:** Link mit `&modus=aufgabe` öffnen, die Testperson arbeitet nur mit dem
 Aufgabentext. Am Ende „Protokoll herunterladen“: JSON mit Dauer, Fehlklicks, Hilfen und den

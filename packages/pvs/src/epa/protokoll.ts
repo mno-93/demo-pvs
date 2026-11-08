@@ -50,6 +50,11 @@ export function aufrufNotieren(aufruf: Omit<Aufruf, 'id' | 'zeitpunkt'>): void {
   melden();
 }
 
+/** Die Aufrufe, neueste zuerst — außerhalb von React, etwa um auf Ruhe zu warten (Klickpfade). */
+export function aufrufeLesen(): readonly Aufruf[] {
+  return aufrufe;
+}
+
 export function protokollLeeren(): void {
   aufrufe = [];
   melden();

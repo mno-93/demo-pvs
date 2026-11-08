@@ -136,12 +136,15 @@ export function RezeptFormular({
       return vorlage.dosierung;
     }
   });
-  // Aus dem Plan verordnet, Dosierung geändert: den Planeintrag mit anpassen. In der ePA nur
-  // ärztlich und mit schreibbarem Plan; im Plan der Praxis immer.
+  // Aus dem Plan verordnet, Dosierung geändert: den Planeintrag mit anpassen. Das ist eine
+  // ärztliche Entscheidung (ADR 0060) — in der ePA wie im Plan der Praxis nur ärztlich, in der ePA
+  // zudem nur mit schreibbarem Plan. Sie gilt mit dem Rezept der Ärztin, ob gleich signiert oder
+  // in den eigenen Signaturstapel gelegt.
   const anpassbar =
+    aerztlich &&
     dosierungstext !== null &&
     dosierungstext !== startText &&
-    ((!!vorlage.empId && planSchreibbar && aerztlich) || !!vorlage.praxisplanId);
+    ((!!vorlage.empId && planSchreibbar) || !!vorlage.praxisplanId);
   const [planAnpassen, setzePlanAnpassen] = useState(true);
   // Das Formular öffnet oberhalb des Plans; der Blick und der Fokus folgen ihm.
   const rahmen = useRef<HTMLDivElement>(null);

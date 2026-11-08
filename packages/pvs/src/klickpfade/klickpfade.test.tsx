@@ -11,7 +11,7 @@ import { SIMULATORWEGE, transportSetzen } from '../epa/transport.js';
 import { useAufrufe, type Aufruf } from '../epa/protokoll.js';
 import { pfadKurz } from '../epa/protokoll.js';
 import { alleFinden, normalisiert, vorhandeneNamen, zielBeschreibung } from './finden.js';
-import { schrittAusfuehren, startzustandHerstellen, warten } from './ausfuehren.js';
+import { ruheAbwarten, schrittAusfuehren, startzustandHerstellen } from './ausfuehren.js';
 import type { Schritt } from './szenario.js';
 import { SZENARIEN } from './szenarien/index.js';
 
@@ -92,19 +92,6 @@ function aufrufeSeit(beginn: number): string[] {
   return [...new Set(zeilen)].sort();
 }
 
-/** Bis keine neuen Aufrufe mehr kommen — dann gehören alle zum Schritt. */
-async function ruhe(): Promise<void> {
-  let zuletzt = -1;
-  let stabilSeit = Date.now();
-  await warten(() => {
-    if (aufrufe.length !== zuletzt) {
-      zuletzt = aufrufe.length;
-      stabilSeit = Date.now();
-    }
-    return Date.now() - stabilSeit > 150 ? true : null;
-  }, 'Ruhe nach dem Schritt');
-}
-
 describe('Klickpfade', () => {
   for (const s of Object.values(SZENARIEN)) {
     it(`${s.id}: ${s.titel}`, async () => {
@@ -114,8 +101,8 @@ describe('Klickpfade', () => {
           <App />
         </MemoryRouter>,
       );
+      // Wartet selbst, bis die Ansicht geladen hat (wie im Rundgang).
       await act(() => startzustandHerstellen(s, (p) => navigieren(p)));
-      await act(ruhe);
       const abbild: unknown[] = [];
       for (const [i, schritt] of s.schritte.entries()) {
         const beginn = Date.now();
@@ -133,7 +120,8 @@ describe('Klickpfade', () => {
             );
           }
         });
-        await act(ruhe);
+        // Bis keine neuen Aufrufe mehr kommen — dann gehören alle zum Schritt.
+        await act(() => ruheAbwarten());
         // `gesehen` setzt die Schrittausführung oben; TypeScript verfolgt das nicht in die Funktion hinein.
         const sicht = gesehen as ReturnType<typeof anzeige>;
         abbild.push({ schritt: i + 1, kurz: schritt.kurz, ...sicht, epa: aufrufeSeit(beginn) });
