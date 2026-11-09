@@ -1816,6 +1816,56 @@ button.marker {
   margin: 0;
 }
 
+/* ✦ Früherer Stand und Änderungsverlauf der Patient Summary */
+.ps-frueher {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ps-verlauf {
+  border: 1px solid var(--ps-linie);
+  border-radius: var(--radius);
+  background: var(--flaeche2);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  max-height: 22em;
+  overflow-y: auto;
+}
+
+.ps-verlauf h4 {
+  margin: 0 0 6px;
+}
+
+.ps-verlauf-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-verlauf-liste > li {
+  padding: 6px 0;
+  border-top: 1px solid var(--linie);
+}
+
+.ps-verlauf-liste > li:first-child {
+  border-top: none;
+}
+
+.ps-verlauf-liste > li.angezeigt {
+  background: var(--ps-weich);
+}
+
+.ps-verlauf-aenderungen {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.ps-verlauf-aenderung {
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
 .ps-raster {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);

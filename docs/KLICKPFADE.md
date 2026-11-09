@@ -7,13 +7,14 @@ gegen den Simulator geprüft ([ADR 0061](entscheidungen/0061-klickpfade.md)).
 
 | Kennung           | Frage                                                                                                             | Ausbaustand                         | Schritte |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------- | -------- |
-| `demo-ueberblick` | **Rundgang:** Was zeigt die Demo, nach welchem Prinzip ist sie gebaut — und was haben ePA- und FHIR-Arbeit davon? | Release 3.1.3 → Weiterentwicklung 3 | 34       |
+| `demo-ueberblick` | **Rundgang:** Was zeigt die Demo, nach welchem Prinzip ist sie gebaut — und was haben ePA- und FHIR-Arbeit davon? | Release 3.1.3 → Weiterentwicklung 3 | 36       |
 | `diagnose-in-ps`  | Wie kommt eine neue Dauerdiagnose in die Patient Summary — und was kostet das die Praxis?                         | Weiterentwicklung 3                 | 7        |
+| `ps-verlauf`      | Wie sah die Patient Summary früher aus — und wer hat sie seitdem geändert?                                        | Weiterentwicklung 3                 | 7        |
 
 Der **Rundgang** (`demo-ueberblick`) ist der Einstieg für alle, die die Demo zum ersten Mal sehen —
 auch im Team: Er verbindet README, Spezifikation und Zeigen in der Demo, in Kapiteln, mit
 Erzählschritten und Verweisen in die Dokumentation. Er reicht vom Praxisalltag über Befunde und
-Briefe, Listen und Patient Summary bis zum Arztbrief, zeigt an zwei Stellen die FHIR-Ressource
+Briefe, Listen und Patient Summary samt Änderungsverlauf bis zum Arztbrief, zeigt an zwei Stellen die FHIR-Ressource
 selbst und erwähnt den Aktenlotsen nur als Ausblick. Im Kopf der Demo startet ihn „Rundgang“. Er
 kennt die Modi geführt und frei, keine Aufgabe.
 

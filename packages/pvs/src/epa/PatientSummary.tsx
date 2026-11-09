@@ -26,6 +26,7 @@ import {
   klinischerStatusText,
 } from '@demo-pvs/kern';
 import { Marker } from '../bausteine/Bausteine.js';
+import { PsVerlauf } from './PsVerlauf.js';
 import {
   NeuMarke,
   SeitLetztemAufrufBand,
@@ -72,6 +73,9 @@ export function PatientSummaryAnsicht({
   inDokumentenSuchen,
   dokumentZeigen,
   herkunft = 'vorschlag',
+  verlauf,
+  stand = null,
+  standWaehlen,
 }: {
   inhalt: PatientSummaryInhalt;
   roh: unknown;
@@ -86,6 +90,19 @@ export function PatientSummaryAnsicht({
    * Patient Summary der Demo.
    */
   herkunft?: 'aktensystem' | 'vorschlag';
+  /**
+   * ✦ Änderungsverlauf: Abruf, ein Schlüssel, der ihn neu lädt, und ob er offen ist — das hält
+   * das Fenster, damit er beim Wechsel des Stands offen bleibt. Ohne ihn kein „Verlauf“.
+   */
+  verlauf?: {
+    laden: () => Promise<unknown>;
+    schluessel: unknown;
+    offen: boolean;
+    umschalten: () => void;
+  };
+  /** ✦ Ein früherer Stand, den die Ansicht zeigt — `null` für jetzt. */
+  stand?: string | null;
+  standWaehlen?: (zeit: string | null) => void;
 }) {
   const [fhir, setzeFhir] = useState(false);
   const provenance = inhalt.ressourcen.filter((r) => r.resourceType === 'Provenance');
@@ -98,11 +115,12 @@ export function PatientSummaryAnsicht({
       ),
     [inhalt],
   );
-  // Je Quelle ein eigener Stand: Der Wechsel der Quelle ist keine Änderung an Einträgen.
+  // Je Quelle ein eigener Stand: Der Wechsel der Quelle ist keine Änderung an Einträgen. Ein
+  // früherer Stand ist kein Aufruf — er verschiebt das Lesezeichen nicht und zeigt kein Band.
   const seit = useSeitLetztemAufruf(
     patientId,
     herkunft === 'aktensystem' ? 'summary-aktensystem' : 'summary',
-    gesehen,
+    stand ? null : gesehen,
   );
   const gefuellt = inhalt.abschnitte.filter((a) => a.eintraege.length > 0).length;
   // Jüngste Änderung an einem gezeigten Eintrag — „zuletzt aktualisiert" der Übersicht.
@@ -118,7 +136,8 @@ export function PatientSummaryAnsicht({
       <Block
         key={s}
         abschnitt={a}
-        sprung={SPRUNG[s] ? () => sprung(s) : undefined}
+        // Gepflegt wird der heutige Stand; ein früherer führt nicht in die Quellen.
+        sprung={SPRUNG[s] && !stand ? () => sprung(s) : undefined}
         // Was nur unstrukturiert in Dokumenten steht, erreicht die Patient Summary nicht — der
         // Weg in die Dokumente bleibt deshalb auch neben automatisch übernommenen Einträgen.
         inDokumentenSuchen={
@@ -160,15 +179,45 @@ export function PatientSummaryAnsicht({
           Abschnitten mit Inhalt
           {zuletzt && ` · zuletzt geändert ${deutscherZeitpunkt(zuletzt)}`}
         </span>
-        <button
-          type="button"
-          className="knopf klein rechts"
-          aria-expanded={fhir}
-          onClick={() => setzeFhir(!fhir)}
-        >
-          FHIR
-        </button>
+        <span className="rechts reihe">
+          {verlauf && standWaehlen && (
+            <button
+              type="button"
+              className="knopf klein"
+              aria-expanded={verlauf.offen}
+              onClick={verlauf.umschalten}
+            >
+              Verlauf
+            </button>
+          )}
+          <button
+            type="button"
+            className="knopf klein"
+            aria-expanded={fhir}
+            onClick={() => setzeFhir(!fhir)}
+          >
+            FHIR
+          </button>
+        </span>
       </div>
+      {stand && (
+        <div className="ps-frueher reihe" role="status">
+          <Marker ton="warn">Stand vom {deutscherZeitpunkt(stand)}</Marker>
+          {standWaehlen && (
+            <button type="button" className="knopf klein rechts" onClick={() => standWaehlen(null)}>
+              zum aktuellen Stand
+            </button>
+          )}
+        </div>
+      )}
+      {verlauf && standWaehlen && verlauf.offen && (
+        <PsVerlauf
+          laden={verlauf.laden}
+          schluessel={verlauf.schluessel}
+          stand={stand}
+          standWaehlen={standWaehlen}
+        />
+      )}
       <SeitLetztemAufrufBand seit={seit} />
       {fhir && (
         <pre

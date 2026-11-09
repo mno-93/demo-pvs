@@ -1160,7 +1160,13 @@ national noch festzulegen. Die Demo verwendet `unavailable` für jede fehlende A
 - ✦ Extension `…/ps-section-further-entries` (`valueInteger`): gültige Einträge der Quelle, die
   nicht markiert sind;
 - die Einträge mit ihren Änderungseinträgen (Provenance) und Arzneimitteln; Laborwerte mit Verweis
-  auf den Befund.
+  auf den Befund;
+- ✦ für Einträge aus Dokumenten (Laborwerte, Prozeduren, Implantate, ohne geführte Listen auch
+  Allergien, Diagnosen, Impfungen) eine Provenance mit dem Dokument als Quelle
+  (`entity.role = source`), der einstellenden Einrichtung als Urheberin und dem Dienst als
+  `assembler` — kein EPAActivityProvenance, denn den Eintrag hat niemand in einem Dienst geschrieben.
+
+✦ `_at` liefert einen früheren Stand, `Patient/$summary-log` den Änderungsverlauf (7.9).
 
 `GET …/metadata` liefert das CapabilityStatement; im Release 3.1.3 antwortet der Dienst mit 404.
 ⚠ Die Profile sind nachgebaut, nicht gegen die EPS validiert.
@@ -1197,7 +1203,8 @@ ganz. Erst die geführten Listen machen aus einer Zusammenstellung eine verantwo
   Sichten. Wann eine Fassung festgeschrieben wird und wer sie verantwortet, ist offen. **Stand der
   Ballots (16.10.2026):** Die gematik kommt ohne gespeichertes Dokument aus — das Aktensystem
   erzeugt die ePS bei jeder Anfrage, auch für den NCPeH (Patient Service oder MHD, 5.13). Offen
-  bleiben Nachvollziehbarkeit und Verantwortung.
+  bleiben Nachvollziehbarkeit und Verantwortung. ▸ Frühere Stände und der Änderungsverlauf (7.9)
+  machen nachvollziehbar, was zu einem Zeitpunkt galt — nicht, was ein Empfänger gesehen hat.
 - ⚠ **Rechtliche Authentifizierung.** Das EHDS-Logikmodell (Xt-EHR 1.0.0) sieht für den Kopf der
   Patient Summary eine rechtliche Authentifizierung vor; eine automatisch zusammengestellte Sicht
   hat keine.
@@ -1347,6 +1354,52 @@ nicht nachgebildet. Danach liegt der Brief in der Praxisablage (Art „Arztbrief
 Ohne KIM-Adresse des Empfängers ist „Per KIM senden" gesperrt („keine KIM-Adresse"); ohne
 Befugnis „In die ePA einstellen" („keine ePA-Befugnis"). Eine Ablehnung des Aktensystems steht mit
 Fehlercode am Knopf.
+
+### 7.9 ✦ Frühere Stände und Änderungsverlauf
+
+Die Patient Summary wird nicht gespeichert. Frühere Stände und ihr Verlauf entstehen aus den Quellen,
+die ihre Geschichte ohnehin führen (ADR 0062) — nach dem Vorbild des Medication Service, der einen
+früheren Plan zu einem Chronologieeintrag liefert (IG-MED04510JHX). **Nicht spezifiziert.**
+
+| Weg                                      | Antwort                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/Patient/$summary?_at=<Zeitpunkt>` | Die Patient Summary, wie sie zum Zeitpunkt galt; `Composition.date` ist der Stand. Zeitpunkt mit Uhrzeit und Zeitzone, sonst 400. Vor dem ersten Eintrag sind alle Abschnitte leer                                                                                                                                                           |
+| `GET …/Patient/$summary-log`             | Bundle `collection`, je Änderung eine Provenance, jüngste zuerst: `recorded` (zugleich der Stand für `_at`), Einrichtungen (`agent`), Quelle (`entity`: Chronologieeintrag, Änderungseintrag oder Dokument), betroffene Einträge (`target`, versioniert) und je Eintrag die Extension `ps-change` mit Abschnitt (LOINC), Art und Bezeichnung |
+
+**Wie ein früherer Stand entsteht:**
+
+| Quelle                              | Zum Zeitpunkt                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Allergien-, Diagnosen-, Impfliste ✦ | der Chronologieeintrag, der damals galt, mit seinen Einträgen in der damaligen Fassung  |
+| Medikationsplan                     | ebenso, über die Chronologieeinträge des eMP; Arzneimittel in der Fassung zum Zeitpunkt |
+| Medikationsliste (ohne Plan)        | jede Medikationsinformation in der Fassung zum Zeitpunkt, ohne die bis dahin gelöschten |
+| strukturierte Dokumente, Labor      | die bis dahin eingestellten (`submissionTime`, sonst Erstellung)                        |
+| Demo-Steuerung, Widersprüche        | wie beim Abruf — Zugriffsregeln wirken auf das Lesen, nicht auf den gelesenen Stand     |
+
+**Wie der Verlauf entsteht:** Jeder Zeitpunkt, an dem sich eine Quelle änderte, ist ein Kandidat.
+Gleiche Zeitpunkte gehören zusammen. Der Dienst bildet die Abschnitte und vergleicht sie mit dem
+vorigen Zeitpunkt: neu, geändert (neue Fassung) oder entfallen. Derselbe Eintrag aus einer anderen
+Quelle — ein jüngerer Laborwert, der Plan statt der Liste — gilt als geändert. Zeitpunkte ohne
+Änderung an der Patient Summary, etwa an einem nicht markierten Listeneintrag, erscheinen nicht.
+
+**Im Praxissystem:** „Verlauf“ im Kopf der Patient Summary öffnet die Liste der Änderungen mit
+Zeitpunkt, Einrichtung, Quelle und je Abschnitt den Einträgen mit „neu“, „geändert“, „entfallen“.
+„Stand ansehen“ zeigt einen früheren Stand mit dem Marker „Stand vom …“ und „zum aktuellen
+Stand“. Ein früherer Stand führt nicht in die Quellen (gepflegt wird der heutige) und verschiebt das
+Lesezeichen „seit dem letzten Aufruf“ (7.7) nicht. Der Verlauf bleibt beim Wechsel des Stands
+offen.
+
+**Frau Hoffmann im Startbestand:**
+
+| Zeitpunkt         | Einrichtung                | Änderung                                                                            |
+| ----------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| 21.10.2025, 10:05 | Hausarztpraxis Nordstadt   | fünf Impfungen neu                                                                  |
+| 18.03.2026, 14:20 | MVZ Labor Oldenburg        | Kreatinin, eGFR, HbA1c neu                                                          |
+| 17.07.2026, 14:00 | Klinikum Sonnenschein      | drei Prozeduren und ein Implantat aus dem Entlassbrief                              |
+| 17.07.2026, 14:05 | Klinikum Sonnenschein      | zwei Allergien, zwei Diagnosen markiert                                             |
+| 18.07.2026, 16:00 | Klinikum Sonnenschein      | Medikation aus der Medikationsliste, mit Metformin                                  |
+| 18.07.2026, 16:05 | Klinikum Sonnenschein      | Medikationsplan angelegt: vier Arzneimittel jetzt aus dem Plan, Metformin entfallen |
+| 12.08.2026, 11:00 | Laborgemeinschaft Nordwest | Kalium neu, Kreatinin, eGFR und HbA1c geändert (jüngere Werte)                      |
 
 ## 8 ✦ Aktenlotse
 
@@ -1789,6 +1842,7 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 | Impfung in die ePA                              | Frau Yildiz, „Impfungen" → Grippeimpfung „in die ePA →" → rechts in der Impfliste, verknüpft                                                                                                                                                                                                                                                                                                              |
 | Neu seit dem letzten Aufruf                     | Frau Hoffmann → Patient Summary öffnen und schließen → Konfiguration → Akten → Hoffmann „andere Einrichtung trägt ein" → Patient Summary: Band „2 neu", Marken **neu** an Herzinsuffizienz und Grippeimpfung; ebenso in „Diagnosen und Allergien" und „Impfungen"                                                                                                                                         |
 | Neu seit dem letzten Aufruf, nach Spezifikation | Frau Hoffmann nach eGK → „Medikation" und „Dokumente" einmal öffnen → Konfiguration → Akten → Hoffmann „andere Einrichtung trägt ein" → „Medikation": Band „1 neu · 1 geändert", Torasemid **neu**, Bisoprolol **geändert**; „Dokumente": Kontrollbefund **neu**; im Aufrufprotokoll `recorded=gt…`, `$medication-plan?provenance=…`, `_lastUpdated=gt…` mit Grundlage                                    |
+| ✦ Frühere Patient Summary und Verlauf           | Weiterentwicklung 3, Frau Hoffmann nach eGK → „Patient Summary“ → „Verlauf“: Änderungen vom Impfpass 2025 bis zum Laborbefund im August; „Stand ansehen“ am 18.07.2026, 16:00 Uhr: Medikation aus der Medikationsliste, mit Metformin, Laborwerte vom März; „zum aktuellen Stand“. Im Aufrufprotokoll `$summary-log` und `$summary?_at=…` (7.9, Klickpfad `ps-verlauf`)                                   |
 | Kompakt und geordnet                            | Frau Hoffmann, „Diagnosen und Allergien" → Zeilen nach Einstellung, jüngste oben; nach „in die ePA →" steht der Eintrag ganz oben → Bezeichnung anklicken → Details beider Seiten → Sortierung „Eigene Reihenfolge" → Zeile ziehen oder ↑ ↓ → ePA-Fenster, Diagnosen und Allergien: dieselbe Reihenfolge                                                                                                  |
 
 ---
@@ -1797,6 +1851,7 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 
 | Datum      | Anlass                                                                                             | Änderungen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 09.11.2026 | Patient Summary: frühere Stände, Verlauf, Provenance                                               | ✦ $summary?_at=… bildet einen früheren Stand aus den Chronologieeinträgen und Fassungen der Quellen und den bis dahin eingestellten Dokumenten; ✦ $summary-log liefert je Änderung eine Provenance mit Einrichtung, Quelle und ps-change je Eintrag; Einträge aus Dokumenten mit Provenance (Quelle Dokument, Dienst als assembler). Im Praxissystem „Verlauf“ und „Stand ansehen“. Klickpfad ps-verlauf, Rundgang ergänzt. 7.4, 7.6, 7.9, 11, ADR 0062, P108                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | 09.11.2026 | Klickpfade: Eingaben großzügiger                                                                   | Suchbegriffe ohne Rücksicht auf Groß- und Kleinschreibung; ein Klick auf den Treffer des nächsten Schritts erledigt eine unvollständige Eingabe; Freitextschritte (frei) mit jedem Text erfüllt — vorher blieb der Pfad frei und als Aufgabe stehen, wenn jemand anders formulierte. Beide Klickpfade. 4.4, KLICKPFADE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | 09.11.2026 | Rundgang erweitert                                                                                 | Rundgang demo-ueberblick auf 34 Schritte: Dokumente der ePA mit ✦ Entlassbrief als FHIR-Dokument und dessen FHIR-Ressource, strukturierte Laborbefunde, FHIR der Patient Summary, ✦ Arztbrief bis zum Einstellen in die ePA, Aktenlotse nur als Ausblick. FHIR-Ansichten als benannte Bereiche; Zeitpunkte im Abbild vereinheitlicht; Klickpfad diagnose-in-ps mit Verweisen in die Dokumentation. 4.4, KLICKPFADE, P107                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | 09.11.2026 | Rundgang: weiter bei großen Zielen                                                                 | Bei Schritt 10 stand die Sprechblase mit „✓ weiter“ außerhalb des Bildes (Ziel über die volle Höhe). Sprechblase jetzt notfalls in der oberen Ecke des Ziels; Prüfpunkte haben „weiter →“ auch in der Seitenleiste. 4.4, P107                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

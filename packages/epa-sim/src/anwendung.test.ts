@@ -10,6 +10,7 @@ import {
   dosierungsanzeige,
   grundId,
   patientSummaryLesen,
+  psVerlaufLesen,
   planeintragFortschreiben,
   planeintragLesen,
   planeintragNachFhir,
@@ -709,6 +710,149 @@ describe('✦ Patient Summary', () => {
       },
     });
     expect(veraltet.statusCode).toBe(409);
+  });
+
+  /** Legt Ibuprofen in der Allergienliste an und markiert es für die Patient Summary. */
+  async function ibuprofenMarkieren() {
+    const chronologie = async () =>
+      (
+        (
+          await app.inject({ method: 'GET', url: `${DIENST}/$allergy-list`, headers: kopf() })
+        ).json().entry as {
+          resource: { id: string; code?: { text?: string }; extension?: { url: string }[] };
+        }[]
+      ).map((e) => e.resource);
+    const stand = (r: { id: string; extension?: { url: string }[] }[]) =>
+      r.find((x) => x.extension?.some((e) => e.url.endsWith('is-allergy-list-chronology')))!.id;
+    const vorher = await chronologie();
+    await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$add-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: stand(vorher) },
+          {
+            name: 'allergyEntry',
+            resource: {
+              resourceType: 'AllergyIntolerance',
+              clinicalStatus: {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical',
+                    code: 'active',
+                  },
+                ],
+              },
+              code: {
+                coding: [
+                  {
+                    system: 'http://snomed.info/sct',
+                    version: 'http://snomed.info/sct/11000274103/version/20260515',
+                    code: '387207008',
+                  },
+                ],
+                text: 'Ibuprofen',
+              },
+            },
+          },
+        ],
+      },
+    });
+    const nachher = await chronologie();
+    const ibuprofen = nachher.find((r) => r.code?.text === 'Ibuprofen')!;
+    const markiert = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$flag-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: stand(nachher) },
+          { name: 'entry', valueReference: { reference: `AllergyIntolerance/${ibuprofen.id}` } },
+          { name: 'psRelevant', valueBoolean: true },
+        ],
+      },
+    });
+    expect(markiert.statusCode).toBe(200);
+  }
+
+  async function summaryZum(zeit: string) {
+    const a = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary?_at=${encodeURIComponent(zeit)}`,
+      headers: kopf(),
+    });
+    expect(a.statusCode).toBe(200);
+    return patientSummaryLesen(a.json())!;
+  }
+
+  it('✦ führt einen Änderungsverlauf und bildet jeden früheren Stand aus den Quellen', async () => {
+    await ibuprofenMarkieren();
+    const log = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary-log`,
+      headers: kopf(),
+    });
+    expect(log.statusCode).toBe(200);
+    const verlauf = psVerlaufLesen(log.json());
+    // Jüngste Änderung zuerst: Ibuprofen neu bei den Allergien, eingetragen von der Praxis.
+    const juengste = verlauf[0]!;
+    expect(juengste.aenderungen).toContainEqual(
+      expect.objectContaining({ abschnitt: 'allergien', art: 'added', bezeichnung: 'Ibuprofen' }),
+    );
+    expect(juengste.wer.map((w) => w.telematikId)).toContain(PRAXIS);
+    expect(juengste.quellen.some((q) => q.verweis.startsWith('Provenance/'))).toBe(true);
+    // Der älteste Eintrag legt die Patient Summary an: alles neu.
+    expect(verlauf.at(-1)!.aenderungen.every((a) => a.art === 'added')).toBe(true);
+    // Unmarkierte Änderungen ändern die Patient Summary nicht — das Anlegen allein steht nicht da.
+    expect(
+      verlauf.filter((v) => v.aenderungen.some((a) => a.bezeichnung === 'Ibuprofen')),
+    ).toHaveLength(1);
+
+    const allergien = (ps: ReturnType<typeof patientSummaryLesen>) =>
+      ps!.abschnitte.find((x) => x.schluessel === 'allergien')!.eintraege;
+    const davor = await summaryZum(verlauf[1]!.zeit);
+    expect(allergien(davor)).toHaveLength(2);
+    expect(davor.erstellt).toBe(verlauf[1]!.zeit);
+    // Nur Änderungseinträge bis zum Stand.
+    expect(
+      davor.ressourcen
+        .filter((r) => r.resourceType === 'Provenance')
+        .every((r) => Date.parse(String(r['recorded'])) <= Date.parse(verlauf[1]!.zeit)),
+    ).toBe(true);
+    expect(allergien(await summaryZum(juengste.zeit))).toHaveLength(3);
+    // Vor dem ersten Eintrag gibt es nichts.
+    const leer = await summaryZum('2000-01-01T00:00:00+01:00');
+    expect(leer.abschnitte.every((a) => a.eintraege.length === 0)).toBe(true);
+  });
+
+  it('✦ weist einen Stand ohne Uhrzeit oder Zeitzone ab', async () => {
+    const a = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary?_at=2026-08-01`,
+      headers: kopf(),
+    });
+    expect(a.statusCode).toBe(400);
+  });
+
+  it('✦ nennt für Einträge aus Dokumenten das Dokument als Quelle (Provenance)', async () => {
+    const ps = await summary();
+    const prozedur = ps.abschnitte.find((x) => x.schluessel === 'prozeduren')!.eintraege[0]!;
+    const herkunft = ps.ressourcen.find(
+      (r) =>
+        r.resourceType === 'Provenance' &&
+        (r['target'] as { reference: string }[]).some(
+          (z) => z.reference === `Procedure/${String(prozedur.id)}`,
+        ),
+    )!;
+    expect(herkunft).toBeDefined();
+    const entity = (herkunft['entity'] as { role: string; what: { reference: string } }[])[0]!;
+    expect(entity.role).toBe('source');
+    expect(entity.what.reference).toMatch(/^DocumentReference\//);
+    expect(JSON.stringify(herkunft['agent'])).toContain('Klinikum Sonnenschein');
+    expect(JSON.stringify(herkunft['agent'])).toContain('assembler');
   });
 });
 

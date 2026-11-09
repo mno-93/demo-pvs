@@ -90,3 +90,14 @@ export function demoUhrNeuStellen(neueQuelle: () => number = () => Date.now()): 
   startTag = null;
   zuletzt = '';
 }
+
+/**
+ * Ein Zeitpunkt gleich welcher Zone als deutsche Ortszeit ohne Zone — so, wie der Bestand ihn
+ * führt, und damit als Zeichenkette mit ihm vergleichbar. Etwa ein ✦ Stand, den ein
+ * Primärsystem mit Zone schickt.
+ */
+export function alsOrtszeit(wert: string): string {
+  if (!/(Z|[+-]\d{2}:\d{2})$/.test(wert) || !/T/.test(wert)) return wert;
+  const bruch = /\.\d+/.exec(wert)?.[0] ?? '';
+  return `${ortszeitDeutschland(new Date(Date.parse(wert)))}${bruch}`;
+}

@@ -9,6 +9,8 @@ import {
   PS_QUELLE_SYSTEM,
   PS_WEITERE_EXTENSION,
   istPsRelevant,
+  alsOrtszeit,
+  ohneZeitzone,
   vollUrl,
   type PsAbschnittSchluessel,
   type PsQuelle,
@@ -16,15 +18,15 @@ import {
   neueId,
   WEG,
 } from '@demo-pvs/kern';
-import { bestandFuer } from './bestand.ts';
+import { bestandFuer, type Dokument } from './bestand.ts';
 import { abStufe, betriebslage } from './betrieb.ts';
-import { istChronologie } from './chronologie.ts';
+import { istChronologie, type Chronologieart } from './chronologie.ts';
 import { KEINE_BEKANNTE_ALLERGIE, LISTE } from './diagnosedienst.ts';
 import { jetzt } from './fhir-hilfen.ts';
-import { EMP, istEmpEintrag } from './medikation.ts';
+import { EMP, istEmpEintrag, operationsparameterAbweisen } from './medikation.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
 import { uuidAus } from './plattform.ts';
-import { patientFuer } from './schreibwege.ts';
+import { archivierteKennungen, fassung, fassungen, patientFuer } from './schreibwege.ts';
 
 /**
  * ✦ VORSCHLAG — Patient Summary als Sicht der ePA. Nicht spezifiziert.
@@ -48,9 +50,19 @@ import { patientFuer } from './schreibwege.ts';
  *
  * Demo-Steuerung `patientSummaryQuellen = automatisch` bildet den Stand ohne ärztlich
  * geführte Listen nach: nur Medikationsliste und Laborwerte.
+ *
+ * ✦ Frühere Stände (`_at`): Die Patient Summary bleibt eine Sicht und wird nicht gespeichert. Ein
+ * früherer Stand entsteht aus dem, was die Quellen damals führten — die Listen und der eMP über
+ * den Chronologieeintrag, der zum Zeitpunkt galt, mit den Einträgen in ihrer damaligen Fassung
+ * (wie `$medication-plan` zu einem Chronologieeintrag, IG-MED04510JHX); Dokumente, die bis dahin
+ * eingestellt waren. Die Demo-Steuerung (Quellen, Ausbaustand) und Widersprüche gelten wie beim
+ * Abruf: Zugriffsregeln wirken auf den Zeitpunkt des Lesens, nicht auf den gelesenen Stand.
  */
 
 export const PATIENT_SUMMARY_BASIS = WEG.patientSummary;
+
+/** Zeitpunkt mit Uhrzeit und Zeitzone (FHIR `instant`, Sekundenbruchteile erlaubt). */
+const ZEITPUNKT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 const AUTOR = {
   resourceType: 'Device',
@@ -75,11 +87,177 @@ function istKeineBekannte(r: Ressource): boolean {
     : false;
 }
 
-function aenderungen(ablage: readonly Ressource[], ziele: readonly Ressource[]): Ressource[] {
+/**
+ * Stand, zu dem die Patient Summary gebildet wird (✦ `_at`), als deutsche Ortszeit ohne Zone wie
+ * im Bestand (`kern/uhr.ts`); `null` heißt jetzt.
+ */
+export type Stand = string | null;
+
+/** Lag der Zeitpunkt bis zum Stand? Ohne Stand immer; verglichen ohne Zone, wie `imZeitraum`. */
+function bis(zeit: unknown, stand: Stand): boolean {
+  return stand === null || ohneZeitzone(String(zeit ?? '')) <= stand;
+}
+
+/** Der Chronologieeintrag einer Quelle, der zum Stand galt — der jüngste bis dahin. */
+function chronologieZum(
+  ablage: readonly Ressource[],
+  art: Chronologieart,
+  stand: string,
+): Ressource | undefined {
+  return ablage.filter((r) => istChronologie(r, art) && bis(r['recorded'], stand)).pop();
+}
+
+/**
+ * Einträge einer geführten Quelle zum Stand: jetzt die, die `jetzt` auswählt; früher die des
+ * damals geltenden Chronologieeintrags in ihrer damaligen Fassung.
+ */
+function gefuehrteEintraege(
+  ablage: Ressource[],
+  art: Chronologieart,
+  stand: Stand,
+  jetzt: (r: Ressource) => boolean,
+): Ressource[] {
+  if (stand === null) return ablage.filter(jetzt);
+  const chronologie = chronologieZum(ablage, art, stand);
+  return (
+    ((chronologie?.['target'] as { reference?: string }[] | undefined) ?? [])
+      .map((z) => String(z.reference ?? '').split('/'))
+      // Gilt die Fassung noch, ist die heutige Instanz maßgeblich; sonst die gesicherte Fassung.
+      .map(([typ, id, , v]) =>
+        typ && id && v
+          ? (ablage.find(
+              (r) =>
+                r.resourceType === typ && r.id === id && String(r.meta?.versionId ?? '1') === v,
+            ) ?? fassung(ablage, typ, id, v))
+          : undefined,
+      )
+      .filter((r): r is Ressource => !!r && jetzt(r))
+  );
+}
+
+/** War die Instanz zum Stand gelöscht? Ein Änderungseintrag DELETE bis dahin sagt es. */
+function geloeschtZum(
+  ablage: readonly Ressource[],
+  typ: string,
+  id: string,
+  stand: string,
+): boolean {
+  return ablage.some(
+    (p) =>
+      p.resourceType === 'Provenance' &&
+      code(p, 'activity') === 'DELETE' &&
+      bis(p['recorded'], stand) &&
+      (p['target'] as { reference?: string }[] | undefined)?.some((z) =>
+        String(z.reference ?? '').startsWith(`${typ}/${id}/`),
+      ),
+  );
+}
+
+/** Eine Instanz zum Stand: die jüngste Fassung bis dahin — keine, wenn sie gelöscht war. */
+function zumStand(
+  ablage: Ressource[],
+  typ: string,
+  id: string,
+  stand: Stand,
+): Ressource | undefined {
+  const aktuell = ablage.find((r) => r.resourceType === typ && r.id === id);
+  if (stand === null) return aktuell;
+  if (geloeschtZum(ablage, typ, id, stand)) return undefined;
+  return [...fassungen(ablage, typ, id), ...(aktuell ? [aktuell] : [])]
+    .filter((f) => bis(f.meta?.lastUpdated, stand))
+    .pop();
+}
+
+/** Alle Instanzen eines Typs zum Stand — auch solche, die es heute nicht mehr gibt. */
+function alleZumStand(ablage: Ressource[], typ: string, stand: Stand): Ressource[] {
+  if (stand === null) return ablage.filter((r) => r.resourceType === typ);
+  const kennungen = new Set([
+    ...ablage.filter((r) => r.resourceType === typ).map((r) => String(r.id)),
+    ...archivierteKennungen(ablage, typ),
+  ]);
+  return [...kennungen]
+    .map((id) => zumStand(ablage, typ, id, stand))
+    .filter((r): r is Ressource => !!r);
+}
+
+/** Dokumente, die zum Stand sichtbar und eingestellt waren. */
+function dokumenteZum(kvnr: string, stand: Stand): Dokument[] {
+  return bestandFuer(kvnr).dokumente.filter(
+    (d) => sichtbar(d) && d.inhalt && bis(d.eingestellt ?? d.erstellt, stand),
+  );
+}
+
+const TELEMATIK_ID = 'https://gematik.de/fhir/sid/telematik-id';
+
+/**
+ * ✦ Herkunft eines Eintrags, den der Dienst aus einem Dokument übernimmt: Provenance mit dem
+ * Dokument als Quelle, der einstellenden Einrichtung als Urheberin und dem Dienst, der die
+ * Übersicht zusammenstellt. Kein EPAActivityProvenance — den Eintrag hat niemand in einem Dienst
+ * geschrieben.
+ */
+function herkunftAusDokument(eintrag: Ressource, d: Dokument): Ressource {
+  return {
+    resourceType: 'Provenance',
+    id: `herkunft-${String(eintrag.id)}`,
+    target: [{ reference: `${eintrag.resourceType}/${String(eintrag.id)}` }],
+    occurredDateTime: d.erstellt,
+    recorded: d.eingestellt ?? d.erstellt,
+    activity: {
+      coding: [
+        { system: 'http://terminology.hl7.org/CodeSystem/v3-DataOperation', code: 'CREATE' },
+      ],
+    },
+    agent: [
+      {
+        type: {
+          coding: [
+            {
+              system: 'http://terminology.hl7.org/CodeSystem/provenance-participant-type',
+              code: 'author',
+            },
+          ],
+        },
+        who: {
+          ...(d.einrichtungTelematikId
+            ? { identifier: { system: TELEMATIK_ID, value: d.einrichtungTelematikId } }
+            : {}),
+          display: d.einrichtung,
+        },
+      },
+      {
+        type: {
+          coding: [
+            {
+              system: 'http://terminology.hl7.org/CodeSystem/provenance-participant-type',
+              code: 'assembler',
+            },
+          ],
+        },
+        who: { reference: 'Device/ps-dienst', display: 'Patient-Summary-Dienst der ePA' },
+      },
+    ],
+    entity: [
+      {
+        role: 'source',
+        what: {
+          reference: `DocumentReference/${eintragsUuid(d)}`,
+          display: `${d.titel}, ${d.einrichtung}`,
+        },
+      },
+    ],
+  };
+}
+
+function aenderungen(
+  ablage: readonly Ressource[],
+  ziele: readonly Ressource[],
+  stand: Stand = null,
+): Ressource[] {
   const praefixe = ziele.map((z) => `${z.resourceType}/${String(z.id)}/`);
   return ablage.filter(
     (r) =>
       r.resourceType === 'Provenance' &&
+      bis(r['recorded'], stand) &&
       !istChronologie(r, LISTE.Condition) &&
       !istChronologie(r, LISTE.AllergyIntolerance) &&
       !istChronologie(r, EMP) &&
@@ -89,7 +267,7 @@ function aenderungen(ablage: readonly Ressource[], ziele: readonly Ressource[]):
   );
 }
 
-interface Teil {
+export interface Teil {
   quelle: PsQuelle;
   eintraege: Ressource[];
   dazu: Ressource[];
@@ -106,12 +284,22 @@ interface Teil {
  * Relevanzauswahl, mit dem Stand des Dokuments (ADR 0031).
  */
 
-function allergien(kvnr: string, mitListen: boolean): Teil {
+function allergien(kvnr: string, mitListen: boolean, stand: Stand): Teil {
   if (!mitListen) {
-    return ausDokumenten(kvnr, 'AllergyIntolerance', (r) => String(r['onsetDateTime'] ?? ''));
+    return ausDokumenten(
+      kvnr,
+      'AllergyIntolerance',
+      (r) => String(r['onsetDateTime'] ?? ''),
+      stand,
+    );
   }
   const ablage = bestandFuer(kvnr).diagnosedienst;
-  const alle = ablage.filter((r) => r.resourceType === 'AllergyIntolerance' && gueltig(r));
+  const alle = gefuehrteEintraege(
+    ablage,
+    LISTE.AllergyIntolerance,
+    stand,
+    (r) => r.resourceType === 'AllergyIntolerance',
+  ).filter(gueltig);
   const echte = alle.filter((r) => !istKeineBekannte(r));
   const markiert = echte.filter(istPsRelevant);
   // „Keine bekannte Allergie" ist eine Aussage über die ganze Liste — sie gilt nur, solange
@@ -120,29 +308,37 @@ function allergien(kvnr: string, mitListen: boolean): Teil {
   return {
     quelle: 'allergy-list',
     eintraege,
-    dazu: aenderungen(ablage, eintraege),
+    dazu: aenderungen(ablage, eintraege, stand),
     weitere: echte.length - markiert.length,
   };
 }
 
-function diagnosen(kvnr: string, mitListen: boolean): Teil {
+function diagnosen(kvnr: string, mitListen: boolean, stand: Stand): Teil {
   if (!mitListen) {
-    return ausDokumenten(kvnr, 'Condition', (r) =>
-      String(r['onsetDateTime'] ?? r['recordedDate'] ?? ''),
+    return ausDokumenten(
+      kvnr,
+      'Condition',
+      (r) => String(r['onsetDateTime'] ?? r['recordedDate'] ?? ''),
+      stand,
     );
   }
   const ablage = bestandFuer(kvnr).diagnosedienst;
-  const alle = ablage.filter((r) => r.resourceType === 'Condition' && gueltig(r));
+  const alle = gefuehrteEintraege(
+    ablage,
+    LISTE.Condition,
+    stand,
+    (r) => r.resourceType === 'Condition',
+  ).filter(gueltig);
   const eintraege = alle.filter(istPsRelevant);
   return {
     quelle: 'condition-list',
     eintraege,
-    dazu: aenderungen(ablage, eintraege),
+    dazu: aenderungen(ablage, eintraege, stand),
     weitere: alle.length - eintraege.length,
   };
 }
 
-function medikation(kvnr: string, mitListen: boolean): Teil {
+function medikation(kvnr: string, mitListen: boolean, stand: Stand): Teil {
   // Nach Widerspruch gegen den Medikationsprozess ist die Medikation für Einrichtungen
   // gesperrt; die Patient Summary darf sie nicht über einen Umweg zeigen.
   if (bestandFuer(kvnr).widersprueche.medication === 'deny') {
@@ -153,17 +349,22 @@ function medikation(kvnr: string, mitListen: boolean): Teil {
     const id = String(
       (r['medicationReference'] as { reference?: string } | undefined)?.reference ?? '',
     ).split('/')[1];
-    return ablage.find((m) => m.resourceType === 'Medication' && m.id === id);
+    // Das Arzneimittel in der Fassung zum Stand; ohne gesicherte Fassung das heutige.
+    return (
+      zumStand(ablage, 'Medication', String(id), stand) ??
+      ablage.find((m) => m.resourceType === 'Medication' && m.id === id)
+    );
   };
-  const plan = mitListen ? ablage.filter((r) => EMP.gueltig(r) && istEmpEintrag(r)) : [];
+  const plan = mitListen
+    ? gefuehrteEintraege(ablage, EMP, stand, (r) => EMP.gueltig(r) && istEmpEintrag(r))
+    : [];
   const eintraege =
     plan.length > 0
       ? plan
       : // Ohne Plan: die Medikationsliste, wie sie automatisch entsteht — alles, was nicht
         // beendet oder berichtigt ist (Einträge aus Verordnungen tragen den Status `unknown`).
-        ablage.filter(
+        alleZumStand(ablage, 'MedicationStatement', stand).filter(
           (r) =>
-            r.resourceType === 'MedicationStatement' &&
             !['entered-in-error', 'stopped', 'completed', 'not-taken'].includes(
               String(r['status']),
             ),
@@ -172,7 +373,7 @@ function medikation(kvnr: string, mitListen: boolean): Teil {
   return {
     quelle: plan.length > 0 ? 'medication-plan' : 'medication-list',
     eintraege,
-    dazu: [...new Set(mittelListe), ...aenderungen(ablage, eintraege)],
+    dazu: [...new Set(mittelListe), ...aenderungen(ablage, eintraege, stand)],
   };
 }
 
@@ -184,10 +385,11 @@ function medikation(kvnr: string, mitListen: boolean): Teil {
  * verlangt) — mit dem Labor als Durchführendem, das deshalb mit ins Dokument kommt. Probe,
  * Gruppe und Freigabe bleiben im Befund; der Verweis auf das Quelldokument führt dorthin.
  */
-function laborwerte(kvnr: string): Teil {
+function laborwerte(kvnr: string, stand: Stand): Teil {
   const juengste = new Map<string, Ressource>();
+  const herkunft = new Map<string, Dokument>();
   const labore = new Map<string, Ressource>();
-  for (const d of bestandFuer(kvnr).dokumente.filter((x) => sichtbar(x) && x.inhalt)) {
+  for (const d of dokumenteZum(kvnr, stand)) {
     const eintraege = ((d.inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
       (e) => e.resource,
     );
@@ -208,6 +410,7 @@ function laborwerte(kvnr: string): Teil {
       const ohneBefundbezug = Object.fromEntries(
         Object.entries(o).filter(([k]) => k !== 'specimen' && k !== 'performer'),
       ) as Ressource;
+      herkunft.set(loinc, d);
       juengste.set(loinc, {
         ...ohneBefundbezug,
         id: `${String(o.id)}-${d.id}`,
@@ -234,23 +437,29 @@ function laborwerte(kvnr: string): Teil {
   return {
     quelle: 'lab-documents',
     eintraege: werte,
-    dazu: [...labore.values()].filter((l) => genutzt.has(`Organization/${String(l.id)}`)),
+    dazu: [
+      ...[...labore.values()].filter((l) => genutzt.has(`Organization/${String(l.id)}`)),
+      ...[...juengste].map(([loinc, w]) => herkunftAusDokument(w, herkunft.get(loinc)!)),
+    ],
   };
 }
 
 /** ✦ Impfungen aus der Impfliste — jede erfolgte Impfung, die jüngste zuerst (ab Stufe 2). */
-function impfungen(kvnr: string, mitListen: boolean): Teil {
+function impfungen(kvnr: string, mitListen: boolean, stand: Stand): Teil {
   if (!mitListen) {
-    return ausDokumenten(kvnr, 'Immunization', (r) => String(r['occurrenceDateTime'] ?? ''));
+    return ausDokumenten(kvnr, 'Immunization', (r) => String(r['occurrenceDateTime'] ?? ''), stand);
   }
   if (!abStufe(3)) return { quelle: 'none', eintraege: [], dazu: [] };
   const ablage = bestandFuer(kvnr).diagnosedienst;
-  const eintraege = ablage
-    .filter((r) => r.resourceType === 'Immunization' && r['status'] === 'completed')
-    .sort((a, b) =>
-      String(b['occurrenceDateTime'] ?? '').localeCompare(String(a['occurrenceDateTime'] ?? '')),
-    );
-  return { quelle: 'immunization-list', eintraege, dazu: aenderungen(ablage, eintraege) };
+  const eintraege = gefuehrteEintraege(
+    ablage,
+    LISTE.Immunization,
+    stand,
+    (r) => r.resourceType === 'Immunization' && r['status'] === 'completed',
+  ).sort((a, b) =>
+    String(b['occurrenceDateTime'] ?? '').localeCompare(String(a['occurrenceDateTime'] ?? '')),
+  );
+  return { quelle: 'immunization-list', eintraege, dazu: aenderungen(ablage, eintraege, stand) };
 }
 
 /**
@@ -264,13 +473,12 @@ function ausDokumenten(
   kvnr: string,
   typ: 'Procedure' | 'DeviceUseStatement' | 'Condition' | 'AllergyIntolerance' | 'Immunization',
   datum: (r: Ressource) => string,
+  stand: Stand,
 ): Teil {
   const gesehen = new Set<string>();
   const eintraege: Ressource[] = [];
   const dazu: Ressource[] = [];
-  const dokumente = bestandFuer(kvnr)
-    .dokumente.filter((x) => sichtbar(x) && x.inhalt)
-    .sort((a, b) => b.erstellt.localeCompare(a.erstellt));
+  const dokumente = dokumenteZum(kvnr, stand).sort((a, b) => b.erstellt.localeCompare(a.erstellt));
   for (const d of dokumente) {
     const ressourcen = ((d.inhalt as { entry?: { resource: Ressource }[] }).entry ?? []).map(
       (e) => e.resource,
@@ -315,6 +523,7 @@ function ausDokumenten(
       } else {
         eintraege.push({ ...r, id, extension: [...(r.extension ?? []), quelle] });
       }
+      dazu.push(herkunftAusDokument(eintraege[eintraege.length - 1]!, d));
     }
   }
   return {
@@ -338,10 +547,20 @@ function erzaehlung(titel: string, zeilen: string[]): { status: string; div: str
   };
 }
 
-function bezeichnung(r: Ressource, alle: readonly Ressource[]): string {
+export function bezeichnung(r: Ressource, alle: readonly Ressource[]): string {
   const konzept = (r['code'] ?? r['vaccineCode'] ?? r['medicationCodeableConcept']) as
     { text?: string; coding?: { display?: string }[] } | undefined;
   if (konzept) return konzept.text ?? konzept.coding?.[0]?.display ?? r.resourceType;
+  // Ein Implantat heißt wie sein Gerät.
+  const geraet = alle.find(
+    (x) =>
+      x.resourceType === 'Device' &&
+      `Device/${String(x.id)}` === (r['device'] as { reference?: string } | undefined)?.reference,
+  );
+  if (geraet) {
+    const typ = geraet['type'] as { text?: string; coding?: { display?: string }[] } | undefined;
+    return typ?.text ?? typ?.coding?.[0]?.display ?? 'Implantat';
+  }
   const id = String(
     (r['medicationReference'] as { reference?: string } | undefined)?.reference ?? '',
   ).split('/')[1];
@@ -349,18 +568,40 @@ function bezeichnung(r: Ressource, alle: readonly Ressource[]): string {
   return (m?.['code'] as { text?: string } | undefined)?.text ?? r.resourceType;
 }
 
-export function patientSummaryBilden(kvnr: string): Ressource {
+/** Die Abschnitte der Patient Summary zum Stand — auch für den Änderungsverlauf. */
+export function teileBilden(
+  kvnr: string,
+  stand: Stand = null,
+): Record<PsAbschnittSchluessel, Teil> {
   const mitListen = betriebslage.patientSummaryQuellen === 'listen';
-  const teile: Record<PsAbschnittSchluessel, Teil> = {
-    allergien: allergien(kvnr, mitListen),
-    diagnosen: diagnosen(kvnr, mitListen),
-    medikation: medikation(kvnr, mitListen),
-    laborwerte: laborwerte(kvnr),
-    impfungen: impfungen(kvnr, mitListen),
-    prozeduren: ausDokumenten(kvnr, 'Procedure', (r) => String(r['performedDateTime'] ?? '')),
-    implantate: ausDokumenten(kvnr, 'DeviceUseStatement', (r) => String(r['timingDateTime'] ?? '')),
+  return {
+    allergien: allergien(kvnr, mitListen, stand),
+    diagnosen: diagnosen(kvnr, mitListen, stand),
+    medikation: medikation(kvnr, mitListen, stand),
+    laborwerte: laborwerte(kvnr, stand),
+    impfungen: impfungen(kvnr, mitListen, stand),
+    prozeduren: ausDokumenten(
+      kvnr,
+      'Procedure',
+      (r) => String(r['performedDateTime'] ?? ''),
+      stand,
+    ),
+    implantate: ausDokumenten(
+      kvnr,
+      'DeviceUseStatement',
+      (r) => String(r['timingDateTime'] ?? ''),
+      stand,
+    ),
     erklaerungen: ohneQuelle(),
   };
+}
+
+/**
+ * Die Patient Summary — jetzt oder ✦ zu einem früheren Stand. `Composition.date` ist der Stand,
+ * den sie zeigt; `Bundle.timestamp` der Zeitpunkt, zu dem der Dienst sie gebildet hat.
+ */
+export function patientSummaryBilden(kvnr: string, stand: Stand = null): Ressource {
+  const teile = teileBilden(kvnr, stand);
   const patient = { ...patientFuer(kvnr), meta: { profile: [EPS.patient] } };
   const alle = Object.values(teile).flatMap((t) => [...t.eintraege, ...t.dazu]);
   const zeit = jetzt();
@@ -376,7 +617,7 @@ export function patientSummaryBilden(kvnr: string): Ressource {
       coding: [{ system: CODESYSTEM.loinc, code: '60591-5', display: 'Patient summary Document' }],
     },
     subject: { reference: `Patient/${String(patient.id)}` },
-    date: zeit,
+    date: stand ?? zeit,
     author: [{ reference: 'Device/ps-dienst', display: 'Patient-Summary-Dienst der ePA' }],
     title: 'Patient Summary',
     section: PS_ABSCHNITTE.map((d) => {
@@ -461,5 +702,13 @@ export function patientSummaryEinhaengen(
     ],
   }));
 
-  app.get(`${b}/Patient/$summary`, async (anfrage) => patientSummaryBilden(kvnrAus(anfrage)));
+  /*
+   * ✦ `_at`: der Stand zu einem früheren Zeitpunkt — Datum mit Uhrzeit und Zeitzone, wie FHIR ihn
+   * für `_history?_at` kennt. Ohne den Parameter der Stand jetzt.
+   */
+  app.get(`${b}/Patient/$summary`, async (anfrage, antwort) => {
+    if (operationsparameterAbweisen(anfrage, { _at: ZEITPUNKT }, antwort)) return antwort;
+    const at = (anfrage.query as Record<string, string | undefined>)['_at'];
+    return patientSummaryBilden(kvnrAus(anfrage), at ? alsOrtszeit(at) : null);
+  });
 }

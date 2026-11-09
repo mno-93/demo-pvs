@@ -248,8 +248,26 @@ Das ist die Kernfrage der Demo: Die Patient Summary entsteht aus Dokumentation, 
     {
       ziel: { rolle: 'region', name: 'FHIR-Ressource der Patient Summary', in: EPA },
       kurz: 'Gebildet, nicht gespeichert',
-      lang: 'Das Bundle entsteht bei diesem Abruf aus den Diensten der ePA. Es wird nicht als Dokument abgelegt; wer es morgen abruft, bekommt den Stand von morgen.',
+      lang: 'Das Bundle entsteht bei diesem Abruf aus den Diensten der ePA. Es wird nicht als Dokument abgelegt; wer es morgen abruft, bekommt den Stand von morgen. Jeder Eintrag bringt seine Provenance mit — auch die aus Dokumenten, mit dem Dokument als Quelle.',
       mehr: [{ text: 'Dienst', pfad: 'docs/SPEZIFIKATION.md#74-dienst' }],
+    },
+    {
+      ziel: { rolle: 'button', name: 'Verlauf', in: EPA },
+      handlung: { art: 'klicken' },
+      kurz: 'Änderungsverlauf öffnen',
+    },
+    {
+      ziel: { rolle: 'region', name: 'Änderungsverlauf der Patient Summary', in: EPA },
+      kurz: 'Wer hat wann was geändert',
+      lang: `✦ Je Änderung Zeitpunkt, Einrichtung, Quelle und was in welchem Abschnitt neu, geändert oder entfallen ist. „Stand ansehen“ zeigt die Patient Summary, wie sie damals galt.
+
+Gespeichert wird dafür nichts: Listen und Medikationsplan führen Chronologieeinträge mit jeder Fassung, Dokumente ihren Einstellzeitpunkt — daraus bildet der Dienst jeden früheren Stand nach, wie der Medication Service einen früheren Plan.`,
+      mehr: [
+        {
+          text: 'Frühere Stände und Verlauf',
+          pfad: 'docs/SPEZIFIKATION.md#79--frühere-stände-und-änderungsverlauf',
+        },
+      ],
     },
     {
       ziel: { rolle: 'button', name: 'ePA schließen' },

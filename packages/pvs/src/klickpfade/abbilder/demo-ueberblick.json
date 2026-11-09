@@ -183,12 +183,27 @@
     },
     {
       "schritt": 25,
+      "kurz": "Änderungsverlauf öffnen",
+      "ziel": "Knopf „Verlauf“ in Fenster „Elektronische Patientenakte“",
+      "epa": [
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary-log"
+      ]
+    },
+    {
+      "schritt": 26,
+      "kurz": "Wer hat wann was geändert",
+      "ziel": "Bereich „Änderungsverlauf der Patient Summary“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Änderungsverlauf 12.08.2026, <zeit> Uhr Laborgemeinschaft Nordwest aktueller Stand angezeigt Laborwerte : neu Kalium im Serum geändert Kreatinin im Serum geändert eGFR nach CKD-EPI geändert HbA1c Quelle: Laborgesamtbefund, Laborgemeinschaft Nordwest 18.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Medikation : geändert Apixaban 5 mg Filmtabletten geändert Ramipril 5 mg Tabletten geändert Bisoprolol 2,5 mg Filmtabletten geändert Atorvastatin 40 mg Filmtabletten entfallen Metformin 1000 mg Filmtabletten Quelle: Chronologieeintrag des eMP 18.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Medikation : neu Apixaban 5 mg Filmtabletten neu Metformin 1000 mg Filmtabletten neu Ramipril 5 mg Tabletten neu Bisoprolol 2,5 mg Filmtabletten neu Atorvastatin 40 mg Filmtabletten Quelle: Änderungseintrag des Medication Service (9) 17.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Allergien und Unverträglichkeiten : neu Penicillin neu Iodhaltiges Kontrastmittel Diagnosen : neu Vorhofflimmern, persistierend neu Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet Quelle: Chronologieeintrag einer Liste (2) 17.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Prozeduren : neu Elektrische Kardioversion neu Transösophageale Echokardiographie neu CT-Angiographie des Thorax mit Kontrastmittel Implantate und Medizinprodukte : neu Herzschrittmacher (Zweikammer) Quelle: Entlassbrief stationäre Behandlung, Klinikum Sonnenschein 18.03.202",
+      "epa": []
+    },
+    {
+      "schritt": 27,
       "kurz": "ePA schließen",
       "ziel": "Knopf „ePA schließen“",
       "epa": []
     },
     {
-      "schritt": 26,
+      "schritt": 28,
       "kurz": "Arztbrief öffnen",
       "ziel": "Verweis „Arztbrief ✦“ in Navigation „Bereiche der Patientenkartei“",
       "epa": [
@@ -202,27 +217,27 @@
       ]
     },
     {
-      "schritt": 27,
+      "schritt": 29,
       "kurz": "Vorausgewählt, was aktuell ist",
       "ziel": "Bereich „Arztbrief ✦“",
       "inhalt": "Arztbrief ✦ 11 übernommen 0 Wörter geschrieben An Kardiologische Praxis am Wall Diabetologische Schwerpunktpraxis Nordstadt Augenärztliche Gemeinschaftspraxis am Markt Klinikum Sonnenschein Kardiologische Praxis Dr. Brinkmann, Oldenburg (ohne KIM) KIM kardiologie.am-wall@demo-anbieter.kim.telematik Fragestellung Anamnese 1 von 1 Auswählen ▾ 30.08.2026: Erstvorstellung nach Umzug. Übernahme in die hausärztliche Betreuung gewünscht. Stationäre Behandlung vor sechs Wochen, Entlassbrief liegt vor. Praxis × Diagnosen 3 von 8 + Neue Diagnose Auswählen ▾ I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise Praxis Ändern × E11.90 G Diabetes mellitus, Typ 2: Ohne Komplikationen, nicht als entgleist bezeichnet Praxis Ändern × N18.3 G Chronische Nierenkrankheit, Stadium 3 Praxis Ändern × Allergien und Unverträglichkeiten 2 von 4 + Neue Allergie Auswählen ▾ Amoxicillin (Unverträglichkeit, unbestätigt) — Generalisierter Ausschlag (leicht) Praxis Ändern × Nickelverbindung (Allergie, bestätigt) — Juckflechte (leicht) Praxis Ändern × Befunde 1 von 2 Auswählen ▾ Labor 12.08.2026 (Laborgemeinschaft Nordwest): Kreatinin im Serum 1,42 mg/dl (hoch), eGFR nach CKD-EPI 38 ml/min/1,73 m² (niedrig), HbA1c 7,8 % (hoch) ePA × Beurteilung Medikation 4 von 5 Auswählen ▾ Apixaban 5 mg Filmtabletten — täglich: 1-0-1-0 Stück — Grund: Vorhofflimmern Praxis × Ramipril 5 mg Tabletten — täglich: 1-0-0-0 Stück — Grund: Arterielle Hypertonie Praxis × Bisoprolol 2,5 mg Filmtabletten — täglich: 1-",
       "epa": []
     },
     {
-      "schritt": 28,
+      "schritt": 30,
       "kurz": "Beurteilung schreiben",
       "ziel": "Feld „Beurteilung“",
       "beschriftung": "Beurteilung",
       "epa": []
     },
     {
-      "schritt": 29,
+      "schritt": 31,
       "kurz": "Unterschreiben",
       "ziel": "Knopf „Unterschreiben“",
       "epa": []
     },
     {
-      "schritt": 30,
+      "schritt": 32,
       "kurz": "In die ePA einstellen",
       "ziel": "Knopf „In die ePA einstellen“",
       "epa": [
@@ -237,22 +252,22 @@
       ]
     },
     {
-      "schritt": 31,
+      "schritt": 33,
       "kurz": "Was die ePA-Arbeit davon hat",
       "erzaehlung": true
     },
     {
-      "schritt": 32,
+      "schritt": 34,
       "kurz": "Was FHIR-Entwicklung davon hat",
       "erzaehlung": true
     },
     {
-      "schritt": 33,
+      "schritt": 35,
       "kurz": "Aktenlotse ✦ (Weiterentwicklung 4)",
       "erzaehlung": true
     },
     {
-      "schritt": 34,
+      "schritt": 36,
       "kurz": "Alles Weitere in der Dokumentation",
       "ziel": "Verweis „Dokumentation auf GitHub (öffnet ein neues Fenster)“",
       "inhalt": "Dokumentation ↗",

@@ -101,7 +101,8 @@ npm run vorschau:gehostet
 2. **Diagnosen und Allergien**: links die Praxis, rechts die Listen der ePA (✦). Vorhofflimmern
    „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
-4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
+4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. ✦ „Verlauf“ zeigt, wer sie
+   wann geändert hat, und jeden früheren Stand — gebildet aus den Quellen, nicht gespeichert. Jeder Block führt dorthin,
    wo er gepflegt wird; Prozeduren und Implantate öffnen ihr Quelldokument. Welche Einträge der
    Listen sie zeigt, bestimmt die Markierung ★ im Splitscreen — die Listen bleiben vollständig.
 5. **Arztbrief ✦**: Das Aktuelle ist vorausgewählt; „Auswählen ▾" je Abschnitt zeigt alles aus
@@ -142,7 +143,7 @@ Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbes
 ## Klickpfade
 
 **Einstieg: der Rundgang.** „Rundgang“ im Kopf der Demo (`?klickpfad=demo-ueberblick`) zeigt in
-34 Schritten, was die Demo kann — vom Praxisalltag mit der ePA über Befunde, Briefe, Listen und
+36 Schritten, was die Demo kann — vom Praxisalltag mit der ePA über Befunde, Briefe, Listen und
 Patient Summary bis zum Arztbrief —, nach welchem Prinzip sie gebaut ist und was ePA- und
 FHIR-Arbeit davon haben, mit einem Blick in die FHIR-Ressourcen und Verweisen in diese
 Dokumentation.
