@@ -828,6 +828,76 @@ describe('✦ Patient Summary', () => {
     expect(leer.abschnitte.every((a) => a.eintraege.length === 0)).toBe(true);
   });
 
+  it('✦ führt den Verlauf wie $medication-plan-log und jeden eMP-Stand wie $medication-plan', async () => {
+    // Eine andere Einrichtung ändert Plan, Listen und Dokumente — mehrere Stände des eMP.
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/fremde-eintraege',
+      payload: { kvnr: HOFFMANN },
+    });
+    const holen = async (url: string) =>
+      (await app.inject({ method: 'GET', url, headers: kopf() })).json();
+    // Form wie der Plan-Log: searchset, total, _count und _offset, jüngste zuerst.
+    const log = await holen(`${PS}/Patient/$summary-log`);
+    expect(log.type).toBe('searchset');
+    const erste = await holen(`${PS}/Patient/$summary-log?_count=1`);
+    expect(erste.entry).toHaveLength(1);
+    expect(erste.total).toBe(log.total);
+    const zweite = await holen(`${PS}/Patient/$summary-log?_count=1&_offset=1`);
+    expect(zweite.entry[0].resource.id).toBe(log.entry[1].resource.id);
+
+    // Jeder Stand des eMP: dieselben Einträge in derselben Fassung wie im Chronologieeintrag, und
+    // der Chronologieeintrag steht als Quelle im Verlauf.
+    const planLog = await holen(`${MEDIKATION}/$medication-plan-log`);
+    const verlauf = psVerlaufLesen(log);
+    const quellen = new Set(verlauf.flatMap((v) => v.quellen.map((q) => q.verweis)));
+    expect(planLog.total).toBeGreaterThan(1);
+    for (const { resource: c } of planLog.entry as {
+      resource: { id: string; recorded: string; target: { reference?: string }[] };
+    }[]) {
+      expect(quellen.has(`Provenance/${c.id}`)).toBe(true);
+      const imPlan = c.target
+        .map((z) => z.reference)
+        .filter((v): v is string => !!v)
+        .sort();
+      const ps = await summaryZum(c.recorded);
+      const imPs = ps.abschnitte
+        .find((a) => a.schluessel === 'medikation')!
+        .eintraege.map((r) => `MedicationRequest/${String(r.id)}/_history/${r.meta?.versionId}`)
+        .sort();
+      expect(imPs).toEqual(imPlan);
+    }
+
+    // Stand per Kennung aus dem Verlauf — wie $medication-plan?provenance=… —, gleich dem Stand
+    // zum Zeitpunkt.
+    const eintrag = verlauf[1]!;
+    const perKennung = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary?provenance=${eintrag.id}`,
+      headers: kopf(),
+    });
+    expect(perKennung.statusCode).toBe(200);
+    const kennung = patientSummaryLesen(perKennung.json())!;
+    const zeit = await summaryZum(eintrag.zeit);
+    const inhalt = (ps: typeof zeit) =>
+      ps.abschnitte.map((a) => a.eintraege.map((r) => `${String(r.id)}/${r.meta?.versionId}`));
+    expect(inhalt(kennung)).toEqual(inhalt(zeit));
+    const unbekannt = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary?provenance=00000000-0000-4000-8000-000000000000`,
+      headers: kopf(),
+    });
+    expect(unbekannt.statusCode).toBe(404);
+    const beides = await app.inject({
+      method: 'GET',
+      url: `${PS}/Patient/$summary?provenance=${eintrag.id}&_at=${encodeURIComponent(eintrag.zeit)}`,
+      headers: kopf(),
+    });
+    expect(beides.statusCode).toBe(400);
+    // Dieselbe Einrichtung steht einmal, auch wenn eine Quelle sie ohne Telematik-ID nennt.
+    for (const v of verlauf) expect(new Set(v.wer.map((w) => w.anzeige)).size).toBe(v.wer.length);
+  });
+
   it('✦ weist einen Stand ohne Uhrzeit oder Zeitzone ab', async () => {
     const a = await app.inject({
       method: 'GET',

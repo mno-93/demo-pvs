@@ -466,6 +466,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
         operationen: [
           'metadata',
           'Patient/$summary',
+          'Patient/$summary?provenance=…',
           'Patient/$summary?_at=…',
           'Patient/$summary-log',
         ],

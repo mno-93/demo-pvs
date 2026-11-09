@@ -34,7 +34,7 @@ import {
   type EpaBereich,
 } from './fenster.js';
 import { protokollOeffnen, useProtokollSichtbar } from './protokoll.js';
-import { PatientSummaryAnsicht } from './PatientSummary.js';
+import { PatientSummaryAnsicht, type PsStand } from './PatientSummary.js';
 import {
   Inhaltsspeicher,
   Medikation,
@@ -172,10 +172,10 @@ function EpaDialog({
    * ✦ Früherer Stand der Patient Summary (`_at`), gewählt im Verlauf. Er gilt für diese Person;
    * eine andere beginnt beim heutigen Stand.
    */
-  const [psStand, setzePsStand] = useState<string | null>(null);
+  const [psStand, setzePsStand] = useState<PsStand | null>(null);
   useEffect(() => setzePsStand(null), [kvnr]);
   const frueher = useEpaAbfrage(
-    () => patientSummaryAbrufen(kvnr, psStand!),
+    () => patientSummaryAbrufen(kvnr, psStand!.id),
     [kvnr, psStand],
     zugriff && summaryDienst.daten === true && psStand !== null,
   );
@@ -368,7 +368,7 @@ function EpaDialog({
                         offen: verlaufOffen,
                         umschalten: () => setzeVerlaufOffen((o) => !o),
                       },
-                      stand: psStand,
+                      stand: psStand?.zeit ?? null,
                       standWaehlen: setzePsStand,
                     })}
                 herkunft={vomAktensystem ? 'aktensystem' : 'vorschlag'}

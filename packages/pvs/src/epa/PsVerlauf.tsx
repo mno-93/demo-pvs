@@ -7,6 +7,7 @@ import {
 import { useMemo } from 'react';
 import { Leer, Marker } from '../bausteine/Bausteine.js';
 import { useEpaAbfrage } from './epa-bestand.js';
+import type { PsStand } from './PatientSummary.js';
 
 /**
  * ✦ Änderungsverlauf der Patient Summary: je Änderung Zeitpunkt, Einrichtung, Quelle und was sich
@@ -25,7 +26,7 @@ export function PsVerlauf({
   schluessel: unknown;
   /** Angezeigter früherer Stand, `null` für jetzt. */
   stand: string | null;
-  standWaehlen: (zeit: string | null) => void;
+  standWaehlen: (stand: PsStand | null) => void;
 }) {
   const abfrage = useEpaAbfrage(laden, [laden, schluessel]);
   const eintraege = useMemo(() => psVerlaufLesen(abfrage.daten), [abfrage.daten]);
@@ -59,7 +60,7 @@ export function PsVerlauf({
                       aria-label={
                         aktuell ? 'Aktuellen Stand ansehen' : `Stand vom ${zeitpunkt} ansehen`
                       }
-                      onClick={() => standWaehlen(aktuell ? null : v.zeit)}
+                      onClick={() => standWaehlen(aktuell ? null : { zeit: v.zeit, id: v.id })}
                     >
                       Stand ansehen
                     </button>

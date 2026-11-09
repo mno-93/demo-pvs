@@ -44,6 +44,12 @@ import {
  * bestätigten Angabe „keine bekannten Allergien".
  */
 
+/** ✦ Ein früherer Stand aus dem Verlauf: Zeitpunkt zur Anzeige, Kennung für den Abruf. */
+export interface PsStand {
+  zeit: string;
+  id: string;
+}
+
 /** Wohin ein Block zur Pflege führt. */
 export type PsSprung = (ziel: PsAbschnittSchluessel) => void;
 
@@ -102,7 +108,7 @@ export function PatientSummaryAnsicht({
   };
   /** ✦ Ein früherer Stand, den die Ansicht zeigt — `null` für jetzt. */
   stand?: string | null;
-  standWaehlen?: (zeit: string | null) => void;
+  standWaehlen?: (stand: PsStand | null) => void;
 }) {
   const [fhir, setzeFhir] = useState(false);
   const provenance = inhalt.ressourcen.filter((r) => r.resourceType === 'Provenance');

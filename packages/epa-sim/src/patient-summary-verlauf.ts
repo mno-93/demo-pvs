@@ -1,20 +1,16 @@
 import type { SimAnwendung } from './schnittstelle.ts';
 import {
   CODESYSTEM,
-  ohneZeitzone,
   PS_ABSCHNITTE,
   PS_AENDERUNG_EXTENSION,
   type PsAbschnittSchluessel,
   type PsAenderungsart,
   type Ressource,
 } from '@demo-pvs/kern';
-import { bestandFuer } from './bestand.ts';
-import { istChronologie } from './chronologie.ts';
-import { LISTE } from './diagnosedienst.ts';
-import { jetzt } from './fhir-hilfen.ts';
-import { EMP, operationsparameterAbweisen } from './medikation.ts';
-import { eintragsUuid, sichtbar } from './mhd.ts';
+import { suchergebnis } from './fhir-hilfen.ts';
+import { ZAHL, operationsparameterAbweisen } from './medikation.ts';
 import { PATIENT_SUMMARY_BASIS, bezeichnung, teileBilden, type Teil } from './patient-summary.ts';
+import { ereignisse, verlaufskennung, type Ereignis } from './patient-summary-ereignisse.ts';
 
 /**
  * ✦ VORSCHLAG — Änderungsverlauf der Patient Summary (`Patient/$summary-log`). Nicht spezifiziert.
@@ -27,71 +23,14 @@ import { PATIENT_SUMMARY_BASIS, bezeichnung, teileBilden, type Teil } from './pa
  * entfallene Einträge. Zeitpunkte, an denen sie gleich blieb — etwa eine Änderung an einem nicht
  * markierten Listeneintrag —, erscheinen nicht.
  *
- * Antwort: Bundle `collection` mit je einer Provenance pro Änderung, jüngste zuerst — `recorded`
- * ist der Zeitpunkt und zugleich der Stand für `$summary?_at=…`; `agent` die Einrichtungen, die die
- * Quelle änderten; `entity` die Quelle; `target` die betroffenen Einträge in ihrer Fassung; je
- * Änderung die Extension `ps-change` mit Abschnitt, Art und Eintrag. Vorbild ist das
- * Änderungsprotokoll der Listen (`$…-list-log`) und des eMP.
+ * Antwort wie `$medication-plan-log`: Bundle `searchset` mit `total`, jüngste zuerst, `_count`
+ * (Standard 50) und `_offset`. Je Änderung eine Provenance — ihre `id` (UUID) ist der Stand für
+ * `$summary?provenance=…` wie beim eMP, `recorded` der Zeitpunkt (auch für ✦ `_at`); `agent` die
+ * Einrichtungen, die die Quelle änderten; `entity` die Quelle; `target` die betroffenen Einträge in
+ * ihrer Fassung; je Änderung die Extension `ps-change` mit Abschnitt, Art und Eintrag. Anders als
+ * ein Chronologieeintrag des eMP, der den ganzen Stand nennt, nennt sie die Änderung — den ganzen
+ * Stand liefert `$summary` zu ihrer Kennung.
  */
-
-interface Ereignis {
-  zeit: string;
-  wer: { display?: string; identifier?: { system?: string; value?: string } };
-  quelle: { reference: string; display: string };
-}
-
-/** Alle Zeitpunkte, an denen sich eine Quelle der Patient Summary änderte. */
-function ereignisse(kvnr: string): Ereignis[] {
-  const bestand = bestandFuer(kvnr);
-  const wer = (p: Ressource) =>
-    ((p['agent'] as { who?: Ereignis['wer'] }[] | undefined) ?? [])[0]?.who ?? {};
-  const listen = bestand.diagnosedienst
-    .filter((r) => Object.values(LISTE).some((art) => istChronologie(r, art)))
-    .map((p) => ({
-      zeit: String(p['recorded']),
-      wer: wer(p),
-      quelle: {
-        reference: `Provenance/${String(p.id)}`,
-        display: 'Chronologieeintrag einer Liste',
-      },
-    }));
-  const medikation = bestand.medikation
-    .filter((r) => r.resourceType === 'Provenance')
-    .map((p) => ({
-      zeit: String(p['recorded']),
-      wer: wer(p),
-      quelle: {
-        reference: `Provenance/${String(p.id)}`,
-        display: istChronologie(p, EMP)
-          ? 'Chronologieeintrag des eMP'
-          : 'Änderungseintrag des Medication Service',
-      },
-    }));
-  const dokumente = bestand.dokumente
-    .filter((d) => sichtbar(d) && d.inhalt)
-    .map((d) => ({
-      zeit: d.eingestellt ?? d.erstellt,
-      wer: {
-        display: d.einrichtung,
-        ...(d.einrichtungTelematikId
-          ? {
-              identifier: {
-                system: 'https://gematik.de/fhir/sid/telematik-id',
-                value: d.einrichtungTelematikId,
-              },
-            }
-          : {}),
-      },
-      quelle: {
-        reference: `DocumentReference/${eintragsUuid(d)}`,
-        display: `${d.titel}, ${d.einrichtung}`,
-      },
-    }));
-  // Wie der Bestand: deutsche Ortszeit ohne Zone — als Zeichenkette vergleichbar.
-  return [...listen, ...medikation, ...dokumente]
-    .filter((e) => /^\d{4}-\d{2}-\d{2}/.test(e.zeit))
-    .map((e) => ({ ...e, zeit: ohneZeitzone(e.zeit) }));
-}
 
 interface Gezeigt {
   abschnitt: PsAbschnittSchluessel;
@@ -141,7 +80,10 @@ function aenderung(g: Gezeigt, art: PsAenderungsart) {
 const AKTEUR = 'http://terminology.hl7.org/CodeSystem/provenance-participant-type';
 
 /** Der Änderungsverlauf als Bundle `collection` mit einer Provenance je Änderung. */
-export function patientSummaryVerlauf(kvnr: string): Ressource {
+export function patientSummaryVerlauf(
+  kvnr: string,
+  { anzahl = 50, ab = 0 }: { anzahl?: number; ab?: number } = {},
+): Ressource {
   // Gleiche Zeitpunkte gehören zusammen: eine Schreiboperation legt oft Änderungs- und
   // Chronologieeintrag zugleich an.
   const gruppen = new Map<string, Ereignis[]>();
@@ -170,14 +112,21 @@ export function patientSummaryVerlauf(kvnr: string): Ressource {
     ];
     vorher = jetzt_;
     if (aenderungen.length === 0) continue;
-    // Jede Einrichtung einmal, jede Quelle einmal.
+    // Jede Einrichtung einmal — nach Name, damit dieselbe mit und ohne Telematik-ID nicht doppelt
+    // steht; die Angabe mit Kennung gewinnt. Jede Quelle einmal.
     const wer = [
-      ...new Map(gruppe.map((e) => [e.wer.identifier?.value ?? e.wer.display, e.wer])).values(),
+      ...gruppe
+        .reduce((karte, e) => {
+          const name = e.wer.display ?? e.wer.identifier?.value ?? 'unbekannt';
+          if (!karte.get(name)?.identifier) karte.set(name, e.wer);
+          return karte;
+        }, new Map<string, Ereignis['wer']>())
+        .values(),
     ];
     const quellen = [...new Map(gruppe.map((e) => [e.quelle.reference, e.quelle])).values()];
     eintraege.push({
       resourceType: 'Provenance',
-      id: `ps-log-${eintraege.length + 1}`,
+      id: verlaufskennung(kvnr, zeit),
       extension: aenderungen.map(({ g, art }) => aenderung(g, art)),
       target: aenderungen.map(({ g }) => ({ reference: `${g.verweis}/_history/${g.fassung}` })),
       occurredDateTime: zeit,
@@ -197,13 +146,8 @@ export function patientSummaryVerlauf(kvnr: string): Ressource {
       entity: quellen.map((q) => ({ role: 'source', what: q })),
     });
   }
-  return {
-    resourceType: 'Bundle',
-    meta: { lastUpdated: jetzt() },
-    type: 'collection',
-    total: eintraege.length,
-    entry: [...eintraege].reverse().map((r) => ({ resource: r })),
-  };
+  const neuesteZuerst = [...eintraege].reverse();
+  return { ...suchergebnis(neuesteZuerst.slice(ab, ab + anzahl)), total: neuesteZuerst.length };
 }
 
 export function patientSummaryVerlaufEinhaengen(
@@ -211,7 +155,12 @@ export function patientSummaryVerlaufEinhaengen(
   kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
 ) {
   app.get(`${PATIENT_SUMMARY_BASIS}/Patient/$summary-log`, async (anfrage, antwort) => {
-    if (operationsparameterAbweisen(anfrage, {}, antwort)) return antwort;
-    return patientSummaryVerlauf(kvnrAus(anfrage));
+    if (operationsparameterAbweisen(anfrage, { _count: ZAHL, _offset: ZAHL }, antwort))
+      return antwort;
+    const q = anfrage.query as Record<string, string | undefined>;
+    return patientSummaryVerlauf(kvnrAus(anfrage), {
+      anzahl: Number(q['_count'] ?? 50),
+      ab: Number(q['_offset'] ?? 0),
+    });
   });
 }

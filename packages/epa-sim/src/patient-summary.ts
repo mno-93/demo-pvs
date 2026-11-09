@@ -23,7 +23,8 @@ import { abStufe, betriebslage } from './betrieb.ts';
 import { istChronologie, type Chronologieart } from './chronologie.ts';
 import { KEINE_BEKANNTE_ALLERGIE, LISTE } from './diagnosedienst.ts';
 import { jetzt } from './fhir-hilfen.ts';
-import { EMP, istEmpEintrag, operationsparameterAbweisen } from './medikation.ts';
+import { EMP, MSG, istEmpEintrag, melden, operationsparameterAbweisen } from './medikation.ts';
+import { zeitZurKennung } from './patient-summary-ereignisse.ts';
 import { eintragsUuid, sichtbar } from './mhd.ts';
 import { uuidAus } from './plattform.ts';
 import { archivierteKennungen, fassung, fassungen, patientFuer } from './schreibwege.ts';
@@ -60,6 +61,9 @@ import { archivierteKennungen, fassung, fassungen, patientFuer } from './schreib
  */
 
 export const PATIENT_SUMMARY_BASIS = WEG.patientSummary;
+
+/** Kennung eines Stands aus dem Verlauf (UUID, wie `provenance` an `$medication-plan`). */
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Zeitpunkt mit Uhrzeit und Zeitzone (FHIR `instant`, Sekundenbruchteile erlaubt). */
 const ZEITPUNKT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
@@ -703,12 +707,24 @@ export function patientSummaryEinhaengen(
   }));
 
   /*
-   * ✦ `_at`: der Stand zu einem früheren Zeitpunkt — Datum mit Uhrzeit und Zeitzone, wie FHIR ihn
-   * für `_history?_at` kennt. Ohne den Parameter der Stand jetzt.
+   * ✦ Früherer Stand: `provenance` mit der Kennung eines Eintrags aus `$summary-log` — wie
+   * `$medication-plan?provenance=…` — oder `_at` mit einem beliebigen Zeitpunkt (Datum, Uhrzeit,
+   * Zeitzone, wie `_history?_at`). Ohne beide der Stand jetzt.
    */
   app.get(`${b}/Patient/$summary`, async (anfrage, antwort) => {
-    if (operationsparameterAbweisen(anfrage, { _at: ZEITPUNKT }, antwort)) return antwort;
-    const at = (anfrage.query as Record<string, string | undefined>)['_at'];
-    return patientSummaryBilden(kvnrAus(anfrage), at ? alsOrtszeit(at) : null);
+    if (operationsparameterAbweisen(anfrage, { _at: ZEITPUNKT, provenance: UUID }, antwort))
+      return antwort;
+    const q = anfrage.query as Record<string, string | undefined>;
+    const kvnr = kvnrAus(anfrage);
+    if (q['_at'] && q['provenance'])
+      return melden(antwort, 400, 'invalid', 'Entweder _at oder provenance.', MSG.syntax);
+    if (q['provenance']) {
+      // Wie `$medication-plan?provenance=…`: der Stand zu einem Eintrag des Verlaufs.
+      const zeit = zeitZurKennung(kvnr, q['provenance']);
+      if (!zeit)
+        return melden(antwort, 404, 'not-found', `Kein Stand ${q['provenance']}.`, MSG.unbekannt);
+      return patientSummaryBilden(kvnr, zeit);
+    }
+    return patientSummaryBilden(kvnr, q['_at'] ? alsOrtszeit(q['_at']) : null);
   });
 }

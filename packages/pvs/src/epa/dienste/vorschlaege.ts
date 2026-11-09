@@ -78,12 +78,12 @@ export async function epaPatientSummarySuchen(
 }
 
 /**
- * Die Patient Summary — bei jeder Abfrage aus den Diensten der ePA gebildet. Mit `stand` ✦ der
- * Stand zu einem früheren Zeitpunkt (`_at`), aus dem, was die Quellen damals führten.
+ * Die Patient Summary — bei jeder Abfrage aus den Diensten der ePA gebildet. Mit `stand` ✦ ein
+ * früherer Stand: die Kennung eines Eintrags aus dem Verlauf, wie `$medication-plan?provenance=…`.
  */
 export async function patientSummaryAbrufen(kvnr: string, stand?: string): Promise<unknown> {
   const { inhalt } = await anfragen<unknown>({
-    pfad: `${PATIENT_SUMMARY}/Patient/$summary${stand ? `?_at=${encodeURIComponent(stand)}` : ''}`,
+    pfad: `${PATIENT_SUMMARY}/Patient/$summary${stand ? `?provenance=${encodeURIComponent(stand)}` : ''}`,
     kvnr,
     grundlage: stand ? GRUNDLAGE.summaryStand : GRUNDLAGE.summary,
   });

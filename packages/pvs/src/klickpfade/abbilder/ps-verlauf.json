@@ -32,7 +32,7 @@
       "ziel": "Knopf „Stand vom 18.07.2026, 16:00 Uhr ansehen“ in Fenster „Elektronische Patientenakte“",
       "epa": [
         "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary-log",
-        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary?_at=2026-07-18T16%3A00%3A00%2B02%3A00"
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary?provenance=<uuid>"
       ]
     },
     {

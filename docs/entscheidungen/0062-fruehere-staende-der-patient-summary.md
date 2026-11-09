@@ -22,14 +22,18 @@ nie ersetzt oder gelöscht.
 
 ## Entscheidung
 
-1. **Frühere Stände werden gebildet, nicht gespeichert.** `Patient/$summary?_at=<Zeitpunkt>` (✦,
-   nach `_history?_at`) bildet die Patient Summary aus dem, was die Quellen damals führten: je
+1. **Frühere Stände werden gebildet, nicht gespeichert.** `Patient/$summary?provenance=<id>` (✦,
+   wie `$medication-plan?provenance=…`) mit der Kennung eines Verlaufseintrags oder
+   `Patient/$summary?_at=<Zeitpunkt>` (✦, nach `_history?_at`) für einen beliebigen Zeitpunkt
+   bildet die Patient Summary aus dem, was die Quellen damals führten: je
    Liste und eMP der Chronologieeintrag, der zum Zeitpunkt galt, mit den Einträgen in ihrer
    damaligen Fassung; die Medikationsliste über die Fassungen und Löschungen; Dokumente, die bis
    dahin eingestellt waren. `Composition.date` ist der Stand, `Bundle.timestamp` der Abruf.
 2. **Verlauf aus denselben Quellen.** `Patient/$summary-log` (✦) nimmt jeden Zeitpunkt, an dem sich
    eine Quelle änderte, bildet die Abschnitte davor und danach und nennt nur, was sich in der Patient
-   Summary änderte. Je Änderung eine Provenance: `recorded` (zugleich der Stand für `_at`), die
+   Summary änderte. Form wie `$medication-plan-log`: `searchset`, `total`, `_count`, `_offset`,
+   jüngste zuerst. Je Änderung eine Provenance: `id` (UUID, die Kennung für `provenance`),
+   `recorded`, die
    Einrichtungen, die Quelle als `entity`, die Einträge als `target` und je Eintrag die Extension
    `ps-change` mit Abschnitt, Art (neu, geändert, entfallen) und Bezeichnung. Derselbe Eintrag aus
    einer anderen Quelle — ein jüngerer Laborwert, der Plan statt der Liste — gilt als geändert.
@@ -53,7 +57,7 @@ gespeicherten Patient Summary:
 | Auswahl für die Übersicht             | eigene Summary-Liste je Kategorie (`List`), mit Reihenfolge | Markierung am Listeneintrag                                |
 | Eintrag ändern                        | nie — neuer Eintrag mit demselben Business Identifier       | neue Fassung desselben Eintrags, wie im Medication Service |
 | Früherer Stand einer Liste            | `List/[id]/_history/[vid]`, exakt                           | Chronologieeintrag zum Zeitpunkt mit versionierten Zielen  |
-| Früherer Stand, Verlauf der Übersicht | nicht beschrieben; die APS wird beim Abruf zusammengestellt | `$summary?_at`, `$summary-log`                             |
+| Früherer Stand, Verlauf der Übersicht | nicht beschrieben; die APS wird beim Abruf zusammengestellt | `$summary?provenance`/`_at`, `$summary-log`                |
 | Herkunft                              | `recorder`, `recordedDate`; `List.source`, `List.date`      | Provenance je Eintrag, auch aus Dokumenten                 |
 | Löschen durch Versicherte             | Listenversionen und Einträge                                | nicht nachgebildet                                         |
 
@@ -64,6 +68,15 @@ Service. Erwägenswert ist die Summary-Liste als eigene, versionierte Auswahl mi
 verantwortlicher Person je Version: Die Auswahl würde zum nachvollziehbaren ärztlichen Akt, ohne den
 medizinischen Eintrag fortzuschreiben. Das wäre eine eigene Entscheidung. Löschrechte an früheren
 Ständen, wie Österreich sie vorsieht, machten einen rekonstruierten Verlauf lückenhaft.
+
+## Nachtrag: wie der Medication Service (09.11.2026)
+
+Für jeden Chronologieeintrag aus `$medication-plan-log` zeigt die Patient Summary zu dessen
+Zeitpunkt genau die eMP-Einträge in derselben Fassung; jeder Chronologieeintrag steht im Verlauf als
+Quelle. Angeglichen wurde die Form: Log als `searchset` mit Paging, Stand per `provenance` mit der
+Kennung des Verlaufseintrags (die Oberfläche nutzt sie), jede Einrichtung einmal. Ein Eintrag im
+Verlauf nennt die Änderung, nicht den ganzen Stand wie ein Chronologieeintrag — den ganzen Stand
+liefert `$summary` zu seiner Kennung.
 
 ## Verworfene Alternative
 
