@@ -56,6 +56,11 @@ function Beobachter() {
 function stabil(text: string): string {
   return (
     text
+      // Zeitpunkte in FHIR-Ressourcen (die Demo-Uhr läuft ab dem Start weiter), dann Uhrzeiten
+      .replace(
+        /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?/g,
+        '<zeitpunkt>',
+      )
       .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '<zeit>')
       .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
       .replace(/\b[a-z]+-[a-z0-9]{6,}-\d+\b/g, '<id>')

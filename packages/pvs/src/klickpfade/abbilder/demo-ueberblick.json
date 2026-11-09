@@ -84,6 +84,60 @@
     },
     {
       "schritt": 12,
+      "kurz": "ePA öffnen",
+      "ziel": "Knopf „ePA öffnen“ in Gruppe „Patientenkopf“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary",
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 13,
+      "kurz": "Dokumente der ePA",
+      "ziel": "Knopf „Dokumente“ in Fenster „Elektronische Patientenakte“",
+      "epa": []
+    },
+    {
+      "schritt": 14,
+      "kurz": "Entlassbrief als FHIR-Dokument ansehen",
+      "ziel": "Knopf „Ansehen“ in Zeile „Entlassbrief.*Klinikum Sonnenschein“ in Fenster „Elektronische Patientenakte“",
+      "epa": [
+        "200 GET /epa/mhd/retrieve/v1/content/<uuid>.json"
+      ]
+    },
+    {
+      "schritt": 15,
+      "kurz": "Die FHIR-Ressource dahinter",
+      "ziel": "Knopf „FHIR-Ressource ansehen“ in Fenster „Elektronische Patientenakte“",
+      "epa": []
+    },
+    {
+      "schritt": 16,
+      "kurz": "Ein Bundle vom Typ „document“",
+      "ziel": "Bereich „FHIR-Ressource des Dokuments“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "{ \"resourceType\": \"Bundle\", \"identifier\": { \"system\": \"urn:ietf:rfc:3986\", \"value\": \"urn:uuid:<uuid>\" }, \"type\": \"document\", \"timestamp\": \"<zeitpunkt>\", \"entry\": [ { \"fullUrl\": \"https://example.org/demo-pvs/fhir/Composition/comp-kh-e\", \"resource\": { \"resourceType\": \"Composition\", \"id\": \"comp-kh-e\", \"status\": \"final\", \"type\": { \"coding\": [ { \"system\": \"http://loinc.org\", \"code\": \"34105-7\", \"display\": \"Hospital Discharge summary\" }, { \"system\": \"http://snomed.info/sct\", \"version\": \"http://snomed.info/sct/11000274103/version/20260515\", \"code\": \"373942005\", \"display\": \"Discharge summary (record artifact)\" } ] }, \"subject\": { \"reference\": \"Patient/pat-A123456780\" }, \"encounter\": { \"reference\": \"Encounter/kh-aufenthalt\" }, \"date\": \"<zeitpunkt>\", \"author\": [ { \"reference\": \"Practitioner/kh-wagner\", \"display\": \"Dr. med. Lea Wagner\" }, { \"reference\": \"Organization/kh-klinikum\" } ], \"title\": \"Entlassbrief stationäre Behandlung\", \"attester\": [ { \"mode\": \"legal\", \"time\": \"<zeitpunkt>\", \"party\": { \"reference\": \"Practitioner/kh-wagner\", \"display\": \"Dr. med. Lea Wagner\" } } ], \"custodian\": { \"reference\": \"Organization/kh-klinikum\" }, \"section\": [ { \"title\": \"Anamnese\", \"code\": { \"coding\": [ { \"system\": \"http://loinc.org\", \"code\": \"11329-0\", \"display\": \"History general Narrative\" } ] }, \"text\": { \"status\": \"generated\", \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><p>Die Patientin stellte sich am 12.07.2026 über unsere Notaufnahme mit seit drei Tagen bestehendem Herzrasen, zunehmender ",
+      "epa": []
+    },
+    {
+      "schritt": 17,
+      "kurz": "Strukturierte Laborbefunde",
+      "ziel": "Knopf „Laborbefunde“ in Fenster „Elektronische Patientenakte“",
+      "epa": [
+        "200 GET /epa/mhd/retrieve/v1/content/<uuid>.json"
+      ]
+    },
+    {
+      "schritt": 18,
+      "kurz": "ePA schließen",
+      "ziel": "Knopf „ePA schließen“",
+      "epa": []
+    },
+    {
+      "schritt": 19,
       "kurz": "Diagnosen und Allergien öffnen",
       "ziel": "Verweis „Diagnosen und Allergien“ in Navigation „Bereiche der Patientenkartei“",
       "epa": [
@@ -92,14 +146,14 @@
       ]
     },
     {
-      "schritt": 13,
+      "schritt": 20,
       "kurz": "Links die Praxis, rechts die ePA",
       "ziel": "Bereich „Diagnosen“",
       "inhalt": "Diagnosen 4 in der Praxis 4 in der ePA 0 abgeglichen 1 zu klären ★ 2 in der Patient Summary Sortierung Eingestellt, neueste zuerst Eingestellt, älteste zuerst Beginn, jüngster zuerst Bezeichnung Eigene Reihenfolge alle aufklappen Praxissystem Abgleich Diagnosenliste der ePA ✦ Vorschlag Akute Bronchitis, nicht näher bezeichnet J20.9 G Akut · 08.11.2025 – 22.11.2025 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Chronische Nierenkrankheit, Stadium 3 N18.3 G Dauer · seit 24.09.2023 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise I10.90 G Dauer · seit 03.02.2009 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Diabetes mellitus, Typ 2: Ohne Komplikationen, nicht als entgleist bezeichnet E11.90 G Dauer · seit 12.05.2011 gleicher Eintrag, nicht verknüpft 17.07.2026 verknüpfen Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet ★ E11.74 G Dauer · seit 12.05.2011 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Harnwegsinfektion, Lokalisation nicht näher bezeichnet ☆ N39.0 G Akut · 12.07.2026 – 18.07.2026 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Obstipation ☆ K59.0 G Akut · seit 15.07.2026 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Vorhofflimmern, persistierend ★ I48.1 G Dauer · seit 12.07.2026 SNOMED CT: 3 von 4 Diagnosen der Praxis",
       "epa": []
     },
     {
-      "schritt": 14,
+      "schritt": 21,
       "kurz": "Patient Summary öffnen",
       "ziel": "Knopf „Patient Summary“ in Gruppe „Patientenkopf“",
       "epa": [
@@ -108,30 +162,97 @@
       ]
     },
     {
-      "schritt": 15,
+      "schritt": 22,
       "kurz": "Eine Sicht, kein eigenes Dokument",
       "ziel": "Bereich „Diagnosen“ in Fenster „Elektronische Patientenakte“",
       "inhalt": "Diagnosen Diagnosenliste · geführt Zur Diagnosenübersicht ↗ Vorhofflimmern, persistierend I48.1 G seit 2026 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet E11.74 G seit 2011 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner + 2 weitere Einträge in der Diagnosenliste , nicht markiert ↗",
       "epa": []
     },
     {
-      "schritt": 16,
+      "schritt": 23,
+      "kurz": "Die Patient Summary als FHIR",
+      "ziel": "Knopf „FHIR“ in Fenster „Elektronische Patientenakte“",
+      "epa": []
+    },
+    {
+      "schritt": 24,
+      "kurz": "Gebildet, nicht gespeichert",
+      "ziel": "Bereich „FHIR-Ressource der Patient Summary“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "{ \"resourceType\": \"Bundle\", \"id\": \"<id>\", \"meta\": { \"profile\": [ \"http://hl7.eu/fhir/eps/StructureDefinition/bundle-eu-eps\" ] }, \"identifier\": { \"system\": \"urn:ietf:rfc:3986\", \"value\": \"urn:uuid:<uuid>\" }, \"type\": \"document\", \"timestamp\": \"<zeitpunkt>\", \"entry\": [ { \"fullUrl\": \"https://example.org/demo-pvs/fhir/Composition/<id>\", \"resource\": { \"resourceType\": \"Composition\", \"id\": \"<id>\", \"meta\": { \"profile\": [ \"http://hl7.eu/fhir/eps/StructureDefinition/composition-eu-eps\" ] }, \"identifier\": { \"system\": \"urn:ietf:rfc:3986\", \"value\": \"urn:uuid:<uuid>\" }, \"status\": \"final\", \"type\": { \"coding\": [ { \"system\": \"http://loinc.org\", \"code\": \"60591-5\", \"display\": \"Patient summary Document\" } ] }, \"subject\": { \"reference\": \"Patient/pat-A123456780\" }, \"date\": \"<zeitpunkt>\", \"author\": [ { \"reference\": \"Device/ps-dienst\", \"display\": \"Patient-Summary-Dienst der ePA\" } ], \"title\": \"Patient Summary\", \"section\": [ { \"extension\": [ { \"url\": \"https://example.org/demo-pvs/fhir/StructureDefinition/ps-section-source\", \"valueCoding\": { \"system\": \"https://example.org/demo-pvs/fhir/CodeSystem/ps-section-source\", \"code\": \"allergy-list\", \"display\": \"Allergienliste\" } } ], \"title\": \"Allergien und Unverträglichkeiten\", \"code\": { \"coding\": [ { \"system\": \"http://loinc.org\", \"code\": \"48765-2\", \"display\": \"Allergies and adverse reactions Document\" } ] }, \"text\": { \"status\": \"generated\", \"div\": \"<div xmlns=\\\"http://www.w3.org/1999/xhtml\\\"><p><b>Allergien und Unverträglichkeiten</b></p><ul><li>Penicillin</li><",
+      "epa": []
+    },
+    {
+      "schritt": 25,
       "kurz": "ePA schließen",
       "ziel": "Knopf „ePA schließen“",
       "epa": []
     },
     {
-      "schritt": 17,
+      "schritt": 26,
+      "kurz": "Arztbrief öffnen",
+      "ziel": "Verweis „Arztbrief ✦“ in Navigation „Bereiche der Patientenkartei“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/mhd/retrieve/v1/content/<uuid>.json",
+        "200 GET /epa/vorschlag/immunization/api/v1/fhir/$immunization-list",
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 27,
+      "kurz": "Vorausgewählt, was aktuell ist",
+      "ziel": "Bereich „Arztbrief ✦“",
+      "inhalt": "Arztbrief ✦ 11 übernommen 0 Wörter geschrieben An Kardiologische Praxis am Wall Diabetologische Schwerpunktpraxis Nordstadt Augenärztliche Gemeinschaftspraxis am Markt Klinikum Sonnenschein Kardiologische Praxis Dr. Brinkmann, Oldenburg (ohne KIM) KIM kardiologie.am-wall@demo-anbieter.kim.telematik Fragestellung Anamnese 1 von 1 Auswählen ▾ 30.08.2026: Erstvorstellung nach Umzug. Übernahme in die hausärztliche Betreuung gewünscht. Stationäre Behandlung vor sechs Wochen, Entlassbrief liegt vor. Praxis × Diagnosen 3 von 8 + Neue Diagnose Auswählen ▾ I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise Praxis Ändern × E11.90 G Diabetes mellitus, Typ 2: Ohne Komplikationen, nicht als entgleist bezeichnet Praxis Ändern × N18.3 G Chronische Nierenkrankheit, Stadium 3 Praxis Ändern × Allergien und Unverträglichkeiten 2 von 4 + Neue Allergie Auswählen ▾ Amoxicillin (Unverträglichkeit, unbestätigt) — Generalisierter Ausschlag (leicht) Praxis Ändern × Nickelverbindung (Allergie, bestätigt) — Juckflechte (leicht) Praxis Ändern × Befunde 1 von 2 Auswählen ▾ Labor 12.08.2026 (Laborgemeinschaft Nordwest): Kreatinin im Serum 1,42 mg/dl (hoch), eGFR nach CKD-EPI 38 ml/min/1,73 m² (niedrig), HbA1c 7,8 % (hoch) ePA × Beurteilung Medikation 4 von 5 Auswählen ▾ Apixaban 5 mg Filmtabletten — täglich: 1-0-1-0 Stück — Grund: Vorhofflimmern Praxis × Ramipril 5 mg Tabletten — täglich: 1-0-0-0 Stück — Grund: Arterielle Hypertonie Praxis × Bisoprolol 2,5 mg Filmtabletten — täglich: 1-",
+      "epa": []
+    },
+    {
+      "schritt": 28,
+      "kurz": "Beurteilung schreiben",
+      "ziel": "Feld „Beurteilung“",
+      "beschriftung": "Beurteilung",
+      "epa": []
+    },
+    {
+      "schritt": 29,
+      "kurz": "Unterschreiben",
+      "ziel": "Knopf „Unterschreiben“",
+      "epa": []
+    },
+    {
+      "schritt": 30,
+      "kurz": "In die ePA einstellen",
+      "ziel": "Knopf „In die ePA einstellen“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/mhd/retrieve/v1/content/<uuid>.json",
+        "200 GET /epa/vorschlag/immunization/api/v1/fhir/$immunization-list",
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list",
+        "200 POST /epa/xds-document/api/I_Document_Management"
+      ]
+    },
+    {
+      "schritt": 31,
       "kurz": "Was die ePA-Arbeit davon hat",
       "erzaehlung": true
     },
     {
-      "schritt": 18,
+      "schritt": 32,
       "kurz": "Was FHIR-Entwicklung davon hat",
       "erzaehlung": true
     },
     {
-      "schritt": 19,
+      "schritt": 33,
+      "kurz": "Aktenlotse ✦ (Weiterentwicklung 4)",
+      "erzaehlung": true
+    },
+    {
+      "schritt": 34,
       "kurz": "Alles Weitere in der Dokumentation",
       "ziel": "Verweis „Dokumentation auf GitHub (öffnet ein neues Fenster)“",
       "inhalt": "Dokumentation ↗",

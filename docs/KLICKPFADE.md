@@ -7,12 +7,14 @@ gegen den Simulator geprüft ([ADR 0061](entscheidungen/0061-klickpfade.md)).
 
 | Kennung           | Frage                                                                                                             | Ausbaustand                         | Schritte |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------- | -------- |
-| `demo-ueberblick` | **Rundgang:** Was zeigt die Demo, nach welchem Prinzip ist sie gebaut — und was haben ePA- und FHIR-Arbeit davon? | Release 3.1.3 → Weiterentwicklung 3 | 19       |
+| `demo-ueberblick` | **Rundgang:** Was zeigt die Demo, nach welchem Prinzip ist sie gebaut — und was haben ePA- und FHIR-Arbeit davon? | Release 3.1.3 → Weiterentwicklung 3 | 34       |
 | `diagnose-in-ps`  | Wie kommt eine neue Dauerdiagnose in die Patient Summary — und was kostet das die Praxis?                         | Weiterentwicklung 3                 | 7        |
 
 Der **Rundgang** (`demo-ueberblick`) ist der Einstieg für alle, die die Demo zum ersten Mal sehen —
 auch im Team: Er verbindet README, Spezifikation und Zeigen in der Demo, in Kapiteln, mit
-Erzählschritten und Verweisen in die Dokumentation. Im Kopf der Demo startet ihn „Rundgang“. Er
+Erzählschritten und Verweisen in die Dokumentation. Er reicht vom Praxisalltag über Befunde und
+Briefe, Listen und Patient Summary bis zum Arztbrief, zeigt an zwei Stellen die FHIR-Ressource
+selbst und erwähnt den Aktenlotsen nur als Ausblick. Im Kopf der Demo startet ihn „Rundgang“. Er
 kennt die Modi geführt und frei, keine Aufgabe.
 
 ## Aufrufen
@@ -77,6 +79,13 @@ Review gehört ein geändertes Abbild zur Durchsicht. Entfällt ein Ablauf, entf
    - `mehr` verweist in README, Spezifikation oder Entscheidungen (Pfad relativ zum Repository,
      Anker wie auf GitHub). Der Test prüft, dass Datei und Überschrift bestehen.
    - `modi` schränkt die Modi ein — ein Rundgang ist keine Aufgabe.
+   - Eingaben: Ein Suchbegriff gilt gleich ob groß oder klein geschrieben, und wer schon den
+     Treffer des nächsten Schritts anklickt, ist weiter. Freitext (Beurteilung, Notiz) mit
+     `frei: true` — dann erfüllt jeder Text den Schritt, `wert` ist nur der Vorschlag.
+
+   Wer am Szenario-Modell oder an der Ebene etwas ändert, zieht alle Klickpfade nach (etwa neue
+   Verweise auch im kürzeren Pfad) und prüft jeden im Browser.
+
 5. **Prüfen** — `npx vitest run packages/pvs/src/klickpfade` (der Test nennt bei einem fehlenden
    Ziel alle vorhandenen Namen der Rolle; beim ersten Lauf entsteht das Abbild), dann im Browser
    in allen drei Modi. Das Abbild durchsehen und mit einchecken.

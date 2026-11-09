@@ -20,6 +20,12 @@ export default szenario({
       handlung: { art: 'eingeben', wert: 'Migräne' },
       kurz: '„Migräne“ suchen',
       lang: 'Die Erfassung liegt in der Kartei, wo die Praxis ohnehin dokumentiert. Der ✦ Kodierservice findet Begriffe, Synonyme und Codes.',
+      mehr: [
+        {
+          text: 'Erfassung und Terminologie',
+          pfad: 'docs/SPEZIFIKATION.md#9-erfassung-und-terminologie',
+        },
+      ],
     },
     {
       ziel: { rolle: 'option', name: /^Migräne/ },
@@ -38,12 +44,21 @@ export default szenario({
       pruefen: { angehakt: true },
       kurz: 'Schon angehakt',
       lang: '„In der Diagnosenliste der ePA führen“ und „Relevant für die Patient Summary“ sind vorbelegt. Die Relevanz entsteht im regulären Vorgang, nicht in einem zweiten Dokumentationsschritt (UX-Grundsätze U10, U20).',
+      mehr: [
+        { text: 'UX-Grundsätze', pfad: 'docs/SPEZIFIKATION.md#22-ux-grundsätze--eine-blaupause' },
+      ],
     },
     {
       ziel: { rolle: 'button', name: 'Diagnose speichern' },
       handlung: { art: 'klicken' },
       kurz: 'Speichern',
       lang: 'Die Diagnose steht danach in der Kartei und in der ✦ Diagnosenliste der ePA, markiert für die Patient Summary. Die Aufrufe an die ePA stehen unten.',
+      mehr: [
+        {
+          text: 'Diagnose-Service',
+          pfad: 'docs/SPEZIFIKATION.md#6--diagnose-service-für-allergien-und-diagnosen',
+        },
+      ],
     },
     {
       ziel: {
@@ -64,6 +79,7 @@ export default szenario({
       pruefen: { text: 'Migräne' },
       kurz: 'Migräne steht in der Patient Summary',
       lang: 'Die Patient Summary wird aus den ärztlich geführten Listen gebildet. Die neue Diagnose steht darin, ohne dass jemand die Patient Summary bearbeitet hat.',
+      mehr: [{ text: 'Patient Summary', pfad: 'docs/SPEZIFIKATION.md#7--patient-summary' }],
     },
   ],
 });

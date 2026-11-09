@@ -180,6 +180,23 @@ describe('Klickpfad-Ebene', () => {
     expect(window.location.search).toContain('modus=frei');
   }, 20000);
 
+  it('geht weiter, wenn nach einer unvollständigen Eingabe der Treffer gewählt wird', async () => {
+    const leiste = oeffne('frei');
+    await waitFor(() =>
+      expect(within(leiste).getByText('„Migräne“ suchen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    act(() => wertSetzen(finden(S.schritte[0]!.ziel)!, 'migr'));
+    const treffer = await screen.findByRole('option', { name: /^Migräne/ });
+    fireEvent.click(treffer);
+    await waitFor(() =>
+      expect(
+        within(leiste).getByText('Kategorie „Dauerdiagnose“').getAttribute('aria-current'),
+      ).toBe('step'),
+    );
+  }, 20000);
+
   it('lässt frei einen erfüllten Prüfpunkt stehen, bis es dahinter weitergeht', async () => {
     const leiste = oeffne('frei');
     await waitFor(() =>

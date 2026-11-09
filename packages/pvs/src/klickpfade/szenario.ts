@@ -23,7 +23,13 @@ export interface Ziel {
 export type Handlung =
   | { art: 'klicken' }
   /** Text in ein Eingabefeld; der Rundgang bietet „für mich eintragen“ an. */
-  | { art: 'eingeben'; wert: string }
+  | {
+      art: 'eingeben';
+      /** Was „für mich eintragen“ einträgt; ohne `frei` auch, was die Person tippen soll. */
+      wert: string;
+      /** Freitext wie eine Beurteilung: Jeder Text erfüllt den Schritt, `wert` ist ein Vorschlag. */
+      frei?: boolean;
+    }
   /** Wert einer Auswahlliste (`value` der Option) mit der Beschriftung, die die Person sieht. */
   | { art: 'waehlen'; wert: string; anzeige: string };
 

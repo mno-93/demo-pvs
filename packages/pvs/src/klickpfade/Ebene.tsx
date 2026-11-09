@@ -343,7 +343,9 @@ function Rundgang({
         if (x.handlung?.art === 'klicken') return i > index && trifft(x.ziel, t) ? i : null;
         if (!x.handlung && modus === 'gefuehrt') return null;
         const e = finden(x.ziel);
-        if (!e || !erfuellt(x, e)) return null;
+        // Eine Eingabe darf unvollständig sein, wenn der Klick schon dahinter trifft — wer „migr“
+        // tippt und den Treffer wählt, ist weiter. Eine Auswahl und ein Prüfpunkt nicht.
+        if (!e || (!erfuellt(x, e) && x.handlung?.art !== 'eingeben')) return null;
       }
       return null;
     };
@@ -499,7 +501,9 @@ function Rundgang({
           {schritt.handlung && schritt.handlung.art !== 'klicken' && (
             <button type="button" className="knopf klein" onClick={eintragen}>
               {schritt.handlung.art === 'eingeben'
-                ? `„${schritt.handlung.wert}“ eintragen`
+                ? schritt.handlung.frei
+                  ? 'Vorschlag eintragen'
+                  : `„${schritt.handlung.wert}“ eintragen`
                 : `„${schritt.handlung.anzeige}“ wählen`}
             </button>
           )}

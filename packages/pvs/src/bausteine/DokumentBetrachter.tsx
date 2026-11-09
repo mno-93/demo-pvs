@@ -100,7 +100,17 @@ export function DokumentBetrachter({
       >
         {roh ? 'FHIR-Ressource verbergen' : 'FHIR-Ressource ansehen'}
       </button>
-      {roh && <pre className="code-block">{JSON.stringify(inhalt, null, 2)}</pre>}
+      {roh && (
+        // Benannt und per Tastatur erreichbar — ein langer Block scrollt, und ein Klickpfad zeigt ihn.
+        <pre
+          className="code-block"
+          role="region"
+          aria-label="FHIR-Ressource des Dokuments"
+          tabIndex={0}
+        >
+          {JSON.stringify(inhalt, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }

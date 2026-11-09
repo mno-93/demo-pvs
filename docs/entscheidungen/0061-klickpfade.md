@@ -104,7 +104,8 @@ lernt das Szenario drei Dinge: **Erzählungen** (Schritte ohne Element, nur Seit
 **Kapitel** (die Seitenleiste klappt nur das aktuelle auf) und **Verweise** in die Dokumentation;
 dazu eingeschränkte **Modi** (ein Rundgang ist keine Aufgabe). Der Test prüft, dass jede Datei und
 jeder Anker eines Verweises besteht. Karten mit Titel werden benannte Bereiche, damit ein Schritt
-eine ganze Karte zeigen kann.
+eine ganze Karte zeigen kann; ebenso die FHIR-Ansichten, damit der Rundgang zeigt, wie eine
+Ressource aussieht.
 
 Verworfen: **eine eigene Einführungsseite in der Demo** — sie wäre ein Erklärtext im
 Praxissystem (ADR 0020) und veraltete neben der Demo; der Rundgang läuft als Test mit. **Den

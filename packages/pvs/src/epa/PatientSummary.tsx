@@ -170,7 +170,16 @@ export function PatientSummaryAnsicht({
         </button>
       </div>
       <SeitLetztemAufrufBand seit={seit} />
-      {fhir && <pre className="code-block">{JSON.stringify(roh, null, 2)}</pre>}
+      {fhir && (
+        <pre
+          className="code-block"
+          role="region"
+          aria-label="FHIR-Ressource der Patient Summary"
+          tabIndex={0}
+        >
+          {JSON.stringify(roh, null, 2)}
+        </pre>
+      )}
       <div className="ps-raster">
         <div className="ps-spalte">{HAUPT.map(block)}</div>
         <div className="ps-spalte">{NEBEN.map(block)}</div>

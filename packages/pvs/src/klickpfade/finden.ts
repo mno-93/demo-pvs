@@ -22,6 +22,7 @@ const KANDIDATEN: Record<string, string> = {
   region: 'section, [role="region"]',
   dialog: 'dialog, [role="dialog"]',
   complementary: 'aside, [role="complementary"]',
+  row: 'tr, [role="row"]',
   group: 'fieldset, [role="group"]',
   listitem: 'li, [role="listitem"]',
   heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
@@ -88,6 +89,7 @@ const ROLLE_BEZEICHNUNG: Record<string, string> = {
   dialog: 'Fenster',
   group: 'Gruppe',
   complementary: 'Seitenfenster',
+  row: 'Zeile',
   heading: 'Überschrift',
   navigation: 'Navigation',
 };
@@ -117,7 +119,10 @@ export function geklicktBeschreibung(e: Element | null): string {
 function wertErreicht(e: HTMLElement, h: Handlung): boolean {
   if (h.art === 'klicken') return false;
   const wert = (e as HTMLInputElement | HTMLSelectElement).value ?? '';
-  return h.art === 'waehlen' ? wert === h.wert : normalisiert(wert) === normalisiert(h.wert);
+  if (h.art === 'waehlen') return wert === h.wert;
+  // Freitext: jeder Text. Sonst der Begriff, gleich ob groß oder klein geschrieben.
+  if (h.frei) return normalisiert(wert) !== '';
+  return normalisiert(wert).toLowerCase() === normalisiert(h.wert).toLowerCase();
 }
 
 /**
