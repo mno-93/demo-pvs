@@ -52,8 +52,9 @@ const VERLOREN_MS = 2500;
 const VERLOREN_GEFUEHRT_MS = 800;
 /** So lange muss das Ziel ruhig im Blick stehen, bis der Rundgang aufhört, es nachzurücken. */
 const RUHIG_MS = 1000;
-/** Höchstbreite der Sprechblase (`.klickpfad-blase`). */
+/** Höchstbreite der Sprechblase (`.klickpfad-blase`) und der Platz, den sie über oder unter dem Ziel braucht. */
 const BLASE_BREITE = 320;
+const BLASE_HOEHE = 140;
 
 export default function KlickpfadEbene({ id, modus }: { id: string; modus: Modus }) {
   // „beenden“ hängt die Ebene ganz aus: Sperre, Rand und Adresse gehen mit ihr.
@@ -555,25 +556,29 @@ function Rundgang({
           <>
             <p className="leise-klein">{s.frage}</p>
             <Schrittliste s={s} index={index} lage={lage} />
-            {lage === 'laeuft' && schritt && (schritt.lang || !schritt.ziel || schritt.mehr) && (
-              <div className="klickpfad-erlaeuterung">
-                {!schritt.ziel && <h3 className="klickpfad-erzaehlung">{schritt.kurz}</h3>}
-                {absaetze(schritt.lang).map((a, i) => (
-                  <p key={i}>{a}</p>
-                ))}
-                {schritt.mehr && <MehrDazu verweise={schritt.mehr} />}
-                {!schritt.ziel && (
-                  <button
-                    type="button"
-                    className="knopf klein stark"
-                    disabled={!pruefErfuellt}
-                    onClick={() => weiter(index)}
-                  >
-                    weiter →
-                  </button>
-                )}
-              </div>
-            )}
+            {lage === 'laeuft' &&
+              schritt &&
+              (schritt.lang || !schritt.handlung || schritt.mehr) && (
+                <div className="klickpfad-erlaeuterung">
+                  {!schritt.ziel && <h3 className="klickpfad-erzaehlung">{schritt.kurz}</h3>}
+                  {absaetze(schritt.lang).map((a, i) => (
+                    <p key={i}>{a}</p>
+                  ))}
+                  {schritt.mehr && <MehrDazu verweise={schritt.mehr} />}
+                  {/* Erzählungen und Prüfpunkte: „weiter“ auch hier, nicht nur an der Sprechblase —
+                    sie kann verdeckt sein, und wer liest, ist ohnehin in der Seitenleiste. */}
+                  {!schritt.handlung && (
+                    <button
+                      type="button"
+                      className="knopf klein stark"
+                      disabled={!pruefErfuellt}
+                      onClick={() => weiter(index)}
+                    >
+                      weiter →
+                    </button>
+                  )}
+                </div>
+              )}
             {aufrufeDesSchritts.size > 0 && index > 0 && (
               <div className="klickpfad-aufrufe">
                 <div className="leise-klein">ePA-Aufrufe bei „{s.schritte[index - 1]!.kurz}“</div>
@@ -749,15 +754,19 @@ function Sprechblase({
   const l = leiste?.getBoundingClientRect();
   const unten = l && l.top > 0 ? l.top : window.innerHeight;
   const rechts = l && l.top <= 0 ? l.left : window.innerWidth;
-  const darunter = unten - rahmen.bottom > 140;
   const links = Math.max(8, Math.min(rahmen.left, rechts - BLASE_BREITE - 8));
+  // Unter dem Ziel, sonst darüber; ist es so groß, dass beides nicht passt (ein ganzes
+  // Seitenfenster, eine lange Karte), in seiner oberen Ecke — nie außerhalb des Bildes.
+  const lage =
+    unten - rahmen.bottom > BLASE_HOEHE ? 'unten' : rahmen.top > BLASE_HOEHE ? 'oben' : 'innen';
+  const stil =
+    lage === 'unten'
+      ? { top: rahmen.bottom + 10, left: links }
+      : lage === 'oben'
+        ? { top: rahmen.top - 10, left: links }
+        : { top: Math.max(rahmen.top, 0) + 10, left: Math.max(links, rahmen.left + 10) };
   return (
-    <div
-      className={`klickpfad-blase ${darunter ? 'unten' : 'oben'}`}
-      style={
-        darunter ? { top: rahmen.bottom + 10, left: links } : { top: rahmen.top - 10, left: links }
-      }
-    >
+    <div className={`klickpfad-blase ${lage}`} style={stil}>
       {children}
     </div>
   );

@@ -235,5 +235,23 @@ describe('Klickpfad-Ebene', () => {
         .find((e) => e.tagName === 'LI')
         ?.getAttribute('aria-current'),
     ).toBe('step');
+
+    // Auch ein Prüfpunkt hat „weiter →“ in der Seitenleiste — die Sprechblase kann bei großen
+    // Zielen verdeckt sein (Schritt „Jeder Aufruf mit seiner Grundlage“).
+    const weiterKnopf = () => within(leiste).getByRole('button', { name: 'weiter →' });
+    await waitFor(() => expect(weiterKnopf()).toHaveProperty('disabled', false));
+    fireEvent.click(weiterKnopf());
+    await waitFor(() =>
+      expect(within(leiste).getByText('Ein Praxistag').getAttribute('aria-current')).toBe('step'),
+    );
+    await waitFor(() => expect(weiterKnopf()).toHaveProperty('disabled', false));
+    fireEvent.click(weiterKnopf());
+    await waitFor(() =>
+      expect(within(leiste).getByText('Frau Hoffmann öffnen').getAttribute('aria-current')).toBe(
+        'step',
+      ),
+    );
+    // Ein Klickschritt hat keins: weiter geht es nur mit dem Klick in der Demo.
+    expect(within(leiste).queryByRole('button', { name: 'weiter →' })).toBeNull();
   }, 20000);
 });
