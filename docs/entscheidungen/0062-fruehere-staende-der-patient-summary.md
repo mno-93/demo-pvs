@@ -42,6 +42,29 @@ nie ersetzt oder gelöscht.
    als „Stand vom …“, ohne Sprünge in die Quellen und ohne das Lesezeichen „seit dem letzten
    Aufruf“ zu verschieben.
 
+## Vergleich: e-Diagnose und Austrian Patient Summary
+
+Die österreichische e-Diagnose (Leitfaden-Entwurf ELGA e-Diagnose R4 0.1.0, 2026) löst frühere
+Stände anders, aber nach demselben Grundsatz — die Geschichte liegt in den Listen, nicht in einer
+gespeicherten Patient Summary:
+
+| Aspekt                                | e-Diagnose (AT)                                             | Demo ✦                                                     |
+| ------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| Auswahl für die Übersicht             | eigene Summary-Liste je Kategorie (`List`), mit Reihenfolge | Markierung am Listeneintrag                                |
+| Eintrag ändern                        | nie — neuer Eintrag mit demselben Business Identifier       | neue Fassung desselben Eintrags, wie im Medication Service |
+| Früherer Stand einer Liste            | `List/[id]/_history/[vid]`, exakt                           | Chronologieeintrag zum Zeitpunkt mit versionierten Zielen  |
+| Früherer Stand, Verlauf der Übersicht | nicht beschrieben; die APS wird beim Abruf zusammengestellt | `$summary?_at`, `$summary-log`                             |
+| Herkunft                              | `recorder`, `recordedDate`; `List.source`, `List.date`      | Provenance je Eintrag, auch aus Dokumenten                 |
+| Löschen durch Versicherte             | Listenversionen und Einträge                                | nicht nachgebildet                                         |
+
+▸ Unveränderliche Einträge machen jede Listenversion ohne versionierte Verweise exakt; der Preis,
+den der Leitfaden selbst nennt, ist die „Interpretationslast beim Lesen“ — die aktuelle Aussage
+ergibt sich erst aus der Kette verknüpfter Einträge. Die Demo bleibt beim Muster des Medication
+Service. Erwägenswert ist die Summary-Liste als eigene, versionierte Auswahl mit Reihenfolge und
+verantwortlicher Person je Version: Die Auswahl würde zum nachvollziehbaren ärztlichen Akt, ohne den
+medizinischen Eintrag fortzuschreiben. Das wäre eine eigene Entscheidung. Löschrechte an früheren
+Ständen, wie Österreich sie vorsieht, machten einen rekonstruierten Verlauf lückenhaft.
+
 ## Verworfene Alternative
 
 **Jede Fassung der Patient Summary speichern.** Der Dienst legte nach jeder Änderung einer Quelle

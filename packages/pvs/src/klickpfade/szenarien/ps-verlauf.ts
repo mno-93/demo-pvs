@@ -40,6 +40,10 @@ export default szenario({
           text: 'Frühere Stände und Verlauf',
           pfad: 'docs/SPEZIFIKATION.md#79--frühere-stände-und-änderungsverlauf',
         },
+        {
+          text: 'ADR 0062, mit Vergleich zu Österreich',
+          pfad: 'docs/entscheidungen/0062-fruehere-staende-der-patient-summary.md',
+        },
       ],
     },
     {
