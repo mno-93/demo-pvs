@@ -26,13 +26,11 @@ import { demoZuruecksetzen, useDurchgang } from './demo/zuruecksetzen.js';
 import { befugnisabgleichEinrichten } from './epa/befugnis.js';
 
 import { klickpfadAusAdresse } from './klickpfade/aufruf.js';
+import { DOKUMENTATION } from './demo/dokumentation.js';
 
 /** ✦ Klickpfad über der Demo (ADR 0061) — nur geladen, wenn die Adresse einen nennt. */
 const KlickpfadEbene = lazy(() => import('./klickpfade/Ebene.js'));
 const KLICKPFAD = klickpfadAusAdresse(window.location.search);
-
-/** Spezifikation, Entscheidungen und Anleitung der Demo — im öffentlichen Repository. */
-const DOKUMENTATION = 'https://github.com/mno-93/demo-pvs/tree/main/docs';
 
 export function App() {
   // Meldet die ePA eine fehlende Befugnis, berichtigt das Praxissystem seinen Stand (ADR 0017).
@@ -185,6 +183,11 @@ function Kopf() {
             ))}
           </select>
           <KonfigurationKnopf />
+          {/* Rundgang durch die Demo (ADR 0061): ein Klickpfad, geladen mit der Seite — er beginnt
+              beim Startbestand. Wie „Dokumentation“ ein Weg zur Demo, kein Teil des PVS. */}
+          <a className="knopf" href="?klickpfad=demo-ueberblick">
+            Rundgang
+          </a>
           <a
             className="knopf"
             href={DOKUMENTATION}

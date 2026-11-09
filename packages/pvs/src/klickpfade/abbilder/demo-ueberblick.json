@@ -1,0 +1,141 @@
+{
+  "klickpfad": "demo-ueberblick",
+  "titel": "Die Demo im Überblick",
+  "schritte": [
+    {
+      "schritt": 1,
+      "kurz": "Ein fiktives Praxissystem mit ePA-Simulator",
+      "erzaehlung": true
+    },
+    {
+      "schritt": 2,
+      "kurz": "Drei Zeichen, die überall gelten",
+      "erzaehlung": true
+    },
+    {
+      "schritt": 3,
+      "kurz": "Ein Praxistag",
+      "ziel": "Überschrift „Tagesübersicht“",
+      "inhalt": "Tagesübersicht",
+      "epa": []
+    },
+    {
+      "schritt": 4,
+      "kurz": "Frau Hoffmann öffnen",
+      "ziel": "Verweis „Renate Hoffmann“",
+      "epa": []
+    },
+    {
+      "schritt": 5,
+      "kurz": "eGK einlesen",
+      "ziel": "Knopf „eGK einlesen“ in Gruppe „Patientenkopf“",
+      "epa": [
+        "200 GET …/fhir/$medication-plan",
+        "201 POST /epa/basic/api/v1/ps/entitlements"
+      ]
+    },
+    {
+      "schritt": 6,
+      "kurz": "Medikation öffnen",
+      "ziel": "Verweis „Medikation“ in Navigation „Bereiche der Patientenkartei“",
+      "epa": [
+        "200 GET /epa/medication/render/v1/emp/settings",
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan"
+      ]
+    },
+    {
+      "schritt": 7,
+      "kurz": "Plan der Praxis, abgeglichen mit dem eMP",
+      "ziel": "Bereich „Medikationsplan der Praxis“",
+      "inhalt": "Medikationsplan der Praxis Zwischenüberschriften neuer Planeintrag Arzneimittel Dosierung Grund Status Zuletzt ePA Aktionen aktiv · Jeden Tag Apixaban 5 mg Filmtabletten ATC B01AF02 verordnet 18.07.2026 · abgegeben 18.07.2026 mo mi ab na 1 0 1 0 Stück Vorhofflimmern aktiv Klinikum Sonnenschein abgeglichen Rezept Dosierung ändern pausieren absetzen fehlerhaft … Ramipril 5 mg Tabletten ATC C09AA05 verordnet 18.07.2026 · abgegeben 18.07.2026 mo mi ab na 1 0 0 0 Stück Arterielle Hypertonie aktiv Klinikum Sonnenschein abgeglichen Rezept Dosierung ändern pausieren absetzen fehlerhaft … Bisoprolol 2,5 mg Filmtabletten ATC C07AB07 verordnet 18.07.2026 · abgegeben 18.07.2026 mo mi ab na 1 0 0 0 Stück Vorhofflimmern aktiv Klinikum Sonnenschein abgeglichen Rezept Dosierung ändern pausieren absetzen fehlerhaft … Atorvastatin 40 mg Filmtabletten ATC C10AA05 verordnet 18.07.2026 · abgegeben 18.07.2026 mo mi ab na 0 0 1 0 Stück Hyperlipidämie aktiv Klinikum Sonnenschein abgeglichen Rezept Dosierung ändern pausieren absetzen fehlerhaft …",
+      "epa": []
+    },
+    {
+      "schritt": 8,
+      "kurz": "Konfiguration öffnen",
+      "ziel": "Knopf „Konfiguration“",
+      "epa": []
+    },
+    {
+      "schritt": 9,
+      "kurz": "Ausbaustand „Weiterentwicklung 3“",
+      "ziel": "Feld „Ausbaustand“",
+      "beschriftung": "Ausbaustand",
+      "epa": [
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 10,
+      "kurz": "Jeder Aufruf mit seiner Grundlage",
+      "ziel": "Seitenfenster „Konfiguration und Aufrufe an die ePA“",
+      "inhalt": "Konfiguration 42 ePA-Aufrufe leeren × Betriebslage (Demo) Ausbaustand Weiterentwicklung 4 ✦ Aktenlotse Weiterentwicklung 3 ✦ Listen und Patient Summary Weiterentwicklung 2 ✦ strukturierte Briefe Weiterentwicklung 1 · ePA 3.2: Labor, Volltext, leere ePS Release 3.1.3 · Medikation nach Ballot 3.2 Befugnisse der Praxis ( 3 ) Hoffmann, Renate bis 07.12.2026 · Krüger, Tobias bis 11.10.2026 · Yildiz, Meral bis 29.09.2026 Befugnisse entziehen Andere Einrichtung ändert zwischendurch Patient Summary aus geführten Listen ✦ nur automatischen Daten Antwortzeit ohne Verzögerung <ms> 1,5 s 4 s E-Rezept → ePA sofort nach 3 s nach 10 s Akten Hoffmann, Renate gesperrt Widerspruch Medikation andere Einrichtung trägt ein Yildiz, Meral gesperrt Widerspruch Medikation andere Einrichtung trägt ein Krüger, Tobias gesperrt Widerspruch Medikation andere Einrichtung trägt ein Apotheke ( 0 ) — ePA-Bestand zurücksetzen 200 GET ✦ …/diagnosis/$allergy-list <ms> 2 Treffer ✦ Vorschlag Diagnose-Service · nicht spezifiziert 200 GET ✦ …/diagnosis/$condition-list <ms> 4 Treffer ✦ Vorschlag Diagnose-Service · nicht spezifiziert 200 GET …/ehr/consentdecisions <ms> ok getConsentDecisionInformation · OpenAPI I_Information_Service 1.5.1 200 GET /verwaltung/bestand <ms> ok Demo-Steuerung · keine ePA-Schnittstelle 200 GET /verwaltung/erezepte <ms> ok Demo-Steuerung · keine ePA-Schnittstelle 200 GET /verwaltung/befugnisse <ms> ok Demo-Steuerung · keine ePA-Schnittstelle 200 GET /verwaltung/betriebslage <ms> ok Demo-Ste",
+      "epa": []
+    },
+    {
+      "schritt": 11,
+      "kurz": "Konfiguration schließen",
+      "ziel": "Knopf „Konfiguration schließen“",
+      "epa": []
+    },
+    {
+      "schritt": 12,
+      "kurz": "Diagnosen und Allergien öffnen",
+      "ziel": "Verweis „Diagnosen und Allergien“ in Navigation „Bereiche der Patientenkartei“",
+      "epa": [
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 13,
+      "kurz": "Links die Praxis, rechts die ePA",
+      "ziel": "Bereich „Diagnosen“",
+      "inhalt": "Diagnosen 4 in der Praxis 4 in der ePA 0 abgeglichen 1 zu klären ★ 2 in der Patient Summary Sortierung Eingestellt, neueste zuerst Eingestellt, älteste zuerst Beginn, jüngster zuerst Bezeichnung Eigene Reihenfolge alle aufklappen Praxissystem Abgleich Diagnosenliste der ePA ✦ Vorschlag Akute Bronchitis, nicht näher bezeichnet J20.9 G Akut · 08.11.2025 – 22.11.2025 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Chronische Nierenkrankheit, Stadium 3 N18.3 G Dauer · seit 24.09.2023 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise I10.90 G Dauer · seit 03.02.2009 nur in der Praxis 30.08.2026 in die ePA → nicht in der ePA Diabetes mellitus, Typ 2: Ohne Komplikationen, nicht als entgleist bezeichnet E11.90 G Dauer · seit 12.05.2011 gleicher Eintrag, nicht verknüpft 17.07.2026 verknüpfen Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet ★ E11.74 G Dauer · seit 12.05.2011 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Harnwegsinfektion, Lokalisation nicht näher bezeichnet ☆ N39.0 G Akut · 12.07.2026 – 18.07.2026 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Obstipation ☆ K59.0 G Akut · seit 15.07.2026 nicht in der Praxis nur in der ePA 17.07.2026 ← in die Praxis Vorhofflimmern, persistierend ★ I48.1 G Dauer · seit 12.07.2026 SNOMED CT: 3 von 4 Diagnosen der Praxis",
+      "epa": []
+    },
+    {
+      "schritt": 14,
+      "kurz": "Patient Summary öffnen",
+      "ziel": "Knopf „Patient Summary“ in Gruppe „Patientenkopf“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary"
+      ]
+    },
+    {
+      "schritt": 15,
+      "kurz": "Eine Sicht, kein eigenes Dokument",
+      "ziel": "Bereich „Diagnosen“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Diagnosen Diagnosenliste · geführt Zur Diagnosenübersicht ↗ Vorhofflimmern, persistierend I48.1 G seit 2026 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet E11.74 G seit 2011 Gesicherte Diagnose Aktiv aus Entlassbrief stationäre Behandlung, Klinikum Sonnenschein · 17.07.2026 · Dr. med. Lea Wagner + 2 weitere Einträge in der Diagnosenliste , nicht markiert ↗",
+      "epa": []
+    },
+    {
+      "schritt": 16,
+      "kurz": "ePA schließen",
+      "ziel": "Knopf „ePA schließen“",
+      "epa": []
+    },
+    {
+      "schritt": 17,
+      "kurz": "Was die ePA-Arbeit davon hat",
+      "erzaehlung": true
+    },
+    {
+      "schritt": 18,
+      "kurz": "Was FHIR-Entwicklung davon hat",
+      "erzaehlung": true
+    },
+    {
+      "schritt": 19,
+      "kurz": "Alles Weitere in der Dokumentation",
+      "ziel": "Verweis „Dokumentation auf GitHub (öffnet ein neues Fenster)“",
+      "inhalt": "Dokumentation ↗",
+      "epa": []
+    }
+  ]
+}

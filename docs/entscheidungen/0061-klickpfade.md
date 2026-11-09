@@ -92,6 +92,25 @@ Verworfen: **den Modus nur in der Seitenleiste halten** — die Adresse ist der 
 zu verschicken, und sie soll zeigen, was gerade läuft. **Formulare einzeln leeren** — jede Ansicht
 müsste das Zurücksetzen kennen; der Durchgang als Schlüssel erledigt es für alle.
 
+## Rundgang (ergänzt am 09.11.2026)
+
+Wer die Demo zum ersten Mal sieht — auch im Team —, braucht einen Einstieg, der mehr ist als
+ein Ablauf: was die Demo kann, nach welchem Prinzip sie gebaut ist, was ePA- und FHIR-Arbeit davon
+haben. Bisher stand das verteilt in README und Spezifikation, getrennt vom Zeigen.
+
+Entscheidung: **ein Rundgang als Klickpfad** (`demo-ueberblick`), im Kopf der Demo über
+„Rundgang“ erreichbar — wie „Dokumentation“ ein Weg zur Demo, kein Teil des Praxissystems. Dafür
+lernt das Szenario drei Dinge: **Erzählungen** (Schritte ohne Element, nur Seitenleiste),
+**Kapitel** (die Seitenleiste klappt nur das aktuelle auf) und **Verweise** in die Dokumentation;
+dazu eingeschränkte **Modi** (ein Rundgang ist keine Aufgabe). Der Test prüft, dass jede Datei und
+jeder Anker eines Verweises besteht. Karten mit Titel werden benannte Bereiche, damit ein Schritt
+eine ganze Karte zeigen kann.
+
+Verworfen: **eine eigene Einführungsseite in der Demo** — sie wäre ein Erklärtext im
+Praxissystem (ADR 0020) und veraltete neben der Demo; der Rundgang läuft als Test mit. **Den
+Rundgang nur aus Erzählungen** — dann wäre er ein README im Seitenfenster; er soll zeigen, wo die
+Demo etwas zeigen kann.
+
 ## Folgen
 
 - Mehrdeutige Namen fallen auf: Der Kopfknopf „Patient Summary“ und jeder ★-Schalter heißen

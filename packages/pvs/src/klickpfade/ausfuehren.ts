@@ -86,8 +86,12 @@ export function zielAbwarten(schritt: Schritt, ms?: number): Promise<HTMLElement
   );
 }
 
-/** Einen Schritt ausführen: Handlung vornehmen oder warten, bis der Prüfpunkt erfüllt ist. */
+/**
+ * Einen Schritt ausführen: Handlung vornehmen oder warten, bis der Prüfpunkt erfüllt ist. Eine
+ * Erzählung hat nichts auszuführen.
+ */
 export async function schrittAusfuehren(schritt: Schritt): Promise<void> {
+  if (!schritt.ziel) return;
   const e = await zielAbwarten(schritt);
   const h = schritt.handlung;
   if (!h) {

@@ -202,4 +202,38 @@ describe('Klickpfad-Ebene', () => {
       ),
     );
   }, 20000);
+
+  it('führt den Rundgang mit Erzählungen, Kapiteln und Verweisen, ohne Aufgabe', async () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+        <KlickpfadEbene id="demo-ueberblick" modus="aufgabe" />
+      </MemoryRouter>,
+    );
+    const leiste = screen.getByRole('complementary', { name: 'Klickpfad' });
+    // Den Modus „Aufgabe“ bietet der Rundgang nicht an; er beginnt geführt.
+    expect(within(leiste).queryByRole('radio', { name: 'Aufgabe' })).toBeNull();
+    expect(within(leiste).getByRole('radio', { name: 'geführt' })).toHaveProperty('checked', true);
+    // Eine Erzählung: Überschrift, Absätze, Verweise ins Repository und „weiter →“.
+    await within(leiste).findByRole('heading', {
+      name: 'Ein fiktives Praxissystem mit ePA-Simulator',
+    });
+    expect(within(leiste).getByRole('link', { name: 'README ↗' }).getAttribute('href')).toBe(
+      'https://github.com/mno-93/demo-pvs/blob/main/README.md',
+    );
+    // Kapitel: aufgeklappt nur das aktuelle.
+    expect(within(leiste).getByText('Steuerung und Aufrufe')).toBeDefined();
+    expect(within(leiste).queryByText('Konfiguration öffnen')).toBeNull();
+    const weiter = await within(leiste).findByRole('button', { name: 'weiter →' });
+    await waitFor(() => expect(weiter).toHaveProperty('disabled', false));
+    fireEvent.click(weiter);
+    // Der nächste Schritt ist dran: in der Liste markiert und als Überschrift der Erzählung.
+    await within(leiste).findByRole('heading', { name: 'Drei Zeichen, die überall gelten' });
+    expect(
+      within(leiste)
+        .getAllByText('Drei Zeichen, die überall gelten')
+        .find((e) => e.tagName === 'LI')
+        ?.getAttribute('aria-current'),
+    ).toBe('step');
+  }, 20000);
 });

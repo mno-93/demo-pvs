@@ -141,6 +141,10 @@ Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbes
 
 ## Klickpfade
 
+**Einstieg: der Rundgang.** „Rundgang“ im Kopf der Demo (`?klickpfad=demo-ueberblick`) zeigt in
+19 Schritten, was die Demo kann, nach welchem Prinzip sie gebaut ist und was ePA- und
+FHIR-Arbeit davon haben — mit Verweisen in diese Dokumentation.
+
 Gezielte Abläufe zu einer Frage, etwa „Wie kommt eine Diagnose in die Patient Summary?“, als
 Rundgang über einen Link — geführt, frei mit Wegweiser oder als Aufgabe für Nutzertests:
 `?klickpfad=diagnose-in-ps`. Übersicht und Anleitung: [docs/KLICKPFADE.md](docs/KLICKPFADE.md)

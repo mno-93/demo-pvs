@@ -14,7 +14,15 @@ import {
   zielBeschreibung,
   type Rahmen,
 } from './finden.js';
-import { MODUS_BEZEICHNUNG, type Modus, type Szenario, type Ziel } from './szenario.js';
+import { imRepository } from '../demo/dokumentation.js';
+import {
+  MODUS_BEZEICHNUNG,
+  modiVon,
+  type Modus,
+  type Schritt,
+  type Szenario,
+  type Ziel,
+} from './szenario.js';
 import { SZENARIEN } from './szenarien/index.js';
 
 /**
@@ -57,7 +65,11 @@ export default function KlickpfadEbene({ id, modus }: { id: string; modus: Modus
   };
   const s = SZENARIEN[id];
   if (!s) return <Unbekannt id={id} beenden={beenden} />;
-  return <Rundgang s={s} startmodus={modus} beenden={beenden} />;
+  // Nennt die Adresse einen Modus, den der Klickpfad nicht anbietet, beginnt er im ersten.
+  const erlaubt = modiVon(s);
+  return (
+    <Rundgang s={s} startmodus={erlaubt.includes(modus) ? modus : erlaubt[0]!} beenden={beenden} />
+  );
 }
 
 function Unbekannt({ id, beenden }: { id: string; beenden: () => void }) {
@@ -233,6 +245,15 @@ function Rundgang({
   useEffect(() => {
     if (lage !== 'laeuft' || !schritt) return;
     const takt = window.setInterval(() => {
+      // Eine Erzählung zeigt nichts auf der Seite; sie wartet auf „weiter“.
+      if (!schritt.ziel) {
+        setzeRahmen(null);
+        setzeAusserhalb(false);
+        setzeVerloren(false);
+        if (modus === 'aufgabe') weiter(index);
+        else setzePruefErfuellt(true);
+        return;
+      }
       const e = finden(schritt.ziel);
       if (!e) {
         setzeRahmen(null);
@@ -264,7 +285,7 @@ function Rundgang({
       let bis = -1;
       for (let i = index; i < s.schritte.length; i++) {
         const x = s.schritte[i]!;
-        if (x.handlung?.art === 'klicken') break;
+        if (!x.ziel || x.handlung?.art === 'klicken') break;
         if (!x.handlung && i > index && modus === 'gefuehrt') break;
         const xe = i === index ? e : finden(x.ziel);
         if (!xe || !erfuellt(x, xe)) break;
@@ -302,7 +323,7 @@ function Rundgang({
     if (lage !== 'laeuft' || !schritt) return;
     const inEbene = (t: EventTarget | null) =>
       t instanceof Element && !!t.closest(`[${KLICKPFAD_ATTRIBUT}]`);
-    const trifft = (ziel: Ziel, t: EventTarget | null) => {
+    const trifft = (ziel: Ziel | undefined, t: EventTarget | null) => {
       const e = finden(ziel);
       return !!e && t instanceof Node && e.contains(t);
     };
@@ -317,6 +338,7 @@ function Rundgang({
     const vorgriff = (t: EventTarget | null): number | null => {
       for (let i = index; i < s.schritte.length; i++) {
         const x = s.schritte[i]!;
+        if (!x.ziel) return null;
         if (x.handlung?.art === 'klicken') return i > index && trifft(x.ziel, t) ? i : null;
         if (!x.handlung && modus === 'gefuehrt') return null;
         const e = finden(x.ziel);
@@ -498,7 +520,7 @@ function Rundgang({
         <h2 className="klickpfad-titel">{s.titel}</h2>
 
         <div role="radiogroup" aria-label="Modus" className="klickpfad-modi">
-          {(Object.keys(MODUS_BEZEICHNUNG) as Modus[]).map((m) => (
+          {modiVon(s).map((m) => (
             <label key={m}>
               <input
                 type="radio"
@@ -532,21 +554,25 @@ function Rundgang({
         ) : (
           <>
             <p className="leise-klein">{s.frage}</p>
-            <ol className="klickpfad-schritte">
-              {s.schritte.map((x, i) => (
-                <li
-                  key={i}
-                  className={
-                    i < index || lage === 'fertig' ? 'erledigt' : i === index ? 'aktuell' : ''
-                  }
-                  aria-current={i === index && lage === 'laeuft' ? 'step' : undefined}
-                >
-                  {x.kurz}
-                </li>
-              ))}
-            </ol>
-            {lage === 'laeuft' && schritt?.lang && (
-              <p className="klickpfad-erlaeuterung">{schritt.lang}</p>
+            <Schrittliste s={s} index={index} lage={lage} />
+            {lage === 'laeuft' && schritt && (schritt.lang || !schritt.ziel || schritt.mehr) && (
+              <div className="klickpfad-erlaeuterung">
+                {!schritt.ziel && <h3 className="klickpfad-erzaehlung">{schritt.kurz}</h3>}
+                {absaetze(schritt.lang).map((a, i) => (
+                  <p key={i}>{a}</p>
+                ))}
+                {schritt.mehr && <MehrDazu verweise={schritt.mehr} />}
+                {!schritt.ziel && (
+                  <button
+                    type="button"
+                    className="knopf klein stark"
+                    disabled={!pruefErfuellt}
+                    onClick={() => weiter(index)}
+                  >
+                    weiter →
+                  </button>
+                )}
+              </div>
             )}
             {aufrufeDesSchritts.size > 0 && index > 0 && (
               <div className="klickpfad-aufrufe">
@@ -636,6 +662,74 @@ function Rundgang({
       </aside>
     </div>,
     document.body,
+  );
+}
+
+/** Absätze einer Erläuterung — getrennt durch eine Leerzeile. */
+function absaetze(text: string | undefined): string[] {
+  return (text ?? '')
+    .split(/\n\s*\n/)
+    .map((a) => a.trim())
+    .filter(Boolean);
+}
+
+/** Wo es in der Dokumentation weitergeht — im Repository, in einem neuen Fenster. */
+function MehrDazu({ verweise }: { verweise: { text: string; pfad: string }[] }) {
+  return (
+    <p className="klickpfad-mehr">
+      Mehr dazu:{' '}
+      {verweise.map((v, i) => (
+        <span key={v.pfad}>
+          {i > 0 && ' · '}
+          <a href={imRepository(v.pfad)} target="_blank" rel="noreferrer">
+            {v.text} ↗
+          </a>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/**
+ * Die Schritte in der Seitenleiste. Mit Kapiteln: alle Kapitel, aufgeklappt nur das aktuelle —
+ * ein langer Rundgang bleibt so überschaubar.
+ */
+function Schrittliste({ s, index, lage }: { s: Szenario; index: number; lage: Lage }) {
+  const zustand = (i: number) =>
+    i < index || lage === 'fertig' ? 'erledigt' : i === index ? 'aktuell' : '';
+  const eintrag = (x: Schritt, i: number) => (
+    <li
+      key={i}
+      className={zustand(i)}
+      aria-current={i === index && lage === 'laeuft' ? 'step' : undefined}
+    >
+      {x.kurz}
+    </li>
+  );
+  const kapitel: { titel: string; von: number; bis: number }[] = [];
+  s.schritte.forEach((x, i) => {
+    if (x.kapitel || kapitel.length === 0) kapitel.push({ titel: x.kapitel ?? '', von: i, bis: i });
+    kapitel[kapitel.length - 1]!.bis = i;
+  });
+  if (kapitel.length === 1 && !kapitel[0]!.titel)
+    return <ol className="klickpfad-schritte">{s.schritte.map(eintrag)}</ol>;
+  return (
+    <ol className="klickpfad-kapitel">
+      {kapitel.map((k) => {
+        const hier = index >= k.von && index <= k.bis && lage !== 'fertig';
+        const fertig = index > k.bis || lage === 'fertig';
+        return (
+          <li key={k.von} className={hier ? 'aktuell' : fertig ? 'erledigt' : ''}>
+            <span className="klickpfad-kapitel-titel">{k.titel}</span>
+            {hier && (
+              <ol className="klickpfad-schritte" start={k.von + 1}>
+                {s.schritte.slice(k.von, k.bis + 1).map((x, j) => eintrag(x, k.von + j))}
+              </ol>
+            )}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

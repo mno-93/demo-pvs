@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 
 type Ton = 'neutral' | 'akzent' | 'lokal' | 'warn' | 'gut' | 'fehler';
 
@@ -32,11 +32,13 @@ export function Karte({
   werkzeuge?: ReactNode;
   children: ReactNode;
 }) {
+  // Mit Titel ist die Karte ein benannter Bereich — für Screenreader und Klickpfade.
+  const id = useId();
   return (
-    <section className="karte">
+    <section className="karte" aria-labelledby={titel ? id : undefined}>
       {(titel || werkzeuge) && (
         <div className="reihe" style={{ marginBottom: 10 }}>
-          {titel && <h3>{titel}</h3>}
+          {titel && <h3 id={id}>{titel}</h3>}
           {werkzeuge && <div className="rechts reihe">{werkzeuge}</div>}
         </div>
       )}

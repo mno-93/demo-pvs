@@ -3161,6 +3161,39 @@ body.mit-klickpfad .protokoll {
   padding: 10px 12px;
   line-height: 1.45;
 }
+.klickpfad-erlaeuterung p {
+  margin: 0 0 8px;
+}
+.klickpfad-erzaehlung {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.klickpfad-mehr {
+  font-size: 13px;
+  color: var(--text-leise);
+}
+.klickpfad-kapitel {
+  padding-left: 0;
+  margin: 8px 0;
+  list-style: none;
+}
+.klickpfad-kapitel > li {
+  padding: 3px 0;
+  color: var(--text-leise);
+}
+.klickpfad-kapitel > li.erledigt > .klickpfad-kapitel-titel {
+  color: var(--text-sehr-leise);
+}
+.klickpfad-kapitel > li.erledigt > .klickpfad-kapitel-titel::before {
+  content: '✓ ';
+}
+.klickpfad-kapitel > li.aktuell > .klickpfad-kapitel-titel {
+  color: var(--akzent-dunkel);
+  font-weight: 600;
+}
+.klickpfad-kapitel .klickpfad-schritte {
+  margin: 4px 0 4px;
+}
 .klickpfad-aufrufe ul {
   list-style: none;
   padding: 0;

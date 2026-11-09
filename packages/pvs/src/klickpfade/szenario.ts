@@ -35,15 +35,32 @@ export interface Pruefung {
   angehakt?: boolean;
 }
 
+/** Ein Verweis in die Dokumentation, relativ zum Repository: `docs/SPEZIFIKATION.md#44-klickpfade`. */
+export interface Verweis {
+  text: string;
+  pfad: string;
+}
+
 export interface Schritt {
-  ziel: Ziel;
+  /**
+   * Ohne Ziel ist der Schritt eine **Erzählung**: Text in der Seitenleiste, nichts auf der Seite —
+   * für Einordnung, Prinzip und Ausblick in einem Rundgang. Weiter geht es mit „weiter“.
+   */
+  ziel?: Ziel;
   /** Ohne Handlung ist der Schritt ein Prüfpunkt: Das Ziel muss erscheinen und `pruefen` erfüllen. */
   handlung?: Handlung;
   pruefen?: Pruefung;
   /** Ein Satz am Element. */
   kurz: string;
-  /** Erläuterung in der Seitenleiste: warum dieser Schritt, was dahinter passiert. ✦ wie in der Demo. */
+  /**
+   * Erläuterung in der Seitenleiste: warum dieser Schritt, was dahinter passiert. ✦ wie in der Demo.
+   * Eine Leerzeile trennt Absätze.
+   */
   lang?: string;
+  /** Kapitel, unter dem der Schritt in der Seitenleiste steht; gilt bis zum nächsten. */
+  kapitel?: string;
+  /** Wo es in README, Spezifikation oder Entscheidungen weitergeht. */
+  mehr?: Verweis[];
 }
 
 export interface Startzustand {
@@ -64,6 +81,18 @@ export interface Szenario {
   aufgabe: string;
   start: Startzustand;
   schritte: Schritt[];
+  /** Angebotene Modi, der erste ist der Standard. Ohne Angabe alle; ein Rundgang ist keine Aufgabe. */
+  modi?: Modus[];
+}
+
+/** Erzählung ohne Element auf der Seite? */
+export function erzaehlung(s: Schritt): s is Schritt & { ziel: undefined } {
+  return !s.ziel;
+}
+
+/** Die Modi eines Klickpfads — und der, in dem er beginnt, wenn die Adresse einen anderen nennt. */
+export function modiVon(s: Szenario): Modus[] {
+  return s.modi ?? ['gefuehrt', 'frei', 'aufgabe'];
 }
 
 export function szenario(s: Szenario): Szenario {
