@@ -1,5 +1,5 @@
 import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
-import { psRelevanzSetzen, type Ressource, neueId, WEG } from '@demo-pvs/kern';
+import { istPsRelevant, psRelevanzSetzen, type Ressource, neueId, WEG } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import {
   aktuelleChronologie,
@@ -190,8 +190,11 @@ function pruefen(r: Ressource | undefined, art: Art): string | null {
   if (art === 'Condition' && !k.some((x) => x.system === ICD || x.system === SNOMED)) {
     return 'Eine Diagnose braucht eine ICD-10-GM- oder SNOMED-CT-Kodierung.';
   }
+  // Den klinischen Status verlangt nur die Allergie (ait-1, außer bei entered-in-error). Bei der
+  // Diagnose ist er 0..1 (ti-condition-diagnosis) und con-3 nur eine Leitlinie: Die Abbildung des
+  // Kerns lässt ihn bei ausgeschlossenen Diagnosen und unbekanntem Status weg.
   const v = status(r, 'verificationStatus');
-  if (v !== 'entered-in-error' && !status(r, 'clinicalStatus')) {
+  if (art === 'AllergyIntolerance' && v !== 'entered-in-error' && !status(r, 'clinicalStatus')) {
     return 'Der klinische Status fehlt.';
   }
   return null;
@@ -283,6 +286,7 @@ const AENDERBAR: Record<Art, string[]> = {
     'status',
     'statusReason',
     'occurrenceDateTime',
+    'occurrenceString',
     'lotNumber',
     'doseQuantity',
     'performer',
@@ -513,9 +517,17 @@ function listenwegeEinhaengen(
         'Kodierung und Bezeichnung eines Eintrags sind nicht änderbar. Einen falschen Eintrag als fehlerhaft kennzeichnen und den richtigen neu anlegen.',
       );
     }
+    // Die Relevanzmarkierung ändert nur $flag-…-entry (ADR 0022); $update übernimmt sie aus dem
+    // Bestand, gleich ob die Eingabe sie trägt.
+    const relevant = istPsRelevant(vorhanden);
     for (const feld of AENDERBAR[art]) {
       if (feld in eingang!) vorhanden[feld] = eingang![feld];
       else if (feld !== 'extension') delete vorhanden[feld];
+    }
+    if (art !== 'Immunization') {
+      const gesetzt = psRelevanzSetzen(vorhanden, relevant);
+      vorhanden['extension'] = gesetzt['extension'];
+      if (!gesetzt['extension']) delete vorhanden['extension'];
     }
     // FHIR: Bei entered-in-error steht kein klinischer Status (con-5, ait-2) — und ohne Status
     // kein Ende der Diagnose (con-4).

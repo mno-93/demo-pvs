@@ -154,7 +154,7 @@ export function emlwegeEinhaengen(
       'DELETE',
       zeit,
     );
-    loeschen(ablage(kvnr), aussage);
+    loeschen(ablage(kvnr), aussage, zeit);
     const mittelId = referenzId(aussage['medicationReference']);
     const mittel = finden(kvnr, 'Medication', mittelId);
     const nochImPlan = ablage(kvnr).some(
@@ -165,7 +165,7 @@ export function emlwegeEinhaengen(
             (e) => e.url === EXT.herkunftsmittel && referenzId(e.valueReference) === mittelId,
           )),
     );
-    if (mittel && !nochImPlan) loeschen(ablage(kvnr), mittel);
+    if (mittel && !nochImPlan) loeschen(ablage(kvnr), mittel, zeit);
     if (empGeaendert) chronologieAnlegen(ablage(kvnr), EMP, wer, zeit);
     const ergebnis = ausgabe([['relatedActivity', aktivitaet]]);
     return empGeaendert

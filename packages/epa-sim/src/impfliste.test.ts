@@ -137,6 +137,29 @@ describe('✦ Impfliste', () => {
     expect(a.statusCode).toBe(422);
   });
 
+  it('übernimmt ein ungefähres Datum (occurrenceString) beim Ändern', async () => {
+    const { impfungen, lesenachweis } = await liste();
+    const { occurrenceDateTime: _datum, ...ohneDatum } = impfungen[0]!;
+    const a = await app.inject({
+      method: 'POST',
+      url: `${B}/$update-immunization-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: lesenachweis },
+          {
+            name: 'immunizationEntry',
+            resource: { ...ohneDatum, occurrenceString: 'Frühjahr 2019' },
+          },
+        ],
+      },
+    });
+    expect(a.statusCode).toBe(200);
+    const neu = (await liste()).impfungen.find((r) => r['id'] === impfungen[0]!['id'])!;
+    expect(neu['occurrenceString']).toBe('Frühjahr 2019');
+  });
+
   it('lässt über die Demo-Steuerung eine andere Einrichtung eintragen', async () => {
     const a = await app.inject({
       method: 'POST',

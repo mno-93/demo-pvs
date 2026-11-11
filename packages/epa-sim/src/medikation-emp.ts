@@ -406,7 +406,7 @@ export function empwegeEinhaengen(
         'DELETE',
         zeit,
       );
-      loeschen(ablage(kvnr), vorhanden);
+      loeschen(ablage(kvnr), vorhanden, zeit);
       const mittelId = referenzId(vorhanden['medicationReference']);
       const mittel = finden(kvnr, 'Medication', mittelId);
       if (mittel && kontext(mittel) === 'EMP') mittelLoeschenWennFrei(kvnr, mittelId);
@@ -439,7 +439,7 @@ export function empwegeEinhaengen(
       vorhanden['medicationReference'] = { reference: `Medication/${String(ausgetauscht.id)}` };
       mittelLoeschenWennFrei(kvnr, altesMittel);
     }
-    if (gruendeEntfallen) for (const g of alteGruende) if (g) loeschen(ablage(kvnr), g);
+    if (gruendeEntfallen) for (const g of alteGruende) if (g) loeschen(ablage(kvnr), g, zeit);
     const gruende = neueGruende ? gruendeAnlegen(kvnr, koerper, vorhanden, zeit) : [];
     fortschreiben(vorhanden, zeit);
     mittelstatusSetzen(kvnr, vorhanden, zeit);

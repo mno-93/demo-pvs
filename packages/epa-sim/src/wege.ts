@@ -46,6 +46,7 @@ import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen } from './kim.ts';
 import { XDS_DOKUMENTENDIENST, zeitzonenErgaenzen } from '@demo-pvs/kern';
 import { fremdeEintraegeAnlegen } from './startbestand.ts';
 import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
+import { ablageLeeren } from './schreibwege.ts';
 import { fehlerKoerper, USER_AGENT_FORMAT, KVNR_FORMAT } from './schnittstelle.ts';
 
 const istEpaWeg = (url: string) => url.startsWith('/epa/');
@@ -310,10 +311,11 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     if (k.status === 'ACTIVATED' || k.status === 'SUSPENDED') b.status = k.status;
     if (k['erp-submission'] === 'deny') {
       // Konzept 3.1.3: Widerspruch gegen das Einstellen löscht die dgMP-Daten und setzt den
-      // Widerspruch gegen den Medikationsprozess mit.
+      // Widerspruch gegen den Medikationsprozess mit. Gelöscht wird samt Fassungsarchiv — die
+      // Daten kommen nach einer erneuten Zustimmung nicht über `_history` zurück.
       b.widersprueche['erp-submission'] = 'deny';
       b.widersprueche.medication = 'deny';
-      b.medikation.splice(0, b.medikation.length);
+      ablageLeeren(b.medikation);
     } else if (k['erp-submission'] === 'permit') {
       b.widersprueche['erp-submission'] = 'permit';
       b.widersprueche.medication = 'permit';

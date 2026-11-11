@@ -183,14 +183,29 @@ function pdfDokument(
 }
 
 /**
- * ✦ Markiert Einträge der zentralen Listen als relevant für die Patient Summary — so, wie sie die
- * einstellende Einrichtung beim Anlegen markiert hätte.
+ * ✦ Einträge der zentralen Listen, die die einstellende Einrichtung schon beim Anlegen als relevant
+ * für die Patient Summary markiert. Die Markierung gehört zur ersten Fassung: Nachträglich an der
+ * Instanz gesetzt, fehlte sie im Fassungsarchiv, und frühere Stände wären nach einer Änderung des
+ * Eintrags falsch (ADR 0062).
  */
-function alsRelevantMarkieren(kvnr: string, ...kennungen: string[]): void {
-  const ablage = bestandFuer(kvnr).diagnosedienst;
-  ablage.forEach((r, i) => {
-    if (kennungen.includes(String(r.id))) ablage[i] = psRelevanzSetzen(r, true);
-  });
+const BEIM_ANLEGEN_RELEVANT = new Set<string>([
+  'cond-h-1',
+  'cond-h-2',
+  'allg-h-1',
+  'allg-h-2',
+  START_LISTENEINTRAG.yildizHypothyreose,
+  START_LISTENEINTRAG.yildizHypertonie,
+]);
+
+function listeneintragAnlegen(
+  kvnr: string,
+  eingang: Ressource,
+  wer: Handelnde,
+  zeitpunkt: string,
+  kennung: string,
+): void {
+  const markiert = BEIM_ANLEGEN_RELEVANT.has(kennung) ? psRelevanzSetzen(eingang, true) : eingang;
+  eintragAnlegen(kvnr, markiert, wer, zeitpunkt, kennung);
 }
 
 const ATC = CODESYSTEM.atc;
@@ -973,7 +988,7 @@ export function startbestandAufbauen(): void {
     // Verweis auf die DocumentReference des strukturierten Entlassbriefs (entryUUID).
     dokumentId: eintragsUuid({ id: 'kh-e-2026-07-17' } as Dokument),
   };
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     diagnoseEintrag(
       KVNR.hoffmann,
@@ -990,7 +1005,7 @@ export function startbestandAufbauen(): void {
     beiEntlassung,
     'cond-h-1',
   );
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     diagnoseEintrag(
       KVNR.hoffmann,
@@ -1010,7 +1025,7 @@ export function startbestandAufbauen(): void {
     beiEntlassung,
     'cond-h-2',
   );
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     diagnoseEintrag(
       KVNR.hoffmann,
@@ -1031,7 +1046,7 @@ export function startbestandAufbauen(): void {
     'cond-h-3',
   );
   // Aktuell, aber nicht relevant für die Patient Summary: steht in der Liste, nicht in der Übersicht.
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     diagnoseEintrag(
       KVNR.hoffmann,
@@ -1049,7 +1064,7 @@ export function startbestandAufbauen(): void {
     beiEntlassung,
     'cond-h-4',
   );
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     allergieEintrag(
       KVNR.hoffmann,
@@ -1075,7 +1090,7 @@ export function startbestandAufbauen(): void {
     beiEntlassung,
     'allg-h-1',
   );
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.hoffmann,
     allergieEintrag(
       KVNR.hoffmann,
@@ -1102,9 +1117,9 @@ export function startbestandAufbauen(): void {
     'allg-h-2',
   );
 
-  // Relevant für die Patient Summary: die beiden Dauerdiagnosen und beide Allergien. Die
-  // behobene Harnwegsinfektion und die Obstipation bleiben in der Liste, aber nicht in der Übersicht.
-  alsRelevantMarkieren(KVNR.hoffmann, 'cond-h-1', 'cond-h-2', 'allg-h-1', 'allg-h-2');
+  // Relevant für die Patient Summary (BEIM_ANLEGEN_RELEVANT): die beiden Dauerdiagnosen und beide
+  // Allergien. Die behobene Harnwegsinfektion und die Obstipation bleiben in der Liste, aber nicht
+  // in der Übersicht.
 
   // Impfliste (✦): Impfungen der früheren Hausarztpraxis; die Zoster-Serie ist unvollständig.
   const lang = 'Dr. med. Petra Lang, Hausarztpraxis Nordstadt';
@@ -1116,7 +1131,7 @@ export function startbestandAufbauen(): void {
     ['imm-h-5', 'J07BN01', '2025-10-21', { charge: 'CV-25-7781' }],
   ];
   for (const [id, atc, datum, teil] of impfungen) {
-    eintragAnlegen(
+    listeneintragAnlegen(
       KVNR.hoffmann,
       impfEintrag(KVNR.hoffmann, atc, datum, lang, teil),
       VORPRAXIS,
@@ -1186,7 +1201,7 @@ export function startbestandAufbauen(): void {
 
   // Die Praxis führt Frau Yildiz' Dauerdiagnosen seit dem Quartalsbeginn in der Diagnosenliste.
   const brandt = 'Dr. med. Anna Brandt';
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.yildiz,
     diagnoseEintrag(
       KVNR.yildiz,
@@ -1203,7 +1218,7 @@ export function startbestandAufbauen(): void {
     '2026-07-02T09:05:00',
     START_LISTENEINTRAG.yildizHypothyreose,
   );
-  eintragAnlegen(
+  listeneintragAnlegen(
     KVNR.yildiz,
     diagnoseEintrag(
       KVNR.yildiz,
@@ -1221,11 +1236,6 @@ export function startbestandAufbauen(): void {
     START_LISTENEINTRAG.yildizHypertonie,
   );
 
-  alsRelevantMarkieren(
-    KVNR.yildiz,
-    START_LISTENEINTRAG.yildizHypothyreose,
-    START_LISTENEINTRAG.yildizHypertonie,
-  );
   listeFortschreiben(KVNR.yildiz, 'Condition', PRAXIS, '2026-07-02T09:06:00');
 
   // --- Herr Krüger: leere Akte, Widerspruch gegen den Medikationsprozess ---
