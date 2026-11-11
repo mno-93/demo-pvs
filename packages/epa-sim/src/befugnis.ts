@@ -157,6 +157,18 @@ export function befugnisEinhaengen(
         .code(400)
         .send(fehlerKoerper('malformedRequest', 'Das Feld jwt fehlt oder ist kein JWT.'));
     }
+    if (!EINRICHTUNGEN[telematikId]) {
+      // Die Rolle der Einrichtung folgt aus ihrer Telematik-ID; eine unbekannte hat keine erlaubte
+      // Nutzergruppe (OpenAPI: „Requestor role is not in the list of allowed usergroups").
+      return antwort
+        .code(403)
+        .send(
+          fehlerKoerper(
+            'invalidOid',
+            'Die Einrichtung gehört zu keiner zugelassenen Nutzergruppe.',
+          ),
+        );
+    }
     if (!bestandVorhanden(kvnr)) {
       return antwort
         .code(404)

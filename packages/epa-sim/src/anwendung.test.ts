@@ -180,6 +180,23 @@ describe('Kopfzeilen', () => {
     expect(fremd.statusCode).toBe(403);
     expect(JSON.stringify(fremd.json())).toContain('SVC_IDENTITY_MISMATCH');
   });
+
+  it('erteilt einer unbekannten Einrichtung keine Befugnis (setEntitlementPs: invalidOid)', async () => {
+    const jwt = [
+      base64({ alg: 'ES256' }),
+      base64({ auditEvidence: base64({ kvnr: HOFFMANN, kennung: 'unbekannt-1' }) }),
+      'c2lnbmF0dXI',
+    ]
+      .join('.')
+      .replace(/=/g, '');
+    const a = await app.inject({
+      method: 'POST',
+      url: '/epa/basic/api/v1/ps/entitlements',
+      headers: kopf({ 'x-demo-sitzung': '9-DEMO-UNBEKANNT', 'content-type': 'application/json' }),
+      payload: { jwt },
+    });
+    expect([a.statusCode, a.json().errorCode]).toEqual([403, 'invalidOid']);
+  });
 });
 
 describe('MHD', () => {
@@ -530,7 +547,8 @@ describe('✦ Diagnose-Service', () => {
     const eintrag = (
       liste.json().entry as { resource: { id: string; extension?: unknown[] } }[]
     ).find((e) => e.resource.id === 'cond-h-1')!.resource;
-    const { extension: _ohne, ...ohneMarkierung } = eintrag;
+    const ohneMarkierung: Record<string, unknown> = { ...eintrag };
+    delete ohneMarkierung['extension'];
     const a = await app.inject({
       method: 'POST',
       url: `${DIENST}/$update-condition-entry`,

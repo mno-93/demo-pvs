@@ -104,6 +104,15 @@ export interface DokumentKodewert {
   anzeige: string | null;
 }
 
+/**
+ * Ein zugelassener Code mit Abkündigung (`deprecatedFrom`) und Stilllegung (`inactiveFrom`). Laut
+ * README der Implementation Guides werden abgekündigte Codes nicht abgelehnt.
+ */
+export interface ZugelassenerKodewert extends DokumentKodewert {
+  abgekuendigtAb: string | null;
+  inaktivAb: string | null;
+}
+
 /** Im XDS Document Service registrierter Dokumenttyp (aus ePA-XDS-Document übernommen). */
 export interface DokumenttypEintrag {
   datei: string;
@@ -113,8 +122,14 @@ export interface DokumenttypEintrag {
   formatSystem: string | null;
   formatAnzeige: string;
   mimeTypes: string[];
+  /** Der Code, mit dem eingestellt wird: der erste nicht abgekündigte aus `classCodes`. */
   classCode: DokumentKodewert | null;
+  /** Der Code, mit dem eingestellt wird: der erste nicht abgekündigte aus `typeCodes`. */
   typeCode: DokumentKodewert | null;
+  /** Alle classCodes, die der Implementation Guide zum formatCode nennt. */
+  classCodes: ZugelassenerKodewert[];
+  /** Alle typeCodes, die der Implementation Guide zum formatCode nennt. */
+  typeCodes: ZugelassenerKodewert[];
   /** `validFromDate` des Implementation Guide: ab hier darf eingestellt werden. */
   gueltigAb: string | null;
   /** `clientReadOnlyFromDate`: ab hier nur noch lesbar, Einstellen wird abgelehnt. */

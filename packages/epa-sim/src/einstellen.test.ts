@@ -11,6 +11,7 @@ import {
   provideAndRegisterErzeugen,
   registryResponseLesen,
   type XdsEinreichung,
+  dokumenttypen,
 } from '@demo-pvs/kern';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
@@ -323,6 +324,41 @@ describe('ITI-41: Metadaten und Prüfungen (IHE ITI TF-3, IGs des XDS Document S
     const antwort = registryResponseLesen((await senden(falsch)).body);
     expect(antwort.erfolg).toBe(false);
     expect(antwort.fehler[0]!.text).toMatch(/classCode und typeCode/);
+  });
+
+  it('meldet ein unlesbares FHIR-Dokument als Fehler der Einreichung, nicht mit 500', async () => {
+    const kaputt = einreichung({ inhaltBase64: Buffer.from('{ kein json').toString('base64') });
+    const a = await senden(kaputt);
+    expect(a.statusCode).toBe(200);
+    const antwort = registryResponseLesen(a.body);
+    expect(antwort.erfolg).toBe(false);
+    expect(antwort.fehler[0]!.code).toBe('XDSRepositoryError');
+  });
+
+  it('nimmt jeden typeCode an, den der Implementation Guide nennt — auch einen abgekündigten', async () => {
+    const zahnbonus = dokumenttypen.find((t) => t.datei === 'ig-dentalrecord.json')!;
+    // Eingestellt wird mit dem gültigen Code, nicht mit dem abgekündigten an erster Stelle.
+    expect(zahnbonus.typeCode?.code).toBe('ABRE');
+    for (const [nummer, typeCode] of zahnbonus.typeCodes.entries()) {
+      const dokument = einreichung({
+        uniqueId: `2.25.20${nummer}`,
+        formatCode: {
+          code: zahnbonus.formatCode,
+          system: zahnbonus.formatSystem!,
+          anzeige: zahnbonus.formatAnzeige,
+        },
+        classCode: {
+          code: zahnbonus.classCode!.code!,
+          system: zahnbonus.classCode!.system!,
+          anzeige: zahnbonus.classCode!.anzeige!,
+        },
+        typeCode: { code: typeCode.code!, system: typeCode.system!, anzeige: typeCode.anzeige! },
+        mimeType: zahnbonus.mimeTypes[0]!,
+        inhaltBase64: Buffer.from('<zahnbonusheft/>').toString('base64'),
+      });
+      const antwort = registryResponseLesen((await senden(dokument)).body);
+      expect(antwort.fehler, typeCode.code!).toEqual([]);
+    }
   });
 });
 

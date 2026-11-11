@@ -139,7 +139,8 @@ describe('✦ Impfliste', () => {
 
   it('übernimmt ein ungefähres Datum (occurrenceString) beim Ändern', async () => {
     const { impfungen, lesenachweis } = await liste();
-    const { occurrenceDateTime: _datum, ...ohneDatum } = impfungen[0]!;
+    const ohneDatum = { ...impfungen[0]! };
+    delete ohneDatum['occurrenceDateTime'];
     const a = await app.inject({
       method: 'POST',
       url: `${B}/$update-immunization-entry`,
