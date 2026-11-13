@@ -1,0 +1,5 @@
+# Branches, deren Stand neben der Demo von main veröffentlicht wird — je Zeile ein Name, unter
+# https://<konto>.github.io/<repository>/vorschau/<name>/ (docs/ENTWICKLUNG.md, „Vorschau eines
+# Branchs“). Nur Branches dieses Repositorys. Eintrag entfernen, wenn der Branch übernommen oder
+# verworfen ist; ein fehlender Branch wird übersprungen.
+diagnosen-automatisch-uebertragen
