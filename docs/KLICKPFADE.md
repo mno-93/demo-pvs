@@ -5,9 +5,10 @@ gegen den Simulator geprüft ([ADR 0061](entscheidungen/0061-klickpfade.md)).
 
 ## Vorhandene Klickpfade
 
-| Kennung          | Frage                                                                                     | Ausbaustand         | Schritte |
-| ---------------- | ----------------------------------------------------------------------------------------- | ------------------- | -------- |
-| `diagnose-in-ps` | Wie kommt eine neue Dauerdiagnose in die Patient Summary — und was kostet das die Praxis? | Weiterentwicklung 3 | 7        |
+| Kennung                        | Frage                                                                                                                                                         | Ausbaustand         | Schritte |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | -------- |
+| `diagnose-in-ps`               | Wie kommt eine neue Dauerdiagnose in die Patient Summary — und was kostet das die Praxis?                                                                     | Weiterentwicklung 3 | 7        |
+| `fremde-aenderung-automatisch` | Was passiert in meiner Praxis, wenn eine andere Einrichtung eine Dauerdiagnose beendet — und die Diagnosen automatisch in beide Richtungen übertragen werden? | Weiterentwicklung 3 | 7        |
 
 ## Aufrufen
 

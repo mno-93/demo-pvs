@@ -24,7 +24,7 @@ import {
   befugnisseEntziehen,
   gueltigeBefugnis,
 } from './befugnis.ts';
-import { AB_STUFE, STUFE, abStufe, betriebslage } from './betrieb.ts';
+import { AB_STUFE, PATIENT_SUMMARY_QUELLEN, STUFE, abStufe, betriebslage } from './betrieb.ts';
 import {
   DIAGNOSEDIENST_BASIS,
   IMPFLISTE_BASIS,
@@ -43,7 +43,7 @@ import { MHD_ABRUF, MHD_BASIS, mhdEinhaengen } from './mhd.ts';
 import { xdsEinhaengen } from './xds.ts';
 import { KIM_POSTAUSGANG, KIM_WEG, kimEinhaengen } from './kim.ts';
 import { XDS_DOKUMENTENDIENST, zeitzonenErgaenzen } from '@demo-pvs/kern';
-import { fremdeEintraegeAnlegen } from './startbestand.ts';
+import { fremdeAenderungAnlegen, fremdeEintraegeAnlegen } from './startbestand.ts';
 import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 import { fehlerKoerper, USER_AGENT_FORMAT, KVNR_FORMAT } from './schnittstelle.ts';
 
@@ -284,7 +284,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     if (typeof k.fremdeAenderungVorSchreibzugriff === 'boolean') {
       betriebslage.fremdeAenderungVorSchreibzugriff = k.fremdeAenderungVorSchreibzugriff;
     }
-    if (k.patientSummaryQuellen === 'listen' || k.patientSummaryQuellen === 'automatisch') {
+    if (k.patientSummaryQuellen && PATIENT_SUMMARY_QUELLEN.includes(k.patientSummaryQuellen)) {
       betriebslage.patientSummaryQuellen = k.patientSummaryQuellen;
     }
     if (typeof k.erezeptVerzoegerungMs === 'number' && k.erezeptVerzoegerungMs >= 0) {
@@ -340,6 +340,27 @@ export function wegeEinhaengen(app: SimAnwendung): void {
     }
     const stufe = STUFE[betriebslage.ausbaustand];
     return { angelegt: fremdeEintraegeAnlegen(kvnr, stufe) };
+  });
+
+  /**
+   * Eine andere Einrichtung beendet jetzt eine Dauerdiagnose der Diagnosenliste — für die Frage,
+   * was eine fremde Änderung im Praxissystem auslöst (ADR 0062).
+   */
+  app.post('/verwaltung/fremde-aenderung', async (anfrage, antwort) => {
+    const kvnr = String((anfrage.body as { kvnr?: string } | undefined)?.kvnr ?? '');
+    if (!bestandVorhanden(kvnr)) {
+      return antwort.code(409).send(fehlerKoerper('conflict', 'Keine Akte.'));
+    }
+    if (!abStufe(AB_STUFE.listen)) {
+      return antwort.code(409).send(fehlerKoerper('conflict', 'Keine Diagnosenliste.'));
+    }
+    const geaendert = fremdeAenderungAnlegen(kvnr);
+    if (!geaendert) {
+      return antwort
+        .code(409)
+        .send(fehlerKoerper('conflict', 'Keine gegenwärtige Dauerdiagnose in der Liste.'));
+    }
+    return { geaendert };
   });
 
   /** Wie nach Ablauf der 90 Tage: Die Einrichtung verliert ihre Befugnisse in allen Akten. */
@@ -503,6 +524,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
       'POST /verwaltung/erezepte/{id}/abgabe — Apotheke gibt ab (art: wie-verordnet, austausch, mehrfach)',
       'POST /verwaltung/erezepte/{id}/abgabe-storno',
       'POST /verwaltung/fremde-eintraege — eine andere Einrichtung trägt in die Listen ein',
+      'POST /verwaltung/fremde-aenderung — eine andere Einrichtung beendet eine Dauerdiagnose',
     ],
   }));
 

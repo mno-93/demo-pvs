@@ -5,6 +5,8 @@ import {
   type Allergie,
   type Behandlungsfall,
   type Diagnose,
+  type Diagnosenumfang,
+  type Diagnosenweg,
   type Dosierung,
   type Karteikarteneintrag,
   type Kuerzel,
@@ -23,7 +25,13 @@ import {
   neueId,
 } from '@demo-pvs/kern';
 import type { Vorgang } from './speicher.js';
-import type { EpaGesehen, EpaLesezeichen, Listenordnung, Zustand } from './zustand.js';
+import type {
+  Automatikvermerk,
+  EpaGesehen,
+  EpaLesezeichen,
+  Listenordnung,
+  Zustand,
+} from './zustand.js';
 
 /** Zeitpunkt eines Vorgangs nach der Demo-Uhr des Kerns, auf die Sekunde. */
 function jetzt(): string {
@@ -600,6 +608,62 @@ export const vorgaenge = {
             : a,
         ),
       }),
+    };
+  },
+
+  /* ---------- ✦ Automatische Übertragung der Diagnosen (ADR 0062) ---------- */
+
+  /** Stellt den Weg der Diagnosen in die ePA um — Demo-Steuerung, keine fachliche Handlung. */
+  diagnosenwegSetzen(weg: Diagnosenweg, umfang: Diagnosenumfang): Vorgang {
+    return {
+      name: 'diagnosenwegSetzen',
+      beschreibung: 'Weg der Diagnosen in die ePA umgestellt',
+      zaehltNicht: true,
+      anwenden: (z) =>
+        z.diagnosenweg === weg && z.diagnosenumfang === umfang
+          ? z
+          : { ...z, diagnosenweg: weg, diagnosenumfang: umfang },
+    };
+  },
+
+  /** Hält fest, was die automatische Übertragung getan hat. Keine Handlung der Praxis. */
+  automatikVermerken(
+    vermerke: readonly Omit<Automatikvermerk, 'id' | 'zeitpunkt' | 'angezeigtAm'>[],
+  ): Vorgang {
+    return {
+      name: 'automatikVermerken',
+      beschreibung: 'Diagnosen automatisch mit der ePA abgeglichen',
+      zaehltNicht: true,
+      anwenden: (z) =>
+        vermerke.length === 0
+          ? z
+          : {
+              ...z,
+              diagnosenautomatik: [
+                ...vermerke
+                  .map((v) => ({ ...v, id: neueId('auto'), zeitpunkt: jetzt(), angezeigtAm: null }))
+                  .reverse(),
+                ...z.diagnosenautomatik,
+              ],
+            },
+    };
+  },
+
+  /** Die Diagnosen der Person wurden geöffnet: Offene Vermerke gelten ab jetzt als angezeigt. */
+  automatikAngezeigt(patientId: string): Vorgang {
+    return {
+      name: 'automatikAngezeigt',
+      beschreibung: 'Automatisch übertragene Diagnosen angezeigt',
+      zaehltNicht: true,
+      anwenden: (z) =>
+        z.diagnosenautomatik.some((v) => v.patientId === patientId && !v.angezeigtAm)
+          ? {
+              ...z,
+              diagnosenautomatik: z.diagnosenautomatik.map((v) =>
+                v.patientId === patientId && !v.angezeigtAm ? { ...v, angezeigtAm: jetzt() } : v,
+              ),
+            }
+          : z,
     };
   },
 

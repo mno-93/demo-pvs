@@ -43,6 +43,14 @@ export function abStufe(stufe: number): boolean {
   return STUFE[betriebslage.ausbaustand] >= stufe;
 }
 
+export type PatientSummaryQuellen = 'listen' | 'listen-vollstaendig' | 'automatisch';
+
+export const PATIENT_SUMMARY_QUELLEN: readonly PatientSummaryQuellen[] = [
+  'listen',
+  'listen-vollstaendig',
+  'automatisch',
+];
+
 export interface Betriebslage {
   verzoegerungMs: number;
   ausbaustand: Ausbaustand;
@@ -53,10 +61,11 @@ export interface Betriebslage {
   fremdeAenderungVorSchreibzugriff: boolean;
   /**
    * ✦ Woraus die Patient Summary gebildet wird: `listen` — aus den ärztlich geführten Listen
-   * und dem Medikationsplan; `automatisch` — nur aus automatisch entstehenden Daten
-   * (Medikationsliste, Laborbefunde). Zeigt den Unterschied zwischen beiden Wegen.
+   * und dem Medikationsplan, nur markierte Einträge; `listen-vollstaendig` — aus denselben
+   * Listen ohne Relevanzauswahl, jeder gültige Eintrag (ADR 0062); `automatisch` — nur aus
+   * automatisch entstehenden Daten (Medikationsliste, Laborbefunde, strukturierte Dokumente).
    */
-  patientSummaryQuellen: 'listen' | 'automatisch';
+  patientSummaryQuellen: PatientSummaryQuellen;
   /**
    * Wie lange der E-Rezept-Fachdienst braucht, bis Verschreibung oder Abgabe in der ePA stehen.
    * Die Übertragung ist asynchron (IG `de.gematik.epa.medication` 1.3.5); 0 überträgt sofort.

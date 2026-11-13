@@ -1,0 +1,58 @@
+{
+  "klickpfad": "fremde-aenderung-automatisch",
+  "titel": "Eine andere Praxis beendet eine Dauerdiagnose",
+  "schritte": [
+    {
+      "schritt": 1,
+      "kurz": "Hypertonie geht in die Abrechnung",
+      "ziel": "Bereich „Diagnosen im Behandlungsfall“",
+      "inhalt": "ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Aktiv Praxis E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
+      "epa": []
+    },
+    {
+      "schritt": 2,
+      "kurz": "Demo-Steuerung öffnen",
+      "ziel": "Knopf „Konfiguration“",
+      "epa": []
+    },
+    {
+      "schritt": 3,
+      "kurz": "Die Kardiologie beendet die Hypertonie",
+      "ziel": "Knopf „andere Einrichtung beendet Dauerdiagnose“ in Gruppe „Yildiz, Meral“",
+      "epa": [
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 4,
+      "kurz": "Die Diagnose der Praxis ist behoben",
+      "ziel": "Bereich „Diagnosen im Behandlungsfall“",
+      "inhalt": "ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
+      "epa": []
+    },
+    {
+      "schritt": 5,
+      "kurz": "Ohne Handlung, noch nicht angezeigt",
+      "ziel": "Bereich „Diagnosen im Behandlungsfall“",
+      "inhalt": "ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
+      "epa": []
+    },
+    {
+      "schritt": 6,
+      "kurz": "Diagnosen öffnen",
+      "ziel": "Verweis „Diagnosen und Allergien“ in navigation „Bereiche der Patientenkartei“",
+      "epa": [
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 7,
+      "kurz": "Der Vermerk der Übertragung",
+      "ziel": "Gruppe „Automatische Übertragung“",
+      "inhalt": "Automatische Übertragung ✦ · automatisch, in beide Richtungen · Dauerdiagnosen 0 in die ePA · 1 aus der ePA · ohne Handlung 1 neu Zeitpunkt Diagnose Ohne Handlung Einrichtung Angezeigt 09.09.2026, <zeit> Uhr I10.90 Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise ePA-Stand übernommen Kardiologische Praxis am Wall 09.09.2026, <zeit> Uhr neu",
+      "epa": []
+    }
+  ]
+}

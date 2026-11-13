@@ -106,14 +106,14 @@ interface Teil {
  * Relevanzauswahl, mit dem Stand des Dokuments (ADR 0031).
  */
 
-function allergien(kvnr: string, mitListen: boolean): Teil {
+function allergien(kvnr: string, mitListen: boolean, ohneAuswahl: boolean): Teil {
   if (!mitListen) {
     return ausDokumenten(kvnr, 'AllergyIntolerance', (r) => String(r['onsetDateTime'] ?? ''));
   }
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const alle = ablage.filter((r) => r.resourceType === 'AllergyIntolerance' && gueltig(r));
   const echte = alle.filter((r) => !istKeineBekannte(r));
-  const markiert = echte.filter(istPsRelevant);
+  const markiert = ohneAuswahl ? echte : echte.filter(istPsRelevant);
   // „Keine bekannte Allergie" ist eine Aussage über die ganze Liste — sie gilt nur, solange
   // keine gültige Allergie dagegen steht, und braucht keine Markierung.
   const eintraege = echte.length > 0 ? markiert : alle.filter(istKeineBekannte);
@@ -125,7 +125,7 @@ function allergien(kvnr: string, mitListen: boolean): Teil {
   };
 }
 
-function diagnosen(kvnr: string, mitListen: boolean): Teil {
+function diagnosen(kvnr: string, mitListen: boolean, ohneAuswahl: boolean): Teil {
   if (!mitListen) {
     return ausDokumenten(kvnr, 'Condition', (r) =>
       String(r['onsetDateTime'] ?? r['recordedDate'] ?? ''),
@@ -133,7 +133,8 @@ function diagnosen(kvnr: string, mitListen: boolean): Teil {
   }
   const ablage = bestandFuer(kvnr).diagnosedienst;
   const alle = ablage.filter((r) => r.resourceType === 'Condition' && gueltig(r));
-  const eintraege = alle.filter(istPsRelevant);
+  // Ohne Relevanzauswahl steht jeder gültige Eintrag der Liste in der Übersicht (ADR 0062).
+  const eintraege = ohneAuswahl ? alle : alle.filter(istPsRelevant);
   return {
     quelle: 'condition-list',
     eintraege,
@@ -350,10 +351,11 @@ function bezeichnung(r: Ressource, alle: readonly Ressource[]): string {
 }
 
 export function patientSummaryBilden(kvnr: string): Ressource {
-  const mitListen = betriebslage.patientSummaryQuellen === 'listen';
+  const mitListen = betriebslage.patientSummaryQuellen !== 'automatisch';
+  const ohneAuswahl = betriebslage.patientSummaryQuellen === 'listen-vollstaendig';
   const teile: Record<PsAbschnittSchluessel, Teil> = {
-    allergien: allergien(kvnr, mitListen),
-    diagnosen: diagnosen(kvnr, mitListen),
+    allergien: allergien(kvnr, mitListen, ohneAuswahl),
+    diagnosen: diagnosen(kvnr, mitListen, ohneAuswahl),
     medikation: medikation(kvnr, mitListen),
     laborwerte: laborwerte(kvnr),
     impfungen: impfungen(kvnr, mitListen),

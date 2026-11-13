@@ -1,4 +1,4 @@
-import type { Ausbaustand } from '@demo-pvs/kern';
+import type { Ausbaustand, Diagnosenumfang, Diagnosenweg } from '@demo-pvs/kern';
 
 /**
  * Klickpfad: ein gezielter Ablauf durch die Demo zu einer Fragestellung (ADR 0061). Eine Datei je
@@ -53,6 +53,9 @@ export interface Startzustand {
   egkEinlesen: boolean;
   /** Ansicht, in der der Pfad beginnt, etwa `/patient/p-hoffmann/diagnosen`. */
   pfad: string;
+  /** ✦ Weg der Diagnosen in die ePA, wenn nicht geführt (ADR 0062). */
+  diagnosenweg?: Diagnosenweg;
+  diagnosenumfang?: Diagnosenumfang;
 }
 
 export interface Szenario {

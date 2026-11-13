@@ -641,6 +641,9 @@ export function startzustand(): Zustand {
     epaGesehen: [],
     listenordnung: [],
     epaLesezeichen: [],
+    diagnosenweg: 'gefuehrt',
+    diagnosenumfang: 'dauer',
+    diagnosenautomatik: [],
     handlungen: 0,
     protokoll: [],
   };

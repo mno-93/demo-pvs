@@ -1,0 +1,72 @@
+# Eigener Lauf für den Diskussionsstand „Diagnosen automatisch übertragen“ (ADR 0062).
+#
+# Der allgemeine Workflow (demo.yml) prüft auch diesen Branch vollständig. Dieser Lauf gehört nur
+# zum Branch und beantwortet zwei Fragen schnell: Hält die automatische Übertragung, was die
+# Spezifikation in Abschnitt 6.4 beschreibt — und wo ist der Stand zum Ansehen? Er führt die Tests
+# der Funktion und ihren Klickpfad aus, baut die gehostete Fassung mit dem Simulator im Browser
+# und legt sie als Artefakt an den Lauf. Veröffentlicht wird nichts: Auf GitHub Pages geht nur
+# main (demo.yml).
+#
+# Mit dem Branch entfällt diese Datei — vor einer Übernahme nach main löschen.
+#
+# Aktionen sind auf Commit-Hashes festgelegt wie in demo.yml.
+name: Diskussionsstand Diagnosen automatisch
+
+on:
+  push:
+    branches: ['diagnosen-automatisch-uebertragen']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnosen-automatisch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  automatik:
+    name: Automatische Übertragung prüfen und bauen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build --workspace @demo-pvs/kern
+      - name: Tests der automatischen Übertragung und Klickpfade
+        run: >
+          npx vitest run
+          packages/kern/src/fachlogik/listenautomatik.test.ts
+          packages/kern/src/fachlogik/listenabgleich.test.ts
+          packages/kern/src/fachlogik/abrechnung.test.ts
+          packages/epa-sim/src/fremde-aenderung.test.ts
+          packages/pvs/src/module/Diagnosenautomatik.test.tsx
+          packages/pvs/src/module/Diagnosen.test.tsx
+          packages/pvs/src/klickpfade
+      - name: Gehostete Fassung bauen
+        run: npm run build:gehostet -- --basis demo-pvs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: demo-diagnosen-automatisch
+          path: packages/pvs/dist
+          retention-days: 30
+      - name: Hinweise auf der Seite des Laufs
+        run: |
+          {
+            echo '## Diskussionsstand: Diagnosen automatisch übertragen'
+            echo
+            echo 'Beschreibung: `docs/SPEZIFIKATION.md`, Abschnitt 6.4 · `docs/entscheidungen/0062-diagnosen-automatisch-uebertragen.md`'
+            echo
+            echo '**Ansehen:** Artefakt `demo-diagnosen-automatisch` herunterladen, in einen Ordner `demo-pvs` entpacken und den darüberliegenden Ordner mit einem statischen Webserver ausliefern. Der Simulator läuft im Browser.'
+            echo
+            echo '| Frage | Einstieg |'
+            echo '| --- | --- |'
+            echo '| Was löst eine fremde Änderung in der eigenen Praxis aus? | `…/demo-pvs/?klickpfad=fremde-aenderung-automatisch` |'
+            echo '| Was überträgt der erste Abgleich? | Konfiguration → Weiterentwicklung 3 → „Diagnosen in die ePA“ → Frau Hoffmann, eGK einlesen |'
+            echo '| Was steht ohne Auswahl in der Patient Summary? | Konfiguration → „Patient Summary aus: Listen ohne Relevanzauswahl“ |'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -16,6 +16,7 @@ import { EpaZugang, useAktenstatus } from '../epa/aktenstatus.js';
 import { patientSummaryVerfuegbar } from '../epa/dienste/vorschlaege.js';
 import { useBetriebsstand, useEpaAbfrage } from '../epa/epa-bestand.js';
 import { useEntwurfsstand } from './arztbrief/entwurf.js';
+import { useDiagnosenautomatik } from './diagnosen/automatik.js';
 
 /**
  * Rahmen einer Patientenkartei: Kopfzeile mit den Angaben, die in der Praxis ständig
@@ -61,6 +62,8 @@ export function Patientenkartei() {
   const diagnosen = useZustand((z) => z.diagnosen);
   const allergien = useZustand((z) => z.allergien);
   const aktenstatus = useAktenstatus(patient);
+  // ✦ Automatische Übertragung der Diagnosen — läuft, sobald die Kartei offen ist (ADR 0062).
+  useDiagnosenautomatik(patient);
   const lotseDa = useLotseVorhanden() === true;
   const briefDa = useArztbriefVorhanden();
   // Ein offener Entwurf bleibt sichtbar, während man in den Quellen ergänzt.

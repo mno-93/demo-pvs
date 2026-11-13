@@ -10,12 +10,17 @@ import { type Ausbaustand } from '@demo-pvs/kern';
 
 export type { Ausbaustand };
 
+export type PatientSummaryQuellen = 'listen' | 'listen-vollstaendig' | 'automatisch';
+
 export interface Betriebslage {
   verzoegerungMs: number;
   ausbaustand: Ausbaustand;
   fremdeAenderungVorSchreibzugriff: boolean;
-  /** ✦ Woraus die Patient Summary gebildet wird — ärztlich geführte Listen oder nur Automatik. */
-  patientSummaryQuellen: 'listen' | 'automatisch';
+  /**
+   * ✦ Woraus die Patient Summary gebildet wird — markierte Einträge der geführten Listen, die
+   * Listen ohne Relevanzauswahl (ADR 0062) oder nur Automatik.
+   */
+  patientSummaryQuellen: PatientSummaryQuellen;
   /** Dauer, bis der E-Rezept-Fachdienst Verschreibung oder Abgabe in die ePA übertragen hat. */
   erezeptVerzoegerungMs: number;
 }
@@ -115,6 +120,17 @@ export async function fremdeEintraegeAnlegen(kvnr: string): Promise<void> {
   await anfragen({
     methode: 'POST',
     pfad: '/verwaltung/fremde-eintraege',
+    koerper: { kvnr },
+    grundlage: GRUNDLAGE.verwaltung,
+  });
+  betriebsstandErhoehen();
+}
+
+/** Eine andere Einrichtung beendet jetzt eine Dauerdiagnose der Liste (ADR 0062). */
+export async function fremdeAenderungAnlegen(kvnr: string): Promise<void> {
+  await anfragen({
+    methode: 'POST',
+    pfad: '/verwaltung/fremde-aenderung',
     koerper: { kvnr },
     grundlage: GRUNDLAGE.verwaltung,
   });

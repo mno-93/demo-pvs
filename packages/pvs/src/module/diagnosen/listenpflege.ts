@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  DIAGNOSENUMFANG_BEZEICHNUNG,
   istGegenwaertig,
   istKeineBekannteAllergie,
   type Allergie,
@@ -60,6 +61,8 @@ export function useListenpflege(
   nachHandlung?: () => void,
 ) {
   const nutzer = useZustand((z) => z.nutzer);
+  const weg = useZustand((z) => z.diagnosenweg);
+  const umfang = useZustand((z) => z.diagnosenumfang);
   const kvnr = patient?.versicherung.kvnr ?? '';
   const patientId = patient?.id ?? '';
   const listen = lage.art === 'bereit' ? lage.listen : null;
@@ -215,6 +218,15 @@ export function useListenpflege(
   function listenoption(art: Pflegeart, e?: Diagnose | Allergie): Listenoption {
     const eintrag = eintragZu(art, e?.epaId ?? null);
     const berichtigt = eintrag ? istBerichtigt(eintrag.eintrag) : false;
+    // ✦ Im automatischen Weg entscheidet niemand je Eintrag (ADR 0062) — nur bei Diagnosen.
+    if (art === 'diagnose' && weg !== 'gefuehrt' && lage.art === 'bereit' && !berichtigt) {
+      return {
+        moeglich: false,
+        grund: `Wird automatisch übertragen — ${DIAGNOSENUMFANG_BEZEICHNUNG[umfang]}.`,
+        verknuepft: !!eintrag,
+        angelegtVon: eintrag?.chronik.angelegtVon ?? null,
+      };
+    }
     return {
       moeglich: lage.art === 'bereit' && !berichtigt,
       grund: berichtigt ? 'In der ePA als fehlerhaft gekennzeichnet.' : grundOhneListe,

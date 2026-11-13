@@ -573,6 +573,22 @@ describe('✦ Patient Summary', () => {
     }
   });
 
+  it('zeigt ohne Relevanzauswahl jeden gültigen Eintrag der Listen (ADR 0062)', async () => {
+    const abschnitt = async (s: string) =>
+      (await summary()).abschnitte.find((x) => x.schluessel === s)!;
+    const markiert = await abschnitt('diagnosen');
+    await app.inject({
+      method: 'POST',
+      url: '/verwaltung/betriebslage',
+      payload: { patientSummaryQuellen: 'listen-vollstaendig' },
+    });
+    const alle = await abschnitt('diagnosen');
+    expect(alle.quelle).toBe('condition-list');
+    expect(alle.eintraege).toHaveLength(markiert.eintraege.length + (markiert.weitere ?? 0));
+    expect(alle.weitere ?? 0).toBe(0);
+    expect((markiert.weitere ?? 0) > 0).toBe(true);
+  });
+
   it('zeigt ohne geführte Listen nur, was automatisch entsteht', async () => {
     await app.inject({
       method: 'POST',

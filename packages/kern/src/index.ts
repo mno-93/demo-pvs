@@ -17,6 +17,7 @@ export * from './fachlogik/aenderungen.js';
 export * from './fachlogik/laborbefund.js';
 export * from './fachlogik/dokumentinhalt.js';
 export * from './fachlogik/listenabgleich.js';
+export * from './fachlogik/listenautomatik.js';
 export * from './fachlogik/listenordnung.js';
 export * from './fachlogik/dosierungstext.js';
 export * from './fachlogik/dosierung.js';

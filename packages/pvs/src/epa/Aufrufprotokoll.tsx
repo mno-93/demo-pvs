@@ -1,13 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { deutschesDatum } from '@demo-pvs/kern';
-import { useZustand } from '../speicher/speicher.js';
+import {
+  DIAGNOSENUMFANG_BEZEICHNUNG,
+  DIAGNOSENWEG_BEZEICHNUNG,
+  deutschesDatum,
+  type Diagnosenumfang,
+  type Diagnosenweg,
+} from '@demo-pvs/kern';
+import { ausfuehren, useZustand } from '../speicher/speicher.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { befugnisseAblaufenLassen, useEinlesungen } from './befugnis.js';
 import { useBetriebsstand } from './epa-bestand.js';
 import { EINRICHTUNG } from './klient.js';
 import {
   akteSetzen,
   aktenLesen,
+  fremdeAenderungAnlegen,
   fremdeEintraegeAnlegen,
   aktensystemZuruecksetzen,
   apothekeGibtAb,
@@ -22,6 +30,7 @@ import {
   type ApothekenRezept,
   type Ausbaustand,
   type Betriebslage,
+  type PatientSummaryQuellen,
 } from '../demo/steuerung.js';
 import {
   pfadKurz,
@@ -47,6 +56,11 @@ export function Aufrufprotokoll() {
   const [apotheke, setzeApotheke] = useState<ApothekenRezept[]>([]);
   const [akten, setzeAkten] = useState<Aktenlage[]>([]);
   const patienten = useZustand((z) => z.patienten);
+  const diagnosenweg = useZustand((z) => z.diagnosenweg);
+  const diagnosenumfang = useZustand((z) => z.diagnosenumfang);
+  const mitListen = ['weiterentwicklung-3', 'weiterentwicklung-4'].includes(
+    lage?.ausbaustand ?? '',
+  );
 
   function stand() {
     betriebslageLesen().then(setzeLage, () => setzeLage(null));
@@ -212,15 +226,51 @@ export function Aufrufprotokoll() {
               <select
                 id="ps-quellen"
                 value={lage.patientSummaryQuellen}
-                disabled={
-                  !['weiterentwicklung-3', 'weiterentwicklung-4'].includes(lage.ausbaustand)
-                }
+                disabled={!mitListen}
                 onChange={(e) =>
-                  aendern({ patientSummaryQuellen: e.target.value as 'listen' | 'automatisch' })
+                  aendern({ patientSummaryQuellen: e.target.value as PatientSummaryQuellen })
                 }
               >
-                <option value="listen">geführten Listen ✦</option>
+                <option value="listen">geführten Listen, markierte Einträge ✦</option>
+                <option value="listen-vollstaendig">Listen ohne Relevanzauswahl ✦</option>
                 <option value="automatisch">nur automatischen Daten</option>
+              </select>
+            </div>
+            {/* ✦ Einstellung des Praxissystems, nicht des Aktensystems (ADR 0062). */}
+            <div className="protokoll-schalter">
+              <label htmlFor="diagnosenweg">Diagnosen in die ePA ✦</label>
+              <select
+                id="diagnosenweg"
+                value={diagnosenweg}
+                disabled={!mitListen}
+                onChange={(e) =>
+                  ausfuehren(
+                    vorgaenge.diagnosenwegSetzen(e.target.value as Diagnosenweg, diagnosenumfang),
+                  )
+                }
+              >
+                {(Object.keys(DIAGNOSENWEG_BEZEICHNUNG) as Diagnosenweg[]).map((w) => (
+                  <option key={w} value={w}>
+                    {DIAGNOSENWEG_BEZEICHNUNG[w]}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="diagnosenumfang">Umfang der Übertragung</label>
+              <select
+                id="diagnosenumfang"
+                value={diagnosenumfang}
+                disabled={!mitListen || diagnosenweg === 'gefuehrt'}
+                onChange={(e) =>
+                  ausfuehren(
+                    vorgaenge.diagnosenwegSetzen(diagnosenweg, e.target.value as Diagnosenumfang),
+                  )
+                }
+              >
+                {(Object.keys(DIAGNOSENUMFANG_BEZEICHNUNG) as Diagnosenumfang[]).map((u) => (
+                  <option key={u} value={u}>
+                    {DIAGNOSENUMFANG_BEZEICHNUNG[u]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="protokoll-schalter">
@@ -251,7 +301,12 @@ export function Aufrufprotokoll() {
             <div className="protokoll-schalter">
               Akten
               {akten.map((a) => (
-                <div key={a.kvnr} className="protokoll-akte">
+                <div
+                  key={a.kvnr}
+                  className="protokoll-akte"
+                  role="group"
+                  aria-label={nameZu(a.kvnr)}
+                >
                   <span>{nameZu(a.kvnr)}</span>
                   <label>
                     <input
@@ -283,6 +338,14 @@ export function Aufrufprotokoll() {
                     onClick={() => fremdeEintraegeAnlegen(a.kvnr).then(stand, stand)}
                   >
                     andere Einrichtung trägt ein
+                  </button>
+                  <button
+                    type="button"
+                    className="knopf klein"
+                    disabled={!mitListen}
+                    onClick={() => fremdeAenderungAnlegen(a.kvnr).then(stand, stand)}
+                  >
+                    andere Einrichtung beendet Dauerdiagnose
                   </button>
                 </div>
               ))}

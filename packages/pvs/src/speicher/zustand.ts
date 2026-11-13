@@ -1,5 +1,8 @@
 import type {
   Allergie,
+  Automatikart,
+  Diagnosenumfang,
+  Diagnosenweg,
   Behandlungsfall,
   Diagnose,
   Karteikarteneintrag,
@@ -82,6 +85,20 @@ export interface Zustand {
   /** Wie die Praxis die Listen für Diagnosen und Allergien ordnet — je Person (ADR 0029). */
   listenordnung: readonly Listenordnung[];
 
+  /**
+   * ✦ Wie die Diagnosen der Praxis in die Diagnosenliste der ePA kommen — geführt oder
+   * automatisch (ADR 0062). Eine Einstellung des Praxissystems, nicht des Aktensystems.
+   */
+  diagnosenweg: Diagnosenweg;
+  /** Was die automatische Übertragung von selbst in die Liste stellt. */
+  diagnosenumfang: Diagnosenumfang;
+  /**
+   * Was die automatische Übertragung ohne ärztliche Handlung getan hat — jüngste zuerst. Trennt
+   * „übertragen“ von „angezeigt“: Ein Vermerk gilt erst als angezeigt, wenn die Diagnosen der
+   * Person geöffnet wurden.
+   */
+  diagnosenautomatik: readonly Automatikvermerk[];
+
   /** Zahl der zustandsverändernden Handlungen seit dem letzten Zurücksetzen. */
   handlungen: number;
   /** Kurzprotokoll der Handlungen, jüngste zuerst. */
@@ -110,6 +127,22 @@ export interface Listenordnung {
   sortierung: Sortierung;
   /** Eigene Reihenfolge als Kennungen der Einträge (Praxis oder ePA). */
   reihenfolge: readonly string[];
+}
+
+export interface Automatikvermerk {
+  id: string;
+  patientId: string;
+  /** Wann das Praxissystem den Schritt ausgeführt hat. */
+  zeitpunkt: string;
+  art: Automatikart;
+  /** Kennung des Eintrags der Praxis, den der Schritt angelegt oder verändert hat. */
+  diagnoseId: string | null;
+  code: string;
+  bezeichnung: string;
+  /** Einrichtung, deren Eintrag oder Änderung übernommen wurde; `null` bei eigenen Schritten. */
+  einrichtung: string | null;
+  /** Wann die Diagnosen der Person danach zum ersten Mal geöffnet wurden. */
+  angezeigtAm: string | null;
 }
 
 export interface EpaGesehen extends Fassungsstand {

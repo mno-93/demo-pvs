@@ -3268,3 +3268,19 @@ body.mit-klickpfad .protokoll {
     border-top: 3px solid var(--akzent);
   }
 }
+
+/* ✦ Automatische Übertragung der Diagnosen (ADR 0062): aufklappbares Band mit den Vermerken. */
+details.automatikband {
+  display: block;
+}
+
+details.automatikband > summary {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+
+details.automatikband > table {
+  margin-top: 8px;
+}

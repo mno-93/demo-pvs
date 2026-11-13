@@ -1,7 +1,11 @@
 import { useMemo, useState } from 'react';
 import {
+  KLINISCHER_STATUS_BEZEICHNUNG,
+  ZUSATZKENNZEICHEN_BEZEICHNUNG,
+  abrechnungsdiagnosen,
   deutschesDatum,
   ebm,
+  pruefeErfasste,
   pruefeLeistung,
   quartalsBezeichnung,
   quartalVon,
@@ -32,6 +36,17 @@ export function Abrechnung() {
     () => zustand.diagnosen.filter((d) => d.patientId === patientId),
     [zustand.diagnosen, patientId],
   );
+
+  // Was mit dem Fall in die Abrechnung geht — und was davon ohne Handlung der Praxis entstand
+  // oder sich geändert hat (✦ automatische Übertragung, ADR 0062).
+  const fallDiagnosen = useMemo(
+    () => abrechnungsdiagnosen(diagnosen, fall.id),
+    [diagnosen, fall.id],
+  );
+  const entfallen = useMemo(() => pruefeErfasste(erfasst, diagnosen), [erfasst, diagnosen]);
+  const automatik = zustand.diagnosenautomatik.filter((v) => v.patientId === patientId);
+  const vermerkZu = (id: string) =>
+    automatik.find((v) => v.diagnoseId === id && v.art !== 'in-die-epa');
 
   const [gewaehlt, setzeGewaehlt] = useState<EbmEintrag | null>(null);
   const meldungen = gewaehlt
@@ -71,7 +86,17 @@ export function Abrechnung() {
                       <td>
                         <span className="code">{l.ziffer}</span>
                       </td>
-                      <td>{l.bezeichnung}</td>
+                      <td>
+                        {l.bezeichnung}
+                        {(entfallen.get(l.id) ?? []).map((m, i) => (
+                          <div key={i}>
+                            <Marker ton="warn" titel={m.text}>
+                              Voraussetzung entfallen
+                            </Marker>{' '}
+                            <small>{m.text}</small>
+                          </div>
+                        ))}
+                      </td>
                       <td>{deutschesDatum(l.datum)}</td>
                       <td>{l.erfasstVon}</td>
                       <td>
@@ -88,6 +113,83 @@ export function Abrechnung() {
                 </tbody>
               </table>
             )}
+          </Karte>
+
+          <Karte titel="Diagnosen im Behandlungsfall">
+            <div role="region" aria-label="Diagnosen im Behandlungsfall">
+              {fallDiagnosen.length === 0 ? (
+                <Leer>Keine Diagnose für diesen Behandlungsfall.</Leer>
+              ) : (
+                <table className="liste">
+                  <thead>
+                    <tr>
+                      <th>ICD-10-GM</th>
+                      <th>Bezeichnung</th>
+                      <th>Art</th>
+                      <th>Status</th>
+                      <th>Herkunft</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fallDiagnosen.map((d) => {
+                      const v = vermerkZu(d.id);
+                      return (
+                        <tr key={d.id}>
+                          <td>
+                            <span className="code">
+                              {d.code}
+                              {d.zusatzkennzeichen ? ` ${d.zusatzkennzeichen}` : ''}
+                            </span>
+                          </td>
+                          <td>
+                            {d.bezeichnung}
+                            {d.zusatzkennzeichen && (
+                              <small> · {ZUSATZKENNZEICHEN_BEZEICHNUNG[d.zusatzkennzeichen]}</small>
+                            )}
+                          </td>
+                          <td>{d.art === 'dauer' ? 'Dauerdiagnose' : 'Akutdiagnose'}</td>
+                          <td>
+                            {d.klinischerStatus
+                              ? KLINISCHER_STATUS_BEZEICHNUNG[d.klinischerStatus]
+                              : '—'}
+                            {d.ende ? ` seit ${deutschesDatum(d.ende)}` : ''}
+                          </td>
+                          <td>
+                            {v ? (
+                              <Marker ton="warn">
+                                ohne Handlung · {v.einrichtung ?? 'ePA'}
+                                {v.angezeigtAm ? '' : ' · noch nicht angezeigt'}
+                              </Marker>
+                            ) : (
+                              'Praxis'
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {automatik
+                .filter(
+                  (v) =>
+                    v.diagnoseId &&
+                    v.art !== 'in-die-epa' &&
+                    v.art !== 'aenderung-in-die-epa' &&
+                    !fallDiagnosen.some((d) => d.id === v.diagnoseId),
+                )
+                .map((v) => (
+                  <div key={v.id}>
+                    <Marker ton="warn">ohne Handlung entfallen</Marker>{' '}
+                    <span className="code">{v.code}</span> {v.bezeichnung}
+                    <small>
+                      {' '}
+                      · {v.einrichtung ?? 'ePA'}
+                      {v.angezeigtAm ? '' : ' · noch nicht angezeigt'}
+                    </small>
+                  </div>
+                ))}
+            </div>
           </Karte>
 
           {fruehereQuartale.length > 0 && (

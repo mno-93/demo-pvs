@@ -58,6 +58,7 @@ import { eintragsUuid } from './mhd.ts';
 import { jetzt } from './fhir-hilfen.ts';
 import {
   aktivitaetAnlegen,
+  fortschreiben,
   subjektFuer,
   versionierterVerweis,
   type Handelnde,
@@ -659,6 +660,39 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
     angelegt.push(`Immunization/${String(impfung.eintrag.id)}`);
   }
   return angelegt;
+}
+
+/**
+ * Eine andere Einrichtung beendet eine Dauerdiagnose der Diagnosenliste: Status „behoben" mit dem
+ * heutigen Ende, neue Fassung, Änderungseintrag, neue Fassung der Liste (ADR 0062). Gewählt wird
+ * die Hypertonie, sonst die erste gegenwärtige Dauerdiagnose. Liefert den Verweis oder `null`.
+ */
+export function fremdeAenderungAnlegen(kvnr: string): string | null {
+  const zeit = jetzt();
+  const ablage = bestandFuer(kvnr).diagnosedienst;
+  const kode = (r: Ressource, feld: string) =>
+    (r[feld] as { coding?: { code?: string }[] } | undefined)?.coding ?? [];
+  const kandidaten = ablage.filter(
+    (r) =>
+      r.resourceType === 'Condition' &&
+      kode(r, 'clinicalStatus')[0]?.code === 'active' &&
+      !['refuted', 'entered-in-error'].includes(kode(r, 'verificationStatus')[0]?.code ?? '') &&
+      ((r['category'] as { coding?: { code?: string }[] }[] | undefined) ?? []).some((c) =>
+        (c.coding ?? []).some((x) => x.code === 'problem-list-item'),
+      ),
+  );
+  const ziel =
+    kandidaten.find((r) => kode(r, 'code').some((c) => c.code?.startsWith('I10'))) ?? kandidaten[0];
+  if (!ziel) return null;
+  const klinisch = ziel['clinicalStatus'] as { coding: { system?: string; code?: string }[] };
+  ziel['clinicalStatus'] = {
+    coding: [{ ...klinisch.coding[0], code: 'resolved' }],
+  };
+  ziel['abatementDateTime'] = zeit.slice(0, 10);
+  fortschreiben(ziel, zeit);
+  aktivitaetAnlegen(ablage, [versionierterVerweis(ziel)], KARDIOLOGIE, 'UPDATE', zeit);
+  listeFortschreiben(kvnr, 'Condition', KARDIOLOGIE, zeit);
+  return `Condition/${String(ziel.id)}`;
 }
 
 /* ---------- Aufbau ---------- */

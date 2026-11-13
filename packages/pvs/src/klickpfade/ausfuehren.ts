@@ -2,6 +2,8 @@ import { betriebslageSetzen } from '../demo/steuerung.js';
 import { demoZuruecksetzen } from '../demo/zuruecksetzen.js';
 import { egkEinlesen } from '../epa/befugnis.js';
 import { protokollLeeren } from '../epa/protokoll.js';
+import { ausfuehren } from '../speicher/speicher.js';
+import { vorgaenge } from '../speicher/vorgaenge.js';
 import { alleFinden, erfuellt, zielBeschreibung } from './finden.js';
 import type { Schritt, Szenario } from './szenario.js';
 
@@ -31,6 +33,11 @@ export async function startzustandHerstellen(
 ): Promise<void> {
   await demoZuruecksetzen();
   await betriebslageSetzen({ ausbaustand: s.start.ausbaustand });
+  if (s.start.diagnosenweg) {
+    ausfuehren(
+      vorgaenge.diagnosenwegSetzen(s.start.diagnosenweg, s.start.diagnosenumfang ?? 'dauer'),
+    );
+  }
   if (s.start.egkEinlesen) {
     const ergebnis = await egkEinlesen(s.start.patientId);
     if (!ergebnis.ok) throw new Error(`Klickpfad: ${ergebnis.text}`);

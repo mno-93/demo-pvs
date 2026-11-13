@@ -103,6 +103,8 @@ abrufbar.
 ## Vorbilder für den ✦ Vorschlag
 
 - **e-Diagnose (Österreich):** zentraler Dienst, über den Allergien und Diagnosen
-  sektorenübergreifend geführt werden.
+  sektorenübergreifend geführt werden. Leitfaden „ELGA e-Diagnose R4“, Entwurf 0.1.0 (laufender
+  Build, kein autorisierter Stand): `https://build.fhir.org/ig/HL7Austria/ELGA-e-Diagnose-R4/` —
+  Gesamtansicht und Summary-Liste, unveränderliche Einträge, Versionen der Liste (ADR 0062).
 - **Zentraler Kodierservice (Österreich):** ein Suchbegriff, mehrere Kodierungen.
 - **Medication Service (dgMP):** Mechanik aus Liste, Chronologie und Lesenachweis.

@@ -146,6 +146,15 @@ Rundgang über einen Link — geführt, frei mit Wegweiser oder als Aufgabe für
 `?klickpfad=diagnose-in-ps`. Übersicht und Anleitung: [docs/KLICKPFADE.md](docs/KLICKPFADE.md)
 ([ADR 0061](docs/entscheidungen/0061-klickpfade.md)).
 
+## ✦ Zur Diskussion: Diagnosen automatisch übertragen
+
+Der Gegenentwurf zum geführten Abgleich, am selben Bestand: Das Praxissystem überträgt Diagnosen
+ohne ärztliche Handlung — nur in die ePA oder in beide Richtungen. Umschaltbar in der
+Demo-Steuerung („Diagnosen in die ePA“), mit Vermerk je automatischem Schritt, der Folge in der
+Abrechnung und dem Klickpfad `?klickpfad=fremde-aenderung-automatisch`. Beschreibung:
+[SPEZIFIKATION 6.4](docs/SPEZIFIKATION.md#64--diagnosen-automatisch-übertragen-adr-0062),
+[ADR 0062](docs/entscheidungen/0062-diagnosen-automatisch-uebertragen.md).
+
 ## Aufbau
 
 ```

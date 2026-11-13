@@ -40,6 +40,7 @@ import {
   type Aufklappen,
 } from './diagnosen/Splitscreen.js';
 import { ordnungsangaben, useOrdnung } from './diagnosen/ordnung.js';
+import { Automatikband } from './diagnosen/Automatikband.js';
 import {
   LISTENART,
   bezeichnung,
@@ -530,6 +531,8 @@ export function Diagnosen() {
           abfrage.neuLaden();
         }}
       />
+
+      <Automatikband patientId={patientId} />
 
       <SeitLetztemAufrufBand seit={seitDiagnosen} liste="Diagnosenliste" />
       <SeitLetztemAufrufBand seit={seitAllergien} liste="Allergienliste" />

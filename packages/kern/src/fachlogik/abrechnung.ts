@@ -94,3 +94,37 @@ export function pruefeLeistung(ziffer: string, umgebung: Pruefumgebung): Pruefme
 export function istAnsetzbar(ziffer: string, umgebung: Pruefumgebung): boolean {
   return !pruefeLeistung(ziffer, umgebung).some((m) => m.art === 'fehler');
 }
+
+/**
+ * Prüft die schon erfassten Ziffern eines Behandlungsfalls gegen den heutigen Diagnosebestand.
+ * Eine Ziffer, die beim Erfassen zulässig war, kann ihre Voraussetzung verlieren, wenn sich eine
+ * Diagnose ändert — etwa weil eine Dauerdiagnose beendet wurde. Liefert je Leistung die Fehler.
+ */
+export function pruefeErfasste(
+  erfasst: readonly Leistungsziffer[],
+  diagnosen: readonly Diagnose[],
+): Map<string, Pruefmeldung[]> {
+  const ergebnis = new Map<string, Pruefmeldung[]>();
+  for (const l of erfasst) {
+    const fehler = pruefeLeistung(l.ziffer, {
+      bestehende: erfasst.filter((x) => x.id !== l.id),
+      diagnosen,
+      datum: l.datum,
+    }).filter((m) => m.art === 'fehler');
+    if (fehler.length > 0) ergebnis.set(l.id, fehler);
+  }
+  return ergebnis;
+}
+
+/**
+ * Diagnosen, die mit dem Behandlungsfall in die Abrechnung gehen: was im Fall dokumentiert wurde
+ * und jede gegenwärtige Dauerdiagnose. Irrtümliches nie. Stark vereinfacht wie die Prüfung oben.
+ */
+export function abrechnungsdiagnosen(diagnosen: readonly Diagnose[], fallId: string): Diagnose[] {
+  return diagnosen.filter(
+    (d) =>
+      d.diagnosesicherheit !== 'irrtümlich' &&
+      d.code !== '' &&
+      (d.fallId === fallId || (d.art === 'dauer' && istGegenwaertig(d.klinischerStatus))),
+  );
+}
