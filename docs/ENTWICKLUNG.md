@@ -44,6 +44,18 @@ dann für Server und Browser. Wege benutzen nur die Schnittstelle aus `epa-sim/s
 vergleicht beide Seiten. Neue Fälle (andere Körper, Fehler, Inhaltstypen) gehören dort als Schritt
 dazu.
 
+**Vorschau eines Branchs.** Pages kennt je Repository eine Seite; ein Diskussionsstand liegt
+deshalb als Unterordner in derselben Seite: `https://<konto>.github.io/<repository>/vorschau/<branch>/`,
+Übersicht unter `…/vorschau/`. Branchname in `.github/vorschau-branches.txt` eintragen (auf
+`main`). Der Lauf auf `main` baut dann jeden gelisteten Branch mit
+`BASIS=/<repository>/vorschau/<branch>/` und setzt ihn mit `werkzeuge/vorschau-einbauen.mjs` ein.
+Ändert sich der Branch, stößt `.github/workflows/vorschau.yml` nach dessen bestandener Prüfung die
+Veröffentlichung auf `main` neu an. Eintrag entfernen, wenn der Branch übernommen oder verworfen
+ist — mit dem nächsten Lauf auf `main` verschwindet die Vorschau. Lokal nachstellen: beide Stände
+bauen, `node werkzeuge/vorschau-einbauen.mjs --ziel … --basis demo-pvs --vorschau <branch>=<ordner>`.
+⚠ Der Vorschau-Branch wird im Lauf von `main` gebaut, ohne Secrets und mit lesendem Token; in die
+Liste gehören nur Branches dieses Repositorys.
+
 Prüfliste für die gehostete Fassung: `npm run build:gehostet -- --basis demo-pvs`, Vorschau mit
 `--base /demo-pvs/`, eine tiefe Adresse direkt aufrufen, eGK einlesen, ein Rezept senden, im
 Netzwerkprotokoll des Browsers dürfen nur statische Dateien erscheinen.
