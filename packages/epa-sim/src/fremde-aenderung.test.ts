@@ -3,7 +3,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
 
-/** ✦ Eine andere Einrichtung beendet eine Dauerdiagnose der Diagnosenliste (ADR 0062). */
+/** ✦ Eine andere Einrichtung beendet eine Dauerdiagnose der Diagnosenliste (ADR 0063). */
 
 const PRAXIS = '1-DEMO-PRAXIS-STADTGARTEN';
 const HOFFMANN = 'A123456780';

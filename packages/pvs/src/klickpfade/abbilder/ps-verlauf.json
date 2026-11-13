@@ -1,0 +1,59 @@
+{
+  "klickpfad": "ps-verlauf",
+  "titel": "Eine frühere Patient Summary ansehen",
+  "schritte": [
+    {
+      "schritt": 1,
+      "kurz": "Patient Summary öffnen",
+      "ziel": "Knopf „Patient Summary“ in Gruppe „Patientenkopf“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary"
+      ]
+    },
+    {
+      "schritt": 2,
+      "kurz": "Verlauf öffnen",
+      "ziel": "Knopf „Verlauf“ in Fenster „Elektronische Patientenakte“",
+      "epa": [
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary-log"
+      ]
+    },
+    {
+      "schritt": 3,
+      "kurz": "Jede Änderung mit Zeitpunkt und Einrichtung",
+      "ziel": "Bereich „Änderungsverlauf der Patient Summary“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Änderungsverlauf 12.08.2026, <zeit> Uhr Laborgemeinschaft Nordwest aktueller Stand angezeigt Laborwerte : neu Kalium im Serum geändert Kreatinin im Serum geändert eGFR nach CKD-EPI geändert HbA1c Quelle: Laborgesamtbefund, Laborgemeinschaft Nordwest 18.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Medikation : geändert Apixaban 5 mg Filmtabletten geändert Ramipril 5 mg Tabletten geändert Bisoprolol 2,5 mg Filmtabletten geändert Atorvastatin 40 mg Filmtabletten entfallen Metformin 1000 mg Filmtabletten Quelle: Chronologieeintrag des eMP 18.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Medikation : neu Apixaban 5 mg Filmtabletten neu Metformin 1000 mg Filmtabletten neu Ramipril 5 mg Tabletten neu Bisoprolol 2,5 mg Filmtabletten neu Atorvastatin 40 mg Filmtabletten Quelle: Änderungseintrag des Medication Service (9) 17.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Allergien und Unverträglichkeiten : neu Penicillin neu Iodhaltiges Kontrastmittel Diagnosen : neu Vorhofflimmern, persistierend neu Diabetes mellitus, Typ 2: Mit multiplen Komplikationen, nicht als entgleist bezeichnet Quelle: Chronologieeintrag einer Liste (2) 17.07.2026, <zeit> Uhr Klinikum Sonnenschein Stand ansehen Prozeduren : neu Elektrische Kardioversion neu Transösophageale Echokardiographie neu CT-Angiographie des Thorax mit Kontrastmittel Implantate und Medizinprodukte : neu Herzschrittmacher (Zweikammer) Quelle: Entlassbrief stationäre Behandlung, Klinikum Sonnenschein 18.03.202",
+      "epa": []
+    },
+    {
+      "schritt": 4,
+      "kurz": "Stand vom 18. Juli, 16:00 Uhr",
+      "ziel": "Knopf „Stand vom 18.07.2026, 16:00 Uhr ansehen“ in Fenster „Elektronische Patientenakte“",
+      "epa": [
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary-log",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary?provenance=<uuid>"
+      ]
+    },
+    {
+      "schritt": 5,
+      "kurz": "Damals mit Metformin",
+      "ziel": "Bereich „Medikation“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Medikation Medikationsliste · automatisch Arzneimittel Dosierung Grund Status Apixaban 5 mg Filmtabletten seit 18.07.2026 täglich: 1-0-1-0 Stück — verordnet Metformin 1000 mg Filmtabletten seit 18.07.2026 täglich: 1-0-1-0 Stück — verordnet Ramipril 5 mg Tabletten seit 18.07.2026 täglich: 1-0-0-0 Stück — verordnet Bisoprolol 2,5 mg Filmtabletten seit 18.07.2026 täglich: 1-0-0-0 Stück — verordnet Atorvastatin 40 mg Filmtabletten seit 18.07.2026 täglich: 0-0-1-0 Stück — verordnet",
+      "epa": []
+    },
+    {
+      "schritt": 6,
+      "kurz": "Zurück zum aktuellen Stand",
+      "ziel": "Knopf „zum aktuellen Stand“ in Fenster „Elektronische Patientenakte“",
+      "epa": []
+    },
+    {
+      "schritt": 7,
+      "kurz": "Heute aus dem Medikationsplan",
+      "ziel": "Bereich „Medikation“ in Fenster „Elektronische Patientenakte“",
+      "inhalt": "Medikation Medikationsplan · geführt Zum Medikationsplan ↗ Arzneimittel Dosierung Grund Status Apixaban 5 mg Filmtabletten seit 18.07.2026 täglich: 1-0-1-0 Stück Vorhofflimmern aktiv Ramipril 5 mg Tabletten seit 18.07.2026 täglich: 1-0-0-0 Stück Arterielle Hypertonie aktiv Bisoprolol 2,5 mg Filmtabletten seit 18.07.2026 täglich: 1-0-0-0 Stück Vorhofflimmern aktiv Atorvastatin 40 mg Filmtabletten seit 18.07.2026 täglich: 0-0-1-0 Stück Hyperlipidämie aktiv",
+      "epa": []
+    }
+  ]
+}

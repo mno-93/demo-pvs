@@ -35,6 +35,12 @@ export const PS_QUELLE_SYSTEM = `${VORSCHLAG}CodeSystem/ps-section-source`;
 export const PS_RELEVANT_EXTENSION = `${VORSCHLAG}StructureDefinition/ps-relevant`;
 /** ✦ Extension an der Section: wie viele gültige Einträge der Quelle nicht markiert sind. */
 export const PS_WEITERE_EXTENSION = `${VORSCHLAG}StructureDefinition/ps-section-further-entries`;
+/**
+ * ✦ Extension an einer Provenance des Änderungsverlaufs (`Patient/$summary-log`): eine Änderung
+ * der Patient Summary — Abschnitt (`section`, LOINC), Art (`change`: added, changed, removed) und
+ * Eintrag (`entry`, versionierter Verweis mit Bezeichnung).
+ */
+export const PS_AENDERUNG_EXTENSION = `${VORSCHLAG}StructureDefinition/ps-change`;
 
 export function istPsRelevant(r: Ressource): boolean {
   return (r.extension ?? []).some(
@@ -249,4 +255,82 @@ export function patientSummaryLesen(
       return { ...d, quelle, leer, eintraege, weitere };
     }),
   };
+}
+
+/* ---------- ✦ Änderungsverlauf ---------- */
+
+export type PsAenderungsart = 'added' | 'changed' | 'removed';
+
+export const PS_AENDERUNGSART_BEZEICHNUNG: Record<PsAenderungsart, string> = {
+  added: 'neu',
+  changed: 'geändert',
+  removed: 'entfallen',
+};
+
+export interface PsAenderung {
+  /** Abschnitt nach `PS_ABSCHNITTE`, sonst null. */
+  abschnitt: PsAbschnittSchluessel | null;
+  abschnittTitel: string;
+  art: PsAenderungsart;
+  /** Versionierter Verweis auf den Eintrag, wie er damals galt. */
+  eintrag: string;
+  bezeichnung: string;
+}
+
+export interface PsVerlaufseintrag {
+  id: string;
+  /** Zeitpunkt der Änderung — zugleich der Stand für `$summary?_at=…`. */
+  zeit: string;
+  wer: { anzeige: string; telematikId: string | null }[];
+  /** Was die Änderung auslöste: Chronologieeintrag einer Liste oder des eMP, Dokument. */
+  quellen: { verweis: string; anzeige: string }[];
+  aenderungen: PsAenderung[];
+}
+
+/** Liest den Änderungsverlauf (`Patient/$summary-log`), jüngste Änderung zuerst. */
+export function psVerlaufLesen(bundle: unknown): PsVerlaufseintrag[] {
+  const b = bundle as { resourceType?: string; entry?: { resource: Ressource }[] } | null;
+  if (b?.resourceType !== 'Bundle') return [];
+  type Teil = {
+    url: string;
+    valueCoding?: { code?: string; display?: string };
+    valueCode?: string;
+    valueReference?: { reference?: string; display?: string };
+  };
+  return (b.entry ?? [])
+    .map((e) => e.resource)
+    .filter((r) => r.resourceType === 'Provenance')
+    .map((p) => ({
+      id: String(p.id),
+      zeit: String(p['recorded'] ?? ''),
+      wer: (
+        (p['agent'] as
+          { who?: { display?: string; identifier?: { value?: string } } }[] | undefined) ?? []
+      ).map((a) => ({
+        anzeige: a.who?.display ?? 'unbekannt',
+        telematikId: a.who?.identifier?.value ?? null,
+      })),
+      quellen: (
+        (p['entity'] as { what?: { reference?: string; display?: string } }[] | undefined) ?? []
+      ).map((e) => ({
+        verweis: e.what?.reference ?? '',
+        anzeige: e.what?.display ?? e.what?.reference ?? '',
+      })),
+      aenderungen: (p.extension ?? [])
+        .filter((x) => x.url === PS_AENDERUNG_EXTENSION)
+        .map((x) => {
+          const teile = ((x as { extension?: Teil[] }).extension ?? []) as Teil[];
+          const teil = (name: string) => teile.find((y) => y.url === name);
+          const loinc = teil('section')?.valueCoding?.code;
+          const definition = PS_ABSCHNITTE.find((d) => d.loinc === loinc);
+          return {
+            abschnitt: definition?.schluessel ?? null,
+            abschnittTitel: definition?.titel ?? teil('section')?.valueCoding?.display ?? '',
+            art: (teil('change')?.valueCode ?? 'changed') as PsAenderungsart,
+            eintrag: teil('entry')?.valueReference?.reference ?? '',
+            bezeichnung: teil('entry')?.valueReference?.display ?? '',
+          };
+        }),
+    }))
+    .sort((x, y) => Date.parse(y.zeit) - Date.parse(x.zeit));
 }

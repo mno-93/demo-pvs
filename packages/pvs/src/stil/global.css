@@ -1816,6 +1816,56 @@ button.marker {
   margin: 0;
 }
 
+/* ✦ Früherer Stand und Änderungsverlauf der Patient Summary */
+.ps-frueher {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ps-verlauf {
+  border: 1px solid var(--ps-linie);
+  border-radius: var(--radius);
+  background: var(--flaeche2);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  max-height: 22em;
+  overflow-y: auto;
+}
+
+.ps-verlauf h4 {
+  margin: 0 0 6px;
+}
+
+.ps-verlauf-liste {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ps-verlauf-liste > li {
+  padding: 6px 0;
+  border-top: 1px solid var(--linie);
+}
+
+.ps-verlauf-liste > li:first-child {
+  border-top: none;
+}
+
+.ps-verlauf-liste > li.angezeigt {
+  background: var(--ps-weich);
+}
+
+.ps-verlauf-aenderungen {
+  list-style: none;
+  margin: 4px 0;
+  padding: 0;
+}
+
+.ps-verlauf-aenderung {
+  margin-right: 10px;
+  white-space: nowrap;
+}
+
 .ps-raster {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
@@ -3161,6 +3211,39 @@ body.mit-klickpfad .protokoll {
   padding: 10px 12px;
   line-height: 1.45;
 }
+.klickpfad-erlaeuterung p {
+  margin: 0 0 8px;
+}
+.klickpfad-erzaehlung {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+.klickpfad-mehr {
+  font-size: 13px;
+  color: var(--text-leise);
+}
+.klickpfad-kapitel {
+  padding-left: 0;
+  margin: 8px 0;
+  list-style: none;
+}
+.klickpfad-kapitel > li {
+  padding: 3px 0;
+  color: var(--text-leise);
+}
+.klickpfad-kapitel > li.erledigt > .klickpfad-kapitel-titel {
+  color: var(--text-sehr-leise);
+}
+.klickpfad-kapitel > li.erledigt > .klickpfad-kapitel-titel::before {
+  content: '✓ ';
+}
+.klickpfad-kapitel > li.aktuell > .klickpfad-kapitel-titel {
+  color: var(--akzent-dunkel);
+  font-weight: 600;
+}
+.klickpfad-kapitel .klickpfad-schritte {
+  margin: 4px 0 4px;
+}
 .klickpfad-aufrufe ul {
   list-style: none;
   padding: 0;
@@ -3269,7 +3352,7 @@ body.mit-klickpfad .protokoll {
   }
 }
 
-/* ✦ Automatische Übertragung der Diagnosen (ADR 0062): aufklappbares Band mit den Vermerken. */
+/* ✦ Automatische Übertragung der Diagnosen (ADR 0063): aufklappbares Band mit den Vermerken. */
 details.automatikband {
   display: block;
 }

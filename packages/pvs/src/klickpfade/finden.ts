@@ -21,6 +21,8 @@ const KANDIDATEN: Record<string, string> = {
   option: 'option, [role="option"]',
   region: 'section, [role="region"]',
   dialog: 'dialog, [role="dialog"]',
+  complementary: 'aside, [role="complementary"]',
+  row: 'tr, [role="row"]',
   group: 'fieldset, [role="group"]',
   listitem: 'li, [role="listitem"]',
   heading: 'h1, h2, h3, h4, h5, h6, [role="heading"]',
@@ -44,8 +46,9 @@ function verborgen(e: Element): boolean {
   return false;
 }
 
-/** Alle passenden, sichtbaren Elemente — außerhalb der Oberfläche des Rundgangs. */
-export function alleFinden(ziel: Ziel, wurzel: ParentNode = document): HTMLElement[] {
+/** Alle passenden, sichtbaren Elemente — außerhalb der Oberfläche des Rundgangs. Ohne Ziel keins. */
+export function alleFinden(ziel: Ziel | undefined, wurzel: ParentNode = document): HTMLElement[] {
+  if (!ziel) return [];
   const bereiche: ParentNode[] = ziel.in ? alleFinden(ziel.in, wurzel) : [wurzel];
   const auswahl = KANDIDATEN[ziel.rolle] ?? `[role="${ziel.rolle}"]`;
   const treffer = new Set<HTMLElement>();
@@ -69,8 +72,8 @@ export function vorhandeneNamen(rolle: string): string[] {
     .map((e) => normalisiert(computeAccessibleName(e)));
 }
 
-/** Das eine passende Element, sonst `null` (keins oder mehrdeutig). */
-export function finden(ziel: Ziel): HTMLElement | null {
+/** Das eine passende Element, sonst `null` (keins, mehrdeutig oder eine Erzählung ohne Ziel). */
+export function finden(ziel: Ziel | undefined): HTMLElement | null {
   const treffer = alleFinden(ziel);
   return treffer.length === 1 ? treffer[0]! : null;
 }
@@ -85,10 +88,15 @@ const ROLLE_BEZEICHNUNG: Record<string, string> = {
   region: 'Bereich',
   dialog: 'Fenster',
   group: 'Gruppe',
+  complementary: 'Seitenfenster',
+  row: 'Zeile',
+  heading: 'Überschrift',
+  navigation: 'Navigation',
 };
 
 /** Lesbare Beschreibung eines Ziels — für Protokoll und Fehlermeldungen. */
-export function zielBeschreibung(ziel: Ziel): string {
+export function zielBeschreibung(ziel: Ziel | undefined): string {
+  if (!ziel) return 'Erzählung';
   const name = typeof ziel.name === 'string' ? ziel.name : ziel.name.source;
   const selbst = `${ROLLE_BEZEICHNUNG[ziel.rolle] ?? ziel.rolle} „${name}“`;
   return ziel.in ? `${selbst} in ${zielBeschreibung(ziel.in)}` : selbst;
@@ -111,7 +119,10 @@ export function geklicktBeschreibung(e: Element | null): string {
 function wertErreicht(e: HTMLElement, h: Handlung): boolean {
   if (h.art === 'klicken') return false;
   const wert = (e as HTMLInputElement | HTMLSelectElement).value ?? '';
-  return h.art === 'waehlen' ? wert === h.wert : normalisiert(wert) === normalisiert(h.wert);
+  if (h.art === 'waehlen') return wert === h.wert;
+  // Freitext: jeder Text. Sonst der Begriff, gleich ob groß oder klein geschrieben.
+  if (h.frei) return normalisiert(wert) !== '';
+  return normalisiert(wert).toLowerCase() === normalisiert(h.wert).toLowerCase();
 }
 
 /**
@@ -167,4 +178,11 @@ export function markierungsRahmen(e: HTMLElement): Rahmen | null {
   bottom = Math.min(bottom, window.innerHeight);
   right = Math.min(right, window.innerWidth);
   return bottom > top && right > left ? rahmenAus(top, left, bottom, right) : null;
+}
+
+/** Ist das Element ganz zu sehen — nicht nur angeschnitten? Sonst rückt der Rundgang es in den Blick. */
+export function ganzSichtbar(e: HTMLElement): boolean {
+  const r = markierungsRahmen(e);
+  const eigen = e.getBoundingClientRect();
+  return !!r && eigen.top >= r.top - 1 && eigen.bottom <= r.bottom + 1;
 }

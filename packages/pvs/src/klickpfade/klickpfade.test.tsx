@@ -1,3 +1,5 @@
+import { existsSync, readFileSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, render } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -11,7 +13,7 @@ import { SIMULATORWEGE, transportSetzen } from '../epa/transport.js';
 import { useAufrufe, type Aufruf } from '../epa/protokoll.js';
 import { pfadKurz } from '../epa/protokoll.js';
 import { alleFinden, normalisiert, vorhandeneNamen, zielBeschreibung } from './finden.js';
-import { schrittAusfuehren, startzustandHerstellen, warten } from './ausfuehren.js';
+import { ruheAbwarten, schrittAusfuehren, startzustandHerstellen } from './ausfuehren.js';
 import type { Schritt } from './szenario.js';
 import { SZENARIEN } from './szenarien/index.js';
 
@@ -50,12 +52,21 @@ function Beobachter() {
   return null;
 }
 
-/** Uhrzeiten und erzeugte Kennungen wechseln von Lauf zu Lauf — im Abbild vereinheitlicht. */
+/** Uhrzeiten, erzeugte Kennungen und Antwortzeiten wechseln von Lauf zu Lauf — im Abbild vereinheitlicht. */
 function stabil(text: string): string {
-  return text
-    .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '<zeit>')
-    .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
-    .replace(/\b[a-z]+-[a-z0-9]{6,}-\d+\b/g, '<id>');
+  return (
+    text
+      // Zeitpunkte in FHIR-Ressourcen (die Demo-Uhr läuft ab dem Start weiter), dann Uhrzeiten
+      .replace(
+        /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?/g,
+        '<zeitpunkt>',
+      )
+      .replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '<zeit>')
+      .replace(/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi, '<uuid>')
+      .replace(/\b[a-z]+-[a-z0-9]{6,}-\d+\b/g, '<id>')
+      // Antwortzeiten im Aufrufprotokoll
+      .replace(/\b\d+ ms\b/g, '<ms>')
+  );
 }
 
 /** Text eines Elements mit Leerraum zwischen den Bausteinen (jsdom kennt kein `innerText`). */
@@ -92,19 +103,6 @@ function aufrufeSeit(beginn: number): string[] {
   return [...new Set(zeilen)].sort();
 }
 
-/** Bis keine neuen Aufrufe mehr kommen — dann gehören alle zum Schritt. */
-async function ruhe(): Promise<void> {
-  let zuletzt = -1;
-  let stabilSeit = Date.now();
-  await warten(() => {
-    if (aufrufe.length !== zuletzt) {
-      zuletzt = aufrufe.length;
-      stabilSeit = Date.now();
-    }
-    return Date.now() - stabilSeit > 150 ? true : null;
-  }, 'Ruhe nach dem Schritt');
-}
-
 describe('Klickpfade', () => {
   for (const s of Object.values(SZENARIEN)) {
     it(`${s.id}: ${s.titel}`, async () => {
@@ -114,10 +112,16 @@ describe('Klickpfade', () => {
           <App />
         </MemoryRouter>,
       );
+      // Wartet selbst, bis die Ansicht geladen hat (wie im Rundgang).
       await act(() => startzustandHerstellen(s, (p) => navigieren(p)));
-      await act(ruhe);
       const abbild: unknown[] = [];
       for (const [i, schritt] of s.schritte.entries()) {
+        // Eine Erzählung zeigt nichts auf der Seite; im Abbild steht nur ihr Satz.
+        if (!schritt.ziel) {
+          abbild.push({ schritt: i + 1, kurz: schritt.kurz, erzaehlung: true });
+          continue;
+        }
+        const ziel = schritt.ziel;
         const beginn = Date.now();
         let gesehen: ReturnType<typeof anzeige> = null;
         // Jedes Ziel muss eindeutig sein, wenn es an der Reihe ist — sonst führt der Rundgang falsch.
@@ -127,13 +131,14 @@ describe('Klickpfade', () => {
             gesehen = anzeige(schritt);
             if (schritt.handlung) await schrittAusfuehren(schritt);
           } catch (f) {
-            const anzahl = alleFinden(schritt.ziel).length;
+            const anzahl = alleFinden(ziel).length;
             throw new Error(
-              `Schritt ${i + 1} („${schritt.kurz}“): ${zielBeschreibung(schritt.ziel)} ${anzahl}-mal gefunden. ${(f as Error).message}\nVorhanden mit Rolle ${schritt.ziel.rolle}: ${JSON.stringify(vorhandeneNamen(schritt.ziel.rolle))}`,
+              `Schritt ${i + 1} („${schritt.kurz}“): ${zielBeschreibung(ziel)} ${anzahl}-mal gefunden. ${(f as Error).message}\nVorhanden mit Rolle ${ziel.rolle}: ${JSON.stringify(vorhandeneNamen(ziel.rolle))}`,
             );
           }
         });
-        await act(ruhe);
+        // Bis keine neuen Aufrufe mehr kommen — dann gehören alle zum Schritt.
+        await act(() => ruheAbwarten());
         // `gesehen` setzt die Schrittausführung oben; TypeScript verfolgt das nicht in die Funktion hinein.
         const sicht = gesehen as ReturnType<typeof anzeige>;
         abbild.push({ schritt: i + 1, kurz: schritt.kurz, ...sicht, epa: aufrufeSeit(beginn) });
@@ -150,6 +155,38 @@ describe('Klickpfade', () => {
         )
         .map((a) => `${a.methode} ${a.pfad} ${a.status}`);
       expect(gescheitert).toEqual([]);
-    }, 20000);
+    }, 30000);
   }
+
+  /*
+   * Jeder Verweis „Mehr dazu“ zeigt auf eine Datei im Repository und, mit Anker, auf eine
+   * Überschrift darin — nach der Regel, mit der GitHub Anker bildet: klein, ohne Satzzeichen,
+   * Leerzeichen als Bindestrich.
+   */
+  it('verweist nur auf vorhandene Dateien und Überschriften', () => {
+    // Vitest läuft im Wurzelordner des Repositorys (`npm run test`, `npm run pruefen`).
+    const wurzel = process.cwd();
+    const anker = (ueberschrift: string) =>
+      ueberschrift
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s-]/gu, '')
+        .replace(/ /g, '-');
+    const fehlend: string[] = [];
+    for (const s of Object.values(SZENARIEN))
+      for (const v of s.schritte.flatMap((x) => x.mehr ?? [])) {
+        const [datei, ziel] = v.pfad.split('#');
+        const pfad = resolve(wurzel, datei!);
+        if (!existsSync(pfad)) {
+          fehlend.push(`${s.id}: ${v.pfad} (Datei)`);
+          continue;
+        }
+        if (!ziel || statSync(pfad).isDirectory()) continue;
+        const vorhanden = readFileSync(pfad, 'utf-8')
+          .split('\n')
+          .filter((z) => /^#{1,6} /.test(z))
+          .map((z) => anker(z.replace(/^#+ /, '').trim()));
+        if (!vorhanden.includes(ziel)) fehlend.push(`${s.id}: ${v.pfad} (Anker)`);
+      }
+    expect(fehlend).toEqual([]);
+  });
 });

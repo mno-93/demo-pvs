@@ -16,7 +16,7 @@ import { ausfuehren, lesen, speicherStarten } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 
 /**
- * ✦ Automatische Übertragung der Diagnosen (ADR 0062), gegen den echten Simulator: Was geschieht
+ * ✦ Automatische Übertragung der Diagnosen (ADR 0063), gegen den echten Simulator: Was geschieht
  * ohne Handlung, sobald die Kartei offen ist — und was nicht.
  */
 

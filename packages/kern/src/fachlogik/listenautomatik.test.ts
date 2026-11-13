@@ -8,7 +8,7 @@ const sct = (code: string) => ({ system: CODESYSTEM.snomed, code, anzeige: code 
 const dauer = (teil: Parameters<typeof diagnoseMuster>[0]) =>
   diagnoseMuster({ art: 'dauer', klinischerStatus: 'aktiv', ...teil });
 
-describe('✦ Automatische Übertragung der Diagnosen (ADR 0062)', () => {
+describe('✦ Automatische Übertragung der Diagnosen (ADR 0063)', () => {
   it('tut im geführten Weg nichts von selbst', () => {
     const zeilen = diagnosenAbgleichen([dauer({ id: 'l1', snomed: sct('1') })], []);
     expect(diagnosenAutomatikPlanen(zeilen, 'gefuehrt', 'alle')).toEqual([]);

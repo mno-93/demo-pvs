@@ -101,7 +101,8 @@ npm run vorschau:gehostet
 2. **Diagnosen und Allergien**: links die Praxis, rechts die Listen der ePA (✦). Vorhofflimmern
    „← in die Praxis", Diabetes „verknüpfen".
 3. **Medikation**: Metformin „in den Plan" — die AMTS-Prüfung meldet die fehlende Nierenfunktion.
-4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. Jeder Block führt dorthin,
+4. **Patient Summary** im Patientenkopf: die Übersicht in einem Klick. ✦ „Verlauf“ zeigt, wer sie
+   wann geändert hat, und jeden früheren Stand — gebildet aus den Quellen, nicht gespeichert. Jeder Block führt dorthin,
    wo er gepflegt wird; Prozeduren und Implantate öffnen ihr Quelldokument. Welche Einträge der
    Listen sie zeigt, bestimmt die Markierung ★ im Splitscreen — die Listen bleiben vollständig.
 5. **Arztbrief ✦**: Das Aktuelle ist vorausgewählt; „Auswählen ▾" je Abschnitt zeigt alles aus
@@ -141,6 +142,12 @@ Beispiel im Bestand da ist: [Abschnitt 3.1](docs/SPEZIFIKATION.md#31-beispielbes
 
 ## Klickpfade
 
+**Einstieg: der Rundgang.** „Rundgang“ im Kopf der Demo (`?klickpfad=demo-ueberblick`) zeigt in
+36 Schritten, was die Demo kann — vom Praxisalltag mit der ePA über Befunde, Briefe, Listen und
+Patient Summary bis zum Arztbrief —, nach welchem Prinzip sie gebaut ist und was ePA- und
+FHIR-Arbeit davon haben, mit einem Blick in die FHIR-Ressourcen und Verweisen in diese
+Dokumentation.
+
 Gezielte Abläufe zu einer Frage, etwa „Wie kommt eine Diagnose in die Patient Summary?“, als
 Rundgang über einen Link — geführt, frei mit Wegweiser oder als Aufgabe für Nutzertests:
 `?klickpfad=diagnose-in-ps`. Übersicht und Anleitung: [docs/KLICKPFADE.md](docs/KLICKPFADE.md)
@@ -152,8 +159,8 @@ Der Gegenentwurf zum geführten Abgleich, am selben Bestand: Das Praxissystem ü
 ohne ärztliche Handlung — nur in die ePA oder in beide Richtungen. Umschaltbar in der
 Demo-Steuerung („Diagnosen in die ePA“), mit Vermerk je automatischem Schritt, der Folge in der
 Abrechnung und dem Klickpfad `?klickpfad=fremde-aenderung-automatisch`. Beschreibung:
-[SPEZIFIKATION 6.4](docs/SPEZIFIKATION.md#64--diagnosen-automatisch-übertragen-adr-0062),
-[ADR 0062](docs/entscheidungen/0062-diagnosen-automatisch-uebertragen.md).
+[SPEZIFIKATION 6.4](docs/SPEZIFIKATION.md#64--diagnosen-automatisch-übertragen-adr-0063),
+[ADR 0063](docs/entscheidungen/0063-diagnosen-automatisch-uebertragen.md).
 
 ## Aufbau
 

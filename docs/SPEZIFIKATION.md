@@ -252,17 +252,45 @@ Ein Klickpfad führt gezielt durch einen Ablauf zu einer Fragestellung (ADR 0061
 `&modus=frei` oder `&modus=aufgabe` —, setzt Praxis und Aktensystem zurück und stellt seinen
 Startzustand selbst her. Eine eigene Ebene über der Demo, rechts eine Seitenleiste „Klickpfad“:
 
-| Modus              | Hervorhebung                       | Bedienung                                                                       | Texte                                                                        |
-| ------------------ | ---------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| geführt            | nächstes Element, Rest abgedunkelt | nur das nächste Element; daneben „hier geht es weiter“; Prüfpunkte mit „weiter“ | Satz am Element, Schrittliste, Erläuterung, ePA-Aufrufe des letzten Schritts |
-| frei mit Wegweiser | nächstes Element                   | alles; fehlt das Ziel, „zurück zum Pfad“                                        | wie geführt                                                                  |
-| Aufgabe            | keine (erst nach „Hilfe“)          | alles; gezählt werden Zeit, Fehlklicks, Hilfen                                  | nur der Aufgabentext; am Ende „Protokoll herunterladen“ (JSON, nur lokal)    |
+| Modus              | Hervorhebung                       | Bedienung                                                                                                      | Texte                                                                        |
+| ------------------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| geführt            | nächstes Element, Rest abgedunkelt | nur das nächste Element; daneben „hier geht es weiter“; Prüfpunkte mit „weiter“                                | Satz am Element, Schrittliste, Erläuterung, ePA-Aufrufe des letzten Schritts |
+| frei mit Wegweiser | nächstes Element                   | alles; fehlt das Ziel, „zurück zum Pfad“; Prüfpunkte mit „weiter“ oder übergangen, wenn es dahinter weitergeht | wie geführt                                                                  |
+| Aufgabe            | keine (erst nach „Hilfe“)          | alles; gezählt werden Zeit, Fehlklicks, Hilfen                                                                 | nur der Aufgabentext; am Ende „Protokoll herunterladen“ (JSON, nur lokal)    |
 
-Liegt das nächste Element außerhalb des Bildausschnitts, bietet die Seitenleiste „zeigen“.
-Eingaben und Auswahlen kann der Satz am Element selbst eintragen („„Migräne“ eintragen“). Die
-Ebene ist kein Teil des Praxissystems: Sie erscheint nur über den Link, in Akzentblau statt
-Violett, und das Praxissystem bleibt ohne Erklärtexte (ADR 0020). Jeder Klickpfad läuft als Test
-gegen den Simulator.
+**Rundgang** (09.11.2026): `?klickpfad=demo-ueberblick`, im Kopf der Demo „Rundgang“ — die Demo
+im Überblick für alle, die sie zum ersten Mal sehen. Neben Schritten am Element kennt er
+**Erzählungen** ohne Element (Einordnung, die Zeichen ✦ ⚠ ▸, was ePA- und FHIR-Arbeit davon haben),
+**Kapitel**, von denen die Seitenleiste nur das aktuelle aufklappt, und **Verweise** „Mehr dazu“
+in README, Spezifikation und Entscheidungen. Er reicht vom Praxisalltag über die Dokumente der ePA (✦ Entlassbrief als FHIR-Dokument,
+strukturierte Laborbefunde), Listen und Patient Summary bis zum ✦ Arztbrief, den er unterschreibt
+und in die ePA einstellt; zweimal zeigt er die FHIR-Ressource selbst (Dokument, Patient Summary).
+Der ✦ Aktenlotse ist nur ein Ausblick. Er bietet geführt und frei, keine Aufgabe. Prüfpunkte und Erzählungen haben „weiter →“ auch in der Seitenleiste; bei Zielen, über und unter denen kein Platz ist (ein ganzes Seitenfenster), steht die Sprechblase in ihrer oberen Ecke statt außerhalb des Bildes. Karten mit
+Titel und die FHIR-Ansichten (`FHIR-Ressource des Dokuments`, `… der Patient Summary`) sind dafür
+benannte, per Tastatur erreichbare Bereiche — auch für Screenreader.
+
+**Umschalten und Verlassen** (08.11.2026):
+
+- Geführt und frei wechseln am selben Schritt; das Ziel rückt wieder in den Blick.
+- Der Wechsel in die **Aufgabe** beginnt den Pfad neu, mit neuer Messung — Zeit, Fehlklicks und
+  Hilfen eines halb gezeigten Pfads taugen für keinen Nutzertest. Zurück aus der Aufgabe bleibt
+  der Stand. Als Aufgabe gibt es kein „Schritt zurück“.
+- Klickpfad und Modus stehen in der Adresse, solange der Pfad offen ist: Die Adresse lässt sich
+  weitergeben, Neuladen beginnt den Pfad im gewählten Modus neu.
+- „neu beginnen“, „Schritt zurück“ und „zurück zum Pfad“ setzen zurück und spielen die Schritte
+  bis dahin nach. Das Zurücksetzen schließt das ePA-Fenster, und die Ansichten beginnen ohne
+  Eingaben von vorher — das gilt auch für „Zurücksetzen“ im Kopf.
+- „beenden“ nimmt die Ebene ganz weg: Sperre, Seitenleiste, Rand und Klickpfad in der Adresse.
+- Das Ziel rückt in den Blick, bis es ruhig zu sehen ist (die Ansicht lädt nach und verschiebt
+  sich); wer selbst scrollt, bestimmt den Ausschnitt. Liegt es dann außerhalb, bietet die
+  Seitenleiste „zeigen“. Geführt erscheint „zurück zum Pfad“ schon nach einer knappen Sekunde
+  ohne Ziel, weil sonst alles gesperrt ist.
+- Die ePA-Aufrufe eines Schritts zählen ab dem Moment, in dem die Ansicht geladen hat: Was sie
+  beim Öffnen und beim Nachspielen abruft, gehört zu keinem Schritt — wie im Abbild des Tests.
+  Eingaben und Auswahlen kann der Satz am Element selbst eintragen („„Migräne“ eintragen“). Die
+  Ebene ist kein Teil des Praxissystems: Sie erscheint nur über den Link, in Akzentblau statt
+  Violett, und das Praxissystem bleibt ohne Erklärtexte (ADR 0020). Jeder Klickpfad läuft als Test
+  gegen den Simulator.
 
 ---
 
@@ -579,7 +607,7 @@ Demo; Pflichtangaben zu Zuzahlung, Unfall und Abgabehinweisen sind nur angedeute
 | Abgabe                       | je abgegebenem Arzneimittel eine `MedicationDispense` completed und eine Medikationsinformation (die erste ist die der Verschreibung) mit dem abgegebenen Arzneimittel, Beginn am Tag der Abgabe; ohne Austausch das verordnete Arzneimittel als neue Fassung, aktiv; Verschreibung completed. Der verknüpfte Planeintrag bekommt den Aktivitätsnachweis; bei **genau einem** abgegebenen Arzneimittel zeigt er danach auf dieses (außer Kombipackung), die Dosierung übernimmt er nur bei einem Austausch mit abweichender Dosierung (`substitution.wasSubstituted`, IG-MED-BL-PROVIDE-DISPENSATION-ERP-V4; ADR 0060) |
 | Abgabe mehrerer Arzneimittel | kein Planupdate — das PVS muss darauf hinweisen (IG 1.3.5, Allgemeine Grundsätze)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | Löschen vor Einlösung        | Medikationsinformationen, Abgaben, Verschreibung und Arzneimittel, die niemand mehr braucht, werden gelöscht (Zugriff 410, Historie bleibt); ein verknüpfter Planeintrag wird auf seine Fassung vor der Übernahme zurückgesetzt                                                                                                                                                                                                                                                                                                                                                                                        |
-| Abgabe storniert             | Planeintrag zurück auf die Fassung vor der Abgabe (Arzneimittel und Dosierung), Aktivitätsnachweis entfällt; Medikationsinformation der Verschreibung wieder intended mit Arzneimittel, Beginn und Dosierung der Verordnung, weitere gelöscht; Abgaben und abgegebene Arzneimittel gelöscht, ein fortgeschriebenes verordnetes Arzneimittel wieder inactive; Verschreibung active                                                                                                                                                                                                                                      |
+| Abgabe storniert             | Planeintrag zurück auf die Fassung vor der Abgabe (Arzneimittel und Dosierung), wenn er Arzneimittel und Dosierung der Medikationsinformation führte — sonst bleibt er (▸ 5.15); Aktivitätsnachweis entfällt; Medikationsinformation der Verschreibung wieder intended mit Arzneimittel, Beginn und Dosierung der Verordnung, weitere gelöscht; Abgaben und abgegebene Arzneimittel gelöscht, ein fortgeschriebenes verordnetes Arzneimittel wieder inactive; Verschreibung active                                                                                                                                     |
 
 Vor jeder Übertragung prüft der Fachdienst die Akte: ohne Akte oder bei Widerspruch gegen das
 Einstellen unterbleibt sie. Grundlage sind die Aktivitätsdiagramme der E-Rezept-Operationen im
@@ -887,11 +915,11 @@ Ausgaben des Kerns werden in den Tests gegen dieselben Regeln geprüft.
 Der IG 1.4.0-ballot.1 kennt drei Wege, die Dosierung eines eMP-Eintrags zu ändern. Die Demo bildet
 alle drei nach (ADR 0060):
 
-| Weg                        | Anwendungsfall des IG                                                        | In der Demo                                                                                                                                                     |
-| -------------------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Eintrag bearbeiten         | Editieren von eMP-Einträgen (`$update-emp-entry`)                            | Planzeile → „Dosierung ändern“: dieselbe Dosierungseingabe, „Dosierung übernehmen“ bestätigt. Mit eMP über `$update-emp-entry`, sonst im Plan der Praxis        |
-| Beim Verschreiben          | Pflege des eMP im Rahmen der Rezeptierung – Aktualisieren eines eMP-Eintrags | Rezept aus der Planzeile mit geänderter Dosierung → „Dosierung im Plan anpassen“ (vorausgewählt) → beim Signieren erst `$update-emp-entry`, dann die Verordnung |
-| Nachträglich aus der Liste | Pflege des eMP aus der eML – Aktualisierung eines eMP-Eintrags               | verknüpfter Listeneintrag mit abweichender Dosierung, jünger als der Planeintrag und von ihm noch nicht aufgenommen → „Plan aktualisieren“ (`$link-emp`)        |
+| Weg                        | Anwendungsfall des IG                                                        | In der Demo                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Eintrag bearbeiten         | Editieren von eMP-Einträgen (`$update-emp-entry`)                            | Planzeile → „Dosierung ändern“: dieselbe Dosierungseingabe, „Dosierung übernehmen“ bestätigt. Mit eMP über `$update-emp-entry`, sonst im Plan der Praxis                                                                                                                                                                  |
+| Beim Verschreiben          | Pflege des eMP im Rahmen der Rezeptierung – Aktualisieren eines eMP-Eintrags | Rezept aus der Planzeile mit geänderter Dosierung → „Dosierung im Plan anpassen“ (vorausgewählt, nur ärztlich) → mit dem Rezept der Ärztin — signiert oder in den Signaturstapel — erst `$update-emp-entry`, dann die Verordnung. Fehlt der Planeintrag im geladenen Stand, bricht der Vorgang ab, statt nur zu verordnen |
+| Nachträglich aus der Liste | Pflege des eMP aus der eML – Aktualisierung eines eMP-Eintrags               | verknüpfter Listeneintrag, dessen Dosierung im Schema abweicht (ein Freitext „1-0-0-0“ gleicht dem strukturierten Schema), vom Planeintrag noch nicht aufgenommen, kein späterer Aktivitätsnachweis (Bedingung des Dienstes) und der Plan seitdem nicht von Hand geändert → „Plan aktualisieren“ (`$link-emp`)            |
 
 „in den Plan“ (`$add-emp-entry`) legt dagegen einen neuen Eintrag an — beim selben Arzneimittel
 wäre das eine Doppelung.
@@ -908,6 +936,21 @@ Zwei Korrekturen am Simulator gehören dazu:
 
 Das Dosierungsfeld zeigt den erzeugten Text als „Dosierungstext“ — im Rezeptformular ist es der
 Text der Verordnung, nicht der des Plans.
+
+Nachgezogen am 08.11.2026:
+
+- Die Planänderung beim Verschreiben ist eine ärztliche Entscheidung: Die MFA sieht das Kästchen
+  auch im Plan der Praxis nicht mehr.
+- Ein Vorgang zur Zeit: Ein zweiter Klick, bevor der Plan neu geladen ist, löst keinen zweiten
+  Aufruf aus.
+- „Dosierung ändern“ setzt den Fokus ins erste Feld, Escape bricht ab, danach steht der Fokus
+  wieder auf dem Knopf. Der Knopf nennt das Arzneimittel im zugänglichen Namen.
+- ▸ **Storno nach einer Abgabe ohne Austausch** mit einer anderen Dosierung als im Plan: Die
+  Abgabe übernimmt nur das Arzneimittel. Die Rücksetzregel (REMOVE-DISPENSATION-V2) verlangt für
+  die „stop version“ aber gleiches Arzneimittel und gleiche Dosierung. Der noch verknüpfte,
+  abweichende Eintrag gilt deshalb als manuell geändert, und nichts wird zurückgesetzt. Der Plan
+  behält das abgegebene, nun inaktive Arzneimittel. Der Simulator folgt dem IG wörtlich; eine
+  Lücke im Ballot.
 
 ## 6 ✦ Diagnose-Service für Allergien und Diagnosen
 
@@ -1046,7 +1089,7 @@ jede durchgeführte Impfung.
 ⚠ Offen: Verhältnis zum elektronischen Impfpass als Dokument; welche Impfungen aus Daten der
 Kostenträger stammen dürfen und wie sie gekennzeichnet werden.
 
-### 6.4 ✦ Diagnosen automatisch übertragen (ADR 0062)
+### 6.4 ✦ Diagnosen automatisch übertragen (ADR 0063)
 
 Der Gegenentwurf zum geführten Abgleich, am selben Bestand: Das Praxissystem überträgt Diagnosen
 ohne ärztliche Handlung. **Nicht spezifiziert**; die Demo stellt ihn zur Diskussion. Eingestellt
@@ -1100,7 +1143,9 @@ gleich.
 
 ⚠ **Grenzen:** eine Liste je Akte im Simulator, keine nach Einrichtungen getrennte Ablage; der
 Vermerk hält das Öffnen der Diagnosen fest, nicht den Stand, auf dem eine einzelne Handlung
-beruht; die ✦ Listen liefern keinen früheren Stand.
+beruht. Einen früheren Stand liefert die ✦ Patient Summary (`_at`, `provenance`; 7.9), nicht der
+Vermerk — welche Fassung der Liste die Praxis bei einer Handlung vor sich hatte, hält die Demo
+nicht fest.
 
 ## 7 ✦ Patient Summary
 
@@ -1176,7 +1221,13 @@ national noch festzulegen. Die Demo verwendet `unavailable` für jede fehlende A
 - ✦ Extension `…/ps-section-further-entries` (`valueInteger`): gültige Einträge der Quelle, die
   nicht markiert sind;
 - die Einträge mit ihren Änderungseinträgen (Provenance) und Arzneimitteln; Laborwerte mit Verweis
-  auf den Befund.
+  auf den Befund;
+- ✦ für Einträge aus Dokumenten (Laborwerte, Prozeduren, Implantate, ohne geführte Listen auch
+  Allergien, Diagnosen, Impfungen) eine Provenance mit dem Dokument als Quelle
+  (`entity.role = source`), der einstellenden Einrichtung als Urheberin und dem Dienst als
+  `assembler` — kein EPAActivityProvenance, denn den Eintrag hat niemand in einem Dienst geschrieben.
+
+✦ `provenance` (wie an `$medication-plan`) oder `_at` liefert einen früheren Stand, `Patient/$summary-log` den Änderungsverlauf (7.9).
 
 `GET …/metadata` liefert das CapabilityStatement; im Release 3.1.3 antwortet der Dienst mit 404.
 ⚠ Die Profile sind nachgebaut, nicht gegen die EPS validiert.
@@ -1207,7 +1258,7 @@ auch eine behobene Infektion als aktiv; nichts ist ausgewählt; die Medikation z
 wurde, nicht, was eingenommen werden soll; und was in keinem strukturierten Dokument steht, fehlt
 ganz. Erst die geführten Listen machen aus einer Zusammenstellung eine verantwortete Übersicht.
 
-**Listen ohne Relevanzauswahl (ADR 0062).** Die dritte Stellung zeigt jeden gültigen Eintrag der
+**Listen ohne Relevanzauswahl (ADR 0063).** Die dritte Stellung zeigt jeden gültigen Eintrag der
 Allergien- und der Diagnosenliste, ohne Markierung — für Frau Hoffmann vier Diagnosen statt zwei.
 Zusammen mit der automatischen Übertragung (6.4) steht dann in der Patient Summary, was die
 Praxissysteme von selbst eingestellt haben; mit dem Umfang „alle Diagnosen“ auch jede Akutdiagnose.
@@ -1218,7 +1269,8 @@ Praxissysteme von selbst eingestellt haben; mit dem Umfang „alle Diagnosen“ 
   Sichten. Wann eine Fassung festgeschrieben wird und wer sie verantwortet, ist offen. **Stand der
   Ballots (16.10.2026):** Die gematik kommt ohne gespeichertes Dokument aus — das Aktensystem
   erzeugt die ePS bei jeder Anfrage, auch für den NCPeH (Patient Service oder MHD, 5.13). Offen
-  bleiben Nachvollziehbarkeit und Verantwortung.
+  bleiben Nachvollziehbarkeit und Verantwortung. ▸ Frühere Stände und der Änderungsverlauf (7.9)
+  machen nachvollziehbar, was zu einem Zeitpunkt galt — nicht, was ein Empfänger gesehen hat.
 - ⚠ **Rechtliche Authentifizierung.** Das EHDS-Logikmodell (Xt-EHR 1.0.0) sieht für den Kopf der
   Patient Summary eine rechtliche Authentifizierung vor; eine automatisch zusammengestellte Sicht
   hat keine.
@@ -1368,6 +1420,69 @@ nicht nachgebildet. Danach liegt der Brief in der Praxisablage (Art „Arztbrief
 Ohne KIM-Adresse des Empfängers ist „Per KIM senden" gesperrt („keine KIM-Adresse"); ohne
 Befugnis „In die ePA einstellen" („keine ePA-Befugnis"). Eine Ablehnung des Aktensystems steht mit
 Fehlercode am Knopf.
+
+### 7.9 ✦ Frühere Stände und Änderungsverlauf
+
+Die Patient Summary wird nicht gespeichert. Frühere Stände und ihr Verlauf entstehen aus den Quellen,
+die ihre Geschichte ohnehin führen (ADR 0062) — nach dem Vorbild des Medication Service, der einen
+früheren Plan zu einem Chronologieeintrag liefert (IG-MED04510JHX). **Nicht spezifiziert.**
+
+| Weg                                      | Antwort                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET …/Patient/$summary?provenance=<id>` | Die Patient Summary zum Stand eines Eintrags aus dem Verlauf — wie `$medication-plan?provenance=…`; unbekannte Kennung 404 `MSG_RESOURCE_ID_FAIL`                                                                                                                                                                                                                                                                                                  |
+| `GET …/Patient/$summary?_at=<Zeitpunkt>` | Die Patient Summary, wie sie zu einem beliebigen Zeitpunkt galt; Zeitpunkt mit Uhrzeit und Zeitzone, sonst 400; beide Parameter zugleich 400. `Composition.date` ist der Stand. Vor dem ersten Eintrag sind alle Abschnitte leer                                                                                                                                                                                                                   |
+| `GET …/Patient/$summary-log`             | Wie `$medication-plan-log`: Bundle `searchset` mit `total`, jüngste zuerst, `_count` (Standard 50) und `_offset`. Je Änderung eine Provenance: `id` (UUID, die Kennung für `provenance`), `recorded`, Einrichtungen (`agent`, jede einmal), Quelle (`entity`: Chronologieeintrag, Änderungseintrag oder Dokument), betroffene Einträge (`target`, versioniert) und je Eintrag die Extension `ps-change` mit Abschnitt (LOINC), Art und Bezeichnung |
+
+**Wie ein früherer Stand entsteht:**
+
+| Quelle                              | Zum Zeitpunkt                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| Allergien-, Diagnosen-, Impfliste ✦ | der Chronologieeintrag, der damals galt, mit seinen Einträgen in der damaligen Fassung  |
+| Medikationsplan                     | ebenso, über die Chronologieeinträge des eMP; Arzneimittel in der Fassung zum Zeitpunkt |
+| Medikationsliste (ohne Plan)        | jede Medikationsinformation in der Fassung zum Zeitpunkt, ohne die bis dahin gelöschten |
+| strukturierte Dokumente, Labor      | die bis dahin eingestellten (`submissionTime`, sonst Erstellung)                        |
+| Demo-Steuerung, Widersprüche        | wie beim Abruf — Zugriffsregeln wirken auf das Lesen, nicht auf den gelesenen Stand     |
+
+**Im Einklang mit dem Medication Service:** Für jeden Chronologieeintrag aus
+`$medication-plan-log` zeigt die Patient Summary zu dessen Zeitpunkt genau die eMP-Einträge des
+Eintrags in derselben Fassung, und der Chronologieeintrag steht im Verlauf als Quelle (geprüft im
+Test). Gleich sind auch die Form des Logs, die Kennung als Parameter `provenance`, die Regel bei
+gleichem Zeitpunkt (der zuletzt angelegte gilt) und die Arzneimittel in der Fassung zum Zeitpunkt.
+Anders: Ein Chronologieeintrag des eMP nennt den ganzen Stand, ein Eintrag im Verlauf der Patient
+Summary nennt die Änderung — den ganzen Stand liefert `$summary` zu seiner Kennung. Und weil die
+Patient Summary aus mehreren Quellen entsteht, kennt sie zusätzlich ✦ `_at` für einen beliebigen
+Zeitpunkt.
+
+**Wie der Verlauf entsteht:** Jeder Zeitpunkt, an dem sich eine Quelle änderte, ist ein Kandidat.
+Gleiche Zeitpunkte gehören zusammen. Der Dienst bildet die Abschnitte und vergleicht sie mit dem
+vorigen Zeitpunkt: neu, geändert (neue Fassung) oder entfallen. Derselbe Eintrag aus einer anderen
+Quelle — ein jüngerer Laborwert, der Plan statt der Liste — gilt als geändert. Zeitpunkte ohne
+Änderung an der Patient Summary, etwa an einem nicht markierten Listeneintrag, erscheinen nicht.
+
+**Im Praxissystem:** „Verlauf“ im Kopf der Patient Summary öffnet die Liste der Änderungen mit
+Zeitpunkt, Einrichtung, Quelle und je Abschnitt den Einträgen mit „neu“, „geändert“, „entfallen“.
+„Stand ansehen“ zeigt einen früheren Stand mit dem Marker „Stand vom …“ und „zum aktuellen
+Stand“. Ein früherer Stand führt nicht in die Quellen (gepflegt wird der heutige) und verschiebt das
+Lesezeichen „seit dem letzten Aufruf“ (7.7) nicht. Der Verlauf bleibt beim Wechsel des Stands
+offen.
+
+**Vergleich mit Österreich (ADR 0062):** Die e-Diagnose führt die Auswahl für die Übersicht als
+eigene Summary-Liste je Kategorie; deren Versionen liefert `List/_history`, die Einträge selbst sind
+unveränderlich. Frühere Stände oder einen Verlauf der Austrian Patient Summary beschreiben die
+Entwürfe nicht — sie wird beim Abruf zusammengestellt. Der Grundsatz ist derselbe wie hier: Die
+Geschichte liegt in den Quellen.
+
+**Frau Hoffmann im Startbestand:**
+
+| Zeitpunkt         | Einrichtung                | Änderung                                                                            |
+| ----------------- | -------------------------- | ----------------------------------------------------------------------------------- |
+| 21.10.2025, 10:05 | Hausarztpraxis Nordstadt   | fünf Impfungen neu                                                                  |
+| 18.03.2026, 14:20 | MVZ Labor Oldenburg        | Kreatinin, eGFR, HbA1c neu                                                          |
+| 17.07.2026, 14:00 | Klinikum Sonnenschein      | drei Prozeduren und ein Implantat aus dem Entlassbrief                              |
+| 17.07.2026, 14:05 | Klinikum Sonnenschein      | zwei Allergien, zwei Diagnosen markiert                                             |
+| 18.07.2026, 16:00 | Klinikum Sonnenschein      | Medikation aus der Medikationsliste, mit Metformin                                  |
+| 18.07.2026, 16:05 | Klinikum Sonnenschein      | Medikationsplan angelegt: vier Arzneimittel jetzt aus dem Plan, Metformin entfallen |
+| 12.08.2026, 11:00 | Laborgemeinschaft Nordwest | Kalium neu, Kreatinin, eGFR und HbA1c geändert (jüngere Werte)                      |
 
 ## 8 ✦ Aktenlotse
 
@@ -1815,6 +1930,7 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 | Impfung in die ePA                              | Frau Yildiz, „Impfungen" → Grippeimpfung „in die ePA →" → rechts in der Impfliste, verknüpft                                                                                                                                                                                                                                                                                                              |
 | Neu seit dem letzten Aufruf                     | Frau Hoffmann → Patient Summary öffnen und schließen → Konfiguration → Akten → Hoffmann „andere Einrichtung trägt ein" → Patient Summary: Band „2 neu", Marken **neu** an Herzinsuffizienz und Grippeimpfung; ebenso in „Diagnosen und Allergien" und „Impfungen"                                                                                                                                         |
 | Neu seit dem letzten Aufruf, nach Spezifikation | Frau Hoffmann nach eGK → „Medikation" und „Dokumente" einmal öffnen → Konfiguration → Akten → Hoffmann „andere Einrichtung trägt ein" → „Medikation": Band „1 neu · 1 geändert", Torasemid **neu**, Bisoprolol **geändert**; „Dokumente": Kontrollbefund **neu**; im Aufrufprotokoll `recorded=gt…`, `$medication-plan?provenance=…`, `_lastUpdated=gt…` mit Grundlage                                    |
+| ✦ Frühere Patient Summary und Verlauf           | Weiterentwicklung 3, Frau Hoffmann nach eGK → „Patient Summary“ → „Verlauf“: Änderungen vom Impfpass 2025 bis zum Laborbefund im August; „Stand ansehen“ am 18.07.2026, 16:00 Uhr: Medikation aus der Medikationsliste, mit Metformin, Laborwerte vom März; „zum aktuellen Stand“. Im Aufrufprotokoll `$summary-log` und `$summary?provenance=…` (7.9, Klickpfad `ps-verlauf`)                            |
 | Kompakt und geordnet                            | Frau Hoffmann, „Diagnosen und Allergien" → Zeilen nach Einstellung, jüngste oben; nach „in die ePA →" steht der Eintrag ganz oben → Bezeichnung anklicken → Details beider Seiten → Sortierung „Eigene Reihenfolge" → Zeile ziehen oder ↑ ↓ → ePA-Fenster, Diagnosen und Allergien: dieselbe Reihenfolge                                                                                                  |
 
 ---
@@ -1823,7 +1939,16 @@ dem Plan verordnet, pflegt Plan und Liste in einem Schritt.
 
 | Datum      | Anlass                                                                                             | Änderungen                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | ---------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 13.11.2026 | ✦ Diagnosen automatisch übertragen                                                                 | Gegenentwurf zum geführten Abgleich am selben Bestand (6.4, ADR 0062): Einstellung „Diagnosen in die ePA“ mit drei Wegen und Umfang; Planung im Kern (`listenautomatik.ts`), Ausführung im Praxissystem mit Vermerk je Schritt und Band „Automatische Übertragung“; Abrechnung mit „Diagnosen im Behandlungsfall“ und Prüfung erfasster Ziffern; Demo-Steuerung „andere Einrichtung beendet Dauerdiagnose“; Patient Summary aus „Listen ohne Relevanzauswahl“ (7.5); Beispiel B28; Klickpfad `fremde-aenderung-automatisch`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 13.11.2026 | ✦ Diagnosen automatisch übertragen                                                                 | Gegenentwurf zum geführten Abgleich am selben Bestand (6.4, ADR 0063): Einstellung „Diagnosen in die ePA“ mit drei Wegen und Umfang; Planung im Kern (`listenautomatik.ts`), Ausführung im Praxissystem mit Vermerk je Schritt und Band „Automatische Übertragung“; Abrechnung mit „Diagnosen im Behandlungsfall“ und Prüfung erfasster Ziffern; Demo-Steuerung „andere Einrichtung beendet Dauerdiagnose“; Patient Summary aus „Listen ohne Relevanzauswahl“ (7.5); Beispiel B28; Klickpfad `fremde-aenderung-automatisch`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 09.11.2026 | Verlauf der Patient Summary wie der Medication Service                                             | $summary-log als searchset mit total, _count und _offset wie $medication-plan-log; Kennung je Eintrag (UUID) und $summary?provenance=… wie $medication-plan; die Oberfläche ruft frühere Stände so ab; jede Einrichtung einmal. Test: jeder eMP-Stand aus dem Plan-Log gleich dem Medikationsabschnitt zum selben Zeitpunkt. 7.4, 7.9, ADR 0062, P108                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| 09.11.2026 | Patient Summary: Vergleich mit Österreich                                                          | e-Diagnose (Leitfaden-Entwurf 0.1.0) und Austrian Patient Summary (Entwurf 1.0.0) als Vergleich in ADR 0062 und 7.9: gleicher Grundsatz (Geschichte in den Quellen); unveränderliche Einträge nicht übernommen; Summary-Liste als versionierte Auswahl erwägenswert. QUELLEN präzisiert.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 09.11.2026 | Patient Summary: frühere Stände, Verlauf, Provenance                                               | ✦ $summary?_at=… bildet einen früheren Stand aus den Chronologieeinträgen und Fassungen der Quellen und den bis dahin eingestellten Dokumenten; ✦ $summary-log liefert je Änderung eine Provenance mit Einrichtung, Quelle und ps-change je Eintrag; Einträge aus Dokumenten mit Provenance (Quelle Dokument, Dienst als assembler). Im Praxissystem „Verlauf“ und „Stand ansehen“. Klickpfad ps-verlauf, Rundgang ergänzt. 7.4, 7.6, 7.9, 11, ADR 0062, P108                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 09.11.2026 | Klickpfade: Eingaben großzügiger                                                                   | Suchbegriffe ohne Rücksicht auf Groß- und Kleinschreibung; ein Klick auf den Treffer des nächsten Schritts erledigt eine unvollständige Eingabe; Freitextschritte (frei) mit jedem Text erfüllt — vorher blieb der Pfad frei und als Aufgabe stehen, wenn jemand anders formulierte. Beide Klickpfade. 4.4, KLICKPFADE                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| 09.11.2026 | Rundgang erweitert                                                                                 | Rundgang demo-ueberblick auf 34 Schritte: Dokumente der ePA mit ✦ Entlassbrief als FHIR-Dokument und dessen FHIR-Ressource, strukturierte Laborbefunde, FHIR der Patient Summary, ✦ Arztbrief bis zum Einstellen in die ePA, Aktenlotse nur als Ausblick. FHIR-Ansichten als benannte Bereiche; Zeitpunkte im Abbild vereinheitlicht; Klickpfad diagnose-in-ps mit Verweisen in die Dokumentation. 4.4, KLICKPFADE, P107                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| 09.11.2026 | Rundgang: weiter bei großen Zielen                                                                 | Bei Schritt 10 stand die Sprechblase mit „✓ weiter“ außerhalb des Bildes (Ziel über die volle Höhe). Sprechblase jetzt notfalls in der oberen Ecke des Ziels; Prüfpunkte haben „weiter →“ auch in der Seitenleiste. 4.4, P107                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| 09.11.2026 | Rundgang durch die Demo                                                                            | Klickpfad demo-ueberblick (19 Schritte, 6 Kapitel), im Kopf „Rundgang“: Einordnung, Praxisalltag mit ePA, Steuerung und Aufrufe, Listen und Patient Summary, Nutzen für ePA- und FHIR-Arbeit, Dokumentation. Klickpfade kennen Erzählschritte ohne Element, Kapitel, Verweise in die Dokumentation (vom Test geprüft) und eingeschränkte Modi. Karten mit Titel als benannte Bereiche. 4.4, ADR 0061, P107                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 08.11.2026 | Klickpfade: Umschalten und Verlassen                                                               | „beenden“ nimmt die Ebene ganz weg (vorher blieb die Sperre des geführten Modus); Klickpfad und Modus in der Adresse; Wechsel in die Aufgabe beginnt neu mit neuer Messung; Prüfpunkte frei mit „weiter“; Ziel rückt in den Blick, bis es ruhig steht; Aufrufe erst nach dem Laden der Ansicht gezählt; Zurücksetzen schließt das ePA-Fenster und beginnt die Ansichten neu (auch „Zurücksetzen“ im Kopf). 4.4, ADR 0061, P104–P106                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 08.11.2026 | Dosierung ändern nachgezogen                                                                       | Planänderung beim Verschreiben nur ärztlich, Abbruch statt stiller Verordnung, wenn der Planeintrag fehlt; „Plan aktualisieren“ nach der Bedingung des Dienstes und dem Dosierungsschema; ein Vorgang zur Zeit; Fokus und Escape bei „Dosierung ändern“; Spalte „Verordnung“ bei Nachträgen mit Datum der Bearbeitung; Storno ohne Austausch nach dem IG wörtlich (▸ Lücke im Ballot). 5.3, 5.15, P97–P99                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | 06.11.2026 | Klickpfade mitziehen                                                                               | Abbild je Klickpfad im Test (Ziel, Beschriftung oder Inhalt, ePA-Aufrufe je Schritt); bei Abweichung erst Texte prüfen, dann `npm run klickpfade:abbilden`. Regel in `CLAUDE.md`, Pull-Request-Vorlage und Zusammenarbeit. ADR 0061 („Mitziehen“), `docs/KLICKPFADE.md`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 06.11.2026 | ✦ Klickpfade                                                                                       | Gezielte Abläufe über den Link `?klickpfad=…`: Szenario-Datei mit Startzustand und Schritten (Rolle und Name), Ebene mit den Modi geführt, frei mit Wegweiser und Aufgabe, Seitenleiste mit Erläuterung und ePA-Aufrufen je Schritt, lokales Protokoll für Nutzertests; jeder Klickpfad als Test gegen den Simulator. Erster Klickpfad „Diagnose in die Patient Summary“. Patientenkopf als benannte Gruppe. 4.4, 11, ADR 0061, `docs/KLICKPFADE.md`, P101–P103                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | 03.11.2026 | Medikationsliste mit Verordnung und Abgabe                                                         | Spalten nach der Datenherkunft der eML (IG-MED64473BLY): „Verordnung“ mit Datum und Verordnenden, „(M)“, BtM, T-Rezept; „Abgabe“ mit Datum und Apotheke, „(S)“ bei Substitution, sonst „nicht eingelöst“; Nachträge und Einträge aus dem Plan mit bearbeitender Einrichtung; Dosierung und PZN; Sortierung nach `effective`, dann `meta.lastUpdated`; ebenso im ePA-Fenster. 5.3, P100                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |

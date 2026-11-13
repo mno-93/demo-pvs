@@ -18,7 +18,7 @@ export interface Betriebslage {
   fremdeAenderungVorSchreibzugriff: boolean;
   /**
    * ✦ Woraus die Patient Summary gebildet wird — markierte Einträge der geführten Listen, die
-   * Listen ohne Relevanzauswahl (ADR 0062) oder nur Automatik.
+   * Listen ohne Relevanzauswahl (ADR 0063) oder nur Automatik.
    */
   patientSummaryQuellen: PatientSummaryQuellen;
   /** Dauer, bis der E-Rezept-Fachdienst Verschreibung oder Abgabe in die ePA übertragen hat. */
@@ -126,7 +126,7 @@ export async function fremdeEintraegeAnlegen(kvnr: string): Promise<void> {
   betriebsstandErhoehen();
 }
 
-/** Eine andere Einrichtung beendet jetzt eine Dauerdiagnose der Liste (ADR 0062). */
+/** Eine andere Einrichtung beendet jetzt eine Dauerdiagnose der Liste (ADR 0063). */
 export async function fremdeAenderungAnlegen(kvnr: string): Promise<void> {
   await anfragen({
     methode: 'POST',

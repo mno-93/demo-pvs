@@ -36,6 +36,7 @@ import { KONTAKT_BASIS, kontaktEinhaengen } from './kontakt.ts';
 import { ERP_BASIS, erezeptEinhaengen } from './erezept.ts';
 import { INFORMATION_BASIS, informationEinhaengen } from './information.ts';
 import { PATIENT_SUMMARY_BASIS, patientSummaryEinhaengen } from './patient-summary.ts';
+import { patientSummaryVerlaufEinhaengen } from './patient-summary-verlauf.ts';
 import { operationOutcome } from './fhir-hilfen.ts';
 import { MEDIKATION_BASIS, QUERY_BASIS, RENDER_EINSTELLUNG } from './medikation.ts';
 import { medikationEinhaengen } from './medikation-wege.ts';
@@ -267,6 +268,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
   diagnosedienstEinhaengen(app, kvnrAus, sitzungAus);
   impflisteEinhaengen(app, kvnrAus, sitzungAus);
   patientSummaryEinhaengen(app, kvnrAus);
+  patientSummaryVerlaufEinhaengen(app, kvnrAus);
   aktenlotseEinhaengen(app);
   kontaktEinhaengen(app);
   informationEinhaengen(app);
@@ -344,7 +346,7 @@ export function wegeEinhaengen(app: SimAnwendung): void {
 
   /**
    * Eine andere Einrichtung beendet jetzt eine Dauerdiagnose der Diagnosenliste — für die Frage,
-   * was eine fremde Änderung im Praxissystem auslöst (ADR 0062).
+   * was eine fremde Änderung im Praxissystem auslöst (ADR 0063).
    */
   app.post('/verwaltung/fremde-aenderung', async (anfrage, antwort) => {
     const kvnr = String((anfrage.body as { kvnr?: string } | undefined)?.kvnr ?? '');
@@ -482,7 +484,13 @@ export function wegeEinhaengen(app: SimAnwendung): void {
           'Patient Summary als Sicht aus den Diensten der ePA — Vorschlag, nicht spezifiziert',
         aktiv: abStufe(AB_STUFE.patientSummary),
         basis: PATIENT_SUMMARY_BASIS,
-        operationen: ['metadata', 'Patient/$summary'],
+        operationen: [
+          'metadata',
+          'Patient/$summary',
+          'Patient/$summary?provenance=…',
+          'Patient/$summary?_at=…',
+          'Patient/$summary-log',
+        ],
         grundlage: 'Operation nach HL7 IPS $summary, Inhalt nach HL7 Europe EPS 1.0.0-ballot',
         quellen: betriebslage.patientSummaryQuellen,
       },

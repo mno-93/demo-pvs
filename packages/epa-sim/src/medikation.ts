@@ -637,7 +637,6 @@ function kombipackung(m: Ressource | undefined): boolean {
   );
 }
 
-/** Zeitpunkte, zu denen der eMP-Eintrag eML-Einträge aufgenommen hat (`activity.addedOn`). */
 /**
  * Übernimmt die Dosierung einer Medikationsinformation oder Abgabe samt erzeugtem Text in den
  * eMP-Eintrag und bestimmt die Kategorie neu (IG-MED-BL-LINK-EMP-ENTRY-V2, ebenso bei der Abgabe).
@@ -673,6 +672,7 @@ export function istKombipackung(m: Ressource | undefined): boolean {
   return kombipackung(m);
 }
 
+/** Zeitpunkte, zu denen der eMP-Eintrag eML-Einträge aufgenommen hat (`activity.addedOn`). */
 function aufgenommenAm(eintrag: Ressource): string[] {
   return ((eintrag.extension ?? []) as { url: string; extension?: Json[] }[])
     .filter((x) => x.url === EXT.aktivitaet)

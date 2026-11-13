@@ -1,7 +1,7 @@
-# 0062 — ✦ Diagnosen automatisch übertragen: der Gegenentwurf zum geführten Abgleich
+# 0063 — ✦ Diagnosen automatisch übertragen: der Gegenentwurf zum geführten Abgleich
 
 **Datum:** 13.11.2026 · **Status:** angenommen für die Demo, zur Diskussion · **Kennzeichnung:** ✦
-Vorschlag, nicht spezifiziert · **ergänzt:** 0018, 0022, 0027, 0046
+Vorschlag, nicht spezifiziert · **ergänzt:** 0018, 0022, 0027, 0046, 0062
 
 ## Zusammenhang
 
@@ -79,9 +79,8 @@ erkennt die Praxis später, was sie wann gesehen hat?
 - Der Simulator führt **eine** Liste je Akte. „Nur in die ePA“ zeigt die Doppeleinträge in dieser
   Liste; eine nach Einrichtungen getrennte Ablage bildet er nicht nach.
 - Der Vermerk hält fest, wann die Diagnosen geöffnet wurden — nicht, welchen Stand der Liste eine
-  einzelne Handlung zugrunde gelegt hat. ⚠ Die Listen der Demo liefern nur den aktuellen Stand;
-  einen früheren Stand zu einem Chronologieeintrag, wie ihn `$medication-plan` kennt, gibt es
-  für sie nicht.
+  einzelne Handlung zugrunde gelegt hat. Einen früheren Stand kann die ✦ Patient Summary bilden
+  (ADR 0062); die Verbindung von Handlung und Stand führt die Demo nicht.
 - Die Abrechnungsprüfung ist stark vereinfacht (`kern/fachlogik/abrechnung.ts`). Sie trägt die
   Vorführung, nicht den Beleg einer Abrechnungsregel.
 - ⚠ Welche rechtlichen Anforderungen an das Einstellen ohne ärztliche Handlung bestehen, ist nicht

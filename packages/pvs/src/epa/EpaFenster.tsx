@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { deutschesDatum, patientSummaryLesen, type Patient } from '@demo-pvs/kern';
 import { ausfuehren, useAuswahl } from '../speicher/speicher.js';
@@ -11,6 +11,7 @@ import {
   epaPatientSummarySuchen,
   patientSummaryAbrufen,
   patientSummaryVerfuegbar,
+  patientSummaryVerlaufAbrufen,
 } from './dienste/vorschlaege.js';
 import { diagnosedienstVerfuegbar } from './dienste/listendienste.js';
 import { medikationslisteLesen, medikationsplanLesen } from './dienste/medikation.js';
@@ -33,7 +34,7 @@ import {
   type EpaBereich,
 } from './fenster.js';
 import { protokollOeffnen, useProtokollSichtbar } from './protokoll.js';
-import { PatientSummaryAnsicht } from './PatientSummary.js';
+import { PatientSummaryAnsicht, type PsStand } from './PatientSummary.js';
 import {
   Inhaltsspeicher,
   Medikation,
@@ -167,6 +168,23 @@ function EpaDialog({
       !summaryDienst.laedt &&
       (ueberblick || gebraucht.has('summary')),
   );
+  /*
+   * ✦ Früherer Stand der Patient Summary (`_at`), gewählt im Verlauf. Er gilt für diese Person;
+   * eine andere beginnt beim heutigen Stand.
+   */
+  const [psStand, setzePsStand] = useState<PsStand | null>(null);
+  useEffect(() => setzePsStand(null), [kvnr]);
+  const frueher = useEpaAbfrage(
+    () => patientSummaryAbrufen(kvnr, psStand!.id),
+    [kvnr, psStand],
+    zugriff && summaryDienst.daten === true && psStand !== null,
+  );
+  const frueherInhalt = useMemo(
+    () => (psStand && frueher.daten ? patientSummaryLesen(frueher.daten) : null),
+    [psStand, frueher.daten],
+  );
+  const verlaufLaden = useCallback(() => patientSummaryVerlaufAbrufen(kvnr), [kvnr]);
+  const [verlaufOffen, setzeVerlaufOffen] = useState(false);
   // Der Reiter zeigt die ✦ Patient Summary, sonst die ePS des Aktensystems.
   const summary = vomAktensystem ? epsAktensystem : vorschlag;
   const summaryRoh = vomAktensystem ? epsAktensystem.daten?.inhalt : vorschlag.daten;
@@ -329,12 +347,30 @@ function EpaDialog({
                 neuLaden={summary.neuLaden}
                 patientId={patient.id}
               />
-            ) : summary.laedt || !summaryInhalt ? (
+            ) : psStand && !vomAktensystem && frueher.fehler ? (
+              <Fehlerlage
+                fehler={frueher.fehler}
+                neuLaden={frueher.neuLaden}
+                patientId={patient.id}
+              />
+            ) : summary.laedt || !summaryInhalt || (psStand && !frueherInhalt) ? (
               <Leer>Wird abgefragt …</Leer>
             ) : (
               <PatientSummaryAnsicht
-                inhalt={summaryInhalt}
-                roh={summaryRoh}
+                inhalt={psStand && frueherInhalt ? frueherInhalt : summaryInhalt}
+                roh={psStand ? frueher.daten : summaryRoh}
+                {...(vomAktensystem
+                  ? {}
+                  : {
+                      verlauf: {
+                        laden: verlaufLaden,
+                        schluessel: summary.geladenUm,
+                        offen: verlaufOffen,
+                        umschalten: () => setzeVerlaufOffen((o) => !o),
+                      },
+                      stand: psStand?.zeit ?? null,
+                      standWaehlen: setzePsStand,
+                    })}
                 herkunft={vomAktensystem ? 'aktensystem' : 'vorschlag'}
                 patientId={patient.id}
                 sprung={(ziel) => {

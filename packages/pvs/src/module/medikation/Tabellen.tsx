@@ -4,6 +4,8 @@ import {
   amtsPruefen,
   arzneimittel,
   deutschesDatum,
+  dosierungAusFhir,
+  dosierungAusText,
   imGueltigenPlan,
   letzteVerordnung,
   schwersterBefund,
@@ -126,34 +128,62 @@ export function Planhandlungen({
 
 /* ---------- eML ---------- */
 
+const AKTIVITAET = 'emp-medicationrequest-activity-extension';
+
+/** Aktivitätsnachweise eines eMP-Eintrags: aufgenommene eML-Einträge mit Zeitpunkt (`addedOn`). */
+function aktivitaeten(eintrag: { extension?: unknown }): { verweis: string; am: string }[] {
+  return (
+    (eintrag.extension ?? []) as {
+      url: string;
+      extension?: {
+        url: string;
+        valueReference?: { reference?: string };
+        valueDateTime?: string;
+      }[];
+    }[]
+  )
+    .filter((e) => e.url.endsWith(AKTIVITAET))
+    .map((e) => ({
+      verweis: e.extension?.find((x) => x.url === 'reference')?.valueReference?.reference ?? '',
+      am: e.extension?.find((x) => x.url === 'addedOn')?.valueDateTime ?? '',
+    }));
+}
+
+/**
+ * Die Dosierung als Schema — verglichen wird, was sie sagt, nicht ihr Text: Ein älterer Freitext
+ * „1-0-0-0“ und dasselbe Schema strukturiert sind gleich.
+ */
+function dosierungsschema(dosierungen: unknown, text: string): string {
+  const d = dosierungAusFhir(dosierungen) ?? dosierungAusText(text);
+  return JSON.stringify(
+    d.schema.art === 'freitext' ? dosierungAusText(d.schema.text, d.einheit) : d,
+  );
+}
+
 /**
  * Weicht ein verknüpfter Listeneintrag in der Dosierung vom Planeintrag ab und hat der Eintrag ihn
- * noch nicht aufgenommen (`extension[activity]`), kann `$link-emp` den Plan aktualisieren —
- * etwa nach einer Verordnung aus dem Plan mit neuer Dosierung (IG-MED-BL-LINK-EMP-ENTRY-V2). Nur
- * jüngere Listeneinträge als der Planeintrag: Eine ältere Verordnung drehte sonst eine spätere
- * Änderung des Plans zurück.
+ * noch nicht aufgenommen, kann `$link-emp` den Plan aktualisieren — etwa nach einer Verordnung
+ * aus dem Plan mit neuer Dosierung. Bedingung des Dienstes (IG-MED-BL-LINK-EMP-ENTRY-V2): kein
+ * Aktivitätsnachweis am Eintrag später als der Listeneintrag. Dazu angeboten nur, wenn der Plan
+ * seitdem nicht von Hand geändert wurde — eine ältere Verordnung drehte sonst eine spätere
+ * Änderung zurück. Ohne Zeitstempel entscheidet die Bedingung des Dienstes allein.
  */
 export function planAktualisierbar(z: Listenzeile): boolean {
   const plan = z.planeintrag;
-  if (!plan || !imGueltigenPlan(plan) || z.dosierung === plan.dosierung) return false;
-  const aussageStand = Date.parse(String(z.aussage.meta?.lastUpdated));
-  const planStand = Date.parse(String(plan.eintrag.meta?.lastUpdated));
-  if (aussageStand <= planStand) return false;
-  const aufgenommen = (
-    (plan.eintrag.extension ?? []) as {
-      url: string;
-      extension?: { url: string; valueReference?: { reference?: string } }[];
-    }[]
-  ).some(
-    (e) =>
-      e.url.endsWith('emp-medicationrequest-activity-extension') &&
-      e.extension?.some(
-        (x) =>
-          x.url === 'reference' &&
-          x.valueReference?.reference === `MedicationStatement/${String(z.aussage.id)}`,
-      ),
-  );
-  return !aufgenommen;
+  if (!plan || !imGueltigenPlan(plan)) return false;
+  if (
+    dosierungsschema(z.aussage['dosage'], z.dosierung) ===
+    dosierungsschema(plan.eintrag['dosageInstruction'], plan.dosierung)
+  )
+    return false;
+  const aussageStand = String(z.aussage.meta?.lastUpdated ?? '');
+  const nachweise = aktivitaeten(plan.eintrag);
+  if (nachweise.some((n) => n.verweis === `MedicationStatement/${String(z.aussage.id)}`))
+    return false;
+  if (aussageStand && nachweise.some((n) => n.am > aussageStand)) return false;
+  const a = Date.parse(aussageStand);
+  const p = Date.parse(String(plan.eintrag.meta?.lastUpdated ?? ''));
+  return Number.isNaN(a) || Number.isNaN(p) || p <= a;
 }
 
 /**
@@ -168,7 +198,8 @@ export function VerordnungZelle({ z }: { z: Listenzeile }) {
     return (
       <>
         <Marker ton="neutral">{z.art === 'Nachtrag' ? 'Nachtrag' : 'aus dem Plan'}</Marker>{' '}
-        {deutschesDatum(z.datum.slice(0, 10))}
+        {/* Datum und Einrichtung aus derselben Quelle: der letzten Bearbeitung (Provenance). */}
+        {deutschesDatum((z.bearbeitung?.datum ?? z.datum).slice(0, 10))}
         <div className="leise-klein">{z.bearbeitung?.einrichtung ?? z.einrichtung}</div>
       </>
     );

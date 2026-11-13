@@ -62,7 +62,7 @@ export function Patientenkartei() {
   const diagnosen = useZustand((z) => z.diagnosen);
   const allergien = useZustand((z) => z.allergien);
   const aktenstatus = useAktenstatus(patient);
-  // ✦ Automatische Übertragung der Diagnosen — läuft, sobald die Kartei offen ist (ADR 0062).
+  // ✦ Automatische Übertragung der Diagnosen — läuft, sobald die Kartei offen ist (ADR 0063).
   useDiagnosenautomatik(patient);
   const lotseDa = useLotseVorhanden() === true;
   const briefDa = useArztbriefVorhanden();

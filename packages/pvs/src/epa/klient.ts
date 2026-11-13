@@ -87,6 +87,9 @@ export const GRUNDLAGE = {
   dienst: '✦ Vorschlag Diagnose-Service · nicht spezifiziert',
   impfliste: '✦ Vorschlag Impfliste · nicht spezifiziert, Einträge nach immunization-eu-core',
   summary: '✦ Vorschlag Patient Summary · $summary nach IPS, Inhalt nach EPS 1.0.0-ballot',
+  summaryStand:
+    '✦ Vorschlag Patient Summary · früherer Stand über provenance wie $medication-plan, gebildet aus den Chronologieeinträgen der Quellen',
+  summaryVerlauf: '✦ Vorschlag Patient Summary · Änderungsverlauf $summary-log, nicht spezifiziert',
   lotse: '✦ Vorschlag Aktenlotse · nicht spezifiziert, kein FHIR, regelbasiert',
   kontakt:
     '✦ Vorschlag Kontaktauskunft · Stellvertreter für den Verzeichnisdienst, nicht spezifiziert',

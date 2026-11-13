@@ -1,7 +1,7 @@
 import { betriebslageSetzen } from '../demo/steuerung.js';
 import { demoZuruecksetzen } from '../demo/zuruecksetzen.js';
 import { egkEinlesen } from '../epa/befugnis.js';
-import { protokollLeeren } from '../epa/protokoll.js';
+import { aufrufeLesen, protokollLeeren } from '../epa/protokoll.js';
 import { ausfuehren } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import { alleFinden, erfuellt, zielBeschreibung } from './finden.js';
@@ -24,8 +24,29 @@ export async function warten<T>(pruefen: () => T | null, was: string, ms = 5000)
 }
 
 /**
+ * Wartet, bis seit `ms` kein Aufruf an die ePA mehr dazukam — dann gehören alle Aufrufe zum
+ * Schritt davor, und die Ansicht hat ihre Listen geladen. Gibt nach `hoechstens` auf, ohne Fehler:
+ * Ruhe ist eine Zuordnungshilfe, keine Bedingung.
+ */
+export async function ruheAbwarten(ms = 150, hoechstens = 5000): Promise<void> {
+  let zuletzt: number | undefined = -1;
+  let seit = Date.now();
+  const bis = Date.now() + hoechstens;
+  for (;;) {
+    const neuester = aufrufeLesen()[0]?.id;
+    if (neuester !== zuletzt) {
+      zuletzt = neuester;
+      seit = Date.now();
+    }
+    if (Date.now() - seit > ms || Date.now() > bis) return;
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+/**
  * Startzustand: Praxis und Aktensystem zurücksetzen, Ausbaustand setzen, eGK einlesen, zur
- * Ansicht springen. Jeder Durchlauf beginnt damit gleich.
+ * Ansicht springen und warten, bis sie geladen hat. Jeder Durchlauf beginnt damit gleich; was die
+ * Ansicht beim Öffnen abruft, zählt nicht zum ersten Schritt.
  */
 export async function startzustandHerstellen(
   s: Szenario,
@@ -44,6 +65,7 @@ export async function startzustandHerstellen(
   }
   protokollLeeren();
   navigieren(s.start.pfad);
+  await ruheAbwarten();
 }
 
 /** Setzt den Wert eines React-gesteuerten Felds so, als hätte die Person ihn eingegeben. */
@@ -71,8 +93,12 @@ export function zielAbwarten(schritt: Schritt, ms?: number): Promise<HTMLElement
   );
 }
 
-/** Einen Schritt ausführen: Handlung vornehmen oder warten, bis der Prüfpunkt erfüllt ist. */
+/**
+ * Einen Schritt ausführen: Handlung vornehmen oder warten, bis der Prüfpunkt erfüllt ist. Eine
+ * Erzählung hat nichts auszuführen.
+ */
 export async function schrittAusfuehren(schritt: Schritt): Promise<void> {
+  if (!schritt.ziel) return;
   const e = await zielAbwarten(schritt);
   const h = schritt.handlung;
   if (!h) {
@@ -86,7 +112,10 @@ export async function schrittAusfuehren(schritt: Schritt): Promise<void> {
   else wertSetzen(e, h.wert);
 }
 
-/** Startzustand und die ersten `bis` Schritte — „zurück zum Pfad“ und die Tests. */
+/**
+ * Startzustand und die ersten `bis` Schritte — „zurück zum Pfad“, „Schritt zurück“ und die Tests.
+ * Wartet am Ende auf Ruhe, damit nachgeladene Listen nicht dem nächsten Schritt zugerechnet werden.
+ */
 export async function pfadNachspielen(
   s: Szenario,
   bis: number,
@@ -94,4 +123,5 @@ export async function pfadNachspielen(
 ): Promise<void> {
   await startzustandHerstellen(s, navigieren);
   for (const schritt of s.schritte.slice(0, bis)) await schrittAusfuehren(schritt);
+  if (bis > 0) await ruheAbwarten();
 }

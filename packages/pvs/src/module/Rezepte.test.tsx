@@ -197,7 +197,7 @@ describe('E-Rezept', () => {
     const zeile = (await screen.findByText('Ramipril 5 mg Tabletten', { selector: 'b' })).closest(
       'tr',
     )!;
-    fireEvent.click(within(zeile).getByRole('button', { name: 'Dosierung ändern' }));
+    fireEvent.click(within(zeile).getByRole('button', { name: /^Dosierung ändern/ }));
     const gruppe = screen.getByRole('group', { name: /Dosierung ändern/ });
     fireEvent.change(within(gruppe).getByLabelText('abends'), { target: { value: '1' } });
     fireEvent.click(within(gruppe).getByRole('button', { name: 'Dosierung übernehmen' }));

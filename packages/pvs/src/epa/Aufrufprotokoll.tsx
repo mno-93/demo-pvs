@@ -236,7 +236,7 @@ export function Aufrufprotokoll() {
                 <option value="automatisch">nur automatischen Daten</option>
               </select>
             </div>
-            {/* ✦ Einstellung des Praxissystems, nicht des Aktensystems (ADR 0062). */}
+            {/* ✦ Einstellung des Praxissystems, nicht des Aktensystems (ADR 0063). */}
             <div className="protokoll-schalter">
               <label htmlFor="diagnosenweg">Diagnosen in die ePA ✦</label>
               <select

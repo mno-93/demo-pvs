@@ -3,7 +3,7 @@ import type { Listenzeile } from './listenabgleich.js';
 
 /**
  * ✦ Automatische Übertragung der Diagnosen zwischen Praxissystem und Diagnosenliste der ePA
- * (ADR 0062) — der Gegenentwurf zum geführten Abgleich im Splitscreen (ADR 0018, 0022).
+ * (ADR 0063) — der Gegenentwurf zum geführten Abgleich im Splitscreen (ADR 0018, 0022).
  *
  * Drei Wege, wie die Diagnosen der Praxis in die Liste kommen:
  * - `gefuehrt`: Die Ärztin entscheidet je Eintrag; vorbelegt für Dauerdiagnosen.

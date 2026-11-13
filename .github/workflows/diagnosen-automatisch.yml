@@ -1,4 +1,4 @@
-# Eigener Lauf für den Diskussionsstand „Diagnosen automatisch übertragen“ (ADR 0062).
+# Eigener Lauf für den Diskussionsstand „Diagnosen automatisch übertragen“ (ADR 0063).
 #
 # Der allgemeine Workflow (demo.yml) prüft auch diesen Branch vollständig. Dieser Lauf gehört nur
 # zum Branch und beantwortet zwei Fragen schnell: Hält die automatische Übertragung, was die
@@ -60,7 +60,7 @@ jobs:
           {
             echo '## Diskussionsstand: Diagnosen automatisch übertragen'
             echo
-            echo 'Beschreibung: `docs/SPEZIFIKATION.md`, Abschnitt 6.4 · `docs/entscheidungen/0062-diagnosen-automatisch-uebertragen.md`'
+            echo 'Beschreibung: `docs/SPEZIFIKATION.md`, Abschnitt 6.4 · `docs/entscheidungen/0063-diagnosen-automatisch-uebertragen.md`'
             echo
             echo '**Ansehen:** Artefakt `demo-diagnosen-automatisch` herunterladen, in einen Ordner `demo-pvs` entpacken und den darüberliegenden Ordner mit einem statischen Webserver ausliefern. Der Simulator läuft im Browser.'
             echo

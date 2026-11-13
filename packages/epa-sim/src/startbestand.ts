@@ -664,7 +664,7 @@ export function fremdeEintraegeAnlegen(kvnr: string, stufe: number): string[] {
 
 /**
  * Eine andere Einrichtung beendet eine Dauerdiagnose der Diagnosenliste: Status „behoben" mit dem
- * heutigen Ende, neue Fassung, Änderungseintrag, neue Fassung der Liste (ADR 0062). Gewählt wird
+ * heutigen Ende, neue Fassung, Änderungseintrag, neue Fassung der Liste (ADR 0063). Gewählt wird
  * die Hypertonie, sonst die erste gegenwärtige Dauerdiagnose. Liefert den Verweis oder `null`.
  */
 export function fremdeAenderungAnlegen(kvnr: string): string | null {

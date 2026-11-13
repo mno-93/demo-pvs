@@ -87,7 +87,7 @@ export interface Zustand {
 
   /**
    * ✦ Wie die Diagnosen der Praxis in die Diagnosenliste der ePA kommen — geführt oder
-   * automatisch (ADR 0062). Eine Einstellung des Praxissystems, nicht des Aktensystems.
+   * automatisch (ADR 0063). Eine Einstellung des Praxissystems, nicht des Aktensystems.
    */
   diagnosenweg: Diagnosenweg;
   /** Was die automatische Übertragung von selbst in die Liste stellt. */

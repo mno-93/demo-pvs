@@ -50,3 +50,19 @@ Dosierung der Verordnung in den Plan.
   (`MEDSVC_EMP_ENTRY_ALREADY_EXISTS`).
 - **Nur den Simulator korrigieren.** Weg 3 allein verlangt einen Umweg über Rezept und Liste für eine
   Änderung, die im Praxisalltag direkt am Plan erfolgt.
+
+## Nachtrag (08.11.2026)
+
+- **Zu 2:** Die Anpassung ist eine ärztliche Entscheidung — im eMP wie im Plan der Praxis nur
+  ärztlich. Sie gilt mit dem Rezept der Ärztin, gleich ob signiert oder in den eigenen
+  Signaturstapel gelegt; die Planänderung beim Signieren aus dem Stapel nachzuholen hieße, sie am
+  vorbereiteten Rezept zu speichern. Fehlt der Planeintrag im geladenen Stand, bricht der Vorgang
+  ab, statt nur zu verordnen.
+- **Zu 3:** Angeboten nach der Bedingung des Dienstes (kein Aktivitätsnachweis später als der
+  Listeneintrag) und nur, wenn der Plan seitdem nicht von Hand geändert wurde; gleiche
+  Zeitstempel — etwa nach dem Storno einer Abgabe — schließen es nicht mehr aus. Verglichen wird das
+  Dosierungsschema, nicht der Text.
+- **Zu 4:** Storniert die Apotheke eine Abgabe ohne Austausch, deren Verordnung eine andere
+  Dosierung trug als der Plan, setzt der Dienst den Planeintrag nach REMOVE-DISPENSATION-V2 nicht
+  zurück: Die „stop version“ verlangt gleiches Arzneimittel und gleiche Dosierung, die Abgabe
+  übernahm aber nur das Arzneimittel. Der Simulator folgt dem IG wörtlich (▸ Lücke im Ballot).

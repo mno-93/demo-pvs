@@ -2,7 +2,7 @@ import { szenario } from '../szenario.js';
 
 /**
  * Was löst eine fremde Änderung in der eigenen Praxis aus, wenn Diagnosen automatisch in beide
- * Richtungen übertragen werden? (SPEZIFIKATION 6.4, ADR 0062)
+ * Richtungen übertragen werden? (SPEZIFIKATION 6.4, ADR 0063)
  */
 export default szenario({
   id: 'fremde-aenderung-automatisch',

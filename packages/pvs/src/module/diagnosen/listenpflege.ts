@@ -218,7 +218,7 @@ export function useListenpflege(
   function listenoption(art: Pflegeart, e?: Diagnose | Allergie): Listenoption {
     const eintrag = eintragZu(art, e?.epaId ?? null);
     const berichtigt = eintrag ? istBerichtigt(eintrag.eintrag) : false;
-    // ✦ Im automatischen Weg entscheidet niemand je Eintrag (ADR 0062) — nur bei Diagnosen.
+    // ✦ Im automatischen Weg entscheidet niemand je Eintrag (ADR 0063) — nur bei Diagnosen.
     if (art === 'diagnose' && weg !== 'gefuehrt' && lage.art === 'bereit' && !berichtigt) {
       return {
         moeglich: false,

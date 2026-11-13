@@ -62,7 +62,7 @@ export interface Betriebslage {
   /**
    * ✦ Woraus die Patient Summary gebildet wird: `listen` — aus den ärztlich geführten Listen
    * und dem Medikationsplan, nur markierte Einträge; `listen-vollstaendig` — aus denselben
-   * Listen ohne Relevanzauswahl, jeder gültige Eintrag (ADR 0062); `automatisch` — nur aus
+   * Listen ohne Relevanzauswahl, jeder gültige Eintrag (ADR 0063); `automatisch` — nur aus
    * automatisch entstehenden Daten (Medikationsliste, Laborbefunde, strukturierte Dokumente).
    */
   patientSummaryQuellen: PatientSummaryQuellen;

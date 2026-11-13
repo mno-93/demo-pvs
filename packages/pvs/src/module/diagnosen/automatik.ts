@@ -19,7 +19,7 @@ import { EINRICHTUNG, betriebsstandErhoehen } from '../../epa/klient.js';
 import { inDieListeAufnehmen, inDieListeUebertragen, useEpaListen } from '../../epa/listen.js';
 
 /**
- * ✦ Automatische Übertragung der Diagnosen (ADR 0062): führt aus, was der Kern für den gewählten
+ * ✦ Automatische Übertragung der Diagnosen (ADR 0063): führt aus, was der Kern für den gewählten
  * Weg plant — ohne ärztliche Handlung, sobald die Listen der Person geladen sind, also auch dann,
  * wenn niemand die Diagnosen geöffnet hat. Jeder Schritt wird vermerkt.
  *

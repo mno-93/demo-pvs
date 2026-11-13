@@ -11,7 +11,7 @@ import { vorgaenge } from '../../speicher/vorgaenge.js';
 import { Marker } from '../../bausteine/Bausteine.js';
 
 /**
- * ✦ Band über den Diagnosen im automatischen Weg (ADR 0062): was das Praxissystem ohne Handlung
+ * ✦ Band über den Diagnosen im automatischen Weg (ADR 0063): was das Praxissystem ohne Handlung
  * übertragen und übernommen hat. Was seit dem letzten Öffnen dazukam, trägt „noch nicht
  * angezeigt“ — mit dem Öffnen gilt es als angezeigt.
  */

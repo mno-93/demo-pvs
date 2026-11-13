@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   EMP_STATUS_BEZEICHNUNG,
   EMP_STATUS_CODE,
@@ -74,6 +74,12 @@ import {
   vorlageAusPraxisplan,
   vorlageNeu,
 } from './medikation/vorlagen.js';
+
+/** Ein Vorgang bricht ab, bevor er die ePA berührt; die Meldung nennt den Grund. */
+class Vorgangsfehler extends Error {}
+
+const PLANEINTRAG_FEHLT =
+  'Der Planeintrag steht nicht mehr im geladenen Plan. Der Plan ist neu geladen — bitte erneut verordnen.';
 
 export function Medikation() {
   const patientId = usePatientId();
@@ -192,8 +198,11 @@ export function Medikation() {
         }
         let empId = v.empId;
         if (a.planAnpassen && v.empId) {
+          // Ohne den Planeintrag kein Rezept — sonst stünde die neue Dosierung nur auf dem Rezept,
+          // obwohl die Ärztin den Plan anpassen wollte.
           const z = stand?.zeilen.find((x) => empKennung(x) === v.empId);
-          if (z) await epaDosierungAendern(z, a.dosis);
+          if (!z) throw new Vorgangsfehler(PLANEINTRAG_FEHLT);
+          await epaDosierungAendern(z, a.dosis);
         }
         if (a.auchInPlan) {
           if (v.listeneintrag) {
@@ -316,7 +325,19 @@ export function Medikation() {
     .filter((x) => x.spur.mehrfach);
 
   /** Führt Operationen aus und lädt danach neu — auch nach einem Fehler. */
+  /*
+   * Ein Vorgang zur Zeit: Ein zweiter Klick, bevor der Plan neu geladen ist, ginge mit dem alten
+   * Lesenachweis hinaus und scheiterte als „veraltet“ — oder schickte dasselbe zweimal. Frei wird
+   * es mit dem neuen Stand, spätestens nach drei Sekunden.
+   */
+  const belegt = useRef(false);
+  useEffect(() => {
+    belegt.current = false;
+  }, [stand, fehler]);
+
   async function handlung(schritte: () => Promise<unknown>, erfolg: string) {
+    if (belegt.current) return;
+    belegt.current = true;
     setzeMeldung({ art: 'neutral', text: 'Wird übermittelt …' });
     try {
       await schritte();
@@ -327,12 +348,17 @@ export function Medikation() {
         text:
           f instanceof EpaFehler && f.veraltet
             ? 'Der Plan wurde inzwischen von einer anderen Einrichtung geändert. Er ist neu geladen — bitte erneut ausführen.'
-            : f instanceof EpaFehler
-              ? `${f.status}: ${f.diagnose}`
-              : 'Der Vorgang ist fehlgeschlagen.',
+            : f instanceof Vorgangsfehler
+              ? f.message
+              : f instanceof EpaFehler
+                ? `${f.status}: ${f.diagnose}`
+                : 'Der Vorgang ist fehlgeschlagen.',
       });
     }
     neuLaden();
+    window.setTimeout(() => {
+      belegt.current = false;
+    }, 3000);
   }
 
   function statusSetzen(z: Planzeile, status: EmpStatus) {
@@ -778,6 +804,8 @@ export function Medikation() {
                                     type="button"
                                     className="knopf klein"
                                     aria-expanded={dosisZeile === schluessel}
+                                    aria-controls={`dosis-${schluessel}`}
+                                    aria-label={`Dosierung ändern: ${e.bezeichnung}`}
                                     onClick={() =>
                                       setzeDosisZeile((s) => (s === schluessel ? null : schluessel))
                                     }
@@ -802,6 +830,7 @@ export function Medikation() {
                           <tr>
                             <td colSpan={ohneAkte ? 6 : 7}>
                               <DosierungAendern
+                                id={`dosis-${schluessel}`}
                                 bezeichnung={e.bezeichnung}
                                 start={dosierungFuerRezept(e)}
                                 abbrechen={() => setzeDosisZeile(null)}

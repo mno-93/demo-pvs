@@ -611,7 +611,7 @@ export const vorgaenge = {
     };
   },
 
-  /* ---------- ✦ Automatische Übertragung der Diagnosen (ADR 0062) ---------- */
+  /* ---------- ✦ Automatische Übertragung der Diagnosen (ADR 0063) ---------- */
 
   /** Stellt den Weg der Diagnosen in die ePA um — Demo-Steuerung, keine fachliche Handlung. */
   diagnosenwegSetzen(weg: Diagnosenweg, umfang: Diagnosenumfang): Vorgang {
