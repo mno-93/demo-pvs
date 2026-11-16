@@ -44,6 +44,18 @@ dann für Server und Browser. Wege benutzen nur die Schnittstelle aus `epa-sim/s
 vergleicht beide Seiten. Neue Fälle (andere Körper, Fehler, Inhaltstypen) gehören dort als Schritt
 dazu.
 
+**Vorschau eines Branchs.** Pages kennt je Repository eine Seite; ein Diskussionsstand liegt
+deshalb als Unterordner in derselben Seite: `https://<konto>.github.io/<repository>/vorschau/<branch>/`,
+Übersicht unter `…/vorschau/`. Branchname in `.github/vorschau-branches.txt` eintragen (auf
+`main`). Der Lauf auf `main` baut dann jeden gelisteten Branch mit
+`BASIS=/<repository>/vorschau/<branch>/` und setzt ihn mit `werkzeuge/vorschau-einbauen.mjs` ein.
+Ändert sich der Branch, stößt `.github/workflows/vorschau.yml` nach dessen bestandener Prüfung die
+Veröffentlichung auf `main` neu an. Eintrag entfernen, wenn der Branch übernommen oder verworfen
+ist — mit dem nächsten Lauf auf `main` verschwindet die Vorschau. Lokal nachstellen: beide Stände
+bauen, `node werkzeuge/vorschau-einbauen.mjs --ziel … --basis demo-pvs --vorschau <branch>=<ordner>`.
+⚠ Der Vorschau-Branch wird im Lauf von `main` gebaut, ohne Secrets und mit lesendem Token; in die
+Liste gehören nur Branches dieses Repositorys.
+
 Prüfliste für die gehostete Fassung: `npm run build:gehostet -- --basis demo-pvs`, Vorschau mit
 `--base /demo-pvs/`, eine tiefe Adresse direkt aufrufen, eGK einlesen, ein Rezept senden, im
 Netzwerkprotokoll des Browsers dürfen nur statische Dateien erscheinen.
@@ -60,12 +72,12 @@ baut der Lauf auf `main`, solange der Branch in `.github/vorschau-branches.txt` 
 Die Quellen liegen als JSON in `daten/kataloge/`. Nach jeder Änderung die typisierten Module neu
 erzeugen:
 
-| Befehl                                                       | Wirkung                                                                                                     |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `node werkzeuge/wertelisten-vom-zts.mjs`                     | übernimmt die Allergie-Wertelisten (Substanzen, Manifestationen) vom Zentralen Terminologieserver des BfArM |
-| `EPA_XDS_REPO=<Pfad> node werkzeuge/formatcodes-aus-xds.mjs` | übernimmt die registrierten Dokumenttypen aus einem Klon von `gematik/ePA-XDS-Document`                     |
-| `node werkzeuge/amts-zuordnung-bilden.mjs`                   | bildet die Demo-Zuordnung von Substanzen zu ATC                                                             |
-| `node werkzeuge/kataloge-erzeugen.mjs`                       | übersetzt alle JSON-Quellen in Module unter `packages/kern/src/kataloge/`                                   |
+| Befehl                                                                                    | Wirkung                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node werkzeuge/wertelisten-vom-zts.mjs`                                                  | übernimmt die Allergie-Wertelisten (Substanzen, Manifestationen) vom Zentralen Terminologieserver des BfArM                                                                                    |
+| `EPA_XDS_REPO=<Pfad> EPA_XDS_REF=origin/ePA-3.1.3 node werkzeuge/formatcodes-aus-xds.mjs` | übernimmt die registrierten Dokumenttypen aus einem Klon von `gematik/ePA-XDS-Document`, mit `EPA_XDS_REF` aus diesem Stand ohne Branchwechsel; alle classCodes und typeCodes samt Abkündigung |
+| `node werkzeuge/amts-zuordnung-bilden.mjs`                                                | bildet die Demo-Zuordnung von Substanzen zu ATC                                                                                                                                                |
+| `node werkzeuge/kataloge-erzeugen.mjs`                                                    | übersetzt alle JSON-Quellen in Module unter `packages/kern/src/kataloge/`                                                                                                                      |
 
 Die Übernahmen lesen die Repositories nur und schreiben die Herkunft in den Kopf jeder Datei.
 Ohne die Umgebungsvariable brechen sie mit einem Hinweis ab; für den Betrieb der Demo sind sie
@@ -131,7 +143,9 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
    `ausgabe/fhir-validierung/ressourcen` (`werkzeuge/fhir-ausgabe-sichern.ts`). Die absichtlich
    fehlerhaften Beispiele der Prüfregeln bleiben draußen.
 2. **Validator:** Er prüft den Ordner gegen die Pakete der Konfiguration, ohne Terminologieserver
-   (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt.
+   (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt. Die Meldungen kommen auf
+   Englisch (`-Duser.language=en`), gleich wie der Rechner eingestellt ist — die Ausnahmen greifen
+   auf den Meldungstext.
 3. **Auswertung:** Das Skript liest `bericht.json`, nimmt die begründeten Ausnahmen der
    Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Eine Ausnahme ohne Treffer
    meldet es als Warnung — sie kann entfallen. Die Zusammenfassung steht in `zusammenfassung.json`
@@ -226,6 +240,12 @@ an der Instanz FHIR-gerecht abfangen, geht das vor (ADR 0040).
   Bindung an LOINC oder SNOMED CT zugeordnet werden (`memberOf`): Der Validator verneint sie ohne
   Server — etwa den Abschnitt des Laborbefunds.
 - **E-Rezept gegen die KBV-Profile.**
+- **✦ Briefe als FHIR-Dokument gegen ein Dokumentprofil.** Sie tragen kein `meta.profile`; der HL7
+  Europe Hospital Discharge Report und das MIO KH-E sind nicht geladen. Geprüft wird gegen FHIR R4
+  (Bundle `document`, bdl-Regeln).
+- **⚠ Die Ausnahme für `epa-mhd-document-reference` 1.1.3** greift auch im Vorschau-Lauf. Sie lässt
+  sich mit der heutigen Konfiguration (`muster` oder `profil`) nicht auf 1.1.3 begrenzen; das und
+  der Laborbefund unter MHD 1.2.0 sind mit einem Validatorlauf zu klären.
 - **Warnungen.** Sie lassen den Lauf nicht scheitern. Zu beachten: `DosageWarnungViererschemaInText` (Dosierung als Text statt strukturiert) und `icd-5` bei einer behobenen Diagnose mit Zusatzkennzeichen „G“ (DATENMODELL, Abschnitt 7).
 
 ## Prüfliste vor jeder Abgabe
@@ -349,6 +369,9 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P112 | Wie P111 von Hand, aber „geführt“                                                                                                                                                                                                                     | Abrechnung unverändert; Splitscreen „in der ePA geändert“ mit beiden Handlungen; kein Band                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | P113 | „Patient Summary aus: Listen ohne Relevanzauswahl“ → Frau Hoffmann, Patient Summary                                                                                                                                                                   | vier Diagnosen, keine Angabe weiterer Einträge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | P114 | `?klickpfad=diagnosen-hochladen`                                                                                                                                                                                                                      | 15 Schritte; nach dem Umschalten drei Dauerdiagnosen hochgeladen, sieben Einträge in der Liste, fünf Diagnosen in der Patient Summary; nach „andere Einrichtung beendet Dauerdiagnose“ „in der ePA geändert“ und „0 aus der ePA“                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| P115 | Weiterentwicklung 3, Frau Hoffmann nach eGK → Diagnosen und Allergien → ★ an „Penicillin“ aufheben → Patient Summary → „Verlauf“                                                                                                                      | Verlauf mit einem neuen Eintrag „entfallen Penicillin“; „Stand ansehen“ an früheren Einträgen zeigt Penicillin weiter (ADR 0064)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| P116 | Konfiguration → Aufrufprotokoll → „Praxis und ePA zurücksetzen“ nach einer Übernahme                                                                                                                                                                  | Praxis und ePA beim Startbestand, ePA-Fenster geschlossen, Handlungen 0                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| P117 | Weiterentwicklung 4, Versichertensicht → Aktenlotse: „Ich habe akute Brustschmerzen“, dann „Wie geht es mit meinem Herz weiter?“                                                                                                                      | erst Antwort mit Notruf 112 und 116 117 davor; dann „Keine Bewertung“                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

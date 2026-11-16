@@ -443,7 +443,13 @@ describe('Common Query API — Lesen, Historie, Sortierung', () => {
     expect(historie.json().entry!.length).toBeGreaterThan(0);
     // history-type: alle Fassungen aller Instanzen, auch der gelöschten.
     const typ = (await lesen(`${QUERY}/MedicationStatement/_history`)).json();
-    expect(typ.entry!.some((e) => e.resource['id'] === id)).toBe(true);
+    expect(typ.entry!.some((e) => e.resource?.['id'] === id)).toBe(true);
+    // … und den Löscheintrag (FHIR http#history), ohne Ressource.
+    expect(
+      (typ.entry as unknown as { request: { method: string; url: string } }[]).some(
+        (e) => e.request.method === 'DELETE' && e.request.url === `MedicationStatement/${id}`,
+      ),
+    ).toBe(true);
     const schreiben = await app.inject({
       method: 'POST',
       url: `${QUERY}/MedicationStatement`,

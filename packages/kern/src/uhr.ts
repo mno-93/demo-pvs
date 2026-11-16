@@ -84,6 +84,16 @@ export function demoJetzt(): Date {
   return new Date(mitZeitzone(demoZeitpunkt()));
 }
 
+/**
+ * Lässt die Demo-Uhr neu beginnen: Der heutige Tag ist wieder der Demo-Tag. Praxissystem und
+ * Simulator rufen das beim Zurücksetzen — so laufen ihre Uhren, die je Prozess getrennt sind,
+ * nach einem gemeinsamen Zurücksetzen wieder gleich, auch nach Mitternacht.
+ */
+export function demoUhrNeuBeginnen(): void {
+  startTag = null;
+  zuletzt = '';
+}
+
 /** Nur für Tests: Uhr auf eine andere Zeitquelle stellen und neu beginnen lassen. */
 export function demoUhrNeuStellen(neueQuelle: () => number = () => Date.now()): void {
   quelle = neueQuelle;

@@ -1,6 +1,6 @@
 # 0048 — Prüfungen des Medication Service wie im Aktensystem
 
-**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0047 · **ergänzt durch:** 0056
+**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0047 · **ergänzt durch:** 0054, 0056
 
 ## Zusammenhang
 

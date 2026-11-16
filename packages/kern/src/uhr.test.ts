@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   DEMO_HEUTE,
   demoJetzt,
+  demoUhrNeuBeginnen,
   demoUhrNeuStellen,
   demoZeitpunkt,
   ortszeitDeutschland,
@@ -42,6 +43,16 @@ describe('Demo-Uhr', () => {
     expect(vorher).toBe(`${DEMO_HEUTE}T23:59:59.900`);
     expect(nachher).toBe('2026-09-10T00:00:00.100');
     expect(nachher > vorher).toBe(true);
+  });
+
+  it('beginnt nach dem Zurücksetzen wieder mit dem Demo-Tag, auch nach Mitternacht', () => {
+    let echt = Date.parse('2026-11-02T22:59:59.900Z');
+    demoUhrNeuStellen(() => echt);
+    demoZeitpunkt();
+    echt += 3_600_000; // eine Stunde später, am nächsten Tag
+    expect(demoZeitpunkt().slice(0, 10)).toBe('2026-09-10');
+    demoUhrNeuBeginnen();
+    expect(demoZeitpunkt().slice(0, 10)).toBe(DEMO_HEUTE);
   });
 
   it('springt in der Nacht der Zeitumstellung nicht zurück', () => {

@@ -12,6 +12,7 @@ import {
   type Lesart,
   type Lotsenkontext,
   type Lotsenquelle,
+  type Extraktionsvorschlag,
   type Lotsenvorschlaege,
   type Quellentext,
   type Ressource,
@@ -248,29 +249,50 @@ export function kontextBilden(
 
 /* ---------- Vorschläge aus unstrukturiertem Text (S5) ---------- */
 
-/** Text der Einträge, die in den ✦ Listen bereits geführt werden — gegen Doppelvorschläge. */
-function bereitsGefuehrt(kvnr: string): string[] {
-  return bestandFuer(kvnr)
-    .diagnosedienst.map((r: Ressource) => {
-      const code = r['code'] as { text?: string; coding?: { display?: string }[] } | undefined;
-      return (code?.text ?? code?.coding?.[0]?.display ?? '').toLowerCase();
-    })
-    .filter(Boolean);
+/** Was die ✦ Listen bereits führen — Kodierungen und Texte, gegen Doppelvorschläge. */
+function bereitsGefuehrt(kvnr: string): { codes: Set<string>; texte: string[] } {
+  const codes = new Set<string>();
+  const texte: string[] = [];
+  for (const r of bestandFuer(kvnr).diagnosedienst) {
+    const code = r['code'] as
+      | { text?: string; coding?: { system?: string; code?: string; display?: string }[] }
+      | undefined;
+    for (const c of code?.coding ?? []) if (c.system && c.code) codes.add(`${c.system}|${c.code}`);
+    const text = (code?.text ?? code?.coding?.[0]?.display ?? '').toLowerCase();
+    if (text) texte.push(text);
+  }
+  return { codes, texte };
+}
+
+/** Schlüssel eines Vorschlags: die Kodierung, sonst Liste und Text. */
+function vorschlagsschluessel(v: Extraktionsvorschlag): string {
+  return v.kodierung
+    ? `${v.kodierung.system}|${v.kodierung.code}`
+    : `${v.liste}|${v.text.toLowerCase()}`;
 }
 
 export function vorschlaegeBilden(kvnr: string): Lotsenvorschlaege {
   const quellen = quellenFuer(kvnr);
   const gefuehrt = bereitsGefuehrt(kvnr);
-  const vorschlaege = quellen
-    .flatMap((q) => vorschlaegeAusText(q))
-    .map((v) => ({
+  // Derselbe Eintrag aus mehreren Unterlagen erscheint einmal — mit der sichersten Fundstelle.
+  const einmal = new Map<string, Extraktionsvorschlag>();
+  for (const v of quellen.flatMap((q) => vorschlaegeAusText(q))) {
+    const k = vorschlagsschluessel(v);
+    const bisher = einmal.get(k);
+    if (!bisher || v.konfidenz > bisher.konfidenz) einmal.set(k, v);
+  }
+  const vorschlaege = [...einmal.values()].map((v) => {
+    const text = v.text.toLowerCase();
+    return {
       ...v,
       // Ein Vorschlag, der schon in der Liste steht, wird nicht unterschlagen, sondern
-      // als bekannt markiert — so bleibt nachvollziehbar, was der Lotse gefunden hat.
-      schonInListe: gefuehrt.some(
-        (g) => v.text.toLowerCase().includes(g) || g.includes(v.text.toLowerCase()),
-      ),
-    }));
+      // als bekannt markiert — so bleibt nachvollziehbar, was der Lotse gefunden hat. Erkannt
+      // am Code, sonst am Text.
+      schonInListe:
+        (!!v.kodierung && gefuehrt.codes.has(vorschlagsschluessel(v))) ||
+        gefuehrt.texte.some((g) => text.includes(g) || g.includes(text)),
+    };
+  });
   return { vorschlaege, umfang: lotseAntworten('', quellen).umfang };
 }
 

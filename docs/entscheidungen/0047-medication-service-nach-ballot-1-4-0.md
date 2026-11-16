@@ -1,6 +1,6 @@
 # 0047 — Medication Service nach dem Ballot 1.4.0, strukturierte Dosierung
 
-**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0013, 0042, 0046
+**Datum:** 29.10.2026 · **Status:** angenommen · **ergänzt:** 0013, 0042, 0046 · **ergänzt durch:** 0054
 
 ## Zusammenhang
 

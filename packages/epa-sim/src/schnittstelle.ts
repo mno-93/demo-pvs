@@ -65,3 +65,17 @@ export const KVNR_FORMAT = /^[A-Z]\d{9}$/;
 export function fehlerKoerper(errorCode: string, errorDetail: string) {
   return { errorCode, errorDetail };
 }
+
+/**
+ * Formularkörper (`application/x-www-form-urlencoded`, ITI-67 als POST): Wiederholte Parameter
+ * bleiben als Liste erhalten wie im Suchteil einer Adresse — sonst ginge die UND-Verknüpfung
+ * verloren. Für Server und Browser gleich.
+ */
+export function formularLesen(text: string): Record<string, string | string[]> {
+  const ergebnis: Record<string, string | string[]> = {};
+  for (const [name, wert] of new URLSearchParams(text)) {
+    const bisher = ergebnis[name];
+    ergebnis[name] = bisher === undefined ? wert : ([] as string[]).concat(bisher, wert);
+  }
+  return ergebnis;
+}

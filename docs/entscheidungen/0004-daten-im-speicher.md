@@ -1,6 +1,6 @@
 # 0004 — Daten im Arbeitsspeicher statt in einer Datenbank
 
-**Datum:** 09.09.2026 · **Status:** angenommen · **ergänzt durch:** 0058
+**Datum:** 09.09.2026 · **Status:** angenommen · **ergänzt durch:** 0058 · **berichtigt:** 16.11.2026
 
 ## Entscheidung
 
@@ -11,8 +11,10 @@ Der Simulator bietet Zurücksetzen und Zustandsausgabe als Verwaltungsendpunkte.
 
 Für einen Demonstrator ist Reproduzierbarkeit wichtiger als Dauerhaftigkeit: Jeder Termin muss im selben
 Zustand beginnen. Ein interessanter Zwischenstand lässt sich als Datei sichern und wieder einspielen —
-das genügt und ist obendrein versionierbar. ⚠ Stand 02.11.2026: Das Einspielen gibt es nicht;
-`GET /verwaltung/bestand` gibt den Bestand nur aus (ADR 0058). Eine Datenbank brächte Betriebsaufwand, Migrationsfragen und
+das genügt und ist obendrein versionierbar. **Berichtigt 16.11.2026:** Weder Sichern noch Einspielen
+gibt es. `GET /verwaltung/bestand` liefert nur eine Übersicht je Akte (Kennungen der Dokumente,
+Zählwerte), nicht den Bestand mit Befugnissen, E-Rezepten, Fassungen und Chronologie. Die Startdaten
+sind TypeScript-Module im Kern (`beispiele.ts`, `startbestand.ts`, `startdaten.ts`), kein JSON. Eine Datenbank brächte Betriebsaufwand, Migrationsfragen und
 bei nativen Treibern Bauprobleme, ohne dass die Fragestellung davon profitierte.
 
 ## Verworfen

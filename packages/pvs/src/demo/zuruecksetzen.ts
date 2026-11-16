@@ -1,3 +1,4 @@
+import { demoUhrNeuBeginnen } from '@demo-pvs/kern';
 import { useSyncExternalStore } from 'react';
 import { zuruecksetzen } from '../speicher/speicher.js';
 import { klientZuruecksetzen } from '../epa/klient.js';
@@ -35,6 +36,8 @@ export function useDurchgang(): number {
  */
 export async function demoZuruecksetzen(): Promise<void> {
   await aktensystemZuruecksetzen();
+  // Wie der Simulator: Die Uhr beginnt mit dem Demo-Tag neu, beide Uhren laufen wieder gleich.
+  demoUhrNeuBeginnen();
   zuruecksetzen();
   klientZuruecksetzen();
   entwuerfeLeeren();

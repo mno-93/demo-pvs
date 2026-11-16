@@ -1,8 +1,8 @@
 import type { SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { suchen } from './suche.ts';
-import { jetzt, operationOutcome, suchergebnis } from './fhir-hilfen.ts';
-import { archivierteKennungen, fassungen, istGeloescht } from './schreibwege.ts';
+import { jetzt, suchergebnis } from './fhir-hilfen.ts';
+import { archivierteKennungen, fassungen, geloeschtAm, istGeloescht } from './schreibwege.ts';
 import { MSG, QUERY_BASIS, ablage, finden, melden } from './medikation.ts';
 
 /** Common Query API für die Typen des Medication Service: Suche, Lesen und Versionshistorie. */
@@ -20,32 +20,48 @@ export function querywegeEinhaengen(
    * `PractitionerRole` und `AuditEvent` sind nicht nachgebildet.
    */
   const q = QUERY_BASIS;
-  /** Fassungen einer Instanz, neueste zuerst — aus dem Archiv, dazu die aktuelle. */
-  const verlauf = (kvnr: string, typ: string, id: string): Ressource[] => {
+  /**
+   * Einträge der Historie: jede Fassung, bei einer gelöschten Instanz zuletzt der Löscheintrag
+   * (FHIR http#history: `request.method` DELETE, ohne Ressource). Ohne ihn sähe ein Primärsystem,
+   * das Änderungen seit einem Zeitpunkt nachzieht, die Löschung nicht.
+   */
+  type Verlaufseintrag =
+    { ressource: Ressource; zeit: string } | { geloescht: string; zeit: string };
+  /** Historie einer Instanz, neueste zuerst — aus dem Archiv, dazu die aktuelle Fassung. */
+  const verlauf = (kvnr: string, typ: string, id: string): Verlaufseintrag[] => {
     const aktuell = finden(kvnr, typ, id);
     const alle = fassungen(ablage(kvnr), typ, id);
-    return (
+    const mitAktueller =
       aktuell && !alle.some((f) => f.meta?.versionId === aktuell.meta?.versionId)
         ? [...alle, aktuell]
-        : alle
-    )
-      .slice()
-      .reverse();
+        : alle;
+    const am = geloeschtAm(ablage(kvnr), typ, id);
+    return [
+      ...mitAktueller.map((r) => ({ ressource: r, zeit: String(r.meta?.lastUpdated ?? '') })),
+      ...(am ? [{ geloescht: `${typ}/${id}`, zeit: am }] : []),
+    ].reverse();
   };
-  const verlaufsbundle = (eintraege: Ressource[]) => ({
+  const verlaufsbundle = (eintraege: Verlaufseintrag[]) => ({
     resourceType: 'Bundle',
     meta: { lastUpdated: jetzt() },
     type: 'history',
     total: eintraege.length,
-    entry: eintraege.map((f) => ({
-      fullUrl: vollUrl(f),
-      resource: f,
-      request: {
-        method: f.meta?.versionId === '1' ? 'POST' : 'PUT',
-        url: `${f.resourceType}/${String(f.id)}`,
-      },
-      response: { status: f.meta?.versionId === '1' ? '201 Created' : '200 OK' },
-    })),
+    entry: eintraege.map((e) =>
+      'geloescht' in e
+        ? {
+            request: { method: 'DELETE', url: e.geloescht },
+            response: { status: '204 No Content' },
+          }
+        : {
+            fullUrl: vollUrl(e.ressource),
+            resource: e.ressource,
+            request: {
+              method: e.ressource.meta?.versionId === '1' ? 'POST' : 'PUT',
+              url: `${e.ressource.resourceType}/${String(e.ressource.id)}`,
+            },
+            response: { status: e.ressource.meta?.versionId === '1' ? '201 Created' : '200 OK' },
+          },
+    ),
   });
   const nachAktualitaet = (a: Ressource, b: Ressource) =>
     String(b.meta?.lastUpdated ?? '').localeCompare(String(a.meta?.lastUpdated ?? ''));
@@ -71,7 +87,9 @@ export function querywegeEinhaengen(
           ...archivierteKennungen(ablage(kvnr), typ),
         ]);
         return verlaufsbundle(
-          [...kennungen].flatMap((id) => verlauf(kvnr, typ, id)).sort(nachAktualitaet),
+          [...kennungen]
+            .flatMap((id) => verlauf(kvnr, typ, id))
+            .sort((a, b) => b.zeit.localeCompare(a.zeit)),
         );
       });
     }
@@ -94,7 +112,7 @@ export function querywegeEinhaengen(
       return { ...suchergebnis(ergebnis.slice(ab, ab + anzahl)), total: ergebnis.length };
     });
     const unbekannt = (antwort: SimAntwort) =>
-      antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`));
+      melden(antwort, 404, 'not-found', `${typ} nicht gefunden.`, MSG.unbekannt);
     // Gelöschte Instanzen: 410 (FHIR read); ihre Fassungen bleiben über die Historie abrufbar.
     const fehltOderGeloescht = (kvnr: string, id: string, antwort: SimAntwort) =>
       istGeloescht(ablage(kvnr), typ, id)
@@ -116,8 +134,10 @@ export function querywegeEinhaengen(
     app.get(`${q}/${typ}/:id/_history/:vid`, async (anfrage, antwort) => {
       const kvnr = kvnrAus(anfrage);
       const { id, vid } = anfrage.params as { id: string; vid: string };
-      const f = verlauf(kvnr, typ, id).find((x) => x.meta?.versionId === vid);
-      return f ?? unbekannt(antwort);
+      const f = verlauf(kvnr, typ, id).find(
+        (x) => 'ressource' in x && x.ressource.meta?.versionId === vid,
+      );
+      return f && 'ressource' in f ? f.ressource : unbekannt(antwort);
     });
   }
 }

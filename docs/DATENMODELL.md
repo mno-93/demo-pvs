@@ -53,6 +53,26 @@ Die Oberfläche baut keine Ressourcen. Zurück in die Bestände führt `fhir/les
 | Behandlungsfälle, Leistungen | erfasst                            | — (Abrechnung geht nicht in die ePA)        | Abrechnungsprüfung                                                                                               |
 | Verlauf je Besuch            | **abgeleitet**                     | —                                           | Karteikarte                                                                                                      |
 
+**Weiterer Zustand des Praxissystems** — im selben Zustandsobjekt (`pvs/src/speicher/zustand.ts`),
+ohne eigene fachliche Abbildung nach FHIR:
+
+| Bestand                     | Art                             | Verbindung zur ePA                        | Verwendet in                                            |
+| --------------------------- | ------------------------------- | ----------------------------------------- | ------------------------------------------------------- |
+| Termine                     | erfasst                         | —                                         | Tagesübersicht, Kommende Termine                        |
+| Befugnisse der Praxis       | Ergebnis von `setEntitlementPs` | `validTo` je Akte                         | Kopf, Tagesübersicht, „eGK einlesen"                    |
+| Planabgleiche               | Ergebnis des Abgleichs          | Stand des eMP beim Abgleich               | Medikationsplan der Praxis (ADR 0046)                   |
+| Gesehen, Lesezeichen        | Ergebnis von Abrufen            | Zeitpunkte der Antworten des Aktensystems | „neu seit dem letzten Aufruf" (ADR 0027)                |
+| Listenordnung               | Einstellung                     | —                                         | Sortierung der Listen je Person (6.1 der SPEZIFIKATION) |
+| Handlungen, Aufrufprotokoll | Zählung, Protokoll              | jeder Aufruf an die ePA                   | Handlungszähler, Konfiguration                          |
+
+Außerhalb des Zustandsobjekts halten einzelne Module Zustand des Klienten — Sitzung, offene
+Anfragen, Protokoll, Fenster (`pvs/src/epa/klient.ts`, `protokoll.ts`, `fenster.ts`) —, der beim
+Zurücksetzen mit zurückgesetzt wird. Die Praxisstammdaten sind keine erfasste Größe, sondern eine
+Konstante des Kerns (`PRAXIS_STAMMDATEN`). ⚠ Verweise zwischen Beständen (Planeintrag → Rezept,
+Rezept → Diagnose, Eintrag → Fall) prüft das Praxissystem nicht; ein verworfenes Rezept kann als
+Kennung im Plan stehen bleiben (ohne sichtbare Folge, die Auswertung filtert über vorhandene
+Rezepte).
+
 Strukturierte Sachverhalte stehen nie als Karteitext, Laborwerte nie als eigener Bestand — sie
 entstehen aus den Befunden (ADR 0016). Ein unterschriebener Brief liegt als FHIR-Dokument in der
 Ablage: eine Momentaufnahme, keine zweite Quelle.
@@ -131,17 +151,17 @@ steht die Extension.
 
 ### 4.3 Impfung → `Immunization` nach `immunization-eu-core` 2.0.0
 
-| Feld im PVS          | FHIR-Element                            | Kard.                         | Kodierung                       | Wenn leer                               |
-| -------------------- | --------------------------------------- | ----------------------------- | ------------------------------- | --------------------------------------- |
-| `status`             | `status`                                | **1..1**                      | `completed`, `entered-in-error` | immer                                   |
-| `impfstoff`          | `vaccineCode`                           | **1..1**                      | ATC mit Version, PZN; `text`    | ATC und `text` immer                    |
-| KVNR                 | `patient`                               | **1..1**                      | `kvid-10`                       | kommt nicht vor (R1)                    |
-| `datum`              | `occurrenceDateTime`                    | **1..1**                      | —                               | Pflicht in der Erfassung                |
-| `dosis`              | `protocolApplied.doseNumberPositiveInt` | **1..1** je `protocolApplied` | —                               | **`data-absent-reason` `unknown`** (R2) |
-| `zielkrankheiten`    | `protocolApplied.targetDisease`         | 0..\*                         | SNOMED CT                       | weglassen (R4)                          |
-| `geimpftVon`         | `performer.actor.display`               | 0..\*                         | —                               | immer gesetzt                           |
-| `herkunft.zeitpunkt` | `recorded` (Datum)                      | 0..1                          | —                               | immer gesetzt                           |
-| `charge`, `notiz`    | `lotNumber`, `note.text`                | 0..1, 0..\*                   | —                               | weglassen                               |
+| Feld im PVS          | FHIR-Element                                                                                  | Kard.                         | Kodierung                                   | Wenn leer                               |
+| -------------------- | --------------------------------------------------------------------------------------------- | ----------------------------- | ------------------------------------------- | --------------------------------------- |
+| `status`             | `status`                                                                                      | **1..1**                      | `completed`, `not-done`, `entered-in-error` | immer                                   |
+| `impfstoff`          | `vaccineCode`                                                                                 | **1..1**                      | ATC mit Version, PZN; `text`                | ATC und `text` immer                    |
+| KVNR                 | `patient`                                                                                     | **1..1**                      | `kvid-10`                                   | kommt nicht vor (R1)                    |
+| `datum`              | `occurrenceDateTime`; ungefähr `occurrenceString` (aus fremden Einträgen, im Dienst änderbar) | **1..1** (`occurrence[x]`)    | —                                           | Pflicht in der Erfassung                |
+| `dosis`              | `protocolApplied.doseNumberPositiveInt`                                                       | **1..1** je `protocolApplied` | —                                           | **`data-absent-reason` `unknown`** (R2) |
+| `zielkrankheiten`    | `protocolApplied.targetDisease`                                                               | 0..\*                         | SNOMED CT                                   | weglassen (R4)                          |
+| `geimpftVon`         | `performer.actor.display`                                                                     | 0..\*                         | —                                           | immer gesetzt                           |
+| `herkunft.zeitpunkt` | `recorded` (Datum)                                                                            | 0..1                          | —                                           | immer gesetzt                           |
+| `charge`, `notiz`    | `lotNumber`, `note.text`                                                                      | 0..1, 0..\*                   | —                                           | weglassen                               |
 
 ### 4.4 Patient, Praxis, Person
 
