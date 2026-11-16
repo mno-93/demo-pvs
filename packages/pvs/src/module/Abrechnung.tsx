@@ -157,7 +157,7 @@ export function Abrechnung() {
                           {v ? (
                             <Marker ton="warn">
                               ohne Handlung · {v.einrichtung ?? 'ePA'}
-                              {v.angezeigtAm ? '' : ' · noch nicht angezeigt'}
+                              {v.angezeigtAm ? '' : ' · in den Diagnosen noch nicht angezeigt'}
                             </Marker>
                           ) : (
                             'Praxis'
@@ -184,7 +184,7 @@ export function Abrechnung() {
                   <small>
                     {' '}
                     · {v.einrichtung ?? 'ePA'}
-                    {v.angezeigtAm ? '' : ' · noch nicht angezeigt'}
+                    {v.angezeigtAm ? '' : ' · in den Diagnosen noch nicht angezeigt'}
                   </small>
                 </div>
               ))}

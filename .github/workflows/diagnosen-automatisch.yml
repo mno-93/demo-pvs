@@ -4,8 +4,9 @@
 # zum Branch und beantwortet zwei Fragen schnell: Hält die automatische Übertragung, was die
 # Spezifikation in Abschnitt 6.4 beschreibt — und wo ist der Stand zum Ansehen? Er führt die Tests
 # der Funktion und ihren Klickpfad aus, baut die gehostete Fassung mit dem Simulator im Browser
-# und legt sie als Artefakt an den Lauf. Veröffentlicht wird nichts: Auf GitHub Pages geht nur
-# main (demo.yml).
+# und legt sie als Artefakt an den Lauf. Dieser Lauf veröffentlicht nichts. Die Vorschau unter
+# …/vorschau/diagnosen-automatisch-uebertragen/ baut der Lauf auf main (demo.yml), solange der
+# Branch in .github/vorschau-branches.txt auf main steht.
 #
 # Mit dem Branch entfällt diese Datei — vor einer Übernahme nach main löschen.
 #
@@ -66,6 +67,7 @@ jobs:
             echo
             echo '| Frage | Einstieg |'
             echo '| --- | --- |'
+            echo '| Was kommt beim automatischen Upload in der ePA an? | `…/demo-pvs/?klickpfad=diagnosen-hochladen` |'
             echo '| Was löst eine fremde Änderung in der eigenen Praxis aus? | `…/demo-pvs/?klickpfad=fremde-aenderung-automatisch` |'
             echo '| Was überträgt der erste Abgleich? | Konfiguration → Weiterentwicklung 3 → „Diagnosen in die ePA“ → Frau Hoffmann, eGK einlesen |'
             echo '| Was steht ohne Auswahl in der Patient Summary? | Konfiguration → „Patient Summary aus: Listen ohne Relevanzauswahl“ |'

@@ -158,7 +158,8 @@ Rundgang über einen Link — geführt, frei mit Wegweiser oder als Aufgabe für
 Der Gegenentwurf zum geführten Abgleich, am selben Bestand: Das Praxissystem überträgt Diagnosen
 ohne ärztliche Handlung — nur in die ePA oder in beide Richtungen. Umschaltbar in der
 Demo-Steuerung („Diagnosen in die ePA“), mit Vermerk je automatischem Schritt, der Folge in der
-Abrechnung und dem Klickpfad `?klickpfad=fremde-aenderung-automatisch`. Beschreibung:
+Abrechnung und den Klickpfaden `?klickpfad=diagnosen-hochladen` (nur in die ePA) und
+`?klickpfad=fremde-aenderung-automatisch` (in beide Richtungen). Beschreibung:
 [SPEZIFIKATION 6.4](docs/SPEZIFIKATION.md#64--diagnosen-automatisch-übertragen-adr-0063),
 [ADR 0063](docs/entscheidungen/0063-diagnosen-automatisch-uebertragen.md).
 

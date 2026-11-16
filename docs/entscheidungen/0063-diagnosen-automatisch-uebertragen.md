@@ -58,9 +58,14 @@ erkennt die Praxis später, was sie wann gesehen hat?
 
 ▸ Bewertung, zur Diskussion gestellt.
 
-- **Nur in die ePA** erzeugt keine Konflikte, aber Doppeleinträge: Dieselbe Erkrankung steht je
-  Einrichtung einmal in der Liste, mit unterschiedlicher ICD-10-GM-Tiefe (Frau Hoffmann: E11.74 vom
-  Klinikum, E11.90 von der Praxis).
+- **Nur in die ePA** erzeugt Doppeleinträge: Dieselbe Erkrankung steht je Einrichtung einmal in der
+  Liste, mit unterschiedlicher ICD-10-GM-Tiefe (Frau Hoffmann: E11.74 vom Klinikum, E11.90 von der
+  Praxis). ~~Keine Konflikte~~ **Nachtrag 16.11.2026:** Konflikte entstehen auch hier, sobald eine
+  andere Einrichtung einen hochgeladenen Eintrag ändert — die Liste ist gemeinsam, und jede befugte
+  Einrichtung darf ändern. Die Praxis übernimmt die Änderung nicht, eigene Änderungen am Eintrag
+  gehen nicht mehr von selbst hinaus (Klickpfad `diagnosen-hochladen`). Konfliktfrei wäre der Weg
+  nur, wenn allein die anlegende Einrichtung ändern dürfte; dann könnte niemand einen fremden
+  Eintrag berichtigen.
 - **In beide Richtungen** erzeugt keine Doppeleinträge, aber fremde Wirkung: Beendet eine andere
   Einrichtung eine Diagnose, ist sie in der Praxis beendet. Die Abrechnungsangaben der Praxis —
   ICD-10-GM, Zusatzkennzeichen, Seite — bleiben, wie sie waren, und passen dann nicht mehr zum
@@ -69,6 +74,10 @@ erkennt die Praxis später, was sie wann gesehen hat?
   fortlaufend behandelt wird. Ein automatischer Abgleich macht daraus eine Aussage über die Person —
   und aus der Aussage einer anderen Einrichtung eine Diagnose im eigenen Behandlungsfall.
 - **Der erste Abgleich überträgt den Bestand ungeprüft**, mit dem Datum der Übertragung.
+- **Wer ist Urheber eines Eintrags ohne Handlung?** Die Demo trägt die angemeldete Person ein. Das
+  suggeriert eine ärztliche Entscheidung, die nicht stattfand (Nachtrag 16.11.2026).
+- **Der Umfang wirkt nur in eine Richtung.** In beide Richtungen übernimmt das Praxissystem jeden
+  fremden Eintrag, auch Akutdiagnosen einer anderen Einrichtung (Nachtrag 16.11.2026).
 - **Ohne Vermerk ist nicht belegbar, was die Praxis wann gesehen hat.** Im geführten Weg entsteht
   dieser Beleg nebenbei, weil jede Übernahme eine Handlung ist; im automatischen muss ihn das
   Praxissystem eigens führen.

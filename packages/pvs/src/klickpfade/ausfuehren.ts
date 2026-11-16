@@ -1,7 +1,7 @@
 import { betriebslageSetzen } from '../demo/steuerung.js';
 import { demoZuruecksetzen } from '../demo/zuruecksetzen.js';
 import { egkEinlesen } from '../epa/befugnis.js';
-import { aufrufeLesen, protokollLeeren } from '../epa/protokoll.js';
+import { aufrufeLesen, protokollLeeren, protokollSchliessen } from '../epa/protokoll.js';
 import { ausfuehren } from '../speicher/speicher.js';
 import { vorgaenge } from '../speicher/vorgaenge.js';
 import { alleFinden, erfuellt, zielBeschreibung } from './finden.js';
@@ -53,6 +53,9 @@ export async function startzustandHerstellen(
   navigieren: (pfad: string) => void,
 ): Promise<void> {
   await demoZuruecksetzen();
+  // Die Demo-Steuerung beginnt geschlossen — ein Pfad, der sie öffnet, fände sie sonst offen
+  // vor, wenn der vorige sie offen gelassen hat, und schlösse sie mit seinem Klick.
+  protokollSchliessen();
   await betriebslageSetzen({ ausbaustand: s.start.ausbaustand });
   if (s.start.diagnosenweg) {
     ausfuehren(

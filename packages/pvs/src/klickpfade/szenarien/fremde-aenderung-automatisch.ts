@@ -49,9 +49,9 @@ export default szenario({
     },
     {
       ziel: { rolle: 'region', name: 'Diagnosen im Behandlungsfall' },
-      pruefen: { text: 'noch nicht angezeigt' },
-      kurz: 'Ohne Handlung, noch nicht angezeigt',
-      lang: 'Die Herkunft nennt die Einrichtung und dass die Änderung ohne Handlung kam. „Noch nicht angezeigt“ heißt: Das Praxissystem hat sie abgerufen und übernommen, aber niemand hat die Diagnosen seither geöffnet.',
+      pruefen: { text: 'in den Diagnosen noch nicht angezeigt' },
+      kurz: 'Ohne Handlung, in den Diagnosen noch nicht angezeigt',
+      lang: 'Die Herkunft nennt die Einrichtung und dass die Änderung ohne Handlung kam. „In den Diagnosen noch nicht angezeigt“ heißt: Das Praxissystem hat sie abgerufen und übernommen, aber niemand hat die Diagnosen seither geöffnet. Die Abrechnung zeigt sie hier zwar an — als gesehen gilt sie erst mit dem Vermerk im Band der Diagnosen. Diesen Vermerk zieht die Abrechnung nicht nach; das ist eine offene Frage des Konzepts: Was muss die Praxis gesehen haben, bevor eine fremde Änderung in ihre Abrechnung geht?',
     },
     {
       ziel: {

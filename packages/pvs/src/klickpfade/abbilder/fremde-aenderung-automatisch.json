@@ -28,14 +28,14 @@
       "schritt": 4,
       "kurz": "Die Diagnose der Praxis ist behoben",
       "ziel": "Bereich „Diagnosen im Behandlungsfall“",
-      "inhalt": "Diagnosen im Behandlungsfall ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
+      "inhalt": "Diagnosen im Behandlungsfall ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · in den Diagnosen noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
       "epa": []
     },
     {
       "schritt": 5,
-      "kurz": "Ohne Handlung, noch nicht angezeigt",
+      "kurz": "Ohne Handlung, in den Diagnosen noch nicht angezeigt",
       "ziel": "Bereich „Diagnosen im Behandlungsfall“",
-      "inhalt": "Diagnosen im Behandlungsfall ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
+      "inhalt": "Diagnosen im Behandlungsfall ICD-10-GM Bezeichnung Art Status Herkunft I10.90 G Essentielle Hypertonie, ohne Angabe einer hypertensiven Krise · gesicherte Diagnose Dauerdiagnose Behoben seit 09.09.2026 ohne Handlung · Kardiologische Praxis am Wall · in den Diagnosen noch nicht angezeigt E03.9 G Hypothyreose, nicht näher bezeichnet · gesicherte Diagnose Dauerdiagnose Aktiv Praxis",
       "epa": []
     },
     {
