@@ -101,6 +101,11 @@
       "schritt": 14,
       "kurz": "Was der Upload spart und was er kostet",
       "erzaehlung": true
+    },
+    {
+      "schritt": 15,
+      "kurz": "Wer darf ändern — und was dann aus dem Upload wird",
+      "erzaehlung": true
     }
   ]
 }

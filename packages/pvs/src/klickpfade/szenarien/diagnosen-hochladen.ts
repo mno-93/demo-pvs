@@ -156,5 +156,22 @@ Gekostet: Doppeleinträge je Einrichtung, eine Patient Summary, die niemand ausg
         },
       ],
     },
+    {
+      kapitel: 'Ausblick',
+      kurz: 'Wer darf ändern — und was dann aus dem Upload wird',
+      lang: `Konfliktfrei wird der Upload erst mit einer Regel, die der Diagnose-Service offenlässt: Nur die anlegende Einrichtung ändert ihren Eintrag. Andere widersprechen mit einem eigenen Eintrag oder einer Rückfrage, nicht durch Überschreiben.
+
+Gemeinsam bearbeitet wird dann nur die Auswahl: eine eigene, versionierte Summary-Liste je Abschnitt statt der Markierung am Eintrag. Der Upload wird so zur Vorstufe — er füllt die Gesamtliste, der Dienst bildet daraus einen Entwurf „automatisch zusammengestellt, ärztlich nicht bestätigt“, und erst die erste ärztliche Bearbeitung macht die Übersicht verantwortet. Danach erscheinen neue Einträge als Vorschläge, nicht von selbst.
+
+✦ Nicht nachgebildet — zur Diskussion. Vorbild ist die österreichische e-Diagnose mit Gesamtansicht und Summary-Liste.`,
+      mehr: [
+        { text: 'Wer darf ändern?', pfad: 'docs/SPEZIFIKATION.md#-wer-darf-ändern' },
+        {
+          text: 'Automatische Liste als Vorstufe',
+          pfad: 'docs/SPEZIFIKATION.md#-ausblick-die-automatische-liste-als-vorstufe-einer-summary-liste',
+        },
+        { text: 'ADR 0063, Nachtrag', pfad: ADR },
+      ],
+    },
   ],
 });

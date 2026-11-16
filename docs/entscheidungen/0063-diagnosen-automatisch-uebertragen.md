@@ -111,6 +111,19 @@ Gerade dass hier nichts gezählt wird, ist die Aussage; der Vermerk hält fest, 
 Zusatzkennzeichen einer anderen Einrichtung in die eigene Abrechnung zu schreiben, wäre eine
 zweite fremde Wirkung. Die Demo lässt die Angaben der Praxis stehen und zeigt den Widerspruch.
 
+## Nachtrag 16.11.2026: Wer darf ändern — und die Summary-Liste als nächste Stufe
+
+Der Klickpfad `diagnosen-hochladen` zeigt, dass der Upload „nur in die ePA“ an einer offenen Regel
+hängt: Solange jede befugte Einrichtung jeden Eintrag ändern darf, entstehen auch hier Konflikte.
+SPEZIFIKATION 6.4 wägt vier Regeln ab (jede Einrichtung ändert alles · nur die anlegende ·
+niemand · zwei Ebenen) und empfiehlt ▸ **zwei Ebenen**: Einträge gehören der anlegenden
+Einrichtung, die Auswahl für die Patient Summary ist eine eigene, versionierte Summary-Liste, die
+jede befugte Ärztin bearbeitet. Mit dieser Regel wird der automatische Upload zur Vorstufe: Er füllt
+die Gesamtliste, der Dienst bildet daraus einen gekennzeichneten Entwurf der Summary-Liste, und erst
+die erste ärztliche Bearbeitung macht die Übersicht verantwortet (✦ Ausblick in 6.4, nicht
+nachgebildet). Das wäre eine eigene Entscheidung — sie ersetzte die Markierung am Eintrag (0022)
+und berührte 0018 und 0062.
+
 ## Vorbild und Abgrenzung
 
 Die österreichische e-Diagnose trennt eine „Gesamtansicht“ aller Einträge von einer ärztlich
