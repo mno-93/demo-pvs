@@ -42,6 +42,11 @@ export default szenario({
       lang: 'Eine kardiologische Praxis setzt den Eintrag in der Liste auf „behoben“. Sie ändert damit einen gemeinsamen Eintrag — in der eigenen Praxis hat niemand etwas getan.',
     },
     {
+      ziel: { rolle: 'button', name: 'Konfiguration schließen' },
+      handlung: { art: 'klicken' },
+      kurz: 'Demo-Steuerung schließen',
+    },
+    {
       ziel: { rolle: 'region', name: 'Diagnosen im Behandlungsfall' },
       pruefen: { text: 'Behoben' },
       kurz: 'Die Diagnose der Praxis ist behoben',

@@ -63,6 +63,11 @@ Der Abgleich erkennt „gleicher Eintrag, nicht verknüpft“ und schlägt „ve
       lang: `Umfang: gegenwärtige Dauerdiagnosen. Ab jetzt lädt das Praxissystem hoch, sobald die Kartei offen ist und die Listen geladen sind — auch wenn niemand die Diagnosen ansieht. Aus der ePA übernimmt es nichts von selbst.`,
     },
     {
+      ziel: { rolle: 'button', name: 'Konfiguration schließen' },
+      handlung: { art: 'klicken' },
+      kurz: 'Demo-Steuerung schließen',
+    },
+    {
       kapitel: 'Der erste Upload',
       ziel: BAND,
       pruefen: { text: 'in die ePA übertragen' },
@@ -110,6 +115,12 @@ Die Auswahl für die Patient Summary ist im automatischen Weg keine ärztliche E
     },
     {
       kapitel: 'Eine andere Einrichtung ändert',
+      ziel: { rolle: 'button', name: 'Konfiguration' },
+      handlung: { art: 'klicken' },
+      kurz: 'Demo-Steuerung öffnen',
+      lang: 'Die Demo-Steuerung spielt die andere Einrichtung.',
+    },
+    {
       ziel: {
         rolle: 'button',
         name: 'andere Einrichtung beendet Dauerdiagnose',
@@ -118,6 +129,11 @@ Die Auswahl für die Patient Summary ist im automatischen Weg keine ärztliche E
       handlung: { art: 'klicken' },
       kurz: 'Die Kardiologie beendet die Hypertonie',
       lang: 'Eine kardiologische Praxis setzt die Hypertonie in der Liste auf „behoben“ — den Eintrag, den die Praxis eben hochgeladen hat. Der Diagnose-Service erlaubt das jeder befugten Einrichtung, wie die Berichtigung (Abschnitt 6).',
+    },
+    {
+      ziel: { rolle: 'button', name: 'Konfiguration schließen' },
+      handlung: { art: 'klicken' },
+      kurz: 'Demo-Steuerung schließen',
     },
     {
       ziel: SPLIT,
