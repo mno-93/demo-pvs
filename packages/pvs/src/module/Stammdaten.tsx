@@ -137,13 +137,8 @@ export function Stammdaten() {
 
         <div>
           <Karte titel="Gesundheitskarte">
-            <p style={{ fontSize: '0.9em', color: 'var(--text-leise)' }}>
-              Das Einlesen ist simuliert. Es gibt keinen Kartenleser und keine Anbindung an die
-              Telematikinfrastruktur. Wie im Wirkbetrieb begründet es aber den Behandlungskontext:
-              Das Praxissystem registriert den Prüfungsnachweis bei der ePA, die ePA erteilt eine
-              Befugnis für 90 Tage (Konzept ePA 3.1.3).
-            </p>
             <div className="reihe" style={{ marginBottom: 8 }}>
+              <Marker ton="neutral">simuliert · ohne Kartenleser und TI</Marker>
               <BefugnisMarker patientId={patient.id} />
               {befugnis && (
                 <span className="leise-klein">

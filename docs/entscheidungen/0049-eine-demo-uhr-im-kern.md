@@ -38,6 +38,9 @@ Oberflächenmodulen und `jetztAlsIsoOrtszeit()` mit `new Date()` als Vorgabe. Da
 - Lokal laufen Praxissystem und Simulator in getrennten Prozessen mit je eigener Uhr. Startet einer
   vor und einer nach Mitternacht, liegen ihre Demo-Tage einen Tag auseinander. ▸ Hingenommen: Beide
   werden mit `npm run dev` gemeinsam gestartet.
+  **Nachtrag 16.11.2026:** Das trug nicht — der Simulator läuft weiter, das Praxissystem beginnt mit
+  jedem Laden der Seite neu. Seit ADR 0063 beginnen beide Uhren beim Zurücksetzen neu
+  (`demoUhrNeuBeginnen`); das lokale Laden setzt den Simulator mit zurück (ADR 0058).
 - Die Tagesübersicht bleibt beim Demo-Tag (`zustand.heute`); nach Mitternacht entstehende Einträge
   tragen den Folgetag.
 

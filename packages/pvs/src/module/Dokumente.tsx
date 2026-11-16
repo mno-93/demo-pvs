@@ -369,10 +369,10 @@ function Einscannen({ patientId }: { patientId: string }) {
 
   return (
     <Karte titel="Unterlage einscannen">
-      <p style={{ fontSize: '0.9em', color: 'var(--text-leise)' }}>
-        Der Scanvorgang ist simuliert: Die Demo legt einen Eintrag mit Metadaten an, keine
-        Bilddaten. Er bleibt im Praxissystem und gelangt nicht von selbst in die ePA.
-      </p>
+      <div className="reihe" style={{ marginBottom: 8 }}>
+        <Marker ton="neutral">simuliert · nur Metadaten</Marker>
+        <Marker ton="neutral">bleibt im Praxissystem</Marker>
+      </div>
       <div className="feldreihe">
         <div className="feldzeile" style={{ flex: '2 1 240px' }}>
           <label htmlFor="scan-titel">Bezeichnung</label>

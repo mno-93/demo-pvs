@@ -1,6 +1,6 @@
 # 0022 — ✦ Relevanz für die Patient Summary als Markierung am Listeneintrag
 
-**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht
+**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht · **ergänzt durch:** 0063
 spezifiziert · **ändert:** 0021 (Auswahl der Einträge)
 
 ## Zusammenhang
@@ -44,7 +44,9 @@ herauszuhalten; die Liste wäre dann nicht mehr vollständig.
 Summary hinge davon ab, wer zuletzt geschrieben hat.
 **Markierung über `$update-…-entry`** — möglich, aber es vermischt eine Relevanzentscheidung mit
 einer fachlichen Änderung des Eintrags und erzeugt beim Abgleich unnötige Zustände
-„in der ePA geändert".
+„in der ePA geändert". **Nachtrag 16.11.2026:** Der Dienst setzt das jetzt durch — `$update`
+übernimmt die Markierung aus dem Bestand, gleich ob die Eingabe sie trägt; bis dahin löschte ein
+`$update` ohne die Extension die Markierung.
 **Eigene Relevanzliste neben den Listen** — ein zweiter Bestand, der mit den Listen abgeglichen
 werden müsste.
 

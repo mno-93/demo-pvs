@@ -1,6 +1,6 @@
 # 0015 — Terminologie im Hintergrund: Kodierservice und nationale Wertelisten
 
-**Datum:** 10.09.2026 · **Status:** angenommen
+**Datum:** 10.09.2026 · **Status:** angenommen · **Nachtrag:** 16.11.2026
 
 ## Zusammenhang
 
@@ -16,7 +16,8 @@ KBV_VS_AllergyIntolerance_Substance_SNOMED_CT und die Manifestationen an KBV_VS_
   und SNOMED CT in einem Schritt. Wo er nichts kennt, bleibt nur die ICD-10-GM — sichtbar als
   „ohne SNOMED CT". Altbestand lässt sich nachkodieren.
 - **Allergien:** Die Substanz kommt aus der national abgestimmten Werteliste (197 Konzepte),
-  die Manifestationen aus deren Werteliste (41), der Expositionsweg aus
+  die Manifestationen aus deren Werteliste (41; **Nachtrag 16.11.2026:** heute 37, übernommen vom
+  Zentralen Terminologieserver des BfArM, siehe SPEZIFIKATION 9), der Expositionsweg aus
   KBV_VS_Base_Route_of_Administration_SNOMED_CT (63). Alle Listen werden per Skript aus dem
   Informationsmodell übernommen, mit Herkunft im Kopf. Freitext ist zulässig, weil die
   Bindung extensible ist; die Maske sagt, was er kostet.

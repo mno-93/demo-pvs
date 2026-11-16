@@ -1,6 +1,6 @@
 # 0002 — Der ePA-Simulator ist eine eigene Anwendung
 
-**Datum:** 09.09.2026 · **Status:** angenommen
+**Datum:** 09.09.2026 · **Status:** angenommen · **Teile ersetzt durch:** 0013
 
 ## Zusammenhang
 

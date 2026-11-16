@@ -1,6 +1,6 @@
 # 0032 — ✦ Aktenlotse: ein Auskunftsdienst ohne eigene Rechte
 
-**Datum:** 05.10.2026 · **Status:** angenommen · **baut auf:** 0013, 0017, 0018, 0021, 0025
+**Datum:** 05.10.2026 · **Status:** angenommen · **baut auf:** 0013, 0017, 0018, 0021, 0025 · **Stufenfolge ersetzt durch:** 0034
 
 ## Zusammenhang
 

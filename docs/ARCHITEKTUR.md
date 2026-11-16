@@ -12,10 +12,13 @@
    │  eigener Datenbestand    │  MHD ITI-68 │  Befugnisse, Dokumente,    │
    │                          │  XDS ITI-41 │  (+ KIM-Clientmodul,       │
    │                          │  KIM (Mail) │   Demo-Ersatz)             │
-   │                          │  Medication │  Medikation                │
-   │                          │  ✦ Listen   │  (+ ✦ Diagnose-Service)    │
-   │                          │  ✦ Summary  │  (+ ✦ Patient Summary)     │
-   │                          │ ◄────────── │                            │
+   │                          │  Medication │  Medikation, Render API    │
+   │                          │  Query API  │  Common Query API          │
+   │                          │  ✦ Listen   │  (+ ✦ Diagnose-Service,    │
+   │                          │  ✦ Summary  │   ✦ Impfliste,             │
+   │                          │  ✦ Lotse    │   ✦ Patient Summary,       │
+   │                          │  ✦ Kontakt  │   ✦ Aktenlotse, Kontakt)   │
+   │                          │ ◄────────── │  /verwaltung: Steuerung    │
    └────────────┬─────────────┘             └─────────────┬──────────────┘
                 └───────────────┬────────────────────────┘
                      ┌──────────▼──────────┐
@@ -31,17 +34,23 @@ Die zentrale Aussage der Patient-Summary-Konzeption ist eine Aussage über eine 
 was in der Akte, wer darf was ändern. Liefe beides im selben Prozess, wäre diese Grenze ein Kommentar
 im Quelltext. Über HTTP ist sie überprüfbar — was das PVS nicht abruft, hat es nicht.
 
-Daraus folgen drei Regeln, die beim Weiterbauen einzuhalten sind:
+Daraus folgen vier Regeln, die beim Weiterbauen einzuhalten sind:
 
 1. **Das PVS greift nie direkt auf den Datenbestand des Simulators zu.** Jeder Zugriff läuft über den
    ePA-Client in `packages/pvs/src/epa/` (`klient.ts`, je Dienst ein Modul unter `dienste/`). Die
    Demo-Steuerung (`/verwaltung`) ist keine Schnittstelle der ePA und steht getrennt in
    `packages/pvs/src/demo/steuerung.ts`; gemeinsame Wege beider Seiten liefert der Kern (`WEG`) —
-   [0059](entscheidungen/0059-module-nach-fachlichen-teilen.md).
+   [0059](entscheidungen/0059-module-nach-fachlichen-teilen.md). Eine Ausnahme: Beim lokalen Start
+   setzt `main.tsx` den Simulator mit einem eigenen Aufruf zurück, bevor der Transport steht
+   ([0058](entscheidungen/0058-zuruecksetzen-atomar-lokal-beim-start.md)).
 2. **`kern` kennt weder React noch Fastify.** Alles, was in beiden Anwendungen gilt — Typen, Kataloge,
    Fachlogik, FHIR-Abbildung — liegt dort und ist ohne Oberfläche testbar.
 3. **Jede Ansicht sagt, welchen Bestand sie zeigt.** Lokale Daten und ePA-Daten werden nie stillschweigend
-   vermischt. Ein Datensatz wechselt die Seite nur durch eine benannte Handlung.
+   vermischt. Ein Datensatz wechselt die Seite nur durch eine benannte Handlung. Eine beschlossene
+   Ausnahme: Der Medikationsplan der Praxis gleicht sich nach dem Lesen des eMP selbst ab und nimmt
+   dessen Einträge auf, ohne als Handlung zu zählen
+   ([0045](entscheidungen/0045-medikationsplan-der-praxis-ohne-akte.md),
+   [0046](entscheidungen/0046-medikationsplan-der-praxis-mit-abgleich.md)).
 4. **Die Oberfläche erklärt nicht, die Dokumentation schon.** Keine Erklärtexte in Ansichten;
    was eine Ansicht zeigt, steht in [SPEZIFIKATION.md](SPEZIFIKATION.md) —
    [0020](entscheidungen/0020-selbsterklaerende-oberflaeche.md).
@@ -210,6 +219,17 @@ Einmal dokumentieren, überall verwenden ([0039](entscheidungen/0039-einmal-doku
 
 Bestände, Abbildungsregeln und Feldtabellen: [DATENMODELL.md](DATENMODELL.md).
 
+**Datenhaltung im Simulator.** Beide Seiten halten ihre Daten im Arbeitsspeicher, ohne Datenbank
+([0004](entscheidungen/0004-daten-im-speicher.md)); Zurücksetzen setzt Praxis, Simulator und die
+Demo-Uhr gemeinsam zurück ([0058](entscheidungen/0058-zuruecksetzen-atomar-lokal-beim-start.md)).
+Der Simulator führt je Akte Ablagen; geschrieben wird nur über die Mechanik in
+`epa-sim/src/schreibwege.ts`: Änderungseintrag (Provenance), Fassungssicherung, Chronologie,
+Löschen mit Zeitpunkt. Darauf beruhen `_history`, frühere Stände des eMP und der Patient Summary
+([0062](entscheidungen/0062-fruehere-staende-der-patient-summary.md)). Deshalb gilt: **Jede Änderung
+ist eine Fassung**, auch eine Markierung, und wer an dieser Mechanik vorbei schreibt, bricht die
+Geschichte ([0063](entscheidungen/0063-jede-aenderung-eine-fassung.md)). Fassungsarchiv und
+Löschmarken hängen an der Ablage; vernichtet werden Daten nur mit `ablageLeeren()`.
+
 ## Zustand im PVS
 
 Ein kleiner Speicher auf `useSyncExternalStore` statt einer Bibliothek — siehe
@@ -224,7 +244,8 @@ Aufwandszähler ab M4. Ableitungen (`useAuswahl`, `useZustand`) rechnen nur neu,
 
 Anmeldung am Aktensystem (ID-Token, VAU), Befugnisse durch die versicherte Person, das
 Widerspruchsverfahren selbst (die Demo setzt Widersprüche über die Demo-Steuerung), Protokollierung,
-QES, VSDM, PoPP, NCPeH, die Erzeugung der Patient Summary. Diese
+QES, VSDM, PoPP, NCPeH, die Erzeugung der gematik-EPS mit eigener Logik des Aktensystems (die leere
+ePS bildet der Simulator nach, die ✦ Patient Summary als Sicht steht oben). Diese
 Teile sind für die Fragestellung nicht nötig und würden den Simulator zu einem Vorhaben eigener
 Größe machen. Wo eine Vereinfachung fachlich relevant ist, steht sie in
 [SPEZIFIKATION.md](SPEZIFIKATION.md) mit ⚠.

@@ -1,6 +1,6 @@
 # 0026 — ✦ Impfliste als zentrale Liste in der ePA
 
-**Datum:** 30.09.2026 · **Status:** angenommen · **baut auf:** 0021, 0022
+**Datum:** 30.09.2026 · **Status:** angenommen · **baut auf:** 0021, 0022 · **Stufenfolge ersetzt durch:** 0034
 
 ## Zusammenhang
 
