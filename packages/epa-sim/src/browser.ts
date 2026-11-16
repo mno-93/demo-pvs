@@ -17,6 +17,7 @@ import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 import {
   KOERPER_GRENZE,
   fehlerKoerper,
+  formularLesen,
   type Kopfwert,
   type SimAnfrage,
   type SimAntwort,
@@ -179,7 +180,7 @@ function koerperLesen(text: string, kopf: string | undefined): unknown {
     }
   }
   if (typ === 'application/x-www-form-urlencoded') {
-    return Object.fromEntries(new URLSearchParams(text));
+    return formularLesen(text);
   }
   if (TEXTTYPEN.includes(typ)) return text;
   throw new KoerperFehler(415, `Inhaltstyp ${typ} wird nicht unterstützt.`);
@@ -212,6 +213,12 @@ export function simulatorImBrowser(): BrowserSimulator {
   wegeEinhaengen(app);
 
   async function beantworten(anfrage: Anfrage, antwort: Antwort, pfad: string, text: string) {
+    // Reihenfolge wie Fastify: erst die Prüfkette (onRequest), dann der Körper — eine Anfrage ohne
+    // Befugnis bekommt 403, auch wenn ihr Körper nicht lesbar ist (ADR 0050).
+    for (const haken of app.anfrageHakenListe) {
+      await haken(anfrage, antwort);
+      if (antwort.sent) return;
+    }
     try {
       anfrage.body = KOERPERLOS.has(anfrage.method)
         ? undefined
@@ -220,10 +227,6 @@ export function simulatorImBrowser(): BrowserSimulator {
       const status = f instanceof KoerperFehler ? f.status : 400;
       antwort.code(status).send(fehlerKoerper('malformedRequest', (f as Error).message));
       return;
-    }
-    for (const haken of app.anfrageHakenListe) {
-      await haken(anfrage, antwort);
-      if (antwort.sent) return;
     }
     let treffer: ReturnType<BrowserAnwendung['finden']>;
     try {

@@ -1040,6 +1040,40 @@ describe('✦ Patient Summary', () => {
     expect(allergien(await summary())).toEqual(['allg-h-2']);
   });
 
+  it('✦ nimmt identifier wie der Patient Service des Ballots und POST an', async () => {
+    const holen = (url: string) => app.inject({ method: 'GET', url, headers: kopf() });
+    expect((await holen(`${PS}/Patient/$summary?identifier=${HOFFMANN}`)).statusCode).toBe(200);
+    expect(
+      (
+        await holen(
+          `${PS}/Patient/$summary?identifier=${encodeURIComponent(`http://fhir.de/sid/gkv/kvid-10|${HOFFMANN}`)}`,
+        )
+      ).statusCode,
+    ).toBe(200);
+    expect((await holen(`${PS}/Patient/$summary?identifier=B987654321`)).statusCode).toBe(400);
+    const post = await app.inject({
+      method: 'POST',
+      url: `${PS}/Patient/$summary`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [{ name: 'identifier', valueString: HOFFMANN }],
+      },
+    });
+    expect(post.statusCode).toBe(200);
+    expect(post.json().type).toBe('document');
+  });
+
+  it('✦ führt Chronologieeinträge der Listen nicht als Änderungseinträge im Dokument', async () => {
+    const ps = await summary();
+    const chronologien = ps.ressourcen.filter(
+      (r) =>
+        r.resourceType === 'Provenance' &&
+        JSON.stringify(r['extension'] ?? '').includes('-list-chronology'),
+    );
+    expect(chronologien).toEqual([]);
+  });
+
   it('✦ weist einen Stand ohne Uhrzeit oder Zeitzone ab', async () => {
     const a = await app.inject({
       method: 'GET',

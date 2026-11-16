@@ -13,6 +13,7 @@ import { simulatorZuruecksetzen } from './betrieb-ruecksetzen.ts';
 import {
   KOERPER_GRENZE,
   fehlerKoerper,
+  formularLesen,
   type SimAntwort,
   type SimAnwendung,
   type SimHandler,
@@ -104,8 +105,7 @@ export async function simulatorBauen(): Promise<FastifyInstance> {
   app.addContentTypeParser(
     'application/x-www-form-urlencoded',
     { parseAs: 'string' },
-    (_a, koerper, fertig) =>
-      fertig(null, Object.fromEntries(new URLSearchParams(koerper as string))),
+    (_a, koerper, fertig) => fertig(null, formularLesen(koerper as string)),
   );
 
   // JSON und FHIR-JSON gleich behandelt wie im Browser-Adapter.

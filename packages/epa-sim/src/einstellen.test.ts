@@ -375,6 +375,35 @@ describe('ITI-67: Suchparameter des Responders (IG de.gematik.epa.mhd 1.1.3)', (
     const a = await suchen('status=current&gibtesnicht=1');
     expect(a.statusCode).toBe(400);
     expect(a.json().issue[0].diagnostics).toMatch(/gibtesnicht/);
+    expect(a.json().issue[0].details.coding[0].code).toBe('MSG_PARAM_UNKNOWN');
+    // Auch neben der Suche nach der ePS (CapabilityStatement 1.2.0-ballot.1).
+    expect((await suchen('type=60591-5&gibtesnicht=1')).statusCode).toBe(400);
+    const fehlt = await app.inject({
+      method: 'GET',
+      url: '/epa/mhd/api/v1/fhir/DocumentReference/gibt-es-nicht',
+      headers: kopf,
+    });
+    expect([fehlt.statusCode, fehlt.json().issue[0].details.coding[0].code]).toEqual([
+      404,
+      'MSG_RESOURCE_ID_FAIL',
+    ]);
+  });
+
+  it('verknüpft wiederholte Parameter auch bei POST _search mit UND', async () => {
+    const post = async (formular: string) =>
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/epa/mhd/api/v1/fhir/DocumentReference/_search',
+          headers: { ...kopf, 'content-type': 'application/x-www-form-urlencoded' },
+          payload: formular,
+        })
+      ).json().total as number;
+    // Vor 2000 und nach 2000 zugleich: nichts. Gälte nur der letzte Wert, kämen alle.
+    const get = await anzahl('creation=lt2000-01-01&creation=gt2000-01-01');
+    expect(get).toBe(0);
+    expect(await post('creation=lt2000-01-01&creation=gt2000-01-01')).toBe(get);
+    expect(await post('creation=gt2000-01-01')).toBeGreaterThan(0);
   });
 
   it('kennt Token mit System, Listen mit Komma, Datum, Namen und die Person', async () => {

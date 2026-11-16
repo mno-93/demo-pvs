@@ -1,7 +1,7 @@
 import type { SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import { vollUrl, type Ressource } from '@demo-pvs/kern';
 import { suchen } from './suche.ts';
-import { jetzt, operationOutcome, suchergebnis } from './fhir-hilfen.ts';
+import { jetzt, suchergebnis } from './fhir-hilfen.ts';
 import { archivierteKennungen, fassungen, geloeschtAm, istGeloescht } from './schreibwege.ts';
 import { MSG, QUERY_BASIS, ablage, finden, melden } from './medikation.ts';
 
@@ -112,7 +112,7 @@ export function querywegeEinhaengen(
       return { ...suchergebnis(ergebnis.slice(ab, ab + anzahl)), total: ergebnis.length };
     });
     const unbekannt = (antwort: SimAntwort) =>
-      antwort.code(404).send(operationOutcome('error', 'not-found', `${typ} nicht gefunden.`));
+      melden(antwort, 404, 'not-found', `${typ} nicht gefunden.`, MSG.unbekannt);
     // Gelöschte Instanzen: 410 (FHIR read); ihre Fassungen bleiben über die Historie abrufbar.
     const fehltOderGeloescht = (kvnr: string, id: string, antwort: SimAntwort) =>
       istGeloescht(ablage(kvnr), typ, id)

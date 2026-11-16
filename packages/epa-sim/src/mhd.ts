@@ -15,6 +15,24 @@ import {
 import { imZeitraum, jetzt, kennungPasst, operationOutcome } from './fhir-hilfen.ts';
 
 /**
+ * Detailcodes der Fehlerantworten nach dem CapabilityStatement `epa-mhd-document-responder` 1.1.3
+ * (`extension-http-response-info`). Im Ballot 1.2.0 heißt der Code für eine unbekannte Ressource
+ * `MSG_NO_EXIST`.
+ */
+const MHD_MSG = {
+  parameterUnbekannt: {
+    system: 'http://terminology.hl7.org/CodeSystem/operation-outcome',
+    code: 'MSG_PARAM_UNKNOWN',
+    display: 'Unknown search parameter',
+  },
+  unbekannt: {
+    system: 'http://terminology.hl7.org/CodeSystem/operation-outcome',
+    code: 'MSG_RESOURCE_ID_FAIL',
+    display: 'Resource is not known',
+  },
+};
+
+/**
  * MHD Service nach dem Implementation Guide `de.gematik.epa.mhd` 1.1.3 (Release ePA 3.1.3).
  *
  * - **Find Document References [ITI-67]** — `GET|POST /epa/mhd/api/v1/fhir/DocumentReference`,
@@ -304,13 +322,6 @@ export function mhdEinhaengen(
     const status = eins('status') ?? 'current';
     const typ = codeAus(eins('type'));
     const typSystem = systemAus(eins('type'));
-    if (
-      typ === EPS_TYP &&
-      (!typSystem || typSystem === 'http://loinc.org') &&
-      abStufe(AB_STUFE.epaEps)
-    ) {
-      return epsSuchergebnis(kvnr, status.split(',').includes('current'));
-    }
     // Ein Parameter, den der Dienst nicht kennt, wird abgelehnt — nicht übergangen, sonst kämen
     // alle Dokumente zurück.
     const unbekannt = Object.keys(q).filter(
@@ -327,8 +338,17 @@ export function mhdEinhaengen(
               ...Object.keys(SUCHE),
               ...(abStufe(AB_STUFE.volltextsuche) ? ['_content'] : []),
             ].join(', ')}.`,
+            MHD_MSG.parameterUnbekannt,
           ),
         );
+    }
+    // Die ePS des Aktensystems: erst nach der Prüfung der Parameter (CapabilityStatement 1.2.0-ballot.1).
+    if (
+      typ === EPS_TYP &&
+      (!typSystem || typSystem === 'http://loinc.org') &&
+      abStufe(AB_STUFE.epaEps)
+    ) {
+      return epsSuchergebnis(kvnr, status.split(',').includes('current'));
     }
     const begriff = eins('_content')?.toLowerCase().trim();
     // Volltextsuche erst ab Weiterentwicklung 1 (ADR 0034).
@@ -340,6 +360,7 @@ export function mhdEinhaengen(
             'error',
             'not-supported',
             'Suchparameter _content wird in diesem Ausbaustand nicht unterstützt.',
+            MHD_MSG.parameterUnbekannt,
           ),
         );
     }
@@ -392,8 +413,10 @@ export function mhdEinhaengen(
     resourceType: 'CapabilityStatement',
     status: 'active',
     kind: 'instance',
+    date: jetzt(),
     fhirVersion: '4.0.1',
     format: ['application/fhir+json'],
+    implementation: { description: 'ePA-Simulator — MHD Service (fiktiv)' },
     rest: [
       {
         mode: 'server',
@@ -429,7 +452,9 @@ export function mhdEinhaengen(
     );
     return d
       ? alsDocumentReference(d, kvnr)
-      : antwort.code(404).send(operationOutcome('error', 'not-found', 'Nicht gefunden.'));
+      : antwort
+          .code(404)
+          .send(operationOutcome('error', 'not-found', 'Nicht gefunden.', MHD_MSG.unbekannt));
   });
 
   /** ITI-68 Retrieve Document. Nicht vorhanden und verborgen sind nicht unterscheidbar: 404. */
