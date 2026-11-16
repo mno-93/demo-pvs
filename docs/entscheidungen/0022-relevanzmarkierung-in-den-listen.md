@@ -1,6 +1,6 @@
 # 0022 — ✦ Relevanz für die Patient Summary als Markierung am Listeneintrag
 
-**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht · **ergänzt durch:** 0063
+**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht · **ergänzt durch:** 0064
 spezifiziert · **ändert:** 0021 (Auswahl der Einträge)
 
 ## Zusammenhang

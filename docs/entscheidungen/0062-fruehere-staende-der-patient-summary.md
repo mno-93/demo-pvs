@@ -95,7 +95,7 @@ lückenlose Geschichte in jeder Quelle (▸ unten).
 - ▸ Was ein Empfänger zu einem Zeitpunkt tatsächlich gesehen hat, belegt der Verlauf nicht — er
   zeigt, was gegolten hat. Für einen Abruf aus dem Ausland bleibt die offene Frage aus 7.6.
 - ~~Der Startbestand setzt Markierungen teils direkt am Eintrag; gilt eine Fassung noch, ist deshalb
-  die heutige Instanz maßgeblich, sonst die gesicherte.~~ **Überholt 16.11.2026 (ADR 0063):** Die
+  die heutige Instanz maßgeblich, sonst die gesicherte.~~ **Überholt 16.11.2026 (ADR 0064):** Die
   nachträgliche Markierung fehlte in der gesicherten Fassung; sobald ein markierter Eintrag des
   Startbestands geändert oder entmarkiert wurde, fiel er rückwirkend aus allen früheren Ständen. Der
   Startbestand markiert jetzt beim Anlegen, die Markierung gehört zur ersten Fassung.

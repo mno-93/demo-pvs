@@ -227,7 +227,7 @@ Der Simulator führt je Akte Ablagen; geschrieben wird nur über die Mechanik in
 Löschen mit Zeitpunkt. Darauf beruhen `_history`, frühere Stände des eMP und der Patient Summary
 ([0062](entscheidungen/0062-fruehere-staende-der-patient-summary.md)). Deshalb gilt: **Jede Änderung
 ist eine Fassung**, auch eine Markierung, und wer an dieser Mechanik vorbei schreibt, bricht die
-Geschichte ([0063](entscheidungen/0063-jede-aenderung-eine-fassung.md)). Fassungsarchiv und
+Geschichte ([0064](entscheidungen/0064-jede-aenderung-eine-fassung.md)). Fassungsarchiv und
 Löschmarken hängen an der Ablage; vernichtet werden Daten nur mit `ablageLeeren()`.
 
 ## Zustand im PVS

@@ -1,4 +1,4 @@
-# 0063 — Jede Änderung eine Fassung, Löschen mit Spur
+# 0064 — Jede Änderung eine Fassung, Löschen mit Spur
 
 **Datum:** 16.11.2026 · **Status:** angenommen · **ergänzt:** 0004, 0022, 0049, 0062
 
