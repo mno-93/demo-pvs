@@ -137,6 +137,87 @@ describe('✦ Impfliste', () => {
     expect(a.statusCode).toBe(422);
   });
 
+  it('übernimmt ein ungefähres Datum (occurrenceString) beim Ändern', async () => {
+    const { impfungen, lesenachweis } = await liste();
+    const ohneDatum = { ...impfungen[0]! };
+    delete ohneDatum['occurrenceDateTime'];
+    const a = await app.inject({
+      method: 'POST',
+      url: `${B}/$update-immunization-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: lesenachweis },
+          {
+            name: 'immunizationEntry',
+            resource: { ...ohneDatum, occurrenceString: 'Frühjahr 2019' },
+          },
+        ],
+      },
+    });
+    expect(a.statusCode).toBe(200);
+    const neu = (await liste()).impfungen.find((r) => r['id'] === impfungen[0]!['id'])!;
+    expect(neu['occurrenceString']).toBe('Frühjahr 2019');
+  });
+
+  it('liest einzelne Impfungen und nur ihre eigenen Änderungseinträge', async () => {
+    const { impfungen } = await liste();
+    const id = String(impfungen[0]!['id']);
+    const gelesen = await app.inject({
+      method: 'GET',
+      url: `${B}/Immunization/${id}`,
+      headers: kopf(),
+    });
+    expect(gelesen.statusCode).toBe(200);
+    const provenance = (
+      await app.inject({ method: 'GET', url: `${B}/Provenance`, headers: kopf() })
+    ).json().entry as { resource: { target?: { reference: string }[] } }[];
+    expect(provenance.length).toBeGreaterThan(0);
+    for (const { resource } of provenance)
+      for (const z of resource.target ?? []) expect(z.reference).toMatch(/^Immunization\//);
+  });
+
+  it('liefert die Liste zu einem Chronologieeintrag und den Log mit Paging, wie der Medication Service', async () => {
+    const { lesenachweis } = await liste();
+    await app.inject({
+      method: 'POST',
+      url: `${B}/$add-immunization-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: lesenachweis },
+          { name: 'immunizationEntry', resource: impfung('2026-09-09') },
+        ],
+      },
+    });
+    const damals = await app.inject({
+      method: 'GET',
+      url: `${B}/$immunization-list?provenance=${lesenachweis}`,
+      headers: kopf(),
+    });
+    expect(damals.statusCode).toBe(200);
+    expect(
+      (damals.json().entry as { search: { mode: string } }[]).filter(
+        (e) => e.search.mode === 'match',
+      ),
+    ).toHaveLength(5);
+    const log = await app.inject({
+      method: 'GET',
+      url: `${B}/$immunization-list-log?_count=1`,
+      headers: kopf(),
+    });
+    expect(log.json().entry).toHaveLength(1);
+    expect(log.json().total).toBeGreaterThan(1);
+    const unbekannt = await app.inject({
+      method: 'GET',
+      url: `${B}/$immunization-list?foo=1`,
+      headers: kopf(),
+    });
+    expect(unbekannt.statusCode).toBe(400);
+  });
+
   it('lässt über die Demo-Steuerung eine andere Einrichtung eintragen', async () => {
     const a = await app.inject({
       method: 'POST',

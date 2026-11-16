@@ -233,6 +233,23 @@ describe('$update-emp-entry nach IG-MED-BL-UPDATE-EMP-ENTRY-V3', () => {
     expect(teil(a, 'empEntry')).toBeUndefined();
     expect(teil(a, 'relatedActivity')).toBeDefined();
     expect((await lesen(`${QUERY}/MedicationRequest/emp-h-med-3`)).statusCode).toBe(410);
+    // Die Historie nennt die Löschung zuerst (FHIR http#history), danach die Fassungen.
+    const historie = (
+      await lesen(`${QUERY}/MedicationRequest/emp-h-med-3/_history`)
+    ).json() as unknown as {
+      entry: { request: { method: string }; resource?: R }[];
+    };
+    expect(historie.entry[0]!.request.method).toBe('DELETE');
+    expect(historie.entry[0]!.resource).toBeUndefined();
+    expect(historie.entry.slice(1).every((e) => e.resource)).toBe(true);
+    const typ = (await lesen(`${QUERY}/MedicationRequest/_history`)).json() as unknown as {
+      entry: { request: { method: string; url: string } }[];
+    };
+    expect(typ.entry).toContainEqual(
+      expect.objectContaining({
+        request: { method: 'DELETE', url: 'MedicationRequest/emp-h-med-3' },
+      }),
+    );
     const aussage = (await lesen(`${QUERY}/MedicationStatement/eml-h-med-3`)).json() as R;
     expect(aussage['basedOn']).toBeUndefined();
     // Danach ist der Eintrag unbekannt.

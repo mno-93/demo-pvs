@@ -358,18 +358,38 @@ export function anlegende(ablage: readonly Ressource[], typ: string, id: string)
 
 /* ---------- Löschen ---------- */
 
-const GELOESCHT = new WeakMap<Ressource[], Set<string>>();
+const GELOESCHT = new WeakMap<Ressource[], Map<string, string>>();
 
 /**
  * Löscht eine Instanz aus der Ablage; ihre Fassungen bleiben im Archiv abrufbar (FHIR delete).
- * Ein späterer Zugriff erkennt sie als gelöscht (410 `MSG_DELETED`) statt als unbekannt (404).
+ * Die letzte Fassung wird vorher gesichert, auch wenn kein Änderungseintrag auf sie zeigt, und der
+ * Zeitpunkt der Löschung festgehalten — für den Löscheintrag in `_history`. Ein späterer Zugriff
+ * erkennt sie als gelöscht (410 `MSG_DELETED`) statt als unbekannt (404).
  */
-export function loeschen(ablage: Ressource[], r: Ressource): void {
+export function loeschen(ablage: Ressource[], r: Ressource, zeitpunkt: string = jetzt()): void {
+  fassungenSichern(ablage, [versionierterVerweis(r)]);
   const i = ablage.indexOf(r);
   if (i >= 0) ablage.splice(i, 1);
-  const s = GELOESCHT.get(ablage) ?? new Set<string>();
-  s.add(`${r.resourceType}/${String(r.id)}`);
-  GELOESCHT.set(ablage, s);
+  const m = GELOESCHT.get(ablage) ?? new Map<string, string>();
+  m.set(`${r.resourceType}/${String(r.id)}`, zeitpunkt);
+  GELOESCHT.set(ablage, m);
+}
+
+/** Wann eine Instanz gelöscht wurde, sonst `undefined`. */
+export function geloeschtAm(ablage: Ressource[], typ: string, id: string): string | undefined {
+  return GELOESCHT.get(ablage)?.get(`${typ}/${id}`);
+}
+
+/**
+ * Leert eine Ablage samt Fassungsarchiv und Löschmarken — wenn Daten nicht gelöscht, sondern
+ * vernichtet werden (Widerspruch gegen das Einstellen der E-Rezept-Daten, Konzept 3.1.3). Nur so
+ * kommen gelöschte Fassungen nicht über `_history` oder frühere Stände der Patient Summary zurück:
+ * Archiv und Marken hängen an der Ablage selbst.
+ */
+export function ablageLeeren(ablage: Ressource[]): void {
+  ablage.splice(0, ablage.length);
+  ARCHIV.delete(ablage);
+  GELOESCHT.delete(ablage);
 }
 
 export function istGeloescht(ablage: Ressource[], typ: string, id: string): boolean {

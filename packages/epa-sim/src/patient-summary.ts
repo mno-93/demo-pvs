@@ -1,4 +1,4 @@
-import type { SimAnwendung } from './schnittstelle.ts';
+import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
 import {
   CODESYSTEM,
   EPS,
@@ -66,6 +66,8 @@ export const PATIENT_SUMMARY_BASIS = WEG.patientSummary;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** Zeitpunkt mit Uhrzeit und Zeitzone (FHIR `instant`, Sekundenbruchteile erlaubt). */
+/** `identifier` wie im Patient Service des Ballots (token): KVNR, wahlweise mit System. */
+const KVNR_TOKEN = /^(http:\/\/fhir\.de\/sid\/gkv\/kvid-10\|)?[A-Z]\d{9}$/;
 const ZEITPUNKT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
 
 const AUTOR = {
@@ -264,6 +266,7 @@ function aenderungen(
       bis(r['recorded'], stand) &&
       !istChronologie(r, LISTE.Condition) &&
       !istChronologie(r, LISTE.AllergyIntolerance) &&
+      !istChronologie(r, LISTE.Immunization) &&
       !istChronologie(r, EMP) &&
       (r['target'] as { reference: string }[]).some((t) =>
         praefixe.some((p) => t.reference.startsWith(p)),
@@ -504,7 +507,12 @@ function ausDokumenten(
                   (r['device'] as { reference?: string } | undefined)?.reference,
             )
           : undefined;
-      const schluessel = `${JSON.stringify((geraet ?? r)['code'] ?? (geraet ?? r)['type'] ?? '')}|${datum(r)}`;
+      // Gleicher Code: das erste Coding mit System und Code — Text, Anzeige und Version dürfen
+      // zwischen zwei Dokumenten abweichen (ADR 0031). Ohne Coding der Text.
+      const begriff = ((geraet ?? r)['code'] ?? (geraet ?? r)['type']) as
+        { text?: string; coding?: { system?: string; code?: string }[] } | undefined;
+      const coding = begriff?.coding?.find((c) => c.system && c.code);
+      const schluessel = `${coding ? `${coding.system}|${coding.code}` : (begriff?.text ?? '')}|${datum(r)}`;
       if (gesehen.has(schluessel)) continue;
       gesehen.add(schluessel);
       const id = `${String(r.id)}-${d.id}`;
@@ -685,9 +693,13 @@ export function patientSummaryEinhaengen(
     resourceType: 'CapabilityStatement',
     status: 'draft',
     kind: 'instance',
+    date: jetzt(),
     fhirVersion: '4.0.1',
     format: ['application/fhir+json'],
     software: { name: 'ePA-Simulator — Patient Summary (Vorschlag, nicht spezifiziert)' },
+    implementation: {
+      description: 'ePA-Simulator — Patient Summary (Vorschlag, nicht spezifiziert)',
+    },
     rest: [
       {
         mode: 'server',
@@ -698,6 +710,13 @@ export function patientSummaryEinhaengen(
               {
                 name: 'summary',
                 definition: 'http://hl7.org/fhir/uv/ips/OperationDefinition/summary',
+                documentation:
+                  '✦ Typ-Ebene, GET und POST; identifier (KVNR) wie get-patient-summary-op aus de.gematik.epa 1.4.0-ballot.1, dazu provenance und _at. Ausgabe nach bundle-eu-eps, nicht nach dem gematik-Profil.',
+              },
+              {
+                name: 'summary-log',
+                definition: 'https://example.org/demo-pvs/fhir/OperationDefinition/summary-log',
+                documentation: '✦ Änderungsverlauf wie $medication-plan-log: _count, _offset.',
               },
             ],
           },
@@ -711,11 +730,20 @@ export function patientSummaryEinhaengen(
    * `$medication-plan?provenance=…` — oder `_at` mit einem beliebigen Zeitpunkt (Datum, Uhrzeit,
    * Zeitzone, wie `_history?_at`). Ohne beide der Stand jetzt.
    */
-  app.get(`${b}/Patient/$summary`, async (anfrage, antwort) => {
-    if (operationsparameterAbweisen(anfrage, { _at: ZEITPUNKT, provenance: UUID }, antwort))
+  const summary = async (anfrage: SimAnfrage, antwort: SimAntwort) => {
+    if (
+      operationsparameterAbweisen(
+        anfrage,
+        { _at: ZEITPUNKT, provenance: UUID, identifier: KVNR_TOKEN },
+        antwort,
+      )
+    )
       return antwort;
     const q = anfrage.query as Record<string, string | undefined>;
     const kvnr = kvnrAus(anfrage);
+    // `identifier` wie im Patient Service des Ballots — die Akte bestimmt aber `x-insurantid`.
+    if (q['identifier'] && q['identifier'].split('|').pop() !== kvnr)
+      return melden(antwort, 400, 'invalid', 'identifier passt nicht zu x-insurantid.', MSG.syntax);
     if (q['_at'] && q['provenance'])
       return melden(antwort, 400, 'invalid', 'Entweder _at oder provenance.', MSG.syntax);
     if (q['provenance']) {
@@ -726,5 +754,37 @@ export function patientSummaryEinhaengen(
       return patientSummaryBilden(kvnr, zeit);
     }
     return patientSummaryBilden(kvnr, q['_at'] ? alsOrtszeit(q['_at']) : null);
+  };
+  app.get(`${b}/Patient/$summary`, summary);
+  // POST mit den Parametern in der Adresse oder als Parameters-Ressource (FHIR-Operation).
+  app.post(`${b}/Patient/$summary`, async (anfrage, antwort) => {
+    const koerper = anfrage.body as
+      | {
+          resourceType?: string;
+          parameter?: {
+            name: string;
+            valueString?: string;
+            valueId?: string;
+            valueInstant?: string;
+            valueDateTime?: string;
+          }[];
+        }
+      | undefined;
+    const ausKoerper = Object.fromEntries(
+      (koerper?.resourceType === 'Parameters' ? (koerper.parameter ?? []) : []).map((p) => [
+        p.name,
+        p.valueString ?? p.valueId ?? p.valueInstant ?? p.valueDateTime ?? '',
+      ]),
+    );
+    // Die Anfrage einzeln übernehmen: Fastify führt Kopfzeilen und Suchteil als Getter.
+    const mitParametern: SimAnfrage = {
+      method: anfrage.method,
+      url: anfrage.url,
+      headers: anfrage.headers,
+      params: anfrage.params,
+      query: { ...(anfrage.query as Record<string, unknown>), ...ausKoerper },
+      body: anfrage.body,
+    };
+    return summary(mitParametern, antwort);
   });
 }

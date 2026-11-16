@@ -298,7 +298,7 @@ function verschreibungStornieren(r: Rezept): void {
   }
   if (geloescht.length === 0) return;
   aktivitaetAnlegen(liste, geloescht.map(versionierterVerweis), MEDIKATIONSDIENST, 'DELETE', zeit);
-  for (const x of geloescht) loeschen(liste, x);
+  for (const x of geloescht) loeschen(liste, x, zeit);
   for (const id of mittel) mittelLoeschenWennFrei(kvnr, id);
   if (planGeaendert) chronologieAnlegen(liste, EMP, MEDIKATIONSDIENST, zeit);
 }
@@ -568,7 +568,7 @@ function abgabeStornieren(r: Rezept): void {
       'DELETE',
       zeit,
     );
-    for (const x of geloescht) loeschen(liste, x);
+    for (const x of geloescht) loeschen(liste, x, zeit);
   }
   if (plan && planGeaendert) {
     fortschreiben(plan, zeit);

@@ -1,6 +1,6 @@
 # 0021 — ✦ Patient Summary als Sicht mit Quelle je Abschnitt
 
-**Datum:** 28.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht
+**Datum:** 28.09.2026 · **Status:** angenommen für die Demo · **Kennzeichnung:** ✦ Vorschlag, nicht · **Stufenfolge ersetzt durch:** 0034 · **ergänzt durch:** 0062
 spezifiziert · **baut auf:** 0018, 0019 · **Auswahl der Einträge geändert durch:** 0022 (Markierung)
 
 ## Zusammenhang

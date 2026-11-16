@@ -65,12 +65,12 @@ Netzwerkprotokoll des Browsers dürfen nur statische Dateien erscheinen.
 Die Quellen liegen als JSON in `daten/kataloge/`. Nach jeder Änderung die typisierten Module neu
 erzeugen:
 
-| Befehl                                                       | Wirkung                                                                                                     |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `node werkzeuge/wertelisten-vom-zts.mjs`                     | übernimmt die Allergie-Wertelisten (Substanzen, Manifestationen) vom Zentralen Terminologieserver des BfArM |
-| `EPA_XDS_REPO=<Pfad> node werkzeuge/formatcodes-aus-xds.mjs` | übernimmt die registrierten Dokumenttypen aus einem Klon von `gematik/ePA-XDS-Document`                     |
-| `node werkzeuge/amts-zuordnung-bilden.mjs`                   | bildet die Demo-Zuordnung von Substanzen zu ATC                                                             |
-| `node werkzeuge/kataloge-erzeugen.mjs`                       | übersetzt alle JSON-Quellen in Module unter `packages/kern/src/kataloge/`                                   |
+| Befehl                                                                                    | Wirkung                                                                                                                                                                                        |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node werkzeuge/wertelisten-vom-zts.mjs`                                                  | übernimmt die Allergie-Wertelisten (Substanzen, Manifestationen) vom Zentralen Terminologieserver des BfArM                                                                                    |
+| `EPA_XDS_REPO=<Pfad> EPA_XDS_REF=origin/ePA-3.1.3 node werkzeuge/formatcodes-aus-xds.mjs` | übernimmt die registrierten Dokumenttypen aus einem Klon von `gematik/ePA-XDS-Document`, mit `EPA_XDS_REF` aus diesem Stand ohne Branchwechsel; alle classCodes und typeCodes samt Abkündigung |
+| `node werkzeuge/amts-zuordnung-bilden.mjs`                                                | bildet die Demo-Zuordnung von Substanzen zu ATC                                                                                                                                                |
+| `node werkzeuge/kataloge-erzeugen.mjs`                                                    | übersetzt alle JSON-Quellen in Module unter `packages/kern/src/kataloge/`                                                                                                                      |
 
 Die Übernahmen lesen die Repositories nur und schreiben die Herkunft in den Kopf jeder Datei.
 Ohne die Umgebungsvariable brechen sie mit einem Hinweis ab; für den Betrieb der Demo sind sie
@@ -136,7 +136,9 @@ Die verbindliche Prüfung leistet der HL7 FHIR Validator gegen die veröffentlic
    `ausgabe/fhir-validierung/ressourcen` (`werkzeuge/fhir-ausgabe-sichern.ts`). Die absichtlich
    fehlerhaften Beispiele der Prüfregeln bleiben draußen.
 2. **Validator:** Er prüft den Ordner gegen die Pakete der Konfiguration, ohne Terminologieserver
-   (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt.
+   (`-tx n/a`). Erweiterungen im Namensraum der Demo sind erlaubt. Die Meldungen kommen auf
+   Englisch (`-Duser.language=en`), gleich wie der Rechner eingestellt ist — die Ausnahmen greifen
+   auf den Meldungstext.
 3. **Auswertung:** Das Skript liest `bericht.json`, nimmt die begründeten Ausnahmen der
    Konfiguration heraus und endet mit Fehler, wenn ein Fehler bleibt. Eine Ausnahme ohne Treffer
    meldet es als Warnung — sie kann entfallen. Die Zusammenfassung steht in `zusammenfassung.json`
@@ -231,6 +233,12 @@ an der Instanz FHIR-gerecht abfangen, geht das vor (ADR 0040).
   Bindung an LOINC oder SNOMED CT zugeordnet werden (`memberOf`): Der Validator verneint sie ohne
   Server — etwa den Abschnitt des Laborbefunds.
 - **E-Rezept gegen die KBV-Profile.**
+- **✦ Briefe als FHIR-Dokument gegen ein Dokumentprofil.** Sie tragen kein `meta.profile`; der HL7
+  Europe Hospital Discharge Report und das MIO KH-E sind nicht geladen. Geprüft wird gegen FHIR R4
+  (Bundle `document`, bdl-Regeln).
+- **⚠ Die Ausnahme für `epa-mhd-document-reference` 1.1.3** greift auch im Vorschau-Lauf. Sie lässt
+  sich mit der heutigen Konfiguration (`muster` oder `profil`) nicht auf 1.1.3 begrenzen; das und
+  der Laborbefund unter MHD 1.2.0 sind mit einem Validatorlauf zu klären.
 - **Warnungen.** Sie lassen den Lauf nicht scheitern. Zu beachten: `DosageWarnungViererschemaInText` (Dosierung als Text statt strukturiert) und `icd-5` bei einer behobenen Diagnose mit Zusatzkennzeichen „G“ (DATENMODELL, Abschnitt 7).
 
 ## Prüfliste vor jeder Abgabe
@@ -348,6 +356,10 @@ Anwendung. Vor jeder Abgabe deshalb im Browser, mit frisch gestartetem Simulator
 | P106 | Klickpfad frei bis „Schon angehakt“                                                                                                                                                                                                                   | der Prüfpunkt wartet auf „✓ weiter“; wer gleich „Diagnose speichern“ klickt, ist bei „Patient Summary öffnen“                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | P107 | Kopf → „Rundgang“; geführt bis zum Ende, dann „Schritt zurück“; frei mit Wegweiser von vorn                                                                                                                                                           | Seitenleiste mit Kapiteln, nur das aktuelle aufgeklappt; Erzählungen und Prüfpunkte mit „weiter →“ in der Seitenleiste; bei Schritt 10 (Seitenfenster „Konfiguration“) Sprechblase mit „✓ weiter“ oben im Seitenfenster sichtbar und „Mehr dazu“ (Verweise öffnen GitHub in neuem Fenster); Schritte am Element mit Rahmen; kein Modus „Aufgabe“; Dokumente → Entlassbrief „Ansehen“ → „FHIR-Ressource ansehen“ zeigt ein Bundle `document`; Patient Summary „FHIR“ zeigt ein Bundle nach `bundle-eu-eps`; Arztbrief unterschreiben und einstellen (Seitenleiste: `POST …/I_Document_Management`); nach 36 Schritten „Geschafft.“, Konsole ohne Fehler |
 | P108 | Weiterentwicklung 3, Frau Hoffmann nach eGK → „Patient Summary“ → „Verlauf“ → „Stand ansehen“ am 18.07.2026, 16:00 Uhr → „zum aktuellen Stand“; danach `?klickpfad=ps-verlauf`                                                                        | Verlauf mit Zeitpunkt, Einrichtung, Quelle und „neu“/„geändert“/„entfallen“ je Abschnitt, jüngste Änderung „aktueller Stand“; früherer Stand mit „Stand vom 18.07.2026, 16:00 Uhr“, Medikation aus der Medikationsliste mit Metformin, ohne Sprünge in die Quellen, ohne Band „seit dem letzten Aufruf“; der Verlauf bleibt offen; FHIR der Prozeduren mit Provenance (Quelle Dokument); im Aufrufprotokoll `$summary-log` und `$summary?provenance=…`; Konsole ohne Fehler                                                                                                                                                                            |
+
+| P115 | Weiterentwicklung 3, Frau Hoffmann nach eGK → Diagnosen und Allergien → ★ an „Penicillin“ aufheben → Patient Summary → „Verlauf“ | Verlauf mit einem neuen Eintrag „entfallen Penicillin“; „Stand ansehen“ an früheren Einträgen zeigt Penicillin weiter (ADR 0064) |
+| P116 | Konfiguration → Aufrufprotokoll → „Praxis und ePA zurücksetzen“ nach einer Übernahme | Praxis und ePA beim Startbestand, ePA-Fenster geschlossen, Handlungen 0 |
+| P117 | Weiterentwicklung 4, Versichertensicht → Aktenlotse: „Ich habe akute Brustschmerzen“, dann „Wie geht es mit meinem Herz weiter?“ | erst Antwort mit Notruf 112 und 116 117 davor; dann „Keine Bewertung“ |
 
 Neue Funktionen bekommen hier eine Zeile. Neue Beispiele kommen mit ihrem Zweck in
 [SPEZIFIKATION.md, Abschnitt 3.1](SPEZIFIKATION.md#31-beispielbestand-und-wozu-er-dient).

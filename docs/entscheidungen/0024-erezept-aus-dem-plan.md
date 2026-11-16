@@ -1,6 +1,6 @@
 # 0024 — E-Rezept aus dem Plan: Fachdienst-Ersatz und Verknüpfung über den eMP-Identifier
 
-**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **baut auf:** 0013, 0019
+**Datum:** 29.09.2026 · **Status:** angenommen für die Demo · **baut auf:** 0013, 0019 · **offene Punkte erledigt durch:** 0052, 0055
 
 ## Zusammenhang
 

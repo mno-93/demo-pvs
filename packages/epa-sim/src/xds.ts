@@ -14,6 +14,7 @@ import {
   registryResponseErzeugen,
   type GeleseneEinreichung,
   type XdsFehler,
+  type ZugelassenerKodewert,
   neueId,
 } from '@demo-pvs/kern';
 import { bestandFuer, type Dokument } from './bestand.ts';
@@ -66,13 +67,16 @@ function registriert(d: GeleseneEinreichung['dokumente'][number]): XdsFehler | '
   const { mimeType, titel } = d;
   const typ = dokumenttypen.find((t) => t.formatCode === d.formatCode.code);
   if (!typ) return null;
-  if (
-    (typ.classCode && d.classCode.code !== typ.classCode.code) ||
-    (typ.typeCode && d.typeCode.code !== typ.typeCode.code)
-  )
+  // Zugelassen ist jeder Code, den der Implementation Guide zum formatCode nennt — abgekündigte
+  // eingeschlossen (README der Implementation Guides), stillgelegte ab `inactiveFrom` nicht mehr.
+  const zugelassen = (liste: ZugelassenerKodewert[], code: string) =>
+    liste.length === 0 ||
+    liste.some((k) => k.code === code && !(k.inaktivAb && k.inaktivAb <= DEMO_HEUTE));
+  const liste = (k: ZugelassenerKodewert[]) => k.map((x) => x.code).join(', ') || '—';
+  if (!zugelassen(typ.classCodes, d.classCode.code) || !zugelassen(typ.typeCodes, d.typeCode.code))
     return {
       code: 'XDSRegistryMetadataError',
-      text: `${titel}: classCode und typeCode passen nicht zum formatCode (${typ.datei}: ${typ.classCode?.code ?? '—'}, ${typ.typeCode?.code ?? '—'}).`,
+      text: `${titel}: classCode und typeCode passen nicht zum formatCode (${typ.datei}: ${liste(typ.classCodes)}; ${liste(typ.typeCodes)}).`,
     };
   if (typ.gueltigAb && typ.gueltigAb > DEMO_HEUTE)
     return {
@@ -216,11 +220,14 @@ export function xdsEinhaengen(
     const kvnr = kvnrAus(anfrage);
     let bezug = '';
     let fehler: XdsFehler[];
-    let einreichung: GeleseneEinreichung | null = null;
+    let neue: Dokument[] = [];
     try {
       bezug = nachrichtIdLesen(koerper);
-      einreichung = provideAndRegisterLesen(koerper);
+      const einreichung = provideAndRegisterLesen(koerper);
       fehler = pruefen(einreichung, kvnr);
+      // Auch das Lesen der Inhalte gehört zur Prüfung: Ein unlesbares FHIR-Dokument ist ein Fehler
+      // der Einreichung (RegistryResponse Failure), kein Fehler des Dienstes (500).
+      if (fehler.length === 0) neue = einreichung.dokumente.map(alsDokument);
     } catch (f) {
       fehler = [
         {
@@ -229,9 +236,9 @@ export function xdsEinhaengen(
         },
       ];
     }
-    if (fehler.length === 0 && einreichung) {
+    if (fehler.length === 0) {
       // Alles oder nichts: ein SubmissionSet wird ganz oder gar nicht registriert.
-      bestandFuer(kvnr).dokumente.push(...einreichung.dokumente.map(alsDokument));
+      bestandFuer(kvnr).dokumente.push(...neue);
     }
     void antwort.header('content-type', 'application/soap+xml; charset=utf-8');
     return antwort.code(200).send(registryResponseErzeugen(fehler, bezug));

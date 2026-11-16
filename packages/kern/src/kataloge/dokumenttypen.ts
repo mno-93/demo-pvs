@@ -37,6 +37,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "ADM",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Administratives Dokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-06-15",
     "nurLesbarAb": "2024-01-01"
   },
@@ -60,6 +78,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "ADM",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Administratives Dokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2025-07-15",
     "nurLesbarAb": "2026-04-01"
   },
@@ -84,6 +120,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "ADM",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Administratives Dokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-07-01",
     "nurLesbarAb": "2025-07-15"
   },
@@ -107,6 +161,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "ADM",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Administratives Dokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2025-10-01",
     "nurLesbarAb": null
   },
@@ -130,6 +202,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BERI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Arztberichte",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-06-15",
     "nurLesbarAb": "2026-04-01"
   },
@@ -153,6 +243,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
     },
+    "classCodes": [
+      {
+        "code": "ADM",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Administratives Dokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "PATD",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Patienteneigene Dokumente",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-06-15",
     "nurLesbarAb": null
   },
@@ -177,6 +285,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
     },
+    "classCodes": [
+      {
+        "code": "DUR",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Durchführungsprotokoll",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "PATD",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Patienteneigene Dokumente",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-07-01",
     "nurLesbarAb": null
   },
@@ -200,6 +326,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -223,6 +367,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -246,6 +408,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -269,6 +449,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -292,6 +490,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -315,6 +531,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -338,6 +572,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -361,6 +613,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -384,6 +654,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -407,6 +695,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-04-01",
     "nurLesbarAb": null
   },
@@ -430,6 +736,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Therapiedokumentation"
     },
+    "classCodes": [
+      {
+        "code": "BRI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Brief",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "FPRO",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Therapiedokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2023-01-01",
     "nurLesbarAb": null
   },
@@ -454,6 +778,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Medikamentöse Therapien"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "MEDI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Medikamentöse Therapien",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": null
   },
@@ -477,6 +819,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "PATD",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Patienteneigene Dokumente",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": "2026-04-01"
   },
@@ -500,6 +860,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Patienteneigene Dokumente"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "PATD",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Patienteneigene Dokumente",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2022-03-31",
     "nurLesbarAb": null
   },
@@ -524,6 +902,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": "2026-04-01"
   },
@@ -548,6 +944,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ärztliche Bescheinigungen"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BESC",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ärztliche Bescheinigungen",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2022-03-31",
     "nurLesbarAb": null
   },
@@ -572,6 +986,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BERI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Arztberichte",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": "2026-04-01"
   },
@@ -596,6 +1028,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Arztberichte"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BERI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Arztberichte",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2022-03-31",
     "nurLesbarAb": null
   },
@@ -619,6 +1069,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Medikamentöse Therapien"
     },
+    "classCodes": [
+      {
+        "code": "PLA",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Planungsdokument",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "MEDI",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Medikamentöse Therapien",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-06-15",
     "nurLesbarAb": "2026-10-31"
   },
@@ -643,6 +1111,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Schwangerschafts- und Geburtsdokumentation"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "GEBU",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Schwangerschafts- und Geburtsdokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": "2026-04-01"
   },
@@ -667,6 +1153,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Schwangerschafts- und Geburtsdokumentation"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "GEBU",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Schwangerschafts- und Geburtsdokumentation",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2022-03-31",
     "nurLesbarAb": null
   },
@@ -686,6 +1190,16 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "anzeige": "Medizinischer Ausweis"
     },
     "typeCode": null,
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [],
     "gueltigAb": "2021-06-15",
     "nurLesbarAb": null
   },
@@ -709,6 +1223,24 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
       "anzeige": "Ergebnisse Diagnostik"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "BEFU",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Ergebnisse Diagnostik",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2025-07-15",
     "nurLesbarAb": null
   },
@@ -729,10 +1261,35 @@ export const dokumenttypen: readonly DokumenttypEintrag[] = [
       "anzeige": "Medizinischer Ausweis"
     },
     "typeCode": {
-      "code": "PATD",
+      "code": "ABRE",
       "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
-      "anzeige": "Patienteneigene Dokumente"
+      "anzeige": "Abrechnungsdokumente"
     },
+    "classCodes": [
+      {
+        "code": "AUS",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.8",
+        "anzeige": "Medizinischer Ausweis",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
+    "typeCodes": [
+      {
+        "code": "PATD",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Patienteneigene Dokumente",
+        "abgekuendigtAb": "2023-01-01",
+        "inaktivAb": null
+      },
+      {
+        "code": "ABRE",
+        "system": "1.3.6.1.4.1.19376.3.276.1.5.9",
+        "anzeige": "Abrechnungsdokumente",
+        "abgekuendigtAb": null,
+        "inaktivAb": null
+      }
+    ],
     "gueltigAb": "2021-05-05",
     "nurLesbarAb": null
   }

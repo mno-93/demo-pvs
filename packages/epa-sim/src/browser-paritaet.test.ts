@@ -58,6 +58,20 @@ const SCHRITTE: Schritt[] = [
   { name: 'Widersprüche', pfad: '/information/api/v1/ehr/consentdecisions', kopf: KOPF },
   { name: 'ohne Befugnis', pfad: `${MEDIKATION}/$medication-list`, kopf: KOPF },
   {
+    name: 'unlesbarer Körper ohne Befugnis: erst die Prüfkette',
+    methode: 'POST',
+    pfad: `${MEDIKATION}/$add-emp-entry`,
+    kopf: { ...KOPF, 'content-type': 'application/fhir+json' },
+    koerper: '{kein json',
+  },
+  {
+    name: 'Befugnis für eine unbekannte Einrichtung',
+    methode: 'POST',
+    pfad: '/epa/basic/api/v1/ps/entitlements',
+    kopf: { ...KOPF, 'x-demo-sitzung': '9-DEMO-UNBEKANNT', 'content-type': 'application/json' },
+    koerper: JSON.stringify({ jwt: JWT }),
+  },
+  {
     name: 'Befugnis',
     methode: 'POST',
     pfad: '/epa/basic/api/v1/ps/entitlements',
@@ -118,6 +132,18 @@ const SCHRITTE: Schritt[] = [
       };
       return suche.entry[0]!.resource.content[0]!.attachment.url;
     },
+    kopf: KOPF,
+  },
+  {
+    name: 'Dokumentsuche als POST mit wiederholtem Parameter',
+    methode: 'POST',
+    pfad: '/epa/mhd/api/v1/fhir/DocumentReference/_search',
+    kopf: { ...KOPF, 'content-type': 'application/x-www-form-urlencoded' },
+    koerper: 'creation=lt2000-01-01&creation=gt2000-01-01',
+  },
+  {
+    name: 'Historie der Common Query API',
+    pfad: '/epa/query/api/v1/fhir/MedicationRequest/_history',
     kopf: KOPF,
   },
   { name: 'unbekannter Weg der ePA', pfad: '/epa/gibt-es-nicht', kopf: KOPF },

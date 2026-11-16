@@ -1,5 +1,5 @@
 import type { SimAnfrage, SimAntwort, SimAnwendung } from './schnittstelle.ts';
-import { psRelevanzSetzen, type Ressource, neueId, WEG } from '@demo-pvs/kern';
+import { istPsRelevant, psRelevanzSetzen, type Ressource, neueId, WEG } from '@demo-pvs/kern';
 import { bestandFuer } from './bestand.ts';
 import {
   aktuelleChronologie,
@@ -16,8 +16,13 @@ import {
   patientFuer,
   subjektFuer,
   versionierterVerweis,
+  fassung,
   type Handelnde,
 } from './schreibwege.ts';
+import { MSG, ZAHL, melden, operationsparameterAbweisen } from './medikation.ts';
+
+/** Logische Kennung einer FHIR-Ressource (`id`). */
+const KENNUNG = /^[A-Za-z0-9\-.]{1,64}$/;
 
 /**
  * ✦ VORSCHLAG — Diagnose-Service für Allergien und Diagnosen. Nicht spezifiziert.
@@ -190,8 +195,11 @@ function pruefen(r: Ressource | undefined, art: Art): string | null {
   if (art === 'Condition' && !k.some((x) => x.system === ICD || x.system === SNOMED)) {
     return 'Eine Diagnose braucht eine ICD-10-GM- oder SNOMED-CT-Kodierung.';
   }
+  // Den klinischen Status verlangt nur die Allergie (ait-1, außer bei entered-in-error). Bei der
+  // Diagnose ist er 0..1 (ti-condition-diagnosis) und con-3 nur eine Leitlinie: Die Abbildung des
+  // Kerns lässt ihn bei ausgeschlossenen Diagnosen und unbekanntem Status weg.
   const v = status(r, 'verificationStatus');
-  if (v !== 'entered-in-error' && !status(r, 'clinicalStatus')) {
+  if (art === 'AllergyIntolerance' && v !== 'entered-in-error' && !status(r, 'clinicalStatus')) {
     return 'Der klinische Status fehlt.';
   }
   return null;
@@ -283,6 +291,7 @@ const AENDERBAR: Record<Art, string[]> = {
     'status',
     'statusReason',
     'occurrenceDateTime',
+    'occurrenceString',
     'lotNumber',
     'doseQuantity',
     'performer',
@@ -307,9 +316,13 @@ export function diagnosedienstEinhaengen(
     resourceType: 'CapabilityStatement',
     status: 'draft',
     kind: 'instance',
+    date: jetzt(),
     fhirVersion: '4.0.1',
     format: ['application/fhir+json'],
     software: { name: 'ePA-Simulator — Diagnose-Service (Vorschlag, nicht spezifiziert)' },
+    implementation: {
+      description: 'ePA-Simulator — Diagnose-Service (Vorschlag, nicht spezifiziert)',
+    },
     rest: [
       {
         mode: 'server',
@@ -382,13 +395,36 @@ export function diagnosedienstEinhaengen(
     });
   }
 
-  for (const typ of ['AllergyIntolerance', 'Condition', 'Provenance', 'Organization']) {
+  lesewegeEinhaengen(app, b, ['AllergyIntolerance', 'Condition'], kvnrAus);
+}
+
+/**
+ * Suche und Lesen je Ressourcentyp eines Dienstes. Diagnose-Service und Impfliste teilen sich die
+ * Ablage; jeder Dienst zeigt nur seine Einträge und die Änderungseinträge, die auf sie zeigen.
+ */
+function lesewegeEinhaengen(
+  app: SimAnwendung,
+  b: string,
+  arten: Art[],
+  kvnrAus: (anfrage: { headers: Record<string, unknown> }) => string,
+): void {
+  const gehoertDazu = (r: Ressource, typ: string): boolean => {
+    if (r.resourceType !== typ) return false;
+    if (typ !== 'Provenance') return true;
+    return (
+      arten.some((art) => istChronologie(r, LISTE[art])) ||
+      ((r['target'] as { reference?: string }[] | undefined) ?? []).some((t) =>
+        arten.some((art) => String(t.reference ?? '').startsWith(`${art}/`)),
+      )
+    );
+  };
+  for (const typ of [...arten, 'Provenance', 'Organization']) {
     app.get(`${b}/${typ}`, async (anfrage) =>
-      suchergebnis(ablage(kvnrAus(anfrage)).filter((r) => r.resourceType === typ)),
+      suchergebnis(ablage(kvnrAus(anfrage)).filter((r) => gehoertDazu(r, typ))),
     );
     app.get(`${b}/${typ}/:id`, async (anfrage, antwort) => {
       const r = ablage(kvnrAus(anfrage)).find(
-        (x) => x.resourceType === typ && x.id === (anfrage.params as { id: string }).id,
+        (x) => gehoertDazu(x, typ) && x.id === (anfrage.params as { id: string }).id,
       );
       return (
         r ??
@@ -416,8 +452,28 @@ function listenwegeEinhaengen(
    * mit Änderungseinträgen, Organisationen, der Person und dem aktuellen
    * Chronologieeintrag als Einschluss. Dessen Kennung ist der Lesenachweis.
    */
-  app.get(`${b}/${op.liste}`, async (anfrage) => {
+  app.get(`${b}/${op.liste}`, async (anfrage, antwort) => {
+    if (operationsparameterAbweisen(anfrage, { provenance: KENNUNG }, antwort)) return antwort;
     const kvnr = kvnrAus(anfrage);
+    const stand = (anfrage.query as { provenance?: string }).provenance;
+    if (stand) {
+      // Wie `$medication-plan?provenance=…`: die Liste zu einem Chronologieeintrag, mit den
+      // Einträgen in der damaligen Fassung.
+      const chronologie = ablage(kvnr).find((r) => istChronologie(r, liste) && r.id === stand);
+      if (!chronologie)
+        return melden(
+          antwort,
+          404,
+          'not-found',
+          `Kein Chronologieeintrag ${stand}.`,
+          MSG.unbekannt,
+        );
+      const damals = ((chronologie['target'] as { reference?: string }[] | undefined) ?? [])
+        .map((z) => String(z.reference ?? '').split('/'))
+        .map(([typ, id, , v]) => (typ && id && v ? fassung(ablage(kvnr), typ, id, v) : undefined))
+        .filter((r): r is Ressource => !!r);
+      return suchergebnis(damals, [chronologie, patientFuer(kvnr)]);
+    }
     const eintraege = ablage(kvnr).filter((r) => r.resourceType === art);
     const ids = eintraege.map((e) => `${art}/${String(e.id)}/`);
     const provenance = ablage(kvnr).filter(
@@ -438,13 +494,18 @@ function listenwegeEinhaengen(
     ]);
   });
 
-  app.get(`${b}/${op.log}`, async (anfrage) =>
-    suchergebnis(
-      ablage(kvnrAus(anfrage))
-        .filter((r) => istChronologie(r, liste))
-        .reverse(),
-    ),
-  );
+  /** Wie `$medication-plan-log`: jüngste zuerst, `_count` und `_offset`, `total`. */
+  app.get(`${b}/${op.log}`, async (anfrage, antwort) => {
+    if (operationsparameterAbweisen(anfrage, { _count: ZAHL, _offset: ZAHL }, antwort))
+      return antwort;
+    const alle = ablage(kvnrAus(anfrage))
+      .filter((r) => istChronologie(r, liste))
+      .reverse();
+    const q = anfrage.query as { _count?: string; _offset?: string };
+    const ab = Number(q._offset ?? 0);
+    const anzahl = Number(q._count ?? 50);
+    return { ...suchergebnis(alle.slice(ab, ab + anzahl)), total: alle.length };
+  });
 
   app.post(`${b}/${op.anlegen}`, async (anfrage, antwort) => {
     const kvnr = kvnrAus(anfrage);
@@ -513,9 +574,17 @@ function listenwegeEinhaengen(
         'Kodierung und Bezeichnung eines Eintrags sind nicht änderbar. Einen falschen Eintrag als fehlerhaft kennzeichnen und den richtigen neu anlegen.',
       );
     }
+    // Die Relevanzmarkierung ändert nur $flag-…-entry (ADR 0022); $update übernimmt sie aus dem
+    // Bestand, gleich ob die Eingabe sie trägt.
+    const relevant = istPsRelevant(vorhanden);
     for (const feld of AENDERBAR[art]) {
       if (feld in eingang!) vorhanden[feld] = eingang![feld];
       else if (feld !== 'extension') delete vorhanden[feld];
+    }
+    if (art !== 'Immunization') {
+      const gesetzt = psRelevanzSetzen(vorhanden, relevant);
+      vorhanden['extension'] = gesetzt['extension'];
+      if (!gesetzt['extension']) delete vorhanden['extension'];
     }
     // FHIR: Bei entered-in-error steht kein klinischer Status (con-5, ait-2) — und ohne Status
     // kein Ende der Diagnose (con-4).
@@ -566,9 +635,11 @@ export function impflisteEinhaengen(
     resourceType: 'CapabilityStatement',
     status: 'draft',
     kind: 'instance',
+    date: jetzt(),
     fhirVersion: '4.0.1',
     format: ['application/fhir+json'],
     software: { name: 'ePA-Simulator — Impfliste (Vorschlag, nicht spezifiziert)' },
+    implementation: { description: 'ePA-Simulator — Impfliste (Vorschlag, nicht spezifiziert)' },
     rest: [
       {
         mode: 'server',
@@ -584,9 +655,5 @@ export function impflisteEinhaengen(
     ],
   }));
   listenwegeEinhaengen(app, b, 'Immunization', kvnrAus, organisation);
-  for (const typ of ['Immunization', 'Provenance', 'Organization']) {
-    app.get(`${b}/${typ}`, async (anfrage) =>
-      suchergebnis(ablage(kvnrAus(anfrage)).filter((r) => r.resourceType === typ)),
-    );
-  }
+  lesewegeEinhaengen(app, b, ['Immunization'], kvnrAus);
 }

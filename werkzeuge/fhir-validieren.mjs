@@ -125,6 +125,10 @@ function vorschauPakete() {
 // 3. Validator — Hauptlauf und, wenn es Ausgaben der Vorschau gibt, Vorschau-Lauf
 function validieren(ordner, pakete, bericht) {
   const argumente = [
+    // Meldungen auf Englisch, gleich wie der Rechner eingestellt ist: Die Ausnahmen greifen auf
+    // den Meldungstext (fhir-validator.json); auf einem deutschen Rechner blieben sie sonst wirkungslos.
+    '-Duser.language=en',
+    '-Duser.country=US',
     '-jar',
     jar,
     ordner,
