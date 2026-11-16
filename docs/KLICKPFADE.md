@@ -82,6 +82,10 @@ Review gehört ein geändertes Abbild zur Durchsicht. Entfällt ein Ablauf, entf
    - `mehr` verweist in README, Spezifikation oder Entscheidungen (Pfad relativ zum Repository,
      Anker wie auf GitHub). Der Test prüft, dass Datei und Überschrift bestehen.
    - `modi` schränkt die Modi ein — ein Rundgang ist keine Aufgabe.
+   - **Was der Pfad öffnet, schließt er selbst** — Demo-Steuerung („Konfiguration schließen“),
+     ePA-Fenster („ePA schließen“). Geführt ist jeder Klick außer dem Ziel gesperrt; ohne eigenen
+     Schritt bliebe die Demo-Steuerung offen und verdeckte die Seite. Jeder Klickpfad beginnt mit
+     geschlossener Demo-Steuerung.
    - Eingaben: Ein Suchbegriff gilt gleich ob groß oder klein geschrieben, und wer schon den
      Treffer des nächsten Schritts anklickt, ist weiter. Freitext (Beurteilung, Notiz) mit
      `frei: true` — dann erfüllt jeder Text den Schritt, `wert` ist nur der Vorschlag.
