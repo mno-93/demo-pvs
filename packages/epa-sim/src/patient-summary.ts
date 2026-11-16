@@ -507,7 +507,12 @@ function ausDokumenten(
                   (r['device'] as { reference?: string } | undefined)?.reference,
             )
           : undefined;
-      const schluessel = `${JSON.stringify((geraet ?? r)['code'] ?? (geraet ?? r)['type'] ?? '')}|${datum(r)}`;
+      // Gleicher Code: das erste Coding mit System und Code — Text, Anzeige und Version dürfen
+      // zwischen zwei Dokumenten abweichen (ADR 0031). Ohne Coding der Text.
+      const begriff = ((geraet ?? r)['code'] ?? (geraet ?? r)['type']) as
+        { text?: string; coding?: { system?: string; code?: string }[] } | undefined;
+      const coding = begriff?.coding?.find((c) => c.system && c.code);
+      const schluessel = `${coding ? `${coding.system}|${coding.code}` : (begriff?.text ?? '')}|${datum(r)}`;
       if (gesehen.has(schluessel)) continue;
       gesehen.add(schluessel);
       const id = `${String(r.id)}-${d.id}`;
