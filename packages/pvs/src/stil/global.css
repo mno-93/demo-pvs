@@ -1918,6 +1918,14 @@ button.marker {
   border-top: none;
 }
 
+/* Teilung eines Abschnitts nach dem Informationsmodell, etwa aktive und vergangene Diagnosen. */
+.ps-gruppe-titel {
+  margin: 8px 0 2px;
+  font-size: 0.8em;
+  font-weight: 600;
+  color: var(--text-leise);
+}
+
 .ps-leer {
   padding: 8px 10px;
   border-radius: var(--radius);

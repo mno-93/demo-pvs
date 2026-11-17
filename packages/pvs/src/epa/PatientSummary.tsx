@@ -10,6 +10,7 @@ import {
   deutscherZeitpunkt,
   deutschesDatum,
   diagnoseAusFhir,
+  diagnosenTeilen,
   impfungAusFhir,
   istKeineBekannteAllergie,
   reaktionenAlsText,
@@ -431,30 +432,44 @@ function Eintraege({
   }
 
   if (a.schluessel === 'diagnosen') {
+    // Wie im Informationsmodell: aktive und vergangene Diagnosen, sobald es vergangene gibt.
+    const { aktiv, vergangen } = diagnosenTeilen(a.eintraege);
+    const gruppen =
+      vergangen.length > 0
+        ? [
+            ...(aktiv.length > 0 ? [{ titel: 'Aktive Diagnosen', eintraege: aktiv }] : []),
+            { titel: 'Vergangene Diagnosen', eintraege: vergangen },
+          ]
+        : [{ titel: null, eintraege: aktiv }];
     return (
       <>
-        {a.eintraege.map((r) => {
-          const chronik = chronikLesen(r, provenance);
-          const d = diagnoseAusFhir(r, patientId, herkunftAus(chronik));
-          return (
-            <div key={String(r.id)} className="ps-eintrag">
-              <div className="reihe">
-                <b>{d.bezeichnung}</b>
-                <NeuMarke seit={seit} ressource={r} />
-                {d.code && <span className="code">{diagnosecode(d)}</span>}
-                {d.beginn && <span className="leise-klein">seit {d.beginn.slice(0, 4)}</span>}
-                <Marker ton={d.diagnosesicherheit ? 'neutral' : 'warn'}>
-                  {diagnosesicherheitText(d.diagnosesicherheit)}
-                </Marker>
-                <Marker ton={d.klinischerStatus ? 'neutral' : 'warn'}>
-                  {klinischerStatusText(d.klinischerStatus)}
-                </Marker>
-                {d.schweregrad && <Marker ton="neutral">{d.schweregrad.anzeige}</Marker>}
-              </div>
-              <PsHerkunft chronik={chronik} />
-            </div>
-          );
-        })}
+        {gruppen.map((g) => (
+          <div key={g.titel ?? 'alle'} className="ps-gruppe">
+            {g.titel && <h5 className="ps-gruppe-titel">{g.titel}</h5>}
+            {g.eintraege.map((r) => {
+              const chronik = chronikLesen(r, provenance);
+              const d = diagnoseAusFhir(r, patientId, herkunftAus(chronik));
+              return (
+                <div key={String(r.id)} className="ps-eintrag">
+                  <div className="reihe">
+                    <b>{d.bezeichnung}</b>
+                    <NeuMarke seit={seit} ressource={r} />
+                    {d.code && <span className="code">{diagnosecode(d)}</span>}
+                    {d.beginn && <span className="leise-klein">seit {d.beginn.slice(0, 4)}</span>}
+                    <Marker ton={d.diagnosesicherheit ? 'neutral' : 'warn'}>
+                      {diagnosesicherheitText(d.diagnosesicherheit)}
+                    </Marker>
+                    <Marker ton={d.klinischerStatus ? 'neutral' : 'warn'}>
+                      {klinischerStatusText(d.klinischerStatus)}
+                    </Marker>
+                    {d.schweregrad && <Marker ton="neutral">{d.schweregrad.anzeige}</Marker>}
+                  </div>
+                  <PsHerkunft chronik={chronik} />
+                </div>
+              );
+            })}
+          </div>
+        ))}
       </>
     );
   }
