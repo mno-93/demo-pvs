@@ -301,8 +301,7 @@ Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund
 ## 8 Abgleich mit dem Informationsmodell der Patient Summary
 
 Quelle: Informationsmodell „MIO ePA EU Patient Summary“ im öffentlichen CI-Build des Implementation
-Guide (Branch `ePS-0.0.1`, Datei `infomodell_js_treeview_epa-ps.json`, Stand 17.11.2026; Verweis in
-[QUELLEN.md](QUELLEN.md)). Das Modell ist ein Arbeitsstand, kein FHIR-Profil: Es nennt Elemente,
+Guide, Stand 17.11.2026 (Verweis in [QUELLEN.md](QUELLEN.md)). Das Modell ist ein Arbeitsstand, kein FHIR-Profil: Es nennt Elemente,
 Kardinalitäten und Wertelisten, die Profile folgen später. Die Demo bildet ab, was ihre Abläufe
 brauchen; Abweichungen stehen hier.
 
