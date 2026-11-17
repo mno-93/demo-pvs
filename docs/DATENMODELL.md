@@ -297,3 +297,93 @@ Laborbefunds nach `section:result` und die Auflösung jedes Verweises im Befund
      nicht als Abhängigkeit; der Validator lädt es eigens (SPEZIFIKATION 5.5, Befund 4).
    - Die Laborbefunde tragen keinen Laborbereich an der Gruppe und keine optionalen Angaben
      (Akkreditierung, kritisches Ergebnis, alternative Ergebnisse).
+
+## 8 Abgleich mit dem Informationsmodell der Patient Summary
+
+Quelle: Informationsmodell „MIO ePA EU Patient Summary“ im öffentlichen CI-Build des Implementation
+Guide, Stand 17.11.2026 (Verweis in [QUELLEN.md](QUELLEN.md)). Das Modell ist ein Arbeitsstand, kein FHIR-Profil: Es nennt Elemente,
+Kardinalitäten und Wertelisten, die Profile folgen später. Die Demo bildet ab, was ihre Abläufe
+brauchen; Abweichungen stehen hier.
+
+### 8.1 Patient Summary
+
+| Element im Modell                                                                                               | Kard.         | Demo                                                                                           | Stand            |
+| --------------------------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------------------------- | ---------------- |
+| Subjekt (TI Patient)                                                                                            | 1..1          | `subject`                                                                                      | abgebildet       |
+| Zuletzt bearbeitet                                                                                              | 1..1          | `Composition.date`, „zuletzt geändert“ im Kopf                                                 | abgebildet       |
+| Autor:in (TI Practitioner, PractitionerRole)                                                                    | 1..\*         | `author` ist der Dienst (Device), wie in der gematik-EPS                                       | **abweichend** ▸ |
+| Allergien/Unverträglichkeiten                                                                                   | 1..1          | Abschnitt 48765-2 mit Leergrund                                                                | abgebildet       |
+| Diagnosen: Aktive Diagnosen, Vergangene Diagnosen                                                               | 1..1; je 0..1 | Abschnitt 11450-4, im Erzähltext und in der Anzeige geteilt, aktive zuerst (SPEZIFIKATION 7.2) | abgebildet ⚠     |
+| Impfungen/Prophylaxen                                                                                           | 1..1          | Abschnitt 11369-6                                                                              | abgebildet       |
+| Implantate/Geräte                                                                                               | 1..1          | Abschnitt 46264-8                                                                              | abgebildet       |
+| Medikationen                                                                                                    | 1..1          | Abschnitt 10160-0 aus eMP bzw. eML                                                             | abgebildet       |
+| Prozeduren                                                                                                      | 1..1          | Abschnitt 47519-4                                                                              | abgebildet       |
+| Diagnostische Resultate (Laborbefund dgLP)                                                                      | 0..1          | Abschnitt 30954-2 aus dgLP-Befunden                                                            | abgebildet       |
+| Persönliche Erklärungen                                                                                         | 0..1          | Abschnitt 42348-3, leer                                                                        | abgebildet       |
+| Medizinische Warnungen, Funktionszustand, Anamnese, Schwangerschaft, Sozial- und Reiseanamnese, Versorgungsplan | je 0..1       | —                                                                                              | nicht abgebildet |
+
+- ⚠ **Aktive und vergangene Diagnosen:** `composition-eu-eps` (1.0.0-ballot) kennt keine
+  Unterabschnitte und hat den Abschnitt der früheren Probleme gestrichen; das EHDS-Modell (Xt-EHR
+  1.0.0) schlägt vor, beide Problemabschnitte zusammenzulegen. Die IPS führt sie getrennt (11348-0).
+  Die Demo bleibt bei einem Abschnitt und teilt nach dem klinischen Status: inaktiv, Remission und
+  behoben gelten als vergangen, ohne Status als aktiv. Wie das Modell die Teilung in FHIR abbildet,
+  ist offen.
+- ▸ **Autor:in:** Das Modell nennt eine verantwortliche Person. Die gematik-EPS und die Demo nennen
+  den Dienst, weil niemand die zusammengestellte Übersicht verantwortet (SPEZIFIKATION 6.4, „Wer
+  darf ändern?“).
+
+### 8.2 Diagnose
+
+| Element im Modell                                                        | Kard.                                                        | Demo (4.1)                                                                             | Stand                    |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------------------------ |
+| Codierung: ICD-10-GM, SNOMED CT, ORPHANET, Alpha-ID                      | je 0..1; mindestens einer von ICD-10-GM, SNOMED CT, ORPHANET | ICD-10-GM Pflicht (Abrechnung), SNOMED CT und Alpha-ID dazu                            | strenger; ORPHANET nicht |
+| ICD-10-GM: Diagnosesicherheit, Seitenlokalisation, Codierungskennzeichen | 0..1                                                         | Zusatzkennzeichen, Seite; Codierungskennzeichen nicht                                  | teilweise                |
+| Diagnosesicherheit                                                       | 0..1                                                         | `verificationStatus`                                                                   | abgebildet               |
+| Klinischer Status                                                        | **1..1**                                                     | `clinicalStatus`; fehlt bei „irrtümlich“, Zusatzkennzeichen „A“ und unbekanntem Status | **abweichend** ▸         |
+| Kategorie: SNOMED-CT-Code, HL7 ConditionCategory                         | SNOMED CT **1..1**, HL7 0..1                                 | nur ConditionCategory (`problem-list-item`, `encounter-diagnosis`)                     | **offen** ⚠              |
+| Klinisch relevanter Zeitraum (von, bis)                                  | 0..1                                                         | `onsetDateTime`, `abatementDateTime`                                                   | abgebildet               |
+| Feststellungsdatum, Dokumentationsdatum                                  | 0..1                                                         | Extension `condition-assertedDate`, `recordedDate`                                     | abgebildet               |
+| Schweregrad (SNOMED CT), Körperstelle, Notiz                             | 0..1, 0..\*                                                  | abgebildet, Körperstelle als Text                                                      | teilweise                |
+| Stadium, Externe Referenzen, Körperstruktur                              | 0..\*                                                        | —                                                                                      | nicht abgebildet         |
+| Beteiligte Personen                                                      | 0..\*                                                        | Namen als `recorder.display`, `asserter.display`                                       | teilweise                |
+
+- ▸ **Klinischer Status 1..1** widerspricht FHIR für irrtümliche Einträge (`con-5`: kein Status bei
+  `entered-in-error`) und den Deutschen Basisprofilen für ausgeschlossene Diagnosen (`icd-4`).
+  `ti-condition-diagnosis` führt ihn 0..1. Die Demo folgt dem Profil.
+- ⚠ **Kategorie als SNOMED CT 1..1:** Das Modell nennt dafür keine Werteliste. Die Demo führt nur
+  die HL7-Kategorie, wie das Profil sie bindet.
+
+### 8.3 Allergie/Unverträglichkeit
+
+| Element im Modell                                                | Kard.                                        | Demo (4.2)                                                             | Stand                     |
+| ---------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------- | ------------------------- |
+| Substanz: SNOMED CT oder EMA SPOR SMS                            | Code-Auswahl 1..\*, einer von beiden Pflicht | SNOMED CT aus der Werteliste der KBV; Freitext möglich; EMA SPOR nicht | **abweichend** (Freitext) |
+| Klinischer Status                                                | 1..1                                         | `clinicalStatus`, fehlt nur bei „irrtümlich“ (`ait-2`)                 | abgebildet                |
+| Gewissheit, Typ, Kritikalität, Wirkstoffkategorie                | 0..1, 0..\*                                  | abgebildet                                                             | abgebildet                |
+| Klinisch relevanter Zeitraum                                     | 0..1                                         | Beginn, Ende (Extension)                                               | abgebildet                |
+| Reaktion: Manifestation (SNOMED CT)                              | 1..\*, Code **1..1**                         | SNOMED CT aus der Werteliste; Freitext möglich                         | **abweichend** (Freitext) |
+| Reaktion: Schweregrad, Ereignisdatum, Expositionsweg             | 0..1                                         | abgebildet                                                             | abgebildet                |
+| Reaktion: Zeitliche Latenz, mit Vorauswahl < 6 h, 6–24 h, > 24 h | 0..1                                         | —                                                                      | nicht abgebildet          |
+| Beteiligte Personen, Notiz                                       | 0..\*                                        | Namen als Text; Notiz                                                  | teilweise                 |
+
+▸ Seit dem Stand vom 17.11.2026 verlangt das Modell für Substanz und Manifestation einen Code. Die
+Erfassung der Demo lässt Freitext zu und kennzeichnet ihn („Freitext — nicht kodiert“, ADR 0015);
+ein solcher Eintrag entspricht dem Modell nicht.
+
+### 8.4 Impfung
+
+| Element im Modell                                           | Kard.                    | Demo (4.3)                                                      | Stand                  |
+| ----------------------------------------------------------- | ------------------------ | --------------------------------------------------------------- | ---------------------- |
+| Impfstoff: ATC oder SNOMED CT (IPS-Wertelisten)             | einer von beiden Pflicht | ATC mit PZN und Text                                            | abgebildet ⚠           |
+| Impfzeitpunkt                                               | 1..1 (Datum und Zeit)    | Datum                                                           | abgebildet             |
+| Status: abgeschlossen, nicht durchgeführt                   | 1..1                     | dazu `entered-in-error` für die Berichtigung in der ✦ Impfliste | **erweitert**          |
+| Zielerkrankung (SNOMED CT)                                  | 0..\*, Code 1..1         | abgebildet                                                      | abgebildet             |
+| Impfende Person/Einrichtung, Verantwortliche Einrichtung    | 0..1                     | Name als `performer.actor.display`                              | teilweise              |
+| Verabreichtes Produkt (Arzneimittel des Medication Service) | 0..1                     | —                                                               | nicht abgebildet       |
+| Notiz                                                       | 0..\*                    | abgebildet                                                      | abgebildet             |
+| —                                                           | —                        | Dosisnummer, Charge (aus `immunization-eu-core`)                | über das Modell hinaus |
+
+⚠ **ATC:** Das Modell bindet die IPS-Werteliste `vaccines-whoatc-uv-ips` mit dem System der WHO
+(`http://www.whocc.no/atc`). Die Demo führt die amtliche deutsche Fassung des BfArM
+(`http://fhir.de/CodeSystem/bfarm/atc`); die Codes J07… sind gleich, das System nicht. Welches im
+Profil gilt, ist offen.

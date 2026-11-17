@@ -1090,6 +1090,55 @@ describe('✦ Patient Summary', () => {
     expect(chronologien).toEqual([]);
   });
 
+  it('✦ teilt die Diagnosen in aktive und vergangene, wie das Informationsmodell', async () => {
+    const liste = (
+      await app.inject({ method: 'GET', url: `${DIENST}/$condition-list`, headers: kopf() })
+    ).json().entry as { resource: Record<string, unknown> & { id: string } }[];
+    const nachweis = liste
+      .map((e) => e.resource)
+      .find((r) =>
+        JSON.stringify(r['extension'] ?? '').includes('is-condition-list-chronology'),
+      )!.id;
+    const vorhofflimmern = liste.find((e) => e.resource.id === 'cond-h-1')!.resource;
+    const behoben = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$update-condition-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: nachweis },
+          {
+            name: 'conditionEntry',
+            resource: {
+              ...vorhofflimmern,
+              clinicalStatus: {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
+                    code: 'resolved',
+                  },
+                ],
+              },
+              abatementDateTime: '2026-09-01',
+            },
+          },
+        ],
+      },
+    });
+    expect(behoben.statusCode).toBe(200);
+    const b = (
+      await app.inject({ method: 'GET', url: `${PS}/Patient/$summary`, headers: kopf() })
+    ).json();
+    const abschnitt = b.entry[0].resource.section.find(
+      (s: { code: { coding: { code: string }[] } }) => s.code.coding[0]!.code === '11450-4',
+    );
+    expect(abschnitt.text.div).toContain('Aktive Diagnosen');
+    expect(abschnitt.text.div).toContain('Vergangene Diagnosen');
+    // Aktive zuerst, die behobene danach.
+    expect(abschnitt.entry.at(-1).reference).toBe('Condition/cond-h-1');
+  });
+
   it('✦ weist einen Stand ohne Uhrzeit oder Zeitzone ab', async () => {
     const a = await app.inject({
       method: 'GET',

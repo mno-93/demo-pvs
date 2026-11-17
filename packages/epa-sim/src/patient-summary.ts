@@ -8,6 +8,7 @@ import {
   PS_QUELLE_EXTENSION,
   PS_QUELLE_SYSTEM,
   PS_WEITERE_EXTENSION,
+  diagnosenTeilen,
   istPsRelevant,
   alsOrtszeit,
   ohneZeitzone,
@@ -336,8 +337,10 @@ function diagnosen(kvnr: string, mitListen: boolean, stand: Stand, ohneAuswahl: 
     stand,
     (r) => r.resourceType === 'Condition',
   ).filter(gueltig);
-  // Ohne Relevanzauswahl steht jeder gültige Eintrag der Liste in der Übersicht (ADR 0063).
-  const eintraege = ohneAuswahl ? alle : alle.filter(istPsRelevant);
+  // Ohne Relevanzauswahl steht jeder gültige Eintrag der Liste in der Übersicht (ADR 0063); aktive
+  // vor vergangenen Diagnosen, wie das Informationsmodell den Abschnitt teilt.
+  const { aktiv, vergangen } = diagnosenTeilen(ohneAuswahl ? alle : alle.filter(istPsRelevant));
+  const eintraege = [...aktiv, ...vergangen];
   return {
     quelle: 'condition-list',
     eintraege,
@@ -550,14 +553,41 @@ function ohneQuelle(): Teil {
   return { quelle: 'none', eintraege: [], dazu: [] };
 }
 
-function erzaehlung(titel: string, zeilen: string[]): { status: string; div: string } {
+/**
+ * Erzähltext eines Abschnitts. Gruppen mit Überschrift, wo der Abschnitt geteilt ist — bei den
+ * Diagnosen „Aktive“ und „Vergangene“, sobald es vergangene gibt.
+ */
+function erzaehlung(
+  titel: string,
+  gruppen: { ueberschrift: string | null; zeilen: string[] }[],
+): { status: string; div: string } {
   const text = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const liste = (zeilen: string[]) =>
+    zeilen.length > 0 ? `<ul>${zeilen.map((z) => `<li>${text(z)}</li>`).join('')}</ul>` : '';
   return {
     status: 'generated',
-    div: `<div xmlns="http://www.w3.org/1999/xhtml"><p><b>${text(titel)}</b></p>${
-      zeilen.length > 0 ? `<ul>${zeilen.map((z) => `<li>${text(z)}</li>`).join('')}</ul>` : ''
-    }</div>`,
+    div: `<div xmlns="http://www.w3.org/1999/xhtml"><p><b>${text(titel)}</b></p>${gruppen
+      .map((g) => `${g.ueberschrift ? `<p>${text(g.ueberschrift)}</p>` : ''}${liste(g.zeilen)}`)
+      .join('')}</div>`,
   };
+}
+
+function erzaehlgruppen(
+  schluessel: PsAbschnittSchluessel,
+  eintraege: readonly Ressource[],
+  alle: readonly Ressource[],
+): { ueberschrift: string | null; zeilen: string[] }[] {
+  const namen = (x: readonly Ressource[]) => x.map((e) => bezeichnung(e, alle));
+  if (schluessel === 'diagnosen') {
+    const { aktiv, vergangen } = diagnosenTeilen(eintraege);
+    if (vergangen.length > 0) {
+      return [
+        ...(aktiv.length > 0 ? [{ ueberschrift: 'Aktive Diagnosen', zeilen: namen(aktiv) }] : []),
+        { ueberschrift: 'Vergangene Diagnosen', zeilen: namen(vergangen) },
+      ];
+    }
+  }
+  return [{ ueberschrift: null, zeilen: namen(eintraege) }];
 }
 
 export function bezeichnung(r: Ressource, alle: readonly Ressource[]): string {
@@ -650,10 +680,7 @@ export function patientSummaryBilden(kvnr: string, stand: Stand = null): Ressour
         ],
         title: d.titel,
         code: { coding: [{ system: CODESYSTEM.loinc, code: d.loinc, display: d.loincAnzeige }] },
-        text: erzaehlung(
-          d.titel,
-          t.eintraege.map((e) => bezeichnung(e, alle)),
-        ),
+        text: erzaehlung(d.titel, erzaehlgruppen(d.schluessel, t.eintraege, alle)),
         ...(t.eintraege.length > 0
           ? {
               entry: t.eintraege.map((e) => ({ reference: `${e.resourceType}/${String(e.id)}` })),

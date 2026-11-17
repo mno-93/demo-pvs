@@ -60,6 +60,31 @@ export function psRelevanzSetzen(r: Ressource, wert: boolean): Ressource {
 }
 
 /**
+ * Das Informationsmodell der Patient Summary teilt den Abschnitt „Diagnosen“ in „Aktive Diagnosen“
+ * und „Vergangene Diagnosen“ — stattgehabte, nicht mehr aktive Diagnosen, die für die weitere
+ * Versorgung relevant bleiben (CI-Build ePS-0.0.1, Stand 17.11.2026). Vergangen ist, was inaktiv,
+ * in Remission oder behoben ist; ohne klinischen Status gilt eine Diagnose als aktiv.
+ *
+ * In FHIR bleibt es ein Abschnitt (Problemliste, LOINC 11450-4): `composition-eu-eps` kennt keine
+ * Unterabschnitte und hat den Abschnitt der früheren Probleme gestrichen, das EHDS-Modell legt beide
+ * zusammen. Die Teilung steht im Erzähltext und in der Anzeige.
+ */
+export function istVergangeneDiagnose(r: Ressource): boolean {
+  const status = (r['clinicalStatus'] as { coding?: { code?: string }[] } | undefined)?.coding?.[0]
+    ?.code;
+  return status === 'inactive' || status === 'remission' || status === 'resolved';
+}
+
+export function diagnosenTeilen<T extends Ressource>(
+  eintraege: readonly T[],
+): { aktiv: T[]; vergangen: T[] } {
+  return {
+    aktiv: eintraege.filter((r) => !istVergangeneDiagnose(r)),
+    vergangen: eintraege.filter(istVergangeneDiagnose),
+  };
+}
+
+/**
  * Quellen einer Section.
  * - `allergy-list`, `condition-list`: ✦ Listen des Diagnose-Service — ärztlich geführt
  * - `medication-plan`: eMP — ärztlich geführt

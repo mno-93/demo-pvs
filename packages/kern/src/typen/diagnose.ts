@@ -2,7 +2,8 @@ import type { Herkunft } from './herkunft.js';
 import type { Kodierung } from './kodierung.js';
 
 /**
- * Diagnose nach dem Informationsmodell der Patient Summary (Element „Diagnose").
+ * Diagnose nach dem Informationsmodell der Patient Summary (Element „Diagnose“; Stand 17.11.2026,
+ * Abgleich in DATENMODELL 8.2).
  *
  * Die Codierung ist 1..1, aber mehrfach belegbar: ICD-10-GM, Alpha-ID, SNOMED CT und
  * Orphanet stehen nebeneinander. Das Praxissystem führt die ICD-10-GM für die Abrechnung,
@@ -10,7 +11,10 @@ import type { Kodierung } from './kodierung.js';
  * hinterlegt beides in einem Schritt.
  *
  * Nicht abgebildet sind die Modellelemente Stadium, Fachliche:r Ansprechpartner:in,
- * Externe Referenzen, der Orphanet-Code und das Codierungskennzeichen der ICD-10-GM.
+ * Externe Referenzen, der Orphanet-Code und das Codierungskennzeichen der ICD-10-GM. Strenger als
+ * das Modell ist die Pflicht zur ICD-10-GM (Abrechnung); das Modell verlangt einen von ICD-10-GM,
+ * SNOMED CT oder Orphanet. Den klinischen Status (im Modell 1..1) lässt die Demo bei irrtümlichen
+ * und ausgeschlossenen Diagnosen weg, wie es FHIR und `ti-condition-diagnosis` verlangen.
  * Die Bezeichnungen der Codes folgen der Spalte „Konzept" des Modells.
  */
 
