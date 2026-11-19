@@ -48,3 +48,22 @@ eigener Dienst; die Tests prüfen beide Anbindungen.
 zusätzlicher Betrieb und öffentlich erreichbare Schnittstelle. **Service Worker** — dieselbe
 Anpassung des Simulators, zusätzlich Registrierung und Aktualisierung. **Aufzeichnungen statt
 Simulator** — keine schreibenden Abläufe, keine Konflikte, keine E-Rezepte.
+
+## Nachtrag 13.11.2026 — Vorschau eines Branchs
+
+Ein Stand zur Diskussion soll neben der Demo von `main` erreichbar sein, ohne dort schon zu gelten.
+Pages kennt je Repository eine Seite, und veröffentlichen darf nur `main`. Die Vorschau liegt
+deshalb als Unterordner in derselben Seite, `/<repository>/vorschau/<branch>/`: Der Lauf auf `main`
+baut die in `.github/vorschau-branches.txt` genannten Branches mit und setzt sie ein
+(`werkzeuge/vorschau-einbauen.mjs`); `.github/workflows/vorschau.yml` stößt ihn an, wenn sich ein
+solcher Branch ändert und geprüft ist. Die eine `404.html` der Seite wird zur Weiche, die für eine
+tiefe Adresse die Startseite des zugehörigen Teils lädt.
+
+▸ So bleibt die Regel, dass nur `main` veröffentlicht und nur Geprüftes öffentlich wird (ADR 0041).
+Der Preis: Der Code des Vorschau-Branchs wird im Lauf von `main` gebaut — ohne Secrets, mit
+lesendem Token, nur für Branches, die jemand auf `main` in die Liste eingetragen hat.
+
+**Verworfen:** ein Branch `gh-pages` mit Unterordnern — stellt die Veröffentlichung von `main` auf
+einen zweiten Mechanismus um und braucht Schreibrechte im Lauf; ein zweites Repository je Vorschau
+— eigener Zugang, eigene Freigabe; Veröffentlichen aus dem Branch selbst — hebt die Schranke auf,
+dass nur `main` öffentlich wird, und der nächste Lauf auf `main` überschriebe die Vorschau.
