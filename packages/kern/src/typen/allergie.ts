@@ -3,15 +3,16 @@ import type { Kodierung } from './kodierung.js';
 
 /**
  * Allergie oder Unverträglichkeit nach dem Informationsmodell der Patient Summary
- * (Arbeitsstand, Element „Allergie/Unverträglichkeit").
+ * (Element „Allergie/Unverträglichkeit“; Stand 17.11.2026, Abgleich in DATENMODELL 8.3).
  *
  * Die Substanz ist 1..1 und über SNOMED CT gegen KBV_VS_AllergyIntolerance_Substance_SNOMED_CT gebunden
  * (extensible, 197 Konzepte). Reaktionen stehen als eigene Struktur mit Manifestationen aus
  * KBV_VS_AllergyIntolerance_Manifestation_SNOMED_CT (extensible, 37 Konzepte) und dem Expositionsweg aus
  * KBV_VS_Base_Route_of_Administration_SNOMED_CT (example).
  *
- * Nicht abgebildet sind ASK- und EMA-SPOR-Codes der Substanz und der zeitliche Verlauf der
- * Reaktion. Das Modell kennt für Allergien kein Feststellungsdatum, sondern einen klinisch
+ * Nicht abgebildet sind der EMA-SPOR-Code der Substanz und die zeitliche Latenz der Reaktion.
+ * Das Modell verlangt für Substanz und Manifestation einen Code; die Demo lässt Freitext zu und
+ * kennzeichnet ihn (ADR 0015). Das Modell kennt für Allergien kein Feststellungsdatum, sondern einen klinisch
  * relevanten Zeitraum; dem folgt der Typ.
  */
 

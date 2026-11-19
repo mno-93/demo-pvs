@@ -144,10 +144,26 @@ const BEWERTUNG: RegExp[] = [
   /\bnormal\b/,
   /\bdringend\b/,
   /\bnotfall\b/,
+  // „wie es weitergeht" (Definition oben und Ablehnungstext)
+  /\bweiter ?geht\b/,
+  /\bwie geht es\b.*\bweiter\b/,
+  /\bwird (das|es) wieder\b/,
 ];
 
-/** Bewertungsfragen, hinter denen akute Beschwerden stehen können. */
+/**
+ * Fragen, hinter denen akute Beschwerden stehen können. Unabhängig von der Absicht: Auch eine
+ * Frage, die der Lotse beantwortet, bekommt für Versicherte Notruf und Bereitschaftsdienst vorab.
+ */
 const DRINGLICH: RegExp[] = [/\bdringend\b/, /\bnotfall\b/, /\bsofort\b/, /\bakut/];
+
+const NOTRUF = 'Bei akuten Beschwerden: Notruf 112 oder ärztlicher Bereitschaftsdienst 116 117.';
+
+/** Notruf und Bereitschaftsdienst — nur Versicherten, nur wenn die Frage nach Dringlichkeit klingt. */
+function notrufhinweis(frage: string, ansprache: Ansprache): string | null {
+  return ansprache.art !== 'praxis' && DRINGLICH.some((m) => m.test(normalisiere(frage)))
+    ? NOTRUF
+    : null;
+}
 
 const STICHWOERTER: Record<Exclude<Absicht, 'stellensuche' | 'bewertung'>, string[]> = {
   laborverlauf: [
@@ -674,11 +690,8 @@ function grenzhinweis(frage: string, ansprache: Ansprache): string {
   if (ansprache.art === 'praxis') {
     return 'Die Frage verlangt eine Bewertung — Einordnung, Prognose oder Empfehlung. Der Lotse gibt wieder, was in den Unterlagen steht, und bewertet nicht.';
   }
-  const dringlich = DRINGLICH.some((m) => m.test(normalisiere(frage)));
   return [
-    dringlich
-      ? 'Bei akuten Beschwerden: Notruf 112 oder ärztlicher Bereitschaftsdienst 116 117.'
-      : null,
+    notrufhinweis(frage, ansprache),
     'Ob etwas ernst ist, wie es weitergeht oder was Sie tun sollten, beantwortet der Lotse nicht. Das wäre eine Bewertung, und die gehört in das Gespräch mit Ihrer Ärztin oder Ihrem Arzt.',
     'Was in Ihren Unterlagen steht, zeigt er Ihnen.',
   ]
@@ -721,11 +734,16 @@ export function lotseAntworten(
             : stellensuche(frage, lesbare, lesart);
 
   const hinweis =
-    absaetze.length === 0
-      ? 'Dazu steht in den gelesenen Unterlagen nichts, was sich belegen lässt.'
-      : absicht === 'stellensuche'
-        ? 'Diese Frage ist dem Lotsen nicht bekannt. Er gibt die Stellen wieder, an denen die Wörter vorkommen.'
-        : null;
+    [
+      notrufhinweis(frage, ansprache),
+      absaetze.length === 0
+        ? 'Dazu steht in den gelesenen Unterlagen nichts, was sich belegen lässt.'
+        : absicht === 'stellensuche'
+          ? 'Diese Frage ist dem Lotsen nicht bekannt. Er gibt die Stellen wieder, an denen die Wörter vorkommen.'
+          : null,
+    ]
+      .filter(Boolean)
+      .join(' ') || null;
 
   // Begriffe aus den gelesenen Quellen, nicht aus dem gebildeten Text: Dort stünden die
   // Umschreibungen in der Lesart „alltag" schon drin.

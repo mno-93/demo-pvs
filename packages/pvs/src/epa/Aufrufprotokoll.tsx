@@ -12,12 +12,12 @@ import { vorgaenge } from '../speicher/vorgaenge.js';
 import { befugnisseAblaufenLassen, useEinlesungen } from './befugnis.js';
 import { useBetriebsstand } from './epa-bestand.js';
 import { EINRICHTUNG } from './klient.js';
+import { demoZuruecksetzen } from '../demo/zuruecksetzen.js';
 import {
   akteSetzen,
   aktenLesen,
   fremdeAenderungAnlegen,
   fremdeEintraegeAnlegen,
-  aktensystemZuruecksetzen,
   apothekeGibtAb,
   apothekeStorniertAbgabe,
   apothekenRezepteLesen,
@@ -410,9 +410,9 @@ export function Aufrufprotokoll() {
             <button
               type="button"
               className="knopf klein"
-              onClick={() => aktensystemZuruecksetzen().then(stand, stand)}
+              onClick={() => demoZuruecksetzen().then(stand, stand)}
             >
-              ePA-Bestand zurücksetzen
+              Praxis und ePA zurücksetzen
             </button>
           </>
         )}

@@ -144,6 +144,31 @@ describe('Grenze: keine Bewertung', () => {
 
   it('beantwortet gewöhnliche Fragen ohne Grenze', () => {
     expect(lotseAntworten('Was vertrage ich nicht?', ALLE).grenze).toBeNull();
+    expect(lotseAntworten('Was vertrage ich nicht?', ALLE).hinweis ?? '').not.toContain('112');
+  });
+
+  it('nennt Notruf und Bereitschaftsdienst auch, wenn die Frage keine Bewertung verlangt', () => {
+    for (const frage of ['Ich habe akute Brustschmerzen', 'Ich brauche sofort Hilfe bei Atemnot']) {
+      const antwort = lotseAntworten(frage, ALLE, 'alltag');
+      expect(antwort.grenze, frage).toBeNull();
+      expect(antwort.hinweis, frage).toContain('Notruf 112');
+      expect(antwort.hinweis, frage).toContain('116 117');
+    }
+    const praxis = lotseAntworten('Ich habe akute Brustschmerzen', ALLE, 'fach', {
+      art: 'praxis',
+      name: 'Renate Hoffmann',
+    });
+    expect(praxis.hinweis ?? '').not.toContain('112');
+  });
+
+  it('lehnt Fragen danach ab, wie es weitergeht', () => {
+    for (const frage of [
+      'Wie geht es mit meinem Herz weiter?',
+      'Wird das wieder?',
+      'Wie es weitergeht, möchte ich wissen',
+    ]) {
+      expect(lotseAntworten(frage, ALLE, 'alltag').grenze, frage).toBe('bewertung');
+    }
   });
 });
 

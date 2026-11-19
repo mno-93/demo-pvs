@@ -1,4 +1,4 @@
-import { demoZeitpunkt, ohneZeitzone, vollUrl, type Ressource } from '@demo-pvs/kern';
+import { alsOrtszeit, demoZeitpunkt, ohneZeitzone, vollUrl, type Ressource } from '@demo-pvs/kern';
 
 /** Hilfen für FHIR-Antworten und `Parameters`-Ressourcen. */
 
@@ -117,8 +117,9 @@ export const DATUMSPRAEFIXE = ['eq', 'ne', 'gt', 'ge', 'lt', 'le', 'sa', 'eb'] a
  * Prüft einen Zeitpunkt gegen FHIR-Datumsparameter (`gt`, `ge`, `lt`, `le`, `eq`, `ne`, `sa`,
  * `eb`; ohne Präfix `eq`). Für einen Zeitpunkt gilt `sa` wie `gt` und `eb` wie `lt`. Mehrere Werte
  * gelten zusammen, etwa `date=ge…&date=le…`. Der Bestand führt Zeitpunkte ohne Zone, Antworten
- * tragen sie (zeit.ts im Kern) — und so kommen sie als Lesezeichen zurück. Verglichen wird
- * deshalb ohne Zone, als Zeichenkette: Alle stammen aus derselben Uhr.
+ * tragen sie (zeit.ts im Kern) — und so kommen sie als Lesezeichen zurück. Verglichen wird als
+ * Zeichenkette in deutscher Ortszeit: Ein Wert mit Zone wird erst umgerechnet (`alsOrtszeit`),
+ * nicht abgeschnitten — `gt…T09:00Z` ist 11:00 deutscher Sommerzeit, nicht 09:00.
  */
 export function imZeitraum(
   zeitpunkt: string | undefined,
@@ -127,11 +128,11 @@ export function imZeitraum(
   const bedingungen = ([] as string[]).concat(werte ?? []);
   if (bedingungen.length === 0) return true;
   if (!zeitpunkt) return false;
-  const lokal = ohneZeitzone(zeitpunkt);
+  const lokal = ohneZeitzone(alsOrtszeit(zeitpunkt));
   return bedingungen.every((b) => {
     const angabe = /^(gt|ge|lt|le|eq|ne|sa|eb)/.exec(b)?.[1] ?? 'eq';
     const praefix = angabe === 'sa' ? 'gt' : angabe === 'eb' ? 'lt' : angabe;
-    const wert = ohneZeitzone(b.replace(/^(gt|ge|lt|le|eq|ne|sa|eb)/, ''));
+    const wert = ohneZeitzone(alsOrtszeit(b.replace(/^(gt|ge|lt|le|eq|ne|sa|eb)/, '')));
     const t = lokal.slice(0, Math.max(wert.length, 10));
     // Ein reines Datum steht für den ganzen Tag (FHIR Search, Datumsbereiche): „nach" vergleicht
     // mit dessen Ende, „vor" mit dessen Anfang.

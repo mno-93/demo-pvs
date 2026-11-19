@@ -25,7 +25,7 @@ Abfragen, die die Implementation Guides dafür vorsehen.
 Das PVS verordnet E-Rezepte über einen Demo-Ersatz des E-Rezept-Fachdienstes; aus dem Plan
 verordnet, verknüpfen sich Plan und Medikationsliste über den eMP-Identifier.
 
-Die Spezifikation ist zugleich als **Blaupause für gute Bedienbarkeit** gedacht: 30 UX-Grundsätze,
+Die Spezifikation ist zugleich als **Blaupause für gute Bedienbarkeit** gedacht: 32 UX-Grundsätze,
 jeweils mit Begründung und der Stelle, an der sie in der Demo zu sehen sind
 ([SPEZIFIKATION.md, Abschnitt 2.2](docs/SPEZIFIKATION.md#22-ux-grundsätze--eine-blaupause)).
 
@@ -127,10 +127,11 @@ npm run vorschau:gehostet
     Vorbefund hat keine Textebene. Und genau eine Abweichung: Metformin steht im Entlassbrief, nicht
     im Plan. Darunter Vorschläge für die Listen.
 11. **Versichertensicht**: aufgebaut wie ein FdV — Einstieg ist die Dokumentenliste, der Aktenlotse
-    ist ein Bereich daneben. Dort „Welche Medikamente nehme ich und wofür?" fragen; die
-    Quellenangabe unter der Antwort öffnet das Dokument im Bereich „Dokumente". Rolle auf
-    **Vertretung entzogen** umschalten: Akte und Lotse sind gleichermaßen leer — er hat keine
-    eigenen Rechte. Zurück zur eigenen Akte und „Werde ich wieder gesund?" fragen: **Keine
+    ist ein Bereich daneben. Dort „Was stand im Brief vom Krankenhaus?" fragen; die
+    Quellenangabe unter der Antwort öffnet den Entlassbrief im Bereich „Dokumente" mit den
+    markierten Stellen. Rolle auf **Vertretung entzogen** umschalten: Akte und Lotse sind
+    gleichermaßen leer — er hat keine eigenen Rechte (⚠ im Praxissystem nachgestellt, SPEZIFIKATION
+    8.5). Zurück zur eigenen Akte und „Werde ich wieder gesund?" fragen: **Keine
     Bewertung** — der Lotse verweist an die Ärztin oder den Arzt.
 12. **Nachfragen**: Versichertensicht → Dokumente → den Scan von 2019 öffnen → „Nachfragen" →
     „Stimmt das?" → Kardiologische Praxis mit Telefon. Bei „Befund" findet die Kontaktauskunft

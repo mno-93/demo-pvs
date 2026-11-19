@@ -180,6 +180,23 @@ describe('Kopfzeilen', () => {
     expect(fremd.statusCode).toBe(403);
     expect(JSON.stringify(fremd.json())).toContain('SVC_IDENTITY_MISMATCH');
   });
+
+  it('erteilt einer unbekannten Einrichtung keine Befugnis (setEntitlementPs: invalidOid)', async () => {
+    const jwt = [
+      base64({ alg: 'ES256' }),
+      base64({ auditEvidence: base64({ kvnr: HOFFMANN, kennung: 'unbekannt-1' }) }),
+      'c2lnbmF0dXI',
+    ]
+      .join('.')
+      .replace(/=/g, '');
+    const a = await app.inject({
+      method: 'POST',
+      url: '/epa/basic/api/v1/ps/entitlements',
+      headers: kopf({ 'x-demo-sitzung': '9-DEMO-UNBEKANNT', 'content-type': 'application/json' }),
+      payload: { jwt },
+    });
+    expect([a.statusCode, a.json().errorCode]).toEqual([403, 'invalidOid']);
+  });
 });
 
 describe('MHD', () => {
@@ -477,6 +494,82 @@ describe('✦ Diagnose-Service', () => {
     expect(parameter(p, 'entry')?.resourceType).toBe('AllergyIntolerance');
     expect(parameter(p, 'relatedActivity')?.resourceType).toBe('Provenance');
     expect(parameter(p, 'relatedChronology')?.id).not.toBe(chronologie!.id);
+  });
+
+  async function nachweis(liste: string, marker: string): Promise<string> {
+    const a = await app.inject({ method: 'GET', url: `${DIENST}/${liste}`, headers: kopf() });
+    return (a.json().entry as { resource: { id: string; extension?: { url: string }[] } }[])
+      .map((e) => e.resource)
+      .find((r) => r.extension?.some((x) => x.url.endsWith(marker)))!.id;
+  }
+
+  it('nimmt eine ausgeschlossene Diagnose ohne klinischen Status auf', async () => {
+    const a = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$add-condition-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          {
+            name: 'acknowledgedChronologyId',
+            valueId: await nachweis('$condition-list', 'is-condition-list-chronology'),
+          },
+          {
+            name: 'conditionEntry',
+            resource: {
+              resourceType: 'Condition',
+              verificationStatus: {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/condition-ver-status',
+                    code: 'refuted',
+                  },
+                ],
+              },
+              code: {
+                coding: [{ system: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm', code: 'I21.9' }],
+              },
+            },
+          },
+        ],
+      },
+    });
+    expect(a.statusCode).toBe(200);
+  });
+
+  it('lässt die Relevanzmarkierung bei $update stehen, auch ohne Extension in der Eingabe', async () => {
+    const liste = await app.inject({
+      method: 'GET',
+      url: `${DIENST}/$condition-list`,
+      headers: kopf(),
+    });
+    const eintrag = (
+      liste.json().entry as { resource: { id: string; extension?: unknown[] } }[]
+    ).find((e) => e.resource.id === 'cond-h-1')!.resource;
+    const ohneMarkierung: Record<string, unknown> = { ...eintrag };
+    delete ohneMarkierung['extension'];
+    const a = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$update-condition-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          {
+            name: 'acknowledgedChronologyId',
+            valueId: await nachweis('$condition-list', 'is-condition-list-chronology'),
+          },
+          {
+            name: 'conditionEntry',
+            resource: { ...ohneMarkierung, note: [{ text: 'Kontrolle' }] },
+          },
+        ],
+      },
+    });
+    expect(a.statusCode).toBe(200);
+    const neu = parameter(a.json().parameter as Parameter[], 'entry')!;
+    expect(JSON.stringify((neu as Record<string, unknown>)['extension'])).toContain('ps-relevant');
   });
 });
 
@@ -912,6 +1005,138 @@ describe('✦ Patient Summary', () => {
     expect(beides.statusCode).toBe(400);
     // Dieselbe Einrichtung steht einmal, auch wenn eine Quelle sie ohne Telematik-ID nennt.
     for (const v of verlauf) expect(new Set(v.wer.map((w) => w.anzeige)).size).toBe(v.wer.length);
+  });
+
+  it('✦ lässt frühere Stände gleich, wenn ein markierter Eintrag des Startbestands entmarkiert wird', async () => {
+    const allergien = (ps: ReturnType<typeof patientSummaryLesen>) =>
+      ps!.abschnitte
+        .find((x) => x.schluessel === 'allergien')!
+        .eintraege.map((r) => String(r.id))
+        .sort();
+    const vorher = psVerlaufLesen(
+      (
+        await app.inject({ method: 'GET', url: `${PS}/Patient/$summary-log`, headers: kopf() })
+      ).json(),
+    );
+    const stand = vorher[0]!.zeit;
+    expect(allergien(await summaryZum(stand))).toEqual(['allg-h-1', 'allg-h-2']);
+
+    const liste = (
+      await app.inject({ method: 'GET', url: `${DIENST}/$allergy-list`, headers: kopf() })
+    ).json().entry as { resource: { id: string; extension?: { url: string }[] } }[];
+    const nachweis = liste
+      .map((e) => e.resource)
+      .find((r) => r.extension?.some((e) => e.url.endsWith('is-allergy-list-chronology')))!.id;
+    const entmarkiert = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$flag-allergy-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: nachweis },
+          { name: 'entry', valueReference: { reference: 'AllergyIntolerance/allg-h-1' } },
+          { name: 'psRelevant', valueBoolean: false },
+        ],
+      },
+    });
+    expect(entmarkiert.statusCode).toBe(200);
+
+    // Der frühere Stand bleibt, wie er war; die Entmarkierung steht als eigene Änderung im Verlauf.
+    expect(allergien(await summaryZum(stand))).toEqual(['allg-h-1', 'allg-h-2']);
+    const nachher = psVerlaufLesen(
+      (
+        await app.inject({ method: 'GET', url: `${PS}/Patient/$summary-log`, headers: kopf() })
+      ).json(),
+    );
+    expect(nachher).toHaveLength(vorher.length + 1);
+    expect(nachher[0]!.aenderungen).toContainEqual(
+      expect.objectContaining({ abschnitt: 'allergien', art: 'removed' }),
+    );
+    expect(allergien(await summary())).toEqual(['allg-h-2']);
+  });
+
+  it('✦ nimmt identifier wie der Patient Service des Ballots und POST an', async () => {
+    const holen = (url: string) => app.inject({ method: 'GET', url, headers: kopf() });
+    expect((await holen(`${PS}/Patient/$summary?identifier=${HOFFMANN}`)).statusCode).toBe(200);
+    expect(
+      (
+        await holen(
+          `${PS}/Patient/$summary?identifier=${encodeURIComponent(`http://fhir.de/sid/gkv/kvid-10|${HOFFMANN}`)}`,
+        )
+      ).statusCode,
+    ).toBe(200);
+    expect((await holen(`${PS}/Patient/$summary?identifier=B987654321`)).statusCode).toBe(400);
+    const post = await app.inject({
+      method: 'POST',
+      url: `${PS}/Patient/$summary`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [{ name: 'identifier', valueString: HOFFMANN }],
+      },
+    });
+    expect(post.statusCode).toBe(200);
+    expect(post.json().type).toBe('document');
+  });
+
+  it('✦ führt Chronologieeinträge der Listen nicht als Änderungseinträge im Dokument', async () => {
+    const ps = await summary();
+    const chronologien = ps.ressourcen.filter(
+      (r) =>
+        r.resourceType === 'Provenance' &&
+        JSON.stringify(r['extension'] ?? '').includes('-list-chronology'),
+    );
+    expect(chronologien).toEqual([]);
+  });
+
+  it('✦ teilt die Diagnosen in aktive und vergangene, wie das Informationsmodell', async () => {
+    const liste = (
+      await app.inject({ method: 'GET', url: `${DIENST}/$condition-list`, headers: kopf() })
+    ).json().entry as { resource: Record<string, unknown> & { id: string } }[];
+    const nachweis = liste
+      .map((e) => e.resource)
+      .find((r) =>
+        JSON.stringify(r['extension'] ?? '').includes('is-condition-list-chronology'),
+      )!.id;
+    const vorhofflimmern = liste.find((e) => e.resource.id === 'cond-h-1')!.resource;
+    const behoben = await app.inject({
+      method: 'POST',
+      url: `${DIENST}/$update-condition-entry`,
+      headers: kopf(),
+      payload: {
+        resourceType: 'Parameters',
+        parameter: [
+          { name: 'acknowledgedChronologyId', valueId: nachweis },
+          {
+            name: 'conditionEntry',
+            resource: {
+              ...vorhofflimmern,
+              clinicalStatus: {
+                coding: [
+                  {
+                    system: 'http://terminology.hl7.org/CodeSystem/condition-clinical',
+                    code: 'resolved',
+                  },
+                ],
+              },
+              abatementDateTime: '2026-09-01',
+            },
+          },
+        ],
+      },
+    });
+    expect(behoben.statusCode).toBe(200);
+    const b = (
+      await app.inject({ method: 'GET', url: `${PS}/Patient/$summary`, headers: kopf() })
+    ).json();
+    const abschnitt = b.entry[0].resource.section.find(
+      (s: { code: { coding: { code: string }[] } }) => s.code.coding[0]!.code === '11450-4',
+    );
+    expect(abschnitt.text.div).toContain('Aktive Diagnosen');
+    expect(abschnitt.text.div).toContain('Vergangene Diagnosen');
+    // Aktive zuerst, die behobene danach.
+    expect(abschnitt.entry.at(-1).reference).toBe('Condition/cond-h-1');
   });
 
   it('✦ weist einen Stand ohne Uhrzeit oder Zeitzone ab', async () => {
@@ -1446,6 +1671,23 @@ describe('Medication Service — Instanzhistorie und Rücksetzen (1.4.0)', () =>
       'erp-submission': 'permit',
       medication: 'deny',
     });
+  });
+
+  it('löscht mit dem Widerspruch gegen das Einstellen die dgMP-Daten samt Historie', async () => {
+    const historie = async () =>
+      (await lesen('/epa/query/api/v1/fhir/MedicationRequest/_history')).json().total as number;
+    expect(await historie()).toBeGreaterThan(0);
+    const akte = (koerper: Record<string, string>) =>
+      app.inject({
+        method: 'POST',
+        url: '/verwaltung/akte',
+        payload: { kvnr: HOFFMANN, ...koerper },
+      });
+    await akte({ 'erp-submission': 'deny' });
+    await akte({ 'erp-submission': 'permit' });
+    // Nach erneuter Zustimmung ist die Akte leer — auch frühere Fassungen kommen nicht zurück.
+    expect((await lesen('/epa/query/api/v1/fhir/MedicationRequest')).json().total).toBe(0);
+    expect(await historie()).toBe(0);
   });
 
   it('führt die Einstellung der Zwischenüberschriften je Aktenkonto, Standard true', async () => {

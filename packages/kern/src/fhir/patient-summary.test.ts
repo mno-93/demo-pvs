@@ -5,6 +5,7 @@ import {
   PS_QUELLE_EXTENSION,
   PS_QUELLE_SYSTEM,
   PS_WEITERE_EXTENSION,
+  diagnosenTeilen,
   istPsRelevant,
   patientSummaryLesen,
   psRelevanzSetzen,
@@ -109,5 +110,34 @@ describe('Relevanzmarkierung', () => {
     const d = ps.abschnitte.find((a) => a.schluessel === 'diagnosen')!;
     expect(d.weitere).toBe(3);
     expect(d.eintraege).toHaveLength(0);
+  });
+});
+
+describe('Aktive und vergangene Diagnosen (Informationsmodell)', () => {
+  const diagnose = (id: string, status?: string) => ({
+    resourceType: 'Condition',
+    id,
+    ...(status
+      ? {
+          clinicalStatus: {
+            coding: [
+              { system: 'http://terminology.hl7.org/CodeSystem/condition-clinical', code: status },
+            ],
+          },
+        }
+      : {}),
+  });
+
+  it('teilt nach dem klinischen Status; ohne Status gilt eine Diagnose als aktiv', () => {
+    const { aktiv, vergangen } = diagnosenTeilen([
+      diagnose('a', 'active'),
+      diagnose('b', 'resolved'),
+      diagnose('c', 'recurrence'),
+      diagnose('d', 'remission'),
+      diagnose('e', 'inactive'),
+      diagnose('f'),
+    ]);
+    expect(aktiv.map((r) => r.id)).toEqual(['a', 'c', 'f']);
+    expect(vergangen.map((r) => r.id)).toEqual(['b', 'd', 'e']);
   });
 });

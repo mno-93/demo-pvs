@@ -11,6 +11,7 @@ import {
   provideAndRegisterErzeugen,
   registryResponseLesen,
   type XdsEinreichung,
+  dokumenttypen,
 } from '@demo-pvs/kern';
 import { simulatorBauen } from './anwendung.ts';
 import { befugnisErteilen } from './befugnis.ts';
@@ -324,6 +325,41 @@ describe('ITI-41: Metadaten und Prüfungen (IHE ITI TF-3, IGs des XDS Document S
     expect(antwort.erfolg).toBe(false);
     expect(antwort.fehler[0]!.text).toMatch(/classCode und typeCode/);
   });
+
+  it('meldet ein unlesbares FHIR-Dokument als Fehler der Einreichung, nicht mit 500', async () => {
+    const kaputt = einreichung({ inhaltBase64: Buffer.from('{ kein json').toString('base64') });
+    const a = await senden(kaputt);
+    expect(a.statusCode).toBe(200);
+    const antwort = registryResponseLesen(a.body);
+    expect(antwort.erfolg).toBe(false);
+    expect(antwort.fehler[0]!.code).toBe('XDSRepositoryError');
+  });
+
+  it('nimmt jeden typeCode an, den der Implementation Guide nennt — auch einen abgekündigten', async () => {
+    const zahnbonus = dokumenttypen.find((t) => t.datei === 'ig-dentalrecord.json')!;
+    // Eingestellt wird mit dem gültigen Code, nicht mit dem abgekündigten an erster Stelle.
+    expect(zahnbonus.typeCode?.code).toBe('ABRE');
+    for (const [nummer, typeCode] of zahnbonus.typeCodes.entries()) {
+      const dokument = einreichung({
+        uniqueId: `2.25.20${nummer}`,
+        formatCode: {
+          code: zahnbonus.formatCode,
+          system: zahnbonus.formatSystem!,
+          anzeige: zahnbonus.formatAnzeige,
+        },
+        classCode: {
+          code: zahnbonus.classCode!.code!,
+          system: zahnbonus.classCode!.system!,
+          anzeige: zahnbonus.classCode!.anzeige!,
+        },
+        typeCode: { code: typeCode.code!, system: typeCode.system!, anzeige: typeCode.anzeige! },
+        mimeType: zahnbonus.mimeTypes[0]!,
+        inhaltBase64: Buffer.from('<zahnbonusheft/>').toString('base64'),
+      });
+      const antwort = registryResponseLesen((await senden(dokument)).body);
+      expect(antwort.fehler, typeCode.code!).toEqual([]);
+    }
+  });
 });
 
 describe('ITI-67: Suchparameter des Responders (IG de.gematik.epa.mhd 1.1.3)', () => {
@@ -339,6 +375,35 @@ describe('ITI-67: Suchparameter des Responders (IG de.gematik.epa.mhd 1.1.3)', (
     const a = await suchen('status=current&gibtesnicht=1');
     expect(a.statusCode).toBe(400);
     expect(a.json().issue[0].diagnostics).toMatch(/gibtesnicht/);
+    expect(a.json().issue[0].details.coding[0].code).toBe('MSG_PARAM_UNKNOWN');
+    // Auch neben der Suche nach der ePS (CapabilityStatement 1.2.0-ballot.1).
+    expect((await suchen('type=60591-5&gibtesnicht=1')).statusCode).toBe(400);
+    const fehlt = await app.inject({
+      method: 'GET',
+      url: '/epa/mhd/api/v1/fhir/DocumentReference/gibt-es-nicht',
+      headers: kopf,
+    });
+    expect([fehlt.statusCode, fehlt.json().issue[0].details.coding[0].code]).toEqual([
+      404,
+      'MSG_RESOURCE_ID_FAIL',
+    ]);
+  });
+
+  it('verknüpft wiederholte Parameter auch bei POST _search mit UND', async () => {
+    const post = async (formular: string) =>
+      (
+        await app.inject({
+          method: 'POST',
+          url: '/epa/mhd/api/v1/fhir/DocumentReference/_search',
+          headers: { ...kopf, 'content-type': 'application/x-www-form-urlencoded' },
+          payload: formular,
+        })
+      ).json().total as number;
+    // Vor 2000 und nach 2000 zugleich: nichts. Gälte nur der letzte Wert, kämen alle.
+    const get = await anzahl('creation=lt2000-01-01&creation=gt2000-01-01');
+    expect(get).toBe(0);
+    expect(await post('creation=lt2000-01-01&creation=gt2000-01-01')).toBe(get);
+    expect(await post('creation=gt2000-01-01')).toBeGreaterThan(0);
   });
 
   it('kennt Token mit System, Listen mit Komma, Datum, Namen und die Person', async () => {

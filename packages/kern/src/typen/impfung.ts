@@ -5,7 +5,9 @@ import type { Kodierung } from './kodierung.js';
  * Eine Impfung — in der Praxis dokumentiert oder aus der ✦ Impfliste der ePA übernommen.
  *
  * Abgebildet nach `immunization-eu-core` (HL7 Europe), wie ihn die Section „Immunizations" der
- * European Patient Summary verlangt: Impfstoff, Datum, Zielkrankheiten, Dosis, Charge.
+ * European Patient Summary verlangt: Impfstoff, Datum, Zielkrankheiten, Dosis, Charge. Das
+ * Informationsmodell der Patient Summary (Stand 17.11.2026) kennt Dosis und Charge nicht, dafür das
+ * verabreichte Produkt und die verantwortliche Einrichtung (DATENMODELL 8.4).
  */
 export interface Impfung {
   id: string;
