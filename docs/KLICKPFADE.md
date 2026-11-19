@@ -69,6 +69,12 @@ Browser ansehen. Nie nur das Abbild neu schreiben — dann stimmen die Erläuter
 Review gehört ein geändertes Abbild zur Durchsicht. Entfällt ein Ablauf, entfällt sein Klickpfad
 (Szenario, Abbild, Zeile oben).
 
+**Ein Rahmen, eine Ebene.** Die Versichertensicht hat einen eigenen Rahmen ohne die
+Navigation des Praxissystems. Beide Rahmen stehen in `App.tsx` im **selben Fragment**, die
+Ebene des Klickpfads an derselben Stelle dahinter — ein eigener Rückgabewert je Rahmen
+hängt sie beim Wechsel aus, und der Pfad beginnt von vorn. Wer einen weiteren Rahmen
+einführt, hält sich daran.
+
 ## Einen Klickpfad schreiben
 
 1. **Ablauf finden** — in [SPEZIFIKATION.md, Abschnitt 11](SPEZIFIKATION.md#11-vorführung) oder

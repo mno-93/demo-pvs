@@ -42,9 +42,13 @@ export function App() {
    * ✦ Die Versichertensicht ist kein Teil des Praxissystems, sondern stellvertretend die App der
    * Versicherten (FdV). Sie steht deshalb in einem eigenen Rahmen — ohne Praxis, Nutzerwahl und
    * Navigation des PVS — und ist über die Konfiguration erreichbar.
+   *
+   * Beide Rahmen stehen im selben Fragment, und die Ebene des Klickpfads steht an derselben
+   * Stelle dahinter. Nur so bleibt sie beim Wechsel in die Versichertensicht stehen: Ein eigener
+   * Rückgabewert je Rahmen hängt sie aus, der Pfad beginnt von vorn (ADR 0061).
    */
-  if (pathname === '/versicherte') {
-    return (
+  const rahmen =
+    pathname === '/versicherte' ? (
       <>
         <header className="kopf kopf-versicherte">
           <div className="kopf-oben">
@@ -65,40 +69,43 @@ export function App() {
         </main>
         <Aufrufprotokoll />
       </>
+    ) : (
+      <>
+        <Kopf />
+        {/* Nach dem Zurücksetzen beginnen die Ansichten neu, ohne Eingaben von vorher. */}
+        <main className="inhalt" key={durchgang}>
+          <Routes>
+            <Route path="/" element={<Tagesuebersicht />} />
+            <Route path="/patienten" element={<Patientenliste />} />
+            <Route path="/rezepte" element={<Rezeptstapel />} />
+            <Route path="/patient/:patientId" element={<Patientenkartei />}>
+              <Route index element={<Navigate to="karteikarte" replace />} />
+              <Route path="karteikarte" element={<Karteikarte />} />
+              <Route path="diagnosen" element={<Diagnosen />} />
+              <Route path="medikation" element={<Medikation />} />
+              <Route path="impfungen" element={<Impfungen />} />
+              <Route path="labor" element={<Labor />} />
+              <Route path="dokumente" element={<Dokumente />} />
+              <Route path="arztbrief" element={<Arztbrief />} />
+              <Route path="lotse" element={<PraxisLotse />} />
+              <Route path="epa" element={<EpaUmleitung />} />
+              <Route path="abrechnung" element={<Abrechnung />} />
+              <Route path="stammdaten" element={<Stammdaten />} />
+            </Route>
+            <Route
+              path="*"
+              element={<div className="karte">Diese Seite gibt es in der Demo nicht.</div>}
+            />
+          </Routes>
+        </main>
+        <EpaFenster />
+        <Aufrufprotokoll />
+      </>
     );
-  }
 
   return (
     <>
-      <Kopf />
-      {/* Nach dem Zurücksetzen beginnen die Ansichten neu, ohne Eingaben von vorher. */}
-      <main className="inhalt" key={durchgang}>
-        <Routes>
-          <Route path="/" element={<Tagesuebersicht />} />
-          <Route path="/patienten" element={<Patientenliste />} />
-          <Route path="/rezepte" element={<Rezeptstapel />} />
-          <Route path="/patient/:patientId" element={<Patientenkartei />}>
-            <Route index element={<Navigate to="karteikarte" replace />} />
-            <Route path="karteikarte" element={<Karteikarte />} />
-            <Route path="diagnosen" element={<Diagnosen />} />
-            <Route path="medikation" element={<Medikation />} />
-            <Route path="impfungen" element={<Impfungen />} />
-            <Route path="labor" element={<Labor />} />
-            <Route path="dokumente" element={<Dokumente />} />
-            <Route path="arztbrief" element={<Arztbrief />} />
-            <Route path="lotse" element={<PraxisLotse />} />
-            <Route path="epa" element={<EpaUmleitung />} />
-            <Route path="abrechnung" element={<Abrechnung />} />
-            <Route path="stammdaten" element={<Stammdaten />} />
-          </Route>
-          <Route
-            path="*"
-            element={<div className="karte">Diese Seite gibt es in der Demo nicht.</div>}
-          />
-        </Routes>
-      </main>
-      <EpaFenster />
-      <Aufrufprotokoll />
+      {rahmen}
       {KLICKPFAD && (
         <Suspense fallback={null}>
           <KlickpfadEbene id={KLICKPFAD.id} modus={KLICKPFAD.modus} />

@@ -355,8 +355,8 @@ export function Versichertensicht() {
                 )}
                 {lotseDa && (
                   <div hidden={bereich !== 'lotse'}>
-                    // Neu aufgebaut nach jeder Umstellung: Eine alte Antwort beruht auf altem
-                    Stand.
+                    {/* Neu aufgebaut nach jeder Umstellung: Eine alte Antwort beruht auf
+                        altem Stand. */}
                     <Lotsenbereich
                       key={betriebsstand}
                       kvnr={kvnr}
