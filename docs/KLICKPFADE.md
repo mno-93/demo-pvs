@@ -8,14 +8,15 @@ gegen den Simulator geprüft ([ADR 0061](entscheidungen/0061-klickpfade.md)).
 | Kennung                        | Frage                                                                                                                                                         | Ausbaustand                         | Schritte |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | -------- |
 | `demo-ueberblick`              | **Rundgang:** Was zeigt die Demo, nach welchem Prinzip ist sie gebaut — und was haben ePA- und FHIR-Arbeit davon?                                             | Release 3.1.3 → Weiterentwicklung 3 | 36       |
-| `auskunft-aus-volltextsuche`   | **Von der Volltextsuche zur belegten Auskunft:** Was leistet die Suche heute, was käme als nächste Stufe dazu — und wo hört sie auf?                          | Weiterentwicklung 4                 | 18       |
+| `auskunft-aus-volltextsuche`   | **Von der Volltextsuche zur belegten Auskunft:** Was leistet die Suche heute, was käme als nächste Stufe dazu — und wo hört sie auf?                          | Weiterentwicklung 4                 | 21       |
 | `diagnose-in-ps`               | Wie kommt eine neue Dauerdiagnose in die Patient Summary — und was kostet das die Praxis?                                                                     | Weiterentwicklung 3                 | 7        |
 | `fremde-aenderung-automatisch` | Was passiert in meiner Praxis, wenn eine andere Einrichtung eine Dauerdiagnose beendet — und die Diagnosen automatisch in beide Richtungen übertragen werden? | Weiterentwicklung 3                 | 7        |
 | `ps-verlauf`                   | Wie sah die Patient Summary früher aus — und wer hat sie seitdem geändert?                                                                                    | Weiterentwicklung 3                 | 7        |
 
 `auskunft-aus-volltextsuche` ist für die **Übergabe an Dritte** geschrieben: Er geht den
 Weg von der vorhandenen Volltextsuche über die ✦ belegte Auskunft bis zur Grenze zur
-Bewertung und zeigt dieselbe Antwort zuletzt in der Versichertensicht. Er führt nichts
+Bewertung, zeigt unterwegs die ✦ unklar beschrifteten Unterlagen und schließt mit derselben
+Antwort in der Versichertensicht, dort mit der Übersetzung der Fachbegriffe. Er führt nichts
 Neues vor, sondern ordnet Vorhandenes zu einer Ausbaustufe. Geführt und frei, keine
 Aufgabe.
 

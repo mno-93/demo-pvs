@@ -524,7 +524,7 @@ function Lotsenbereich({
       {fehler && <p className="lotse-fehler">{fehler}</p>}
 
       {antwort && !laeuft && (
-        <section className="lotse-antwort" aria-live="polite">
+        <section className="lotse-antwort" aria-label="Antwort" aria-live="polite">
           <div className="lotse-antwort-kopf">
             <h3>{antwort.frage}</h3>
             <Vorlesen text={antwortAlsText(antwort)} />

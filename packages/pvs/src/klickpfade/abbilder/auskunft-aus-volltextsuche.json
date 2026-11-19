@@ -67,6 +67,13 @@
     },
     {
       "schritt": 8,
+      "kurz": "Unterlagen, deren Metadaten nichts sagen",
+      "ziel": "Bereich „Unklar beschriftet“",
+      "inhalt": "Unklar beschriftet 3 „ Scan_20230914_0007 “ — laut Inhalt: Sonographie des Abdomens vom 14.09.2023 Der Titel „Scan_20230914_0007“ sagt nichts über den Inhalt · Das Datum der Metadaten (03.02.2025) passt nicht zum Dokument (14.09.2023) öffnen „ Befund “ — laut Inhalt: Diabetisches Netzhaut-Screening vom 05.11.2024 Der Titel „Befund“ sagt nichts über den Inhalt · Die Einrichtung steht nur als Abkürzung da („AGP“) · Die Dokumentklasse „Administratives Dokument“ passt nicht zum Inhalt öffnen „ Anlage 1 “ — laut Inhalt: Fußuntersuchung bei Diabetes mellitus vom 20.01.2026 Der Titel „Anlage 1“ sagt nichts über den Inhalt · Verfasser und Einrichtung sind nicht erkennbar · Das Datum 01.01.2026 wirkt wie ein Platzhalter öffnen",
+      "epa": []
+    },
+    {
+      "schritt": 9,
       "kurz": "Den Beleg öffnen",
       "ziel": "Knopf „Laborgesamtbefund, Laborgemeinschaft Nordwest, 12.08.2026“",
       "epa": [
@@ -74,27 +81,27 @@
       ]
     },
     {
-      "schritt": 9,
+      "schritt": 10,
       "kurz": "Die Stelle ist markiert",
       "ziel": "Bereich „Geöffnete Unterlage“",
       "inhalt": "Laborgesamtbefund Dr. rer. nat. Kai Petersen, Laborgemeinschaft Nordwest · 12.08.2026 ← zurück zur Antwort Befund PDF-Ansicht Stellen zur Antwort markiert Original-PDF Laborbefund Laborgemeinschaft Nordwest Auftrag L-2026-08-12-0047 Kreatinin im Serum: 1,42 mg/dl eGFR nach CKD-EPI: 38 ml/min/1,73 m² Kalium im Serum: 4,2 mmol/l HbA1c: 7,8 % FHIR-Ressource ansehen",
       "epa": []
     },
     {
-      "schritt": 10,
+      "schritt": 11,
       "kurz": "Zurück zur Antwort",
       "ziel": "Knopf „← zurück zur Antwort“",
       "epa": []
     },
     {
-      "schritt": 11,
+      "schritt": 12,
       "kurz": "Eine bewertende Frage stellen",
       "ziel": "Feld „Frage an die Akte“",
       "beschriftung": "Frage an die Akte",
       "epa": []
     },
     {
-      "schritt": 12,
+      "schritt": 13,
       "kurz": "Fragen",
       "ziel": "Knopf „Fragen“",
       "epa": [
@@ -102,19 +109,19 @@
       ]
     },
     {
-      "schritt": 13,
+      "schritt": 14,
       "kurz": "Die ePA schließen",
       "ziel": "Knopf „ePA schließen“",
       "epa": []
     },
     {
-      "schritt": 14,
+      "schritt": 15,
       "kurz": "Konfiguration öffnen",
       "ziel": "Knopf „Konfiguration“",
       "epa": []
     },
     {
-      "schritt": 15,
+      "schritt": 16,
       "kurz": "In die Sicht der Versicherten",
       "ziel": "Verweis „Meine ePA öffnen“",
       "epa": [
@@ -123,13 +130,20 @@
       ]
     },
     {
-      "schritt": 16,
+      "schritt": 17,
+      "kurz": "Dieselbe Aussage in der Dokumentenliste",
+      "ziel": "Knopf „^Scan_20230914_0007“",
+      "inhalt": "Scan_20230914_0007 ✦ laut Inhalt: Sonographie des Abdomens vom 14.09.2023 Dr. med. Petra Lang, Praxis Dr. Lang · 03.02.2025",
+      "epa": []
+    },
+    {
+      "schritt": 18,
       "kurz": "Bereich „Aktenlotse“",
       "ziel": "Knopf „^Aktenlotse“ in Navigation „Bereiche der Akte“",
       "epa": []
     },
     {
-      "schritt": 17,
+      "schritt": 19,
       "kurz": "Dieselbe Maschinerie, andere Sprache",
       "ziel": "Knopf „Was vertrage ich nicht?“",
       "epa": [
@@ -137,7 +151,14 @@
       ]
     },
     {
-      "schritt": 18,
+      "schritt": 20,
+      "kurz": "Fachbegriff und Übersetzung zugleich",
+      "ziel": "Bereich „Antwort“",
+      "inhalt": "Was vertrage ich nicht? In den Unterlagen sind zwei Unverträglichkeiten festgehalten. Auf Penicillin ist makulopapulöses Exanthem (fleckiger Hautausschlag) unter Ampicillin/Sulbactam i. v. (über die Vene) (14.07.2026) vermerkt. Auf Iodhaltiges Kontrastmittel (Mittel, das Gewebe im Röntgenbild sichtbar macht) ist Übelkeit nach CT-Angiographie (13.07.2026), Unverträglichkeit (der Körper reagiert empfindlich darauf) vermerkt. Im Dokument nachlesen: Entlassbrief stationäre Behandlung , Klinikum Sonnenschein , 17.07.2026 Im Entlassbrief stationäre Behandlung vom 05.04.2019 steht: Allergien sind nicht bekannt. Im Dokument nachlesen: Entlassbrief stationäre Behandlung , Kreisklinikum Weserbogen , 05.04.2019 Diabetes mellitus Typ 2 Zuckerkrankheit (Typ 2) makulopapulöses Exanthem fleckiger Hautausschlag Vorhofflimmern, persistierend anhaltender unregelmäßiger Herzschlag Elektrische Kardioversion Stromstoß, der den Herzrhythmus ordnet Belastungsdyspnoe Atemnot bei Anstrengung Unterschenkelödeme Wassereinlagerungen in den Unterschenkeln Echokardiographie Ultraschall des Herzens Harnwegsinfektion Blasenentzündung Antikoagulation Blutverdünnung Hyperlipidämie erhöhte Blutfettwerte Arterielle Hypertonie Bluthochdruck Nierenfunktion Arbeit der Nieren Langzeit-EKG EKG über einen ganzen Tag Kontrastmittel Mittel, das Gewebe im Röntgenbild sichtbar macht Entlassmedikation Medikamente für zu Hause Prozeduren Eingriffe Implantate eingesetzte Geräte Stationärer Aufenthalt Aufenthalt mit Übernach",
+      "epa": []
+    },
+    {
+      "schritt": 21,
       "kurz": "Was daraus eine Festlegung macht",
       "erzaehlung": true
     }

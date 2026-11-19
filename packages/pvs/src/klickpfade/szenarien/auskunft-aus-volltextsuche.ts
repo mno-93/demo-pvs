@@ -83,6 +83,17 @@ Was sie nicht beantwortet: wie sich der Wert entwickelt hat. Dafür müsste jema
       mehr: [{ text: 'Umfangsangabe', pfad: 'docs/SPEZIFIKATION.md#8--aktenlotse' }],
     },
     {
+      ziel: { rolle: 'region', name: 'Unklar beschriftet' },
+      pruefen: { text: 'laut Inhalt' },
+      kurz: 'Unterlagen, deren Metadaten nichts sagen',
+      lang: `Drei Unterlagen heißen „Scan_20230914_0007“, „Befund“ und „Anlage 1“ — in einer Liste öffnet die niemand. Der Lotse nennt, was laut Inhalt darin steht, und die Gründe: Titel ohne Aussage, Verfasser nicht erkennbar, Platzhalterdatum.
+
+▸ Er berichtigt nichts. Die Metadaten gehören der einstellenden Einrichtung; sichtbar machen ist etwas anderes als ändern.`,
+      mehr: [
+        { text: 'Unklar beschriftete Unterlagen', pfad: 'docs/SPEZIFIKATION.md#8--aktenlotse' },
+      ],
+    },
+    {
       kapitel: 'Nachlesen',
       ziel: { rolle: 'button', name: 'Laborgesamtbefund, Laborgemeinschaft Nordwest, 12.08.2026' },
       handlung: { art: 'klicken' },
@@ -145,6 +156,12 @@ Was sie nicht beantwortet: wie sich der Wert entwickelt hat. Dafür müsste jema
       lang: 'Eigener Rahmen, keine Praxis, keine Navigation des Praxissystems. Der Einstieg ist die Dokumentenliste — das, was eine versicherte Person heute vorfindet.',
     },
     {
+      ziel: { rolle: 'button', name: /^Scan_20230914_0007/ },
+      pruefen: { text: 'laut Inhalt' },
+      kurz: 'Dieselbe Aussage in der Dokumentenliste',
+      lang: 'Der Hinweis steht nicht nur im Lotsen, sondern in jeder Dokumentenliste — hier, im ePA-Fenster und in der Kartei, aus derselben Quelle. Für die versicherte Person ist das oft der eigentliche Nutzen: Sie sieht zum ersten Mal, was in „Anlage 1“ steht.',
+    },
+    {
       ziel: {
         rolle: 'button',
         name: /^Aktenlotse/,
@@ -161,6 +178,14 @@ Was sie nicht beantwortet: wie sich der Wert entwickelt hat. Dafür müsste jema
       lang: `Dieselbe Antwortbildung, dieselben Belege, dieselbe Umfangsangabe — nur in Alltagssprache. Kein zweiter Dienst, eine andere Sprachebene.
 
 ▸ Das ist der Grund, warum beide Sichten in einer Festlegung stehen müssen: Wären es zwei Dienste, könnten sie auseinanderlaufen.`,
+    },
+    {
+      ziel: { rolle: 'region', name: 'Antwort' },
+      pruefen: { text: 'Hautausschlag' },
+      kurz: 'Fachbegriff und Übersetzung zugleich',
+      lang: `„Makulopapulöses Exanthem (fleckiger Hautausschlag)“ — die Umschreibung steht hinter dem Fachbegriff, nicht an seiner Stelle. In der Praxissicht fehlt sie; dort steht der Text wie im Dokument.
+
+▸ Beides muss stehen bleiben: Wer im Originaldokument nachliest, findet dort den Fachbegriff wieder. Eine ersetzte Antwort wäre nicht mehr belegbar.`,
     },
     {
       kurz: 'Was daraus eine Festlegung macht',
