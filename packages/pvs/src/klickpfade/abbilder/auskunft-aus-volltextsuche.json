@@ -1,0 +1,145 @@
+{
+  "klickpfad": "auskunft-aus-volltextsuche",
+  "titel": "Von der Volltextsuche zur belegten Auskunft",
+  "schritte": [
+    {
+      "schritt": 1,
+      "kurz": "Die ePA öffnen",
+      "ziel": "Knopf „ePA öffnen“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/patient-summary/api/v1/fhir/Patient/$summary",
+        "200 GET …/fhir/$medication-list",
+        "200 GET …/fhir/$medication-plan",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 2,
+      "kurz": "Bereich „Dokumente“",
+      "ziel": "Knopf „Dokumente“ in Navigation „Bereiche der ePA“",
+      "epa": [
+        "200 GET /epa/vorschlag/aktenlotse/api/v1/beschriftung"
+      ]
+    },
+    {
+      "schritt": 3,
+      "kurz": "„niere“ eingeben",
+      "ziel": "Suchfeld „Volltextsuche in der ePA“",
+      "epa": []
+    },
+    {
+      "schritt": 4,
+      "kurz": "Suchen",
+      "ziel": "Knopf „Suchen“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current&_content=niere"
+      ]
+    },
+    {
+      "schritt": 5,
+      "kurz": "Bereich „Aktenlotse ✦“",
+      "ziel": "Knopf „^Aktenlotse“ in Navigation „Bereiche der ePA“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/aktenlotse/api/v1/beschriftung",
+        "200 GET /epa/vorschlag/aktenlotse/api/v1/kontext?anlass=nach%20Krankenhausaufenthalt",
+        "200 GET /epa/vorschlag/aktenlotse/api/v1/vorschlaege",
+        "200 GET ✦ …/diagnosis/$allergy-list",
+        "200 GET ✦ …/diagnosis/$condition-list"
+      ]
+    },
+    {
+      "schritt": 6,
+      "kurz": "Dieselbe Frage, anders gestellt",
+      "ziel": "Knopf „Wie haben sich die Nierenwerte entwickelt?“",
+      "epa": [
+        "200 POST /epa/vorschlag/aktenlotse/api/v1/frage"
+      ]
+    },
+    {
+      "schritt": 7,
+      "kurz": "Umfangsangabe an der Antwort",
+      "ziel": "Fenster „Elektronische Patientenakte“",
+      "inhalt": "ePA Elektronische Patientenakte Hoffmann , Renate · 14.03.1958 · KVNR A123456780 ePA-Befugnis bis 07.12.2026 Zugriff besteht Stand <zeit> ↻ aktualisieren Aufrufe × Patient Summary Übersicht Dokumente Medikation Diagnosen und Allergien Laborbefunde Inhalte aus Dokumenten Aktenlotse ✦ Aktenlotse ✦ Vorschlag · regelbasiert 9 von 10 Unterlagen gelesen · 1 nicht gelesen Zu klären 1 Metformin 1000 mg Filmtabletten 1-0-1-0 — im Dokument, nicht im Plan Entlassbrief · 17.07.2026 Kontext · nach Krankenhausaufenthalt Renate Hoffmann war vom 12.07.2026 bis zum 18.07.2026 stationär im Klinikum Sonnenschein. Entlassbrief · 17.07.2026 Festgehalten sind acht Diagnosen: Vorhofflimmern, persistierend (EHRA III, CHA2DS2-VASc-Score 4; paroxysmal bekannt seit 06/2026), Harnwegsinfektion, Lokalisation nicht näher bezeichnet (E. coli, unter Antibiose rückläufig), Diabetes mellitus, Typ 2: Mit multiplen Komplikationen (ED 2011, HbA1c 7,6 %), Essentielle Hypertonie, Chronische Nierenkrankheit, Stadium 3 (eGFR 42 ml/min/1,73 m² bei Aufnahme), Gemischte Hyperlipidämie, Vorhandensein eines kardialen elektronischen Gerätes (Zweikammer-Herzschrittmacher seit 04/2019) und Obstipation (unter Macrogol rückläufig). Entlassbrief · 17.07.2026 Am 13.07.2026 wurde CT-Angiographie des Thorax mit Kontrastmittel durchgeführt. Entlassbrief · 17.07.2026 Am 17.07.2026 wurde Transösophageale Echokardiographie durchgeführt. Entlassbrief · 17.07.2026 4 weitere Angaben Unklar beschriftet 3 „ Scan_20230914_0007 “ — laut Inh",
+      "epa": []
+    },
+    {
+      "schritt": 8,
+      "kurz": "Den Beleg öffnen",
+      "ziel": "Knopf „Laborgesamtbefund, Laborgemeinschaft Nordwest, 12.08.2026“",
+      "epa": [
+        "200 GET /epa/mhd/retrieve/v1/content/<uuid>.json"
+      ]
+    },
+    {
+      "schritt": 9,
+      "kurz": "Die Stelle ist markiert",
+      "ziel": "Bereich „Geöffnete Unterlage“",
+      "inhalt": "Laborgesamtbefund Dr. rer. nat. Kai Petersen, Laborgemeinschaft Nordwest · 12.08.2026 ← zurück zur Antwort Befund PDF-Ansicht Stellen zur Antwort markiert Original-PDF Laborbefund Laborgemeinschaft Nordwest Auftrag L-2026-08-12-0047 Kreatinin im Serum: 1,42 mg/dl eGFR nach CKD-EPI: 38 ml/min/1,73 m² Kalium im Serum: 4,2 mmol/l HbA1c: 7,8 % FHIR-Ressource ansehen",
+      "epa": []
+    },
+    {
+      "schritt": 10,
+      "kurz": "Zurück zur Antwort",
+      "ziel": "Knopf „← zurück zur Antwort“",
+      "epa": []
+    },
+    {
+      "schritt": 11,
+      "kurz": "Eine bewertende Frage stellen",
+      "ziel": "Feld „Frage an die Akte“",
+      "beschriftung": "Frage an die Akte",
+      "epa": []
+    },
+    {
+      "schritt": 12,
+      "kurz": "Fragen",
+      "ziel": "Knopf „Fragen“",
+      "epa": [
+        "200 POST /epa/vorschlag/aktenlotse/api/v1/frage"
+      ]
+    },
+    {
+      "schritt": 13,
+      "kurz": "Die ePA schließen",
+      "ziel": "Knopf „ePA schließen“",
+      "epa": []
+    },
+    {
+      "schritt": 14,
+      "kurz": "Konfiguration öffnen",
+      "ziel": "Knopf „Konfiguration“",
+      "epa": []
+    },
+    {
+      "schritt": 15,
+      "kurz": "In die Sicht der Versicherten",
+      "ziel": "Verweis „Meine ePA öffnen“",
+      "epa": [
+        "200 GET /epa/mhd/api/v1/fhir/DocumentReference?status=current",
+        "200 GET /epa/vorschlag/aktenlotse/api/v1/beschriftung"
+      ]
+    },
+    {
+      "schritt": 16,
+      "kurz": "Bereich „Aktenlotse“",
+      "ziel": "Knopf „^Aktenlotse“ in Navigation „Bereiche der Akte“",
+      "epa": []
+    },
+    {
+      "schritt": 17,
+      "kurz": "Dieselbe Maschinerie, andere Sprache",
+      "ziel": "Knopf „Was vertrage ich nicht?“",
+      "epa": [
+        "200 POST /epa/vorschlag/aktenlotse/api/v1/frage"
+      ]
+    },
+    {
+      "schritt": 18,
+      "kurz": "Was daraus eine Festlegung macht",
+      "erzaehlung": true
+    }
+  ]
+}
